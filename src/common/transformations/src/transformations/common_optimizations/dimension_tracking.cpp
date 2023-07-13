@@ -6,11 +6,6 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -25,6 +20,16 @@
 #include "ov_ops/fused_MHA_with_RPE.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
@@ -37,7 +42,7 @@ void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov:
     }
 }
 
-void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
+void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
                                 P2Btype& map,
                                 const std::unordered_set<label_t>& batches) {
     auto& shape = parameter->get_partial_shape();
@@ -69,7 +74,7 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& pa
     parameter->validate_and_infer_types();
 }
 
-void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
+void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
                                                    const std::shared_ptr<ov::Node>& result,
                                                    P2Btype& map) {
     TensorLabel p_labels, r_labels;
@@ -89,7 +94,7 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::ops
     mark_no_batch(parameter, map);
 }
 
-void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter, P2Btype& map) {
+void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter, P2Btype& map) {
     if (map.count(parameter))
         map.erase(parameter);
     auto& shape = parameter->get_partial_shape();
@@ -101,12 +106,12 @@ void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>&
 
 P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
     std::unordered_map<ov::Node::type_info_t, std::pair<size_t, size_t>> type_input_port_batch_index = {
-        {ov::opset1::Convolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::GroupConvolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::ConvolutionBackpropData::get_type_info_static(), {0, 0}},
-        {ov::opset1::GroupConvolutionBackpropData::get_type_info_static(), {0, 0}},
-        {ov::opset1::DeformableConvolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::MatMul::get_type_info_static(), {0, 0}},  // transpose_a situation
+        {ov::op::v1::Convolution::get_type_info_static(), {0, 0}},
+        {ov::op::v1::GroupConvolution::get_type_info_static(), {0, 0}},
+        {ov::op::v1::ConvolutionBackpropData::get_type_info_static(), {0, 0}},
+        {ov::op::v1::GroupConvolutionBackpropData::get_type_info_static(), {0, 0}},
+        {ov::op::v1::DeformableConvolution::get_type_info_static(), {0, 0}},
+        {ov::op::v0::MatMul::get_type_info_static(), {0, 0}},  // transpose_a situation
     };
 
     P2Btype parameter_to_batch_labels;
@@ -149,15 +154,15 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                 continue;  // label propagation stopped
             }
 
-            if (ov::is_type<ov::opset1::Result>(curr_node))
+            if (ov::is_type<ov::op::v0::Result>(curr_node))
                 layout_independent_results.push_back(curr_node);
 
             for (const auto& output : curr_node->outputs()) {
                 // we do not need to walk through shape-of sub-graphs
                 for (const auto& t_input : output.get_target_inputs()) {
-                    if (ov::is_type<ov::opset1::ConvertLike>(t_input.get_node()) ||
-                        ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
-                        ov::is_type<ov::opset3::ShapeOf>(t_input.get_node()))
+                    if (ov::is_type<ov::op::v1::ConvertLike>(t_input.get_node()) ||
+                        ov::is_type<ov::op::v0::ShapeOf>(t_input.get_node()) ||
+                        ov::is_type<ov::op::v3::ShapeOf>(t_input.get_node()))
                         continue;
                     nodes.push_back(t_input.get_node());
                 }
@@ -173,7 +178,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
 }
 
 void ov::batch_util::restore_original_dimensions(
-    const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape,
+    const std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape>& parameter_to_shape,
     bool leave_batch_dynamic) {
     for (const auto& item : parameter_to_shape) {
         const auto& batch_marked_shape = item.first->get_partial_shape();
@@ -219,8 +224,8 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
                     name_stays = true;
             all_outputs_has_batch &= name_stays;  // && others_are_static;
         }
-        if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::opset3::ShapeOf>(node) &&
-            !ov::is_type<ov::opset1::ShapeOf>(node) && !ov::is_type<ov::opset1::ConvertLike>(node)) {
+        if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::op::v3::ShapeOf>(node) &&
+            !ov::is_type<ov::op::v0::ShapeOf>(node) && !ov::is_type<ov::op::v1::ConvertLike>(node)) {
             failed_to_propagate_batch = true;
             node->validate_and_infer_types();
         }
@@ -240,11 +245,11 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     ResultVector new_outputs, outputs_to_delete;
     for (auto& result_node : f->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
-        if (ov::is_type<opset1::Convert>(do_node))  // cases with do->convert->result
+        if (ov::is_type<ov::op::v0::Convert>(do_node))  // cases with do->convert->result
             do_node = do_node->get_input_node_shared_ptr(0);
-        if (ov::is_type<opset1::DetectionOutput>(do_node) || ov::is_type<opset8::DetectionOutput>(do_node)) {
+        if (ov::is_type<ov::op::v0::DetectionOutput>(do_node) || ov::is_type<ov::op::v8::DetectionOutput>(do_node)) {
             for (auto& new_result_src : do_node->input_values()) {
-                auto new_result = std::make_shared<opset1::Result>(new_result_src);
+                auto new_result = std::make_shared<ov::op::v0::Result>(new_result_src);
                 ngraph::copy_runtime_info(result_node, new_result);
                 new_outputs.push_back(new_result);
             }
@@ -267,7 +272,7 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
         model_has_changed |= batch_util::detach_detection_output(m);
 
     const auto& parameters = m->get_parameters();
-    std::map<std::shared_ptr<ov::opset1::Parameter>, PartialShape> parameter_to_shape;
+    std::map<std::shared_ptr<ov::op::v0::Parameter>, PartialShape> parameter_to_shape;
     for (const auto& parameter : parameters) {
         auto shape = parameter->get_partial_shape();
         if (shape.rank().is_dynamic())
@@ -332,7 +337,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
             \    /    /
                Range
     */
-    if (!ov::is_type<ov::opset1::Range>(node) && !ov::is_type<ov::opset4::Range>(node))
+    if (!ov::is_type<ov::op::v0::Range>(node) && !ov::is_type<ov::op::v4::Range>(node))
         return;
 
     auto output_shape = node->get_output_partial_shape(0);
@@ -351,7 +356,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
     auto start_label = start_labels[0];
 
     auto stop_node = node->input_value(1).get_node_shared_ptr();
-    if (!ov::is_type<ov::opset1::Add>(stop_node))
+    if (!ov::is_type<ov::op::v1::Add>(stop_node))
         return;
     auto add_in0_labels = stop_node->get_input_tensor(0).get_value_label();
     if (add_in0_labels.size() != 1 || add_in0_labels[0] == ov::no_label)
@@ -437,8 +442,8 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     auto first_input = pattern::any_input();
     auto second_input = pattern::any_input();
     auto third_input = pattern::any_input();
-    auto upper_max_label = pattern::wrap_type<opset1::Maximum>({first_input, second_input});
-    auto lower_max_label = pattern::wrap_type<opset1::Maximum>({upper_max_label, third_input});
+    auto upper_max_label = pattern::wrap_type<op::v1::Maximum>({first_input, second_input});
+    auto lower_max_label = pattern::wrap_type<op::v1::Maximum>({upper_max_label, third_input});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -472,14 +477,14 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
 ov::pass::NopBroadcast::NopBroadcast() {
     MATCHER_SCOPE(NopBroadcast);
     auto input_label = pattern::any_input(pattern::has_static_rank());
-    auto shape_of = pattern::wrap_type<opset1::ShapeOf, opset3::ShapeOf>();
-    auto ones = pattern::wrap_type<opset1::Constant>();
-    auto maximum = pattern::wrap_type<opset1::Maximum>({shape_of, ones});
-    auto broadcast = pattern::wrap_type<opset1::Broadcast, opset3::Broadcast>({input_label, maximum});
+    auto shape_of = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>();
+    auto ones = pattern::wrap_type<op::v0::Constant>();
+    auto maximum = pattern::wrap_type<op::v1::Maximum>({shape_of, ones});
+    auto broadcast = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>({input_label, maximum});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto constant = ov::as_type_ptr<opset1::Constant>(pattern_to_output.at(ones).get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<op::v0::Constant>(pattern_to_output.at(ones).get_node_shared_ptr());
         if (!constant)
             return false;
         auto valid_labels = [](const ov::TensorLabel& labels) {
@@ -518,7 +523,7 @@ ov::pass::BroadcastOnes::BroadcastOnes() {
     MATCHER_SCOPE(BroadcastOnes);
     auto input = pattern::any_input(pattern::has_static_rank());
     auto ones = pattern::any_input();
-    auto broadcast = pattern::wrap_type<opset1::Broadcast, opset3::Broadcast, opset1::Tile>({input, ones},
+    auto broadcast = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>({input, ones},
                                                                                             pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
@@ -622,17 +627,17 @@ bool are_equal_int_constants(const ov::Output<ov::Node>& lhs, const ov::Output<o
 ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     MATCHER_SCOPE(DeReshapeMatMul);
 
-    auto reshape_0 = pattern::wrap_type<opset1::Reshape>(pattern::has_static_rank());
+    auto reshape_0 = pattern::wrap_type<op::v1::Reshape>(pattern::has_static_rank());
     auto bea_0 = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({reshape_0, pattern::any_input()});
     auto or_0 = std::make_shared<pattern::op::Or>(OutputVector{reshape_0, bea_0});
     // FIXME: put all checks in the pattern of reshape and bea
-    auto reshape_1 = pattern::wrap_type<opset1::Reshape>(pattern::has_static_rank());
+    auto reshape_1 = pattern::wrap_type<op::v1::Reshape>(pattern::has_static_rank());
     auto bea_1 = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({reshape_1, pattern::any_input()});
     auto or_1 = std::make_shared<pattern::op::Or>(OutputVector{reshape_1, bea_1});
     // FIXME: put all checks in the pattern of reshape and bea
-    auto matmul = pattern::wrap_type<opset1::MatMul>({or_0, or_1});
+    auto matmul = pattern::wrap_type<op::v0::MatMul>({or_0, or_1});
 
-    auto reshape_2 = pattern::wrap_type<opset1::Reshape>({matmul, pattern::any_input()}, pattern::has_static_rank());
+    auto reshape_2 = pattern::wrap_type<op::v1::Reshape>({matmul, pattern::any_input()}, pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -665,7 +670,7 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
         // influence output
         if (output.get_target_inputs().size() != 1)
             return false;
-        auto reshape_output = ov::as_type<opset1::Reshape>(output.get_target_inputs().begin()->get_node());
+        auto reshape_output = ov::as_type<op::v1::Reshape>(output.get_target_inputs().begin()->get_node());
         if (!reshape_output)
             return false;  // we didn't find Reshape back on the output of the MatMul
 
@@ -684,8 +689,8 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
 ov::pass::RemoveSliceBeforeGatherElements::RemoveSliceBeforeGatherElements() {
     MATCHER_SCOPE(RemoveSliceBeforeGatherElements);
 
-    auto slice = pattern::wrap_type<opset8::Slice>();
-    auto gather = pattern::wrap_type<opset8::GatherElements>({slice, pattern::any_input()});
+    auto slice = pattern::wrap_type<op::v8::Slice>();
+    auto gather = pattern::wrap_type<op::v6::GatherElements>({slice, pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -718,7 +723,7 @@ ov::pass::RemoveSliceBeforeGatherElements::RemoveSliceBeforeGatherElements() {
 
 bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& output, std::vector<int64_t>& data) {
     const auto& node = output.get_node_shared_ptr();
-    const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(node);
+    const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant)
         return false;
     data = constant->cast_vector<int64_t>();
@@ -731,14 +736,14 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
 //    MATCHER_SCOPE(ChainedVariadicSplitOptimization);
 //
 //    auto first_vsplit = pattern::any_input();
-//    auto axis = pattern::wrap_type<opset1::Constant>();
-//    auto length = pattern::wrap_type<opset1::Constant>();
-//    auto second_vsplit = pattern::wrap_type<opset1::VariadicSplit>({first_vsplit, axis, length});
+//    auto axis = pattern::wrap_type<op::v0::Constant>();
+//    auto length = pattern::wrap_type<op::v0::Constant>();
+//    auto second_vsplit = pattern::wrap_type<op::v1::VariadicSplit>({first_vsplit, axis, length});
 //
 //    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
 //        const auto& pattern_to_node = m.get_pattern_map();
 //        auto first = pattern_to_node.at(first_vsplit);
-//        if (!ov::as_type_ptr<opset1::VariadicSplit>(first))
+//        if (!ov::as_type_ptr<op::v1::VariadicSplit>(first))
 //            return false;
 //        auto second = pattern_to_node.at(second_vsplit);
 //        if (!are_equal_int_constants(first->input_value(1), second->input_value(1)))
@@ -778,7 +783,7 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
 //        outputs_1.insert(outputs_1.begin() + output_index, outputs_2.begin(), outputs_2.end());
 //
 //        auto new_split_length =
-//            std::make_shared<opset1::Constant>(element::i64, Shape{split_length_1.size()}, split_length_1);
+//            std::make_shared<op::v0::Constant>(element::i64, Shape{split_length_1.size()}, split_length_1);
 //        first->input(2).replace_source_output(new_split_length->output(0));
 //        first->validate_and_infer_types();
 //        for (size_t i = 0; i < outputs_1.size(); ++i)
@@ -796,43 +801,43 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
 ov::pass::RPE_Optimization::RPE_Optimization() {
     MATCHER_SCOPE(RPE_Optimization);
 
-    auto sin = pattern::wrap_type<opset6::GatherElements, opset1::Unsqueeze>();  // any_input doesn't work here
-    auto cos = pattern::wrap_type<opset6::GatherElements, opset1::Unsqueeze>();  // any_input doesn't work here
+    auto sin = pattern::wrap_type<op::v6::GatherElements, op::v0::Unsqueeze>();  // any_input doesn't work here
+    auto cos = pattern::wrap_type<op::v6::GatherElements, op::v0::Unsqueeze>();  // any_input doesn't work here
 
     auto source = pattern::any_input(pattern::has_static_rank());
 
     // rotate_half begin
     auto split_length =
-        pattern::wrap_type<opset1::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
-            const auto& constant = ov::as_type_ptr<opset1::Constant>(n);
+        pattern::wrap_type<op::v0::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
+            const auto& constant = ov::as_type_ptr<op::v0::Constant>(n);
             if (!constant)
                 return false;
             const auto& value = constant->cast_vector<int64_t>();
             return value.size() == 2 && value[0] == value[1];
         }));  // make sure constant contains 2 elements with same content; it may be -1, but we fix it earlier
     auto axis = pattern::any_input();
-    auto vsplit = pattern::wrap_type<opset1::VariadicSplit>({source, axis, split_length});
+    auto vsplit = pattern::wrap_type<op::v1::VariadicSplit>({source, axis, split_length});
     vsplit->set_output_size(2);
     auto minus_1 =
-        pattern::wrap_type<opset1::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
-            const auto& constant = ov::as_type_ptr<opset1::Constant>(n);
+        pattern::wrap_type<op::v0::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
+            const auto& constant = ov::as_type_ptr<op::v0::Constant>(n);
             if (!constant)
                 return false;
             const auto& value = constant->cast_vector<int64_t>();
             return value.size() == 1 && value[0] == -1;
         }));  // make sure it is == -1
-    auto neg = pattern::wrap_type<opset1::Multiply>({vsplit->output(1), minus_1});
-    auto concat = pattern::wrap_type<opset1::Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
+    auto neg = pattern::wrap_type<op::v1::Multiply>({vsplit->output(1), minus_1});
+    auto concat = pattern::wrap_type<op::v0::Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
     // rotate half end
-    auto mul_sin = pattern::wrap_type<opset1::Multiply>({concat, sin});
-    auto mul_cos = pattern::wrap_type<opset1::Multiply>({source, cos});
-    auto add = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin});
+    auto mul_sin = pattern::wrap_type<op::v1::Multiply>({concat, sin});
+    auto mul_cos = pattern::wrap_type<op::v1::Multiply>({source, cos});
+    auto add = pattern::wrap_type<op::v1::Add>({mul_cos, mul_sin});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto value_map = m.get_pattern_value_map();
 
         auto input = value_map.at(source);
-        auto concat_node = ov::as_type_ptr<opset1::Concat>(value_map.at(concat).get_node_shared_ptr());
+        auto concat_node = ov::as_type_ptr<op::v0::Concat>(value_map.at(concat).get_node_shared_ptr());
         if (!concat_node)
             return false;
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -864,57 +869,57 @@ ov::pass::Fused_RPE_MHA_Replacer::Fused_RPE_MHA_Replacer() {
     MATCHER_SCOPE(Fused_RPE_MHA_Replacer);
     auto source = pattern::any_input(pattern::has_static_rank());
 
-    auto parameter_values = pattern::wrap_type<opset1::Parameter>();
-    auto parameter_keys = pattern::wrap_type<opset1::Parameter>();
+    auto parameter_values = pattern::wrap_type<op::v0::Parameter>();
+    auto parameter_keys = pattern::wrap_type<op::v0::Parameter>();
 
-    auto sin = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
-    auto cos = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+    auto sin = pattern::wrap_type<op::v6::GatherElements>();  // any_input doesn't work here
+    auto cos = pattern::wrap_type<op::v6::GatherElements>();  // any_input doesn't work here
 
-    auto bool_constant = pattern::wrap_type<opset1::Constant>([](const ov::Output<Node>& out) -> bool {
+    auto bool_constant = pattern::wrap_type<op::v0::Constant>([](const ov::Output<Node>& out) -> bool {
         auto is_boolean = out.get_element_type() == element::boolean;
         auto shape = out.get_shape();
         auto is_2D_matrix = shape.size() == 4 && shape[0] == 1 && shape[1] == 1 && shape[2] == shape[3];
         return is_boolean && is_2D_matrix;
     });
-    auto slice_1 = pattern::wrap_type<opset8::Slice>(
+    auto slice_1 = pattern::wrap_type<op::v8::Slice>(
         {bool_constant, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
-    auto bool_mask = pattern::wrap_type<opset8::Slice>(
+    auto bool_mask = pattern::wrap_type<op::v8::Slice>(
         {slice_1, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     auto attention_mask = pattern::any_input();
 
-    auto vsplit_1 = pattern::wrap_type<opset1::VariadicSplit>({source, pattern::any_input(), pattern::any_input()});
+    auto vsplit_1 = pattern::wrap_type<op::v1::VariadicSplit>({source, pattern::any_input(), pattern::any_input()});
     vsplit_1->set_output_size(3);
 
     auto vsplit_2 =
-        pattern::wrap_type<opset1::VariadicSplit>({vsplit_1->output(0), pattern::any_input(), pattern::any_input()});
+        pattern::wrap_type<op::v1::VariadicSplit>({vsplit_1->output(0), pattern::any_input(), pattern::any_input()});
     vsplit_2->set_output_size(2);
     auto rope_1 = pattern::wrap_type<op::internal::RPE>({vsplit_2->output(0), sin, cos});
-    auto concat_1 = pattern::wrap_type<opset1::Concat>({rope_1, vsplit_2->output(1)});
+    auto concat_1 = pattern::wrap_type<op::v0::Concat>({rope_1, vsplit_2->output(1)});
 
     auto vsplit_3 =
-        pattern::wrap_type<opset1::VariadicSplit>({vsplit_1->output(1), pattern::any_input(), pattern::any_input()});
+        pattern::wrap_type<op::v1::VariadicSplit>({vsplit_1->output(1), pattern::any_input(), pattern::any_input()});
     vsplit_3->set_output_size(2);
     auto rope_2 = pattern::wrap_type<op::internal::RPE>({vsplit_3->output(0), sin, cos});
-    auto concat_2 = pattern::wrap_type<opset1::Concat>({rope_2, vsplit_3->output(1)});
+    auto concat_2 = pattern::wrap_type<op::v0::Concat>({rope_2, vsplit_3->output(1)});
 
-    auto concat_with_prev_k = pattern::wrap_type<opset1::Concat>({parameter_keys, concat_2});
-    auto some_constant = pattern::wrap_type<opset1::Constant>();
-    auto multiply = pattern::wrap_type<opset1::Multiply>({concat_with_prev_k, some_constant});
+    auto concat_with_prev_k = pattern::wrap_type<op::v0::Concat>({parameter_keys, concat_2});
+    auto some_constant = pattern::wrap_type<op::v0::Constant>();
+    auto multiply = pattern::wrap_type<op::v1::Multiply>({concat_with_prev_k, some_constant});
 
-    auto matmul_1 = pattern::wrap_type<opset1::MatMul>({concat_1, multiply});
+    auto matmul_1 = pattern::wrap_type<op::v0::MatMul>({concat_1, multiply});
 
-    auto inf_constant = pattern::wrap_type<opset1::Constant>();
-    auto select = pattern::wrap_type<opset1::Select>({bool_mask, matmul_1, inf_constant});
+    auto inf_constant = pattern::wrap_type<op::v0::Constant>();
+    auto select = pattern::wrap_type<op::v1::Select>({bool_mask, matmul_1, inf_constant});
 
-    auto add = pattern::wrap_type<opset1::Add>({select, attention_mask});
-    auto softmax = pattern::wrap_type<opset1::Softmax>({add});
+    auto add = pattern::wrap_type<op::v1::Add>({select, attention_mask});
+    auto softmax = pattern::wrap_type<op::v1::Softmax>({add});
 
-    auto concat_with_prev_v = pattern::wrap_type<opset1::Concat>({parameter_values, vsplit_1->output(2)});
-    auto matmul_2 = pattern::wrap_type<opset1::MatMul>({softmax, concat_with_prev_v});
+    auto concat_with_prev_v = pattern::wrap_type<op::v0::Concat>({parameter_values, vsplit_1->output(2)});
+    auto matmul_2 = pattern::wrap_type<op::v0::MatMul>({softmax, concat_with_prev_v});
 
-    auto transpose = pattern::wrap_type<opset1::Transpose>({matmul_2, pattern::any_input()});
-    auto reshape = pattern::wrap_type<opset1::Reshape>({transpose, pattern::any_input()});
+    auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul_2, pattern::any_input()});
+    auto reshape = pattern::wrap_type<op::v1::Reshape>({transpose, pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto value_map = m.get_pattern_value_map();
@@ -966,8 +971,8 @@ bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::sha
     return true;
 }
 
-bool gather_elements_perform_same(const std::shared_ptr<ov::opset6::GatherElements>& lhs,
-                                  const std::shared_ptr<ov::opset6::GatherElements>& rhs) {
+bool gather_elements_perform_same(const std::shared_ptr<ov::op::v6::GatherElements>& lhs,
+                                  const std::shared_ptr<ov::op::v6::GatherElements>& rhs) {
     // 0 input value is already checked -- it is the same, we only need to check input with idx 1 and axis value
     return lhs->get_axis() == rhs->get_axis() && lhs->input_value(1) == rhs->input_value(1);
 }
@@ -1005,26 +1010,26 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
 
 bool ov::pass::SharedTileOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTileOptimization);
-    return shared_node_optimization_helper<ov::opset1::Tile>(
+    return shared_node_optimization_helper<ov::op::v0::Tile>(
         model,
         all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedGatherElementsOptimization);
-    return shared_node_optimization_helper<ov::opset6::GatherElements>(model, gather_elements_perform_same);
+    return shared_node_optimization_helper<ov::op::v6::GatherElements>(model, gather_elements_perform_same);
 }
 
 bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
-    return shared_node_optimization_helper<ov::opset1::Transpose>(
+    return shared_node_optimization_helper<ov::op::v1::Transpose>(
         model,
         all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedSliceOptimization);
-    return shared_node_optimization_helper<ov::opset8::Slice>(
+    return shared_node_optimization_helper<ov::op::v8::Slice>(
         model,
         all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
@@ -1033,13 +1038,13 @@ struct SliceAttrs {
     int64_t start, stop, axis;
 };
 
-bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::opset8::Slice>& op, SliceAttrs& attrs) {
+bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>& op, SliceAttrs& attrs) {
     if (op->get_input_size() != 5 || op->get_input_partial_shape(0).rank().is_dynamic())
         return false;
 
     const auto& data_rank = op->get_input_partial_shape(0).rank().get_length();
     for (size_t i = 1; i < 5; ++i) {
-        auto input_as_constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(i));
+        auto input_as_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
         if (!input_as_constant)
             return false;
         if (shape_size(input_as_constant->get_shape()) != 1)
@@ -1068,7 +1073,7 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
     bool graph_rewritten = false;
 
     struct SliceWithAttrs {
-        std::shared_ptr<opset8::Slice> slice;
+        std::shared_ptr<op::v8::Slice> slice;
         SliceAttrs attrs;
     };
 
@@ -1083,7 +1088,7 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
                 graph_rewritten |= run_on_model(sub_graph);
             }
         }
-        if (auto op = ov::as_type_ptr<opset8::Slice>(node)) {
+        if (auto op = ov::as_type_ptr<op::v8::Slice>(node)) {
             SliceAttrs attributes{};
             if (slice_is_suitable_for_optimization(op, attributes)) {
                 OutputWithAxis current_output = {op->input_value(0), attributes.axis};
@@ -1140,9 +1145,9 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         if (current_sum != dimension)
             continue;  // there are some l
         auto split_lengths_const =
-            opset1::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
-        auto axis_const = opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
-        auto variadic_split = std::make_shared<opset1::VariadicSplit>(output, axis_const, split_lengths_const);
+            op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
+        auto axis_const = op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+        auto variadic_split = std::make_shared<op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
 
         auto i = 0;
         NodeVector ops_to_replace;
@@ -1224,10 +1229,10 @@ std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(const o
     if (idx == -1)
         return nullptr;  // -1 index doesn't mean counting from the back -- it means we didn't find where the label
                          // comes from
-    auto shape_of = std::make_shared<ov::opset3::ShapeOf>(source, et);
-    auto axis = ov::opset1::Constant::create(ov::element::i64, {}, {0});
-    auto indices = ov::opset1::Constant::create(ov::element::i64, shape, {idx});
-    auto gather = std::make_shared<ov::opset8::Gather>(shape_of, indices, axis);
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(source, et);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    auto indices = ov::op::v0::Constant::create(ov::element::i64, shape, {idx});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, indices, axis);
     evaluate_both_bounds(gather->output(0));
     return gather;
 }
@@ -1262,7 +1267,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
 
     if (label_shape_source.count(label)) {
         auto source = label_shape_source[label];
-        auto concat = ov::as_type_ptr<ov::opset1::Concat>(source.get_node_shared_ptr());
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(source.get_node_shared_ptr());
         int64_t idx = get_idx_of_label_in_source(source, label);
         if (concat && idx != -1 && idx == concat->get_concatenation_axis() && concat->get_input_size() == 2) {
             // optimize using the knowledge of the Concat SI and what happens on the axis
@@ -1297,7 +1302,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
                         label_value_source[rhs_label] = rhs_alternative->output(0);
                 }
                 if (lhs_alternative && rhs_alternative) {
-                    alternative_source = std::make_shared<ov::opset1::Add>(lhs_alternative, rhs_alternative);
+                    alternative_source = std::make_shared<ov::op::v1::Add>(lhs_alternative, rhs_alternative);
                     label_value_source[label] = alternative_source->output(0);
                 }
             }
@@ -1319,14 +1324,14 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
     if (alternative_source != nullptr) {
         auto value_source = alternative_source->output(0);
         if (value_source.get_shape() != shape && (shape.empty() || shape == ov::Shape{0}))
-            value_source = std::make_shared<ov::opset1::Squeeze>(value_source);
+            value_source = std::make_shared<ov::op::v0::Squeeze>(value_source);
         else if (value_source.get_shape() != shape)
-            value_source = std::make_shared<ov::opset1::Reshape>(
+            value_source = std::make_shared<ov::op::v1::Reshape>(
                 value_source,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape),
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape),
                 false);
         if (value_source.get_element_type() != et)
-            value_source = std::make_shared<ov::opset1::Convert>(value_source, et);
+            value_source = std::make_shared<ov::op::v0::Convert>(value_source, et);
         output.replace(value_source);
     } else {
         // in case we can not optimize it -- it is label which appeared just now on the value path
