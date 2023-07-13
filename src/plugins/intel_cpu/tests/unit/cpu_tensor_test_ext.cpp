@@ -107,7 +107,7 @@ TEST_F(CPUTensorExtTest, canCreateTensorWithDynamicShape) {
     Shape shape{pshape};
 
     std::shared_ptr<ov::ITensor> t;
-    
+
     // construct with memory with dynamic shape
     ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(Precision::FP32, shape)));
     ASSERT_THROW(t->get_shape(), ov::Exception);
@@ -143,7 +143,7 @@ TEST_F(CPUTensorExtTest, canSyncMemoryAndTensor) {
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
     ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
     ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
-    
+
     // reallocate memory out boundary of tensor instance
     {
         Shape new_shape{1, 5, 2};

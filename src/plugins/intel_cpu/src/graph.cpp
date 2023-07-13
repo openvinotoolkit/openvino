@@ -1075,7 +1075,7 @@ void Graph::PullOutputData(BlobMap &out) {
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.getData();
 
-        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr==ext_blob_ptr, " graph ", this);
+        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this);
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;

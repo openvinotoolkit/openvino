@@ -62,6 +62,7 @@ protected:
     // keep until api 2.0 adopted,
     // as there is no way to get the wrapped Tensor from Blob.
     std::unordered_map<std::string, std::pair<std::shared_ptr<Tensor>, InferenceEngine::Blob::Ptr>> outputsTensor2BlobMap;
+
 private:
     void PushStates();
     void PullStates();

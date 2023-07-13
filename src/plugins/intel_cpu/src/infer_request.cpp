@@ -863,7 +863,8 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 _outputs[name] = data;
                 if (!externalPtr.count(name) &&
-                    (isDynamic || data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()))) { // TODO: handle desc incompatible if isDynamic.
+                    (isDynamic ||
+                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()))) {
                     externalPtr[name] = data;
                 }
             } else {

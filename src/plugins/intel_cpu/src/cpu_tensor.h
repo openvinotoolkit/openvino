@@ -14,7 +14,7 @@ class Tensor : public ITensor {
 public:
     // Only plain data format is supported.
     explicit Tensor(MemoryPtr memptr);
-  
+
     void set_shape(ov::Shape shape) override;
 
     const ov::element::Type& get_element_type() const override;

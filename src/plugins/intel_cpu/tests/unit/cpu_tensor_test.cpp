@@ -135,9 +135,9 @@ inline MemoryPtr create_memory(MemoryDescPtr memdesc) {
         .WillRepeatedly([memptr]() {
                         auto memdesc = memptr->get_memDescPtr();
                         auto required = memdesc->getCurrentMemSize();
-                        if (memSize >= required)
+                        if (memSize >= required) {
                             return reinterpret_cast<void*>(memSize);
-                        else {
+                        } else {
                             memSize = required;
                             return reinterpret_cast<void*>(required);
                         }
