@@ -16,14 +16,14 @@ namespace pass {
  * @brief This pass tries to extract unsupported reshape pairs around eltwise ops from MHA body
  * Subgraph inside the MHA body:
  *
- *               input0
+ *               matmul
  *                 |
  *              Reshape1                      input1      input2
  *                 |   input1                       \     /
  *                 |  /                           ExtractedAdd
  *                Add1            =>                   |
  *                 |   input2                   ExtractedReshape
- *                 |  /                input0      /
+ *                 |  /                matmul      /
  *                Add2                       \    /
  *                 |                          Add
  *              Reshape2

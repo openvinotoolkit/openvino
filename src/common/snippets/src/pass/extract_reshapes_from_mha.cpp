@@ -19,8 +19,8 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
     auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
         return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
     };
-    auto input_m = pattern::any_input(pattern::has_static_shape());
-    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({input_m, pattern::wrap_type<opset1::Constant>()}, static_shape_single_consumer);
+    auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
+    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({matmul_m, pattern::wrap_type<opset1::Constant>()}, static_shape_single_consumer);
     auto sparse_input_1_m = pattern::any_input(pattern::has_static_shape());
     auto sparse_input_2_m = pattern::any_input(pattern::has_static_shape());
     auto add_1_m = pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m}, static_shape_single_consumer);
@@ -30,6 +30,16 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractReshapesFromMHA")
         const auto& pattern_map = m.get_pattern_value_map();
+        const auto& matmul = pattern_map.at(matmul_m);
+        const auto matmul_node = matmul.get_node_shared_ptr();
+        if (transformation_callback(matmul_node))
+            return false;
+
+        const auto& reshape_2 = pattern_map.at(reshape_2_m);
+        const auto& matmul_shape = matmul.get_shape();
+        const auto& output_shape = reshape_2.get_shape();
+        if (matmul_shape != output_shape)
+            return false;
 
         const auto add_1 = pattern_map.at(add_1_m).get_node_shared_ptr();
         const auto add_2 = pattern_map.at(add_2_m).get_node_shared_ptr();
@@ -37,42 +47,17 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
         if (bcast_type != ov::op::AutoBroadcastType::NUMPY || bcast_type != add_2->get_autob())
             return false;
 
-        const auto& reshape_2 = pattern_map.at(reshape_2_m);
+        const auto& sparse_input_1 = pattern_map.at(sparse_input_1_m);
         const auto& sparse_input_2 = pattern_map.at(sparse_input_2_m);
-        auto input = pattern_map.at(input_m);
-        auto sparse_input_1 = pattern_map.at(sparse_input_1_m);
-
-        auto in_out_shape_are_equal = [&reshape_2](const ov::Output<ov::Node>& input) {
-            const auto& input_pshape = input.get_partial_shape();
-            const auto& output_shape = reshape_2.get_shape();
-            return input_pshape.is_static() && input_pshape.to_shape() == output_shape;
-        };
-
-        if (!in_out_shape_are_equal(input)) {
-            // In some cases, the 2nd input may also have Reshape. So we have to check it to cover all possible cases
-            const auto alternative_reshape = sparse_input_1.get_node_shared_ptr();
-            if (!ov::is_type<ov::opset1::Reshape>(alternative_reshape) ||
-                alternative_reshape->get_output_partial_shape(0).is_dynamic() ||
-                alternative_reshape->get_output_target_inputs(0).size() > 1) {
-                return false;
-            }
-            sparse_input_1 = pattern_map.at(reshape_1_m);
-            input = alternative_reshape->input_value(0);
-            if (!in_out_shape_are_equal(input)) {
-                return false;
-            }
-        }
-
-        const auto& input_shape = input.get_shape();
         auto broadcasted_shape = sparse_input_1.get_partial_shape();
         ov::PartialShape::broadcast_merge_into(broadcasted_shape, sparse_input_2.get_partial_shape(), bcast_type);
-        if (ov::shape_size(input_shape) != ov::shape_size(broadcasted_shape.to_shape()))
+        if (ov::shape_size(matmul_shape) != ov::shape_size(broadcasted_shape.to_shape()))
             return false;
 
         const auto extracted_add = std::make_shared<ov::opset1::Add>(sparse_input_1, sparse_input_2);
-        const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {input_shape.size()}, input_shape);
+        const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {matmul_shape.size()}, matmul_shape);
         const auto extracted_reshape = std::make_shared<ov::opset1::Reshape>(extracted_add, target_shape, true);
-        const auto new_add = std::make_shared<ov::opset1::Add>(input, extracted_reshape);
+        const auto new_add = std::make_shared<ov::opset1::Add>(matmul, extracted_reshape);
 
         const auto& old_reshape = pattern_map.at(reshape_2_m);
         return ov::replace_output_update_name(old_reshape, new_add);
