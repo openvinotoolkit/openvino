@@ -133,6 +133,7 @@ endfunction()
 
 if(ENABLE_MLAS)
     add_subdirectory(mlas)
+    ov_install_static_lib(mlas cpu)
 endif()
 
 ov_add_onednn()
