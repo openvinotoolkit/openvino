@@ -71,7 +71,7 @@ TEST_F(OVTensorTest, canAccessF16Tensor) {
     EXPECT_NE(nullptr, t.data());
     EXPECT_NO_THROW(t.data(ov::element::f16));
     EXPECT_NO_THROW(t.data<ov::float16>());
-    EXPECT_NO_THROW(t.data<ov::bfloat16>());
+    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
     EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
     EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
 }
