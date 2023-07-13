@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 
 using namespace ov::pass;
 
@@ -31,8 +32,8 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractReshapesFromMHA")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
-        const auto matmul_node = matmul.get_node_shared_ptr();
-        if (transformation_callback(matmul_node))
+        const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
+        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul_supported(matmul_node) || transformation_callback(matmul_node))
             return false;
 
         const auto& reshape_2 = pattern_map.at(reshape_2_m);
