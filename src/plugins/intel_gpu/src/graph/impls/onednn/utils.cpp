@@ -186,10 +186,14 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.set_partial_shape(new_shape);
 }
 
-int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
+    auto b_padding = l.data_padding.lower_size().batch[0];
     auto f_padding = l.data_padding.lower_size().feature[0];
-    if (f_padding != 0) {
+    if (b_padding != 0) {
+        auto input_pitches = l.get_pitches();
+        offset = b_padding * input_pitches.batch[0];
+    } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
             offset *= l.spatial(i);

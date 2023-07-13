@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 from typing import Callable
 
 from openvino.runtime import PartialShape  # pylint: disable=no-name-in-module,import-error

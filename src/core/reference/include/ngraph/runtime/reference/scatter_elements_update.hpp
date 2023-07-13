@@ -18,6 +18,15 @@ namespace runtime {
 namespace reference {
 using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
+template <typename T>
+size_t normalize_index(const T idx, const size_t dim_value) {
+    if (idx < 0) {
+        return static_cast<size_t>(idx + dim_value);
+    } else {
+        return static_cast<size_t>(idx);
+    }
+}
+
 template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
@@ -69,7 +78,7 @@ void scatter_elem_update(const DataType* input_data,
         const size_t indices_idx =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
-        out_cord.at(axis) = indices[indices_idx];
+        out_cord.at(axis) = normalize_index(indices[indices_idx], data_shape[axis]);
         const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
         out_buf[out_idx] = updates[indices_idx];
     }
@@ -149,21 +158,28 @@ typename std::enable_if<std::is_floating_point<T>::value || std::is_class<T>::va
 
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type arithmetic_mean(const T accumulator, const int32_t N) {
-    const auto old_mode = std::fegetround();
-    std::fesetround(FE_DOWNWARD);
     const T value = static_cast<T>(std::nearbyint(static_cast<double>(accumulator) / N));
-    std::fesetround(old_mode);
     return value;
 }
 
 template <typename T>
-size_t normalize_index(const T idx, const size_t dim_value) {
-    if (idx < 0) {
-        return static_cast<size_t>(idx + dim_value);
-    } else {
-        return static_cast<size_t>(idx);
+struct RoundingDirectionGuard {
+    RoundingDirectionGuard() {
+        if (std::is_integral<T>::value) {
+            m_original_mode = std::fegetround();
+            std::fesetround(FE_DOWNWARD);
+        }
     }
-}
+
+    ~RoundingDirectionGuard() {
+        if (std::is_integral<T>::value) {
+            std::fesetround(m_original_mode);
+        }
+    }
+
+private:
+    decltype(std::fegetround()) m_original_mode;
+};
 
 template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
@@ -221,6 +237,9 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     }
 
     if (reduction_type == Reduction::MEAN) {
+        // this object will change the rounding mode only for integer types which is required to match torch
+        // upon destruction the previously used rounding mode will be restored
+        RoundingDirectionGuard<DataType> rounding_guard;
         for (const auto& counter : mean_reduction_counters) {
             // include the initial value in the arithmetic mean divisor (if needed)
             const auto N = counter.second + static_cast<int32_t>(use_init_val);
