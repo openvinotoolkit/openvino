@@ -44,6 +44,7 @@ typedef enum {
 #    include <time.h>
 #    include <unistd.h>
 #elif defined(__APPLE__)
+#    include <mach-o/dyld.h>
 #    include <sys/param.h>
 #    include <sys/utsname.h>
 #    include <time.h>

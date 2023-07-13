@@ -415,10 +415,21 @@ std::string get_executable_name(void) {
     char cFilePath[MAX_PATH] = {};
     GetModuleFileName(nullptr, cFilePath, MAX_PATH);
     std::string filePath(cFilePath);
-#else
+#elif !defined(__APPLE__)
     std::string filePath;
     std::ifstream("/proc/self/comm") >> filePath;
     return filePath;
+#else
+    uint32_t cFilePathSize = MAXPATHLEN;
+    std::vector<char> cFilePath(static_cast<size_t>(cFilePathSize));
+    if (_NSGetExecutablePath(cFilePath.data(), &cFilePathSize) == -1) {
+        // Trying to reallocate, once
+        cFilePath.reserve(cFilePathSize + 1);
+        if (_NSGetExecutablePath(cFilePath.data(), &cFilePathSize) == -1) {
+            return "macos_failed";
+        }
+    }
+    std::string filePath(cFilePath.data());
 #endif
     return filePath.substr(filePath.find_last_of("/\\") + 1);
 }
