@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -32,10 +32,10 @@ def pad(
     """Return a generic padding operation.
 
     :param arg: The node producing input tensor to be padded.
-    :param pads_begin: number of padding elements to be added before position 0
-                       on each axis of arg. Negative indices are supported.
-    :param pads_end: number of padding elements to be added after the last element.
-                     Negative indices are supported.
+    :param pads_begin: Number of padding elements to be added before position 0
+                       on each axis of arg. Negative values are supported.
+    :param pads_end: Number of padding elements to be added after the last element.
+                     Negative values are supported.
     :param pad_mode: "constant", "edge", "reflect" or "symmetric"
     :param arg_pad_value: value used for padding if pad_mode is "constant"
     :return: Pad operation node.
