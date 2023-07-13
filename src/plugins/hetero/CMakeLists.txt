@@ -22,10 +22,6 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_include_directories(${TARGET_NAME} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/"
-    )
-
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 
 # must be called after all target_link_libraries

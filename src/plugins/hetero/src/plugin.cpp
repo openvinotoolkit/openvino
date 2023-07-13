@@ -21,7 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "ie/ie_plugin_config.hpp"
 
-#include "hetero/properties.hpp"
+#include "properties.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
