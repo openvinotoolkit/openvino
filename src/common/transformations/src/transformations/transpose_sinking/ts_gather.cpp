@@ -68,19 +68,6 @@ TSGatherForward::TSGatherForward() {
             axis = static_cast<size_t>(axes[0]);
         }
         /*
-            import tensorflow as tf
-            params1 = tf.random.normal(shape=(4,3))
-            transpose1 = tf.transpose(params1, perm=[1,0]) # output shape [3,4]
-            indices1 = tf.random.uniform(shape=(2,3), maxval=2, dtype=tf.int32)
-            result = tf.gather(transpose1, indices1, axis=0) # output shape [2, 3, 4]
-            print(result)
-
-            params2 = params1 # shape [4,3]
-            indices2 = indices1 # shape [2,3]
-            gather2 = tf.gather(params2, indices2, axis=1) # output shape [2, 4, 3]
-            transpose2 = tf.transpose(gather2, perm=[1,2,0])
-            print(transpose2)
-
             From https://www.tensorflow.org/api_docs/python/tf/gather
             The Gather output shape has the same shape as the input,
             with the indexed-axis replaced by the shape of the indices
