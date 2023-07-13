@@ -21,7 +21,7 @@ class aten_quantize_per_tensor_aten_dequantize(torch.nn.Module):
 
 class TestQuantizePerTensorDequantize(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),) # N(5,5)
+        return (np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32),) # N(5,5)
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
@@ -37,4 +37,5 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+                ie_device, precision, ir_version, trace_model=True,
+            freeze_model=False)

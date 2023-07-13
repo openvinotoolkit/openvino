@@ -23,8 +23,8 @@ class quantized_add_relu(torch.nn.Module):
 
 class TestQuantizedAddReLU(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),
-                np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32)) # N(5,5)
+        return (np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32),
+                np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32))
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62

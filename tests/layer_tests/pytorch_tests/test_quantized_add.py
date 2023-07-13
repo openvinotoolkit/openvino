@@ -23,8 +23,8 @@ class quantized_add(torch.nn.Module):
 
 class TestQuantizedAdd(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(4, 4), dtype=np.float32),
-                np.array(5.00 * np.random.randn(4, 4), dtype=np.float32))
+        return (np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32),
+                np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32))
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
@@ -40,4 +40,4 @@ class TestQuantizedAdd(PytorchLayerTest):
     def test_quantized_add(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_add(scale, zero_point, dtype), None, ["quantized::add"],
-                ie_device, precision, ir_version)
+                ie_device, precision, ir_version,)
