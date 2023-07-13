@@ -37,7 +37,7 @@ macro(ov_common_libraries_cpack_set_dirs)
     ov_get_pyversion(pyversion)
     if(pyversion)
         # should not be used in production; only by setup.py install
-        set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
+        set(OV_CPACK_PYTHONDIR lib/${pyversion}/site-packages)
     endif()
 
     # non-native stuff

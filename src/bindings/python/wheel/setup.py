@@ -52,6 +52,9 @@ TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
+PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
+SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
+CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "TGZ")
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -218,9 +221,7 @@ class CustomBuild(build):
     user_options = build.user_options + [
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake."),
-        ("python-extensions-only", None, "Install Python extensions without C++ libraries."),
     ]
-    boolean_options = build.boolean_options + ["python-extensions-only"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -228,7 +229,6 @@ class CustomBuild(build):
         self.build_base = BUILD_BASE
         self.jobs = None
         self.cmake_args = None
-        self.python_extensions_only = False
 
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
@@ -267,6 +267,7 @@ class CustomBuild(build):
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                          f"-DPYTHON_EXECUTABLE={sys.executable}",
+                                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
                                          "-DCMAKE_BUILD_TYPE=Release",
                                          "-DENABLE_WHEEL=OFF",
                                          self.cmake_args,
@@ -287,14 +288,14 @@ class CustomBuild(build):
 
     def run(self):
         # build and install clib into temporary directories
-        if not self.python_extensions_only:
+        if not PYTHON_EXTENSIONS_ONLY:
             self.cmake_build_and_install(LIB_INSTALL_CFG)
 
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
 
         # install clibs into a temporary directory (site-packages)
-        if not self.python_extensions_only:
+        if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
 
         # Copy extra package_data content filtered by 'find_packages'
@@ -433,17 +434,6 @@ class PrepareLibs(build_clib):
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
-
-    user_options = [
-        ("skip-rpath", None, "Skips RPATH for Python extensions."),
-    ]
-    boolean_options = ["skip_rpath"]
-
-    def initialize_options(self):
-        """Set default values for all the options that this command supports."""
-        super().initialize_options()
-        self.skip_rpath = False
-
     def run(self):
         if len(self.extensions) == 1:
             self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
@@ -455,7 +445,7 @@ class CopyExt(build_ext):
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative RPATH to found dlls
-            if sys.platform != "win32" and not self.skip_rpath:
+            if sys.platform != "win32" and not SKIP_RPATH:
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
