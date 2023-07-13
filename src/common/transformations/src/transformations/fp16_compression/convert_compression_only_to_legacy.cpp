@@ -5,7 +5,6 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 
 #include "itt.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/convert_precision.hpp"
