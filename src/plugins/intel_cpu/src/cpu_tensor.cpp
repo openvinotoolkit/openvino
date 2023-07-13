@@ -27,8 +27,6 @@ public:
     bool free(void* handle) noexcept override {
         return true;
     }
-
-private:
 };
 
 std::shared_ptr<IAllocator> make_nutshell_allocator() noexcept {
