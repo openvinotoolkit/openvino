@@ -32,7 +32,7 @@ MockAsyncInferRequest::MockAsyncInferRequest(const std::shared_ptr<IInferRequest
 
 void MockSyncInferRequest::allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const element::Type& element_type, const Shape& shape) {
     if (!tensor || tensor->get_element_type() != element_type) {
-        tensor = ov::SoPtr<ov::ITensor>{ov::make_tensor(element_type, shape), nullptr};
+        tensor = ov::make_tensor(element_type, shape);
     } else {
         tensor->set_shape(shape);
     }

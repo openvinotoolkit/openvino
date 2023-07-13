@@ -24,7 +24,7 @@ namespace {
 
 void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
     if (!tensor || tensor->get_element_type() != element_type) {
-        tensor = {ov::make_tensor(element_type, shape), nullptr};
+        tensor = ov::make_tensor(element_type, shape);
     } else {
         tensor->set_shape(shape);
     }
