@@ -275,8 +275,3 @@ const ngraph::OpSet& ngraph::get_opset11() {
     static OpSet opset(ov::get_opset11());
     return opset;
 }
-
-const ngraph::OpSet& ngraph::get_opset12() {
-    static OpSet opset(ov::get_opset12());
-    return opset;
-}

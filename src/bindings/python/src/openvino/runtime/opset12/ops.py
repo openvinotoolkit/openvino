@@ -54,7 +54,7 @@ def scatter_elements_update(
     indices: NodeInput,
     updates: NodeInput,
     axis: NodeInput,
-    reduction: Optional[str] = None,
+    reduction: Optional[str] = "None",
     use_init_val: Optional[bool] = True,
     name: Optional[str] = None,
 ) -> Node:
