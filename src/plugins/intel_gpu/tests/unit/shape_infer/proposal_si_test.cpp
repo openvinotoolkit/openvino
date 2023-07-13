@@ -36,9 +36,6 @@ const bool clip_after_nms = false;
 const bool round_ratios = true;
 const bool shift_anchors = false;
 const bool normalize = true;
-const int image_w = 350;
-const int image_h = 210;
-const int image_z = 1;
 const std::vector<float> ratios = { 0.5f, 1.0f, 2.0f };
 const std::vector<float> scales = { 2.0f, 4.0f, 8.0f, 16.0f, 32.0f };
 
