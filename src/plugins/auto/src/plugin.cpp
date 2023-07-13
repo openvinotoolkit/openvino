@@ -261,8 +261,19 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     device_name_with_id.c_str(), default_device_id.c_str(), unique_name.c_str());
             // create meta device
-            meta_devices.push_back({device_name_with_id, get_device_config(device_name_with_id),
-                                    num_requests, default_device_id, unique_name, device_priority});
+            try {
+                meta_devices.push_back({device_name_with_id,
+                                        get_device_config(device_name_with_id),
+                                        num_requests,
+                                        default_device_id,
+                                        unique_name,
+                                        device_priority});
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            }
         }
         if (enable_device_priority) {
             device_priority++;

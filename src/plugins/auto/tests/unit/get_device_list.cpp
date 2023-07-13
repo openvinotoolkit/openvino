@@ -133,7 +133,10 @@ const std::vector<Params> testConfigs = {Params{" ", " "},
                                          Params{"CPU,GPU.1,GPU", "CPU,GPU.1,GPU"},
                                          Params{"CPU,VPUX", "CPU,VPUX"},
                                          Params{"CPU,-VPUX", "CPU"},
+                                         Params{"INVALID_DEVICE", "INVALID_DEVICE"},
                                          Params{"CPU,-INVALID_DEVICE", "CPU"},
+                                         Params{"CPU,INVALID_DEVICE", "CPU,INVALID_DEVICE"},
+                                         Params{"-CPU,INVALID_DEVICE", "INVALID_DEVICE"},
                                          Params{"CPU,GPU,VPUX", "CPU,GPU,VPUX"}};
 
 const std::vector<Params> testConfigsWithIdNotInteldGPU = {Params{" ", " "},

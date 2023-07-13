@@ -6,22 +6,24 @@
 
 using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
+using testing::Throw;
 
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
 const std::vector<std::string>  availableDevsNoID = {"CPU", "GPU", "VPUX"};
-using ConfigParams = std::tuple<
-        std::string,                        // Priority devices
-        std::vector<DeviceInformation>,     // expect metaDevices
-        bool                                // if throw exception
-        >;
+using ConfigParams = std::tuple<std::string,                     // Priority devices
+                                std::vector<DeviceInformation>,  // expect metaDevices
+                                bool,                            // if throw exception
+                                int                              // expected times of calling get_supported_property()
+                                >;
 class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
         std::string priorityDevices;
         std::vector<DeviceInformation> metaDevices;
         bool throwException;
-        std::tie(priorityDevices, metaDevices, throwException) = obj.param;
+        int expectedTimes;
+        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (throwException) {
@@ -29,16 +31,17 @@ public:
         } else {
             result << "_throwException_false";
         }
+        result << "_expectedGetSupportedProperty_" << expectedTimes;
         return result.str();
     }
 
     void SetUp() override {
+       ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
        ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
                    const ov::AnyMap& config) {
                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
                });
-        std::tie(priorityDevices, metaDevices, throwException) = GetParam();
-        sizeOfMetaDevices = static_cast<int>(metaDevices.size());
+       std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = GetParam();
     }
 
     void compare(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
@@ -67,7 +70,7 @@ protected:
     std::string priorityDevices;
     std::vector<DeviceInformation> metaDevices;
     bool throwException;
-    int sizeOfMetaDevices;
+    int expectedTimes;
 };
 using ParseMetaDeviceNoIDTest = ParseMetaDeviceTest;
 
@@ -75,7 +78,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, get_available_devices()).Times(1);
-    EXPECT_CALL(*core, get_supported_property(_, _)).Times(sizeOfMetaDevices);
+    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
@@ -110,7 +113,7 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(1);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, get_available_devices()).Times(1);
-    EXPECT_CALL(*core, get_supported_property(_, _)).Times(sizeOfMetaDevices);
+    EXPECT_CALL(*core, get_supported_property(_, _)).Times(expectedTimes);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->parse_meta_devices(priorityDevices, {}));
     } else {
@@ -124,42 +127,60 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams {"CPU,GPU,VPUX",
-         {{"CPU", {}, -1, "", "CPU_", 0},
-             {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU,CPU",
-         {{"VPUX", {}, -1, "", "VPUX_", 0},
-             {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"CPU", {}, -1, "", "CPU_", 2}}, false},
-    ConfigParams {"CPU(1),GPU(2),VPUX(4)",
-         {{"CPU", {}, 1, "", "CPU_", 0},
-             {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
-             {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, 4, "", "VPUX_", 2}}, false},
+    ConfigParams{"CPU,GPU,VPUX",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"VPUX", {}, -1, "", "VPUX_", 2}},
+                 false,
+                 4},
+    ConfigParams{"VPUX,GPU,CPU",
+                 {{"VPUX", {}, -1, "", "VPUX_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"CPU", {}, -1, "", "CPU_", 2}},
+                 false,
+                 4},
+    ConfigParams{"VPUX,GPU,INVALID_DEVICE",
+                 {{"VPUX", {}, -1, "", "VPUX_", 0},
+                  {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1}},
+                 false,
+                 3},
+    ConfigParams{"CPU(1),GPU(2),VPUX(4)",
+                 {{"CPU", {}, 1, "", "CPU_", 0},
+                  {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"VPUX", {}, 4, "", "VPUX_", 2}},
+                 false,
+                 4},
 
-    ConfigParams {"CPU(-1),GPU,VPUX",  {}, true},
-    ConfigParams {"CPU(NA),GPU,VPUX",  {}, true},
+    ConfigParams{"CPU(-1),GPU,VPUX", {}, true, 0},
+    ConfigParams{"CPU(NA),GPU,VPUX", {}, true, 0},
+    ConfigParams{"INVALID_DEVICE", {}, false, 0},
+    ConfigParams{"INVALID_DEVICE,CPU", {{"CPU", {}, -1, "", "CPU_", 1}}, false, 2},
 
-    ConfigParams {"CPU(3),GPU.1,VPUX",
-        {{"CPU", {}, 3, "",  "CPU_", 0},
-            {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-            {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU.1,CPU(3)",
-        {{"VPUX", {}, -1, "", "VPUX_", 0},
-            {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-            {"CPU", {}, 3, "",  "CPU_", 2}}, false}
-};
+    ConfigParams{"CPU(3),GPU.1,VPUX",
+                 {{"CPU", {}, 3, "", "CPU_", 0},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"VPUX", {}, -1, "", "VPUX_", 2}},
+                 false,
+                 3},
+    ConfigParams{"VPUX,GPU.1,CPU(3)",
+                 {{"VPUX", {}, -1, "", "VPUX_", 0},
+                  {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
+                  {"CPU", {}, 3, "", "CPU_", 2}},
+                 false,
+                 3}};
 
 const std::vector<ConfigParams> testConfigsNoID = {
-    ConfigParams {"CPU,GPU,VPUX",
-        {{"CPU", {}, -1, "", "CPU_", 0},
-        {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
-        {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
+    ConfigParams{"CPU,GPU,VPUX",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
+                  {"VPUX", {}, -1, "", "VPUX_", 2}},
+                 false,
+                 3},
 };
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ParseMetaDeviceTest,
                 ::testing::ValuesIn(testConfigs),
