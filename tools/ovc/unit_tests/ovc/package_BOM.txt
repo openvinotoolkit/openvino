@@ -26,6 +26,5 @@ openvino/tools/ovc/ovc.py
 openvino/tools/ovc/telemetry_params.py
 openvino/tools/ovc/telemetry_stub.py
 openvino/tools/ovc/telemetry_utils.py
-openvino/tools/ovc/types.py
 openvino/tools/ovc/utils.py
 openvino/tools/ovc/version.py

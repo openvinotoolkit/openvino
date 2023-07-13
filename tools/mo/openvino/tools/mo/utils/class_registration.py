@@ -12,7 +12,7 @@ from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.eliminate import shape_inference
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
-from openvino.tools.ovc.logger import progress_bar  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.logger import progress_bar  # pylint: disable=no-name-in-module,import-error
 
 _registered_classes_dict = {}
 
