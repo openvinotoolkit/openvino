@@ -83,7 +83,6 @@ private:
     static std::mutex m_mtx;
     static std::map<unsigned int, std::list<std::string>> m_priority_map;
     PluginConfig m_plugin_config;
-    mutable SoCompiledModel m_hw_compiledmodel;
 };
 
 }  // namespace auto_plugin

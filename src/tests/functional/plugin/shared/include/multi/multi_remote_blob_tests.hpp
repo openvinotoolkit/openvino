@@ -9,6 +9,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 
 TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferenceEngine::CNNNetwork net(fn_ptr);
     net.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);

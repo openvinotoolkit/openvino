@@ -20,8 +20,7 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                       ScheduleContext::Ptr context,
                                                       Schedule::Ptr scheduler)
     : CompiledModel(model, plugin, context, scheduler),
-      m_model(model),
-      m_context(context) {
+      m_model(model) {
       m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
 }
 
