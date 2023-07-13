@@ -43,7 +43,7 @@ class TokenizeMHASnippets: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TokenizeMHASnippets", "0");
     TokenizeMHASnippets(const SnippetsTokenization::Config& config = {});
-    static bool is_matmul_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul);
+    static bool is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul);
 };
 
 }  // namespace pass

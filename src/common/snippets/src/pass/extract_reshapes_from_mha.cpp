@@ -33,7 +33,7 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
         const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
-        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul_supported(matmul_node) || transformation_callback(matmul_node))
+        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) || transformation_callback(matmul_node))
             return false;
 
         const auto& reshape_2 = pattern_map.at(reshape_2_m);

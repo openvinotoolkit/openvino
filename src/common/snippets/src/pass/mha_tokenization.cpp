@@ -178,7 +178,7 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
 };
 }  // namespace
 
-bool ov::snippets::pass::TokenizeMHASnippets::is_matmul_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
+bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
     if (!matmul || matmul->get_output_target_inputs(0).size() != 1 || matmul->get_transpose_a() ||
         !is_supported_tensor(matmul->get_input_tensor(0)) || !is_supported_tensor(matmul->get_input_tensor(1)))
         return false;
@@ -243,7 +243,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
          *                   MatMul1
          */
         const auto matmul0 = ov::as_type_ptr<ov::opset1::MatMul>(pattern_to_output.at(m_matmul0).get_node_shared_ptr());
-        if (!is_matmul_supported(matmul0))
+        if (!is_matmul0_supported(matmul0))
             return false;
 
         const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
