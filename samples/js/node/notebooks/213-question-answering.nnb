@@ -17,35 +17,23 @@
         {
             "language": "javascript",
             "source": [
-                "const lib = require('./tokens_bert.js');\n\nconst vocab = lib.loadVocabFile('../../assets/text/vocab.txt');\nconst text = 'Hello world, do not blame me. Please!'.toLowerCase();\n\ntry {\n  const result = lib.textToTokens(text, vocab);\n\n  console.log(result);\n} catch(e) {\n  console.log(`error: ${e}`);\n}"
+                "const { extractValues } = require('./helpers.js');\n\nlet val;\n\ntry {\n  val = extractValues([[[1, [2, [11], [33, ['fsdf'], [], {}, [234]]]], [3, 4]], [[1, 2], [3, 4]]]);\n} catch(e) {\n  console.log(e);\n}\n\nconsole.log(val);"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "[",
-                                "  [",
-                                "    7592, 2088, 1010,",
-                                "    2079, 2025, 7499,",
-                                "    2033, 1012, 3531,",
-                                "     999",
-                                "  ],",
-                                "  [",
-                                "    [ 0, 5 ],   [ 6, 11 ],",
-                                "    [ 11, 12 ], [ 13, 15 ],",
-                                "    [ 16, 19 ], [ 20, 25 ],",
-                                "    [ 26, 28 ], [ 28, 29 ],",
-                                "    [ 30, 36 ], [ 36, 37 ]",
-                                "  ]",
-                                "]",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const { setShape } = require('./helpers.js');\n\nconst flatArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];\n\ntry {\n  console.log(setShape(flatArray, [2, 1, 3, 2 ]));\n} catch(e) {\n  console.log(e);\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const tokens = require('./tokens_bert.js');\n\nconst vocab = tokens.loadVocabFile('../../assets/text/vocab.txt');\nconst text = 'Hello world, do not blame me. Please!'.toLowerCase();\n\ntry {\n  const result = tokens.textToTokens(text, vocab);\n\n  console.log(result);\n} catch(e) {\n  console.log(`error: ${e}`);\n}"
+            ],
+            "outputs": []
         },
         {
             "language": "javascript",
@@ -99,7 +87,7 @@
         {
             "language": "javascript",
             "source": [
-                "// The path to the vocabulary file.\nconst vocabFilePath = \"../data/text/bert-uncased/vocab.txt\";\n\n// Create a dictionary with words and their indices.\nconst vocab = tokens.load_vocab_file(vocabFilePath);\n\n// Define special tokens.\nconst clsToken = vocab[\"[CLS]\"];\nconst padToken = vocab[\"[PAD]\"];\nconst sepToken = vocab[\"[SEP]\"];\n\n// A function to load text from given urls.\nfunction load_context(sources) {\n  const input_urls = [];\n  const paragraphs = [];\n    \n  for (source of sources) {\n    paragraphs.append(source);\n    // TODO: Add opportunity to parse content by URL\n\n    // Produce one big context string.\n    return \"\\n\".join(paragraphs);\n  }\n}"
+                "// The path to the vocabulary file.\nconst vocabFilePath = \"../../assets/text/vocab.txt\";\n\n// Create a dictionary with words and their indices.\nconst vocab = tokens.loadVocabFile(vocabFilePath);\n\n// Define special tokens.\nconst clsToken = vocab[\"[CLS]\"];\nconst padToken = vocab[\"[PAD]\"];\nconst sepToken = vocab[\"[SEP]\"];\n\n// A function to load text from given urls.\nfunction loadContext(sources) {\n  const input_urls = [];\n  const paragraphs = [];\n    \n  for (source of sources) {\n    paragraphs.append(source);\n    // TODO: Add opportunity to parse content by URL\n\n    // Produce one big context string.\n    return \"\\n\".join(paragraphs);\n  }\n}"
             ],
             "outputs": []
         },
@@ -113,18 +101,39 @@
         {
             "language": "javascript",
             "source": [
-                "# A generator of a sequence of inputs.\ndef prepare_input(question_tokens, context_tokens):\n    # A length of question in tokens.\n    question_len = len(question_tokens)\n    # The context part size.\n    context_len = input_size - question_len - 3\n\n    if context_len < 16:\n        raise RuntimeError(\"Question is too long in comparison to input size. No space for context\")\n\n    # Take parts of the context with overlapping by 0.5.\n    for start in range(0, max(1, len(context_tokens) - context_len), context_len // 2):\n        # A part of the context.\n        part_context_tokens = context_tokens[start:start + context_len]\n        # The input: a question and the context separated by special tokens.\n        input_ids = [cls_token] + question_tokens + [sep_token] + part_context_tokens + [sep_token]\n        # 1 for any index if there is no padding token, 0 otherwise.\n        attention_mask = [1] * len(input_ids)\n        # 0 for question tokens, 1 for context part.\n        token_type_ids = [0] * (question_len + 2) + [1] * (len(part_context_tokens) + 1)\n\n        # Add padding at the end.\n        (input_ids, attention_mask, token_type_ids), pad_number = pad(input_ids=input_ids,\n                                                                      attention_mask=attention_mask,\n                                                                      token_type_ids=token_type_ids)\n\n        # Create an input to feed the model.\n        input_dict = {\n            \"input_ids\": np.array([input_ids], dtype=np.int32),\n            \"attention_mask\": np.array([attention_mask], dtype=np.int32),\n            \"token_type_ids\": np.array([token_type_ids], dtype=np.int32),\n        }\n\n        # Some models require additional position_ids.\n        if \"position_ids\" in [i_key.any_name for i_key in input_keys]:\n            position_ids = np.arange(len(input_ids))\n            input_dict[\"position_ids\"] = np.array([position_ids], dtype=np.int32)\n\n        yield input_dict, pad_number, start\n        "
+                "// A function to add padding.\nfunction pad({ inputIds, attentionMask, tokenTypeIds }) {\n  // How many padding tokens.\n  const diffInputSize = inputSize - inputIds.length;\n\n  if (diffInputSize > 0) {\n    // Add padding to all the inputs.\n    inputIds = inputIds.concat(Array(diffInputSize).fill(padToken));\n    attentionMask = attentionMask.concat(Array(diffInputSize).fill(0));\n    tokenTypeIds = tokenTypeIds.concat(Array(diffInputSize).fill(0));\n  }\n\n  return [inputIds, attentionMask, tokenTypeIds, diffInputSize];\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// A generator of a sequence of inputs.\nfunction* prepareInput(questionTokens, contextTokens) {\n    // A length of question in tokens.\n    const questionLen = questionTokens.length;\n    // The context part size.\n    const contextLen = inputSize - questionLen - 3;\n\n    if (contextLen < 16)\n        throw new Error('Question is too long in comparison to input size. No space for context');\n\n    const inputLayerNames = inputs.map(i => i.toString());\n\n    // Take parts of the context with overlapping by 0.5.\n    const max = Math.max(1, contextTokens.length - contextLen);\n\n    for (let start = 0; start < max; start += parseInt(contextLen / 2)) {\n      // A part of the context.\n      const partContextTokens = contextTokens.slice(start, start + contextLen);\n      // The input: a question and the context separated by special tokens.\n      let inputIds = [clsToken, ...questionTokens, sepToken, ...partContextTokens, sepToken];\n      // 1 for any index if there is no padding token, 0 otherwise.\n      let attentionMask = Array(inputIds.length).fill(1)\n      // 0 for question tokens, 1 for context part.\n      let tokenTypeIds = [...Array(questionLen + 2).fill(0), ...Array(partContextTokens.length + 1).fill(1)];\n\n      let padNumber = 0;\n\n      // Add padding at the end.\n      [inputIds, attentionMask, tokenTypeIds, padNumber] = pad({ inputIds, attentionMask, tokenTypeIds });\n\n      // Create an input to feed the model.\n      const inputDict = {\n        'input_ids': new Int32Array(inputIds),\n        'attention_mask': new Int32Array(attentionMask),\n        'token_type_ids': new Int32Array(tokenTypeIds),\n      };\n\n      // Some models require additional position_ids.\n      if (inputLayerNames.includes('position_ids')) {\n        positionIds = inputIds.map((_, index) => index);\n        inputDict['position_ids'] = new Int32Array(positionIds);\n      }\n\n      yield [inputDict, padNumber, start];\n    }\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Postprocessing\n\nThe results from the network are raw (logits). Use the softmax function to get the probability distribution. Then, find the best answer in the current part of the context (the highest score) and return the score and the context range for the answer."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const { \n  reshape, \n  getShape, \n  extractValues, \n  matrixMultiplication,\n  triu,\n  tril,\n  argMax,\n  arange,\n} = require('./helpers.js');\n\n// Based on https://github.com/openvinotoolkit/open_model_zoo/blob/bf03f505a650bafe8da03d2747a8b55c5cb2ef16/demos/common/python/openvino/model_zoo/model_api/models/bert.py#L188\nfunction findBestAnswerWindow(startScore, endScore, contextStartIdx, contextEndIdx) {\n  const contextLen = contextEndIdx - contextStartIdx;\n\n  const mat1 = reshape(startScore.slice(contextStartIdx, contextEndIdx), [contextLen, 1]);\n  const mat2 = reshape(endScore.slice(contextStartIdx, contextEndIdx), [1, contextLen]);\n\n  let scoreMat = matrixMultiplication(mat1, mat2);\n\n  // Reset candidates with end before start.\n  scoreMat = triu(scoreMat)\n  // Reset long candidates (>16 words).\n  scoreMat = tril(scoreMat, 16)\n\n  // Find the best start-end pair.\n  const coef = argMax(extractValues(scoreMat));\n  const secondShapeDim = getShape(scoreMat)[1];\n\n  const maxS = parseInt(coef/secondShapeDim);\n  const maxE = coef%secondShapeDim;\n\n  const maxScore = scoreMat[maxS][maxE]\n\n  return [maxScore, maxS, maxE];\n}\n\n// const mat1 = reshape(arange(120), [10, 12]);\n// const mat2 = reshape(arange(120), [10, 12]);\n// try {\n// const result = findBestAnswerWindow(mat1, mat2, 0, 120);\n\n// console.log(result);\n// } catch(e) {\n//   console.log(e);\n// }"
             ],
             "outputs": [
                 {
                     "items": [
                         {
-                            "mime": "application/vnd.code.notebook.error",
-                            "value": {
-                                "name": "Error",
-                                "message": "Failed to generate code object, \ngenerator;\n ^\n\nUnexpected character ';'",
-                                "stack": ""
-                            }
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "{ shape: [ 10, 12 ], l: 120 }",
+                                "[ 14161, 119, 119 ]",
+                                ""
+                            ]
                         }
                     ]
                 }
@@ -133,7 +142,21 @@
         {
             "language": "javascript",
             "source": [
-                "// A function to add padding.\nfunction pad(inputIds, attentionMask, tokenTypeIds) {\n  // How many padding tokens.\n  const diffInputSize = inputSize - inputIds.length;\n\n  if (diffInputSize > 0) {\n    // Add padding to all the inputs.\n    inputIds = inputIds.concat(Array(diffInputSize).fill(padToken));\n    attentionMask = attentionMask.concat(Array(diffInputSize).fill(0));\n    tokenTypeIds = tokenTypeIds.concat(Array(diffInputSize).fill(0));\n  }\n\n  return [[inputIds, attentionMask, tokenTypeIds], diffInputSize];\n}"
+                "function getBestAnswer(question, context) {\n  // Convert the context string to tokens.\n  const [contextTokens, contextTokensStartEnd] = tokens.textToTokens(context.toLowerCase(), vocab);\n  // Convert the question string to tokens.\n  const [questionTokens] = tokens.textToTokens(question.toLowerCase(), vocab);\n\n  const results = [];\n  // Iterate through different parts of the context.\n  for ([networkInput, padding, startIdx] of prepareInput(questionTokens, contextTokens)) {\n    // Get output layers.\n    const outputStartKey = compiled_model.output('output_s');\n    const outputEndKey = compiled_model.output('output_e');\n\n    // OpenVINO inference.\n    const inferRequest = compiledModel.create_infer_request();\n    // FIXME: implement supporting of multiinput model\n    inferRequest.set_input_tensor(networkInput);\n    inferRequest.infer();\n\n    const resultStart = inferRequest.getTensor(outputStartKey);\n    const resultEnd = inferRequest.getTensor(outputEndKey);\n\n    // Postprocess the result, getting the score and context range for the answer.\n    const scoreStartEnd = postprocess(output_start=resultStart[0], // ???\n                                  output_end=resultEnd[0],         // ???\n                                  questionTokens,\n                                  contextTokensStartEnd,\n                                  padding,\n                                  startIdx);\n    results.append(scoreStartEnd);\n  }\n\n  // Find the highest score.\n  const answer = Math.max(results);\n  // Return the part of the context, which is already an answer.\n  return context.slice(answer[1], answer[2]), answer[0];\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "function getScore(logits) {\n  const out = exp(logits);\n  const summedRows = sumRows(out);\n\n  return out.map(row => row.map((colEl, i) => colEl/summedRows[i]));\n}\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "function runQuestionAnswering(sources, question) {\n  const context = loadContext(sources);\n\n  if (!context.lenght) {\n    console.log('Error: Empty context or outside paragraphs');\n    return;\n  }\n\n  const timeLabel = 'Time:';\n\n  console.timeStart(timeLabel);\n  const [answer, score] = getBestAnswer(question, context);\n\n  console.log(`Question: ${question}`);\n  console.log(`Answer: ${answer}`);\n  console.log(`Score: ${score.toFixed(2)}`);\n  console.timeEnd(timeLabel );\n}"
             ],
             "outputs": []
         }
