@@ -257,9 +257,11 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
     get_core()->set_property(primary_dev, hw_config);
 
-    if (proxy_config_was_changed)
+    if (proxy_config_was_changed) {
+        m_init_devs = false;
         // Check that proxy found available devices
         get_hidden_devices();
+    }
 }
 
 ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -441,6 +443,7 @@ std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
 }
 
 void ov::proxy::Plugin::remove_unavailable_plugins() const {
+    std::lock_guard<std::mutex> lock(m_plugin_mutex);
     const auto core = get_core();
     OPENVINO_ASSERT(core != nullptr);
     std::unordered_set<std::string> unsupported_devices;
@@ -465,6 +468,7 @@ void ov::proxy::Plugin::remove_unavailable_plugins() const {
                 continue;
             auto& devices = it->second.as<std::vector<std::string>>();
             devices.erase(std::remove(devices.begin(), devices.end(), device), devices.end());
+            it->second = devices;
         }
     }
 }
@@ -475,7 +479,15 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     //  * Alias - Case when we group all devices under one common name
     remove_unavailable_plugins();
 
-    std::vector<std::vector<std::string>> result;
+    if (m_init_devs)
+        return m_hidden_devices;
+
+    std::lock_guard<std::mutex> lock(m_init_devs_mutex);
+
+    if (m_init_devs)
+        return m_hidden_devices;
+
+    m_hidden_devices.clear();
     const auto core = get_core();
     OPENVINO_ASSERT(core != nullptr);
     OPENVINO_ASSERT(
@@ -493,13 +505,12 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             std::vector<std::string> devices{full_device_name};
 
             // Add fallback devices use device_id for individual fallback property
-            auto fallback = get_internal_property(ov::device::priorities.name(), device_id).as<std::string>();
-            if (!fallback.empty()) {
-                for (const auto& fallback_dev : ov::util::split(fallback, ' ')) {
-                    devices.emplace_back(fallback_dev);
-                }
+            const auto fallback_order =
+                get_internal_property(ov::device::priorities.name(), device_id).as<std::vector<std::string>>();
+            for (const auto& fallback_dev : fallback_order) {
+                devices.emplace_back(fallback_dev);
             }
-            result.emplace_back(devices);
+            m_hidden_devices.emplace_back(devices);
         }
     } else {
         typedef struct DeviceId {
@@ -608,7 +619,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                 device_order.emplace_back(device.device_to_full_name.begin()->second);
                 real_fallback_order.emplace_back(device.device_to_full_name.begin()->first);
             }
-            result.emplace_back(device_order);
+            m_hidden_devices.emplace_back(device_order);
             std::string new_fallback;
             for (const auto& dev : real_fallback_order) {
                 if (!new_fallback.empty())
@@ -619,7 +630,8 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             m_configs[std::to_string(i)][ov::device::priorities.name()] = new_fallback;
         }
     }
-    return result;
+    m_init_devs = true;
+    return m_hidden_devices;
 }
 
 bool ov::proxy::Plugin::has_internal_property(const std::string& property, const std::string& config_name) const {
