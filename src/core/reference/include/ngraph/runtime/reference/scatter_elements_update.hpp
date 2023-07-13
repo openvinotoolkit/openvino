@@ -18,6 +18,15 @@ namespace runtime {
 namespace reference {
 using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
+template <typename T>
+size_t normalize_index(const T idx, const size_t dim_value) {
+    if (idx < 0) {
+        return static_cast<size_t>(idx + dim_value);
+    } else {
+        return static_cast<size_t>(idx);
+    }
+}
+
 template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
@@ -69,7 +78,7 @@ void scatter_elem_update(const DataType* input_data,
         const size_t indices_idx =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
-        out_cord.at(axis) = indices[indices_idx];
+        out_cord.at(axis) = normalize_index(indices[indices_idx], data_shape[axis]);
         const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
         out_buf[out_idx] = updates[indices_idx];
     }
@@ -151,15 +160,6 @@ template <typename T>
 typename std::enable_if<std::is_integral<T>::value, T>::type arithmetic_mean(const T accumulator, const int32_t N) {
     const T value = static_cast<T>(std::nearbyint(static_cast<double>(accumulator) / N));
     return value;
-}
-
-template <typename T>
-size_t normalize_index(const T idx, const size_t dim_value) {
-    if (idx < 0) {
-        return static_cast<size_t>(idx + dim_value);
-    } else {
-        return static_cast<size_t>(idx);
-    }
 }
 
 template <typename T>
