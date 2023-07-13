@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ public:
     impl_desc_type getImplType() const override { return implType; }
 private:
     std::shared_ptr<PermuteKernel> pKernel;
-    impl_desc_type implType = impl_desc_type::jit;
+    static const impl_desc_type implType = impl_desc_type::jit;
 };
 
 class JitTransposeExecutorBuilder : public TransposeExecutorBuilder {

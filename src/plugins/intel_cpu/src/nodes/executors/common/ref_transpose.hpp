@@ -8,7 +8,6 @@
 
 namespace ov {
 namespace intel_cpu {
-//namespace {
 class RefTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
@@ -37,6 +36,5 @@ public:
     }
 };
 
-//} // namespace
 } // namespace intel_cpu
 } // namespace ov

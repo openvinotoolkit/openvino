@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ public:
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) override;
     impl_desc_type getImplType() const override { return implType; }
 private:
-    impl_desc_type implType = impl_desc_type::acl;
+    static const impl_desc_type implType = impl_desc_type::acl;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEPermute> acl_permute;
 };

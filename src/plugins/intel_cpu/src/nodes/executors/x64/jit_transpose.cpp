@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,7 @@ bool JitTransposeExecutorBuilder::isSupported(const TransposeParams& transposePa
                                               const std::vector<MemoryDescPtr>& srcDescs,
                                               const std::vector<MemoryDescPtr>& dstDescs) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(x64::avx512_core) ||
-        mayiuse(x64::avx2) ||
-        mayiuse(x64::sse41)) {
+    if (mayiuse(x64::sse41)) {
         return true;
     }
 #endif // OPENVINO_ARCH_X86_64
