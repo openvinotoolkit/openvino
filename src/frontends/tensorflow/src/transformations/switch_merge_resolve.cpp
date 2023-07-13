@@ -194,7 +194,6 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
             const auto& merge_cf_marker = get_cf_marker(merge_node);
             copy_conditional_flow_marker(merge_cf_marker, if_cf_marker);
 
-            size_t input_ind = 0;
             for (size_t input_ind = 0; input_ind < merge_node->get_input_size(); ++input_ind) {
                 uint32_t branch_index = 0;
                 shared_ptr<v0::Result> result_output, result_value_index;

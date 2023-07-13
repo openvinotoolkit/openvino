@@ -29,7 +29,6 @@ OutputVector translate_switch_op(const NodeContext& node) {
     // check if the condition goes to another Switch node
     // and re-use its conditional flow marker for further grouping multiple Switch and Merge nodes
     // walk through all consumers for pred and find Switch nodes
-    bool another_switch_found = false;
     bool generate_new_marker = true;
     int32_t switch_marker = 0;
     auto pred_node = pred.get_node_shared_ptr();
@@ -39,7 +38,6 @@ OutputVector translate_switch_op(const NodeContext& node) {
         auto another_producer = target_input.get_node()->shared_from_this();
         if (const auto& another_switch = as_type_ptr<Switch>(another_producer)) {
             if (another_switch->is_cond_flow_marker_set() && cf_marker_exists(another_switch)) {
-                const auto& another_switch_marker = get_cf_marker(another_switch);
                 switch_marker = another_switch->get_cond_flow_marker();
                 generate_new_marker = false;
             }
