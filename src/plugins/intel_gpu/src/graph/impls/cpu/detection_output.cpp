@@ -41,7 +41,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 
 public:
     enum NMSType {CAFFE, MXNET};
-    NMSType nms_type;
+    NMSType nms_type = NMSType::CAFFE;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
