@@ -15,6 +15,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include <algorithm>
+
 namespace ov {
 namespace snippets {
 namespace pass {
@@ -86,19 +88,13 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     // The work amount for parallelism should be divided by max thread count in ideal case
     // that all threads have the same full work amount (avoid of thread downtime)
     // If it's impossible, it should be more than max thread count
-    // TODO: Find solution for finding of optimal splitting in these cases
+    // [115284]: Find solution for finding of optimal splitting in these cases
     // For example, there are 16 threads and shape [6, 512, 32]
     //              LCM(6, 16) = 48 <- ideal work amount for parallelism
     //              new_shape [6, 48 / 6, 512 / (48 / 6), 32 ] => [6, 8, 64, 32]
     //              Each thread has parallelism_work_amount = 6 * 8 / nthrs = 3
     auto get_lcm = [](size_t a, size_t b) {
-        std::function<size_t(size_t, size_t)> get_gcd;
-        get_gcd = [&get_gcd](size_t a, size_t b) {
-            if (b == 0)
-                return a;
-            return get_gcd(b, a % b);
-        };
-        return a / get_gcd(a, b) * b;
+        return a / std::__gcd(a, b) * b;
     };
     const auto lcm = get_lcm(batch_dim, optimal_parallelism_work_amount);  // LCM(b, nthrs)
     const auto batch_dim_multiplier = lcm / batch_dim;  // LCM(b, nthrs) / b
@@ -135,6 +131,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
         batch_m_dim = 1;
         new_m_dim = m_dim;
         size_t idx = 0;
+        // [115284] The current solution is not enough optimized. For more details please go to the ticket
         while (batch_m_dim * batch_dim < optimal_parallelism_work_amount && idx < m_factors.size()) {
             auto tmp_batch_m_dim = batch_m_dim * m_factors[idx];
             // There should be enough work for kernel execution
