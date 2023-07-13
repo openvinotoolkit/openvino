@@ -18,6 +18,7 @@
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
+    OPENVINO_SUPPRESS_DEPRECATED_START                                      \
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
@@ -26,7 +27,8 @@
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
         OPENVINO_THROW("Unexpected exception");                             \
-    }
+    }                                                                       \
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -158,7 +160,6 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
-    std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(_impl->get_tensors(port).empty(),
                         "get_tensor shall not be used together with batched "
@@ -166,7 +167,8 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         port,
                         "'");
         auto tensor = _impl->get_tensor(port);
-        tensor._so.emplace_back(_so);
+        if (!tensor._so)
+            tensor._so = _so;
 
         return tensor;
     });
@@ -229,6 +231,7 @@ void InferRequest::start_async() {
 
 void InferRequest::wait() {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         _impl->wait();
     } catch (const ov::Cancelled&) {
@@ -240,10 +243,12 @@ void InferRequest::wait() {
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     try {
         return _impl->wait_for(timeout);
     } catch (const ie::InferCancelled& e) {
@@ -253,6 +258,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     } catch (...) {
         OPENVINO_THROW("Unexpected exception");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {

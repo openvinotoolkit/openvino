@@ -11,7 +11,6 @@
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
-#include "dimension_tracker.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
@@ -25,6 +24,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 #include "validation_util.hpp"

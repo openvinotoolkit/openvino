@@ -545,31 +545,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::LRN> &node
     return std::make_shared<ov::Model>(results, params, "LRN");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::LSTMSequence> &node) {
-    const auto params =
-        ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::i32},
-                                           {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}, {5}});
-    const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
-    const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
-    const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
-    const auto P = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30}, {}, true);
-    const int64_t hidden_size = 10;
-    const auto lstm_sequence =
-        std::make_shared<ov::op::v0::LSTMSequence>(params[0],
-                                                   params[1],
-                                                   params[2],
-                                                   params[3],
-                                                   W,
-                                                   R,
-                                                   B,
-                                                   P,
-                                                   hidden_size,
-                                                   ov::op::RecurrentSequenceDirection::FORWARD);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
-                                 std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),
-                                 std::make_shared<ov::op::v0::Result>(lstm_sequence->output(2))};
-    return std::make_shared<ov::Model>(results, params, "LSTMSequence");
-}
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::LogSoftmax> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{1}});
@@ -967,6 +942,16 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterEle
     const auto indices = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2, 2}, {1, 1, 0, 0});
     const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
     auto Node = std::make_shared<ov::op::v3::ScatterElementsUpdate>(params.at(0), indices, params.at(1), axis);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "ScatterElementsUpdateGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::ScatterElementsUpdate> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}});
+    const auto indices = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2, 2}, {1, 1, 0, 0});
+    const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
+    auto Node = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
+        params.at(0), indices, params.at(1), axis, ov::op::v12::ScatterElementsUpdate::Reduction::SUM);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
     return std::make_shared<ov::Model>(results, params, "ScatterElementsUpdateGraph");
 }
@@ -1755,6 +1740,19 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
                                  std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1))};;
         return std::make_shared<ov::Model>(results, params, "LSTMCell4BaseGraph");
+    } else if (ov::is_type<ov::op::v0::LSTMSequence>(node)) {
+        const auto params = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::i64},
+                                                               {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}, {5}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40, 10}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 40}, {}, true);
+        const auto P = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30}, {}, true);
+        RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params.at(0), params.at(1), params.at(2), params.at(3),
+                                                                     W, R, B, 10, ov::op::RecurrentSequenceDirection::FORWARD);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1)),
+                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(2))};
+        return std::make_shared<ov::Model>(results, params, "LSTMSeq1BaseGraph");
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(node)) {
         const auto params = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::i64},
                                                                {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}, {5}});
@@ -1766,7 +1764,7 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
                                  std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1)),
                                  std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ov::Model>(results, params, "LSTMSeqBaseGraph");
+        return std::make_shared<ov::Model>(results, params, "LSTMSeq5BaseGraph");
     } else if (ov::is_type<ov::op::v0::RNNCell>(node)) {
         const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3}, {2, 3}});
         const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {3, 3}, {}, true);

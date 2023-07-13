@@ -36,14 +36,14 @@ InferenceEngine::Blob::Ptr LayerQuantizer::FP32ToPrecisionBlob(InferenceEngine::
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    auto levels = 1;
+    uint32_t levels = 1;
 
     if (dst_quant_params.IsStatsSet()) {
         input_low = dst_quant_params.GetMinValues(true).front();
         input_high = dst_quant_params.GetMaxValues(true).front();
         output_low = dst_quant_params.GetMinValues(false).front();
         output_high = dst_quant_params.GetMaxValues(false).front();
-        levels = dst_quant_params.GetLevels();
+        levels = static_cast<uint32_t>(dst_quant_params.GetLevels());
     }
 
     auto f32_value_array = fp32_blob->buffer().as<float*>();
@@ -90,7 +90,7 @@ size_t LayerQuantizer::GetBiasSizeForLayer(InferenceEngine::WeightableLayer& wl)
         return wl._biases->size();
     } else if (LayerInfo(wl).isConvolution()) {
         // Calculating biases len using outdata dims: biases number should be equal to output channels number
-        return InferenceEngine::GetDataDimByName(wl.outData.front(), InferenceEngine::DataDimName::C);
+        return InferenceEngine::GetDataDimSizeNHWC(wl.outData.front(), InferenceEngine::DataDimName::C);
     } else {
         // Calculating biases size using outData dimensions
         return wl.outData.front()->getDims().back();

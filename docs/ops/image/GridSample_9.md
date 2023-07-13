@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GridSample-9 - an image processing operation, which 
+                can be performed on two required input tensors.
+
 **Versioned name:** *GridSample-9*
 
 **Category:** *Image processing*
@@ -64,7 +68,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GridSample" ...>
        <data align_corners="true" mode="nearest" padding_mode="border"/>

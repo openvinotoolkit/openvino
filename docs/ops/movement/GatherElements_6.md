@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GatherElements-6 - a data movement operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *GatherElements-6*
 
 **Category**: *Data movement*
@@ -18,7 +22,7 @@ and has the same shape as ``indices``.
 
 For instance, in the 3D case (``r = 3``), the output is determined by the following equations:
 
-.. code-block::
+.. code-block:: sh
 
    out[i][j][k] = data[indices[i][j][k]][j][k] if axis = 0
    out[i][j][k] = data[i][indices[i][j][k]][k] if axis = 1
@@ -26,7 +30,7 @@ For instance, in the 3D case (``r = 3``), the output is determined by the follow
 
 Example 1 with concrete values:
 
-.. code-block::
+.. code-block:: sh
 
    data = [
        [1, 2],
@@ -44,7 +48,7 @@ Example 1 with concrete values:
 
 Example 2 with ``axis`` = 1 and ``indices`` having greater (than ``data``) shape:
 
-.. code-block::
+.. code-block:: sh
 
    data = [
        [1, 7],
@@ -63,7 +67,7 @@ Example 2 with ``axis`` = 1 and ``indices`` having greater (than ``data``) shape
 
 Example 3 ``indices`` has lesser (than ``data``) shape:
 
-.. code-block::
+.. code-block:: sh
 
    data = [
        [1, 2, 3],
@@ -107,7 +111,8 @@ Example 3 ``indices`` has lesser (than ``data``) shape:
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <... type="GatherElements" ...>
        <data axis="1" />

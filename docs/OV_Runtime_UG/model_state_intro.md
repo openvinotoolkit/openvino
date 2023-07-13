@@ -7,7 +7,11 @@
    :hidden:
 
    openvino_docs_OV_UG_lowlatency2
-   openvino_docs_OV_UG_lowlatency_deprecated
+
+.. meta::
+   :description: OpenVINO Runtime includes a special API to work with stateful 
+                 networks, where a state can be automatically read, set, saved 
+                 or reset between inferences.
 
 
 Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
@@ -197,11 +201,7 @@ refer to the speech sample and a demo in the :doc:`Samples Overview <openvino_do
 LowLatency Transformations
 ##########################
 
-If the original framework does not have a special API for working with states, OpenVINO representation will not contain ``Assign``/``ReadValue`` layers after importing the model. For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` operations and the values will be obtained only after execution of the whole ``TensorIterator`` primitive. Intermediate values from each iteration will not be available. Working with these intermediate values of each iteration is enabled by special :doc:`LowLatency <openvino_docs_OV_UG_lowlatency_deprecated>` and :doc:`LowLatency2 <openvino_docs_OV_UG_lowlatency2>` transformations, which also help receive these values with a low latency after each infer request.
-
-.. note::
-
-   It is recommended to use LowLatency2, as LowLatency transformation has already been deprecated.
+If the original framework does not have a special API for working with states, OpenVINO representation will not contain ``Assign``/``ReadValue`` layers after importing the model. For example, if the original ONNX model contains RNN operations, OpenVINO IR will contain :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` operations and the values will be obtained only after execution of the whole ``TensorIterator`` primitive. Intermediate values from each iteration will not be available. Working with these intermediate values of each iteration is enabled by special and :doc:`LowLatency2 <openvino_docs_OV_UG_lowlatency2>` transformation, which also help receive these values with a low latency after each infer request.
 
 TensorIterator/Loop operations
 ++++++++++++++++++++++++++++++

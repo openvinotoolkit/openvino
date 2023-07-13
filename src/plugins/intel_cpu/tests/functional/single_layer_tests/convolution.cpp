@@ -507,6 +507,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
+// Verify that even if primitive is missed in custom priority list there is still a fallback to the default priority list
+const auto conv_gemm_1D_improperPriorityList = CPUSpecificParams{{ncw}, {ncw}, {"unknown"}, "jit_gemm"};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32_ImproperPriorityList, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 convParams_ExplicitPadding_GEMM_1D,
+                                 ::testing::Values(ElementType::f32),
+                                 ::testing::Values(ElementType::undefined),
+                                 ::testing::Values(ElementType::undefined),
+                                 ::testing::ValuesIn(inShapesGemm1D),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_1D})),
+                             ::testing::Values(emptyFusingSpec),
+                             ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_BF16, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -1630,67 +1647,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_AutoPad_FP32, ConvolutionLayerCPUTest,
 /* ============= */
 
 } // namespace
-
-#if !defined(__clang__) || defined(__APPLE__)
-
-/* ============= Winograd ============= */
-namespace winograd {
-
-const std::vector<fusingSpecificParams> fusingParamsSet{
-        emptyFusingSpec,
-        fusingRelu,
-        fusingSum,
-        fusingAddPerChannel // bias
-};
-
-const SizeVector numOutChannels = { 32 };
-
-const std::vector<SizeVector> kernels2d = { {3, 3} };
-const std::vector<SizeVector> strides2d = { {1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
-const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
-const std::vector<SizeVector> dilations2d = { {1, 1} };
-
-const auto convParams_2D = ::testing::Combine(
-        ::testing::ValuesIn(kernels2d),
-        ::testing::ValuesIn(strides2d),
-        ::testing::ValuesIn(padBegins2d),
-        ::testing::ValuesIn(padEnds2d),
-        ::testing::ValuesIn(dilations2d),
-        ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
-
-std::vector<InputShape> inShapesWinograd = {
-    {{}, {{ 1, 16, 10, 10 }}},
-    {
-        //dynamic shape
-        { {1, 200}, 16, -1, {1, 200} },
-        { //target static shapes
-            { 1, 16, 5, 5 },
-            { 1, 16, 7, 7 },
-            { 1, 16, 5, 5 }
-        }
-    }
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Combine(
-                                         convParams_2D,
-                                         ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inShapesWinograd),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(std::vector<CPUSpecificParams>{conv_winograd})),
-                                 ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(cpuEmptyPluginConfig)),
-                         ConvolutionLayerCPUTest::getTestCaseName);
-
-} // namespace winograd
-
-#endif
 
 /* ============= Large Filter Test ============= */
 namespace {

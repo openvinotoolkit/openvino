@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Runtime Python API enables you to share memory on inputs, hide 
+                 the latency with asynchronous calls and implement "postponed return".
+
+
 .. warning:: 
    
    All mentioned methods are very dependent on a specific hardware and software set-up. 
@@ -74,7 +79,8 @@ Example usage:
 
 "Postponed Return" is a practice to omit overhead of ``OVDict``, which is always returned from
 synchronous calls. "Postponed Return" could be applied when:
-* only a part of output data is required. For example, only one specific output is significant
+
+* only a part of output data is required. For example, only one specific output is significant 
   in a given pipeline step and all outputs are large, thus, expensive to copy.
 * data is not required "now". For example, it can be later extracted inside the pipeline as
   a part of latency hiding.

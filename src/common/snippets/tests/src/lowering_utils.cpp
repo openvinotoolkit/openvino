@@ -5,6 +5,7 @@
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include "lowering_utils.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 
 
 namespace ov {
@@ -125,7 +126,8 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(co
     }
     body_rt_info["PluginShapesOverride"] = new_shapes;
     subgraph->set_tile_rank(2);
-    subgraph->generate(pre_dialect, post_precision, post_precision, lowered_pipeline);
+    ov::snippets::lowered::pass::PassPipeline empty_pipeline;
+    subgraph->generate(pre_dialect, post_precision, post_precision, empty_pipeline, lowered_pipeline);
     return subgraph;
 }
 

@@ -65,6 +65,8 @@
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
 #include "reverse_inst.h"
+#include "unique_inst.hpp"
+#include "condition_inst.h"
 #include "to_string_utils.h"
 
 // TODO: Remove once we have interface for kernels cache
@@ -102,15 +104,58 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
+static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+        return;
+    }
+
+    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
+    auto core_type = config._threadPreferredCoreType;
+
+    int num_cores = total_num_cores;
+    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+        num_cores = total_num_big_cores;
+    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+        num_cores = total_num_little_cores;
+    }
+
+    config._streams = std::min(config._streams, num_cores);
+}
+
+static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
+    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    switch (priority) {
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+    }
+
+    adjust_num_cores(task_executor_config);
+
+    return task_executor_config;
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+}
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
+      _task_executor(task_executor),
       processing_order(),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
@@ -161,7 +206,8 @@ void program::init_program() {
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
 
-    _task_executor = make_task_executor(_config);
+    if (_task_executor == nullptr)
+        _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
@@ -193,49 +239,18 @@ void program::init_primitives() {
     }
 }
 
-static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
-    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
-        return;
-    }
-
-    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
-    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
-    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
-    auto core_type = config._threadPreferredCoreType;
-
-    int num_cores = total_num_cores;
-    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
-        num_cores = total_num_big_cores;
-    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
-        num_cores = total_num_little_cores;
-    }
-
-    config._streams = std::min(config._streams, num_cores);
-}
-
-InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(const ExecutionConfig& config, std::string tags) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
-    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
-    switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
-        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
-    }
-
-    adjust_num_cores(task_executor_config);
-
-    return task_executor_config;
-}
-
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
-    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
-}
-
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
+}
+
+program::ptr program::build_program(engine& engine,
+                                    const topology& topology,
+                                    const ExecutionConfig& config,
+                                    InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, topology, config, task_executor, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -244,7 +259,7 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, nullptr, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -493,6 +508,9 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
+
+    // Perform initial shape_of subgraphs markup
+    apply_opt_pass<mark_shape_of_subgraphs>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
@@ -561,6 +579,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
+
+    // Call shape_of subgraphs markup second time to update newely added nodes after graph
+    // optimization passes
+    apply_opt_pass<mark_shape_of_subgraphs>(true);
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -589,8 +611,8 @@ void program::post_optimize_graph(bool is_internal) {
     if (_config.get_property(ov::intel_gpu::optimize_data))
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
-    // update loop input/output primitive mappings
-    apply_opt_pass<update_loop_primitive_map>();
+    // update inner program input/output primitive mappings
+    apply_opt_pass<update_inner_program_io_map>();
 
     // Recalculate processing order after all graph transformation to keep optimal primitives ordering
     // for OOO queue
@@ -999,12 +1021,18 @@ bool program::extract(program_node& node) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
+        } else if (user->is_type<condition>()) {
+            condition_node& cond = *user;
+            cond.update_primitive_map(node.id(), input.id());
         }
 
         for (auto& dep : node.dependencies) {
             if (dep.first->is_type<loop>()) {
                 loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
+            } else if (dep.first->is_type<condition>()) {
+                condition_node& cond = *dep.first;
+                cond.update_primitive_map(node.id(), user->id());
             }
         }
     }
@@ -1046,8 +1074,12 @@ void program::fuse_nodes(program_node &fused_node,
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
-    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
+    local_desc.input_layout = peer_node.get_input_layout(0);
     local_desc.output_layout = peer_layout;
+
+    if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
+        fused_node.in_shape_of_subgraph = false;
+    }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fusedPadding = fused_node.get_output_layout().data_padding;
@@ -1338,7 +1370,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
-                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                     total_dw_conv_layers++;
@@ -1429,6 +1461,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::convert_color::type_id() &&
+            prim.type() != cldnn::unique_count::type_id() &&
+            prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
@@ -1482,6 +1516,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::unique_count::type_id() &&
+            prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }

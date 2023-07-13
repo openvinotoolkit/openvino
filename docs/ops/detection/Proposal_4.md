@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Proposal-4 - an object detection operation, 
+                which can be performed on three required input tensors.
 
 **Versioned name**: *Proposal-4*
 
@@ -167,37 +170,38 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 **Example**
 
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
-  <layer ... type="Proposal" ... >
-      <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
-      <input>
-          <port id="0">
-              <dim>7</dim>
-              <dim>4</dim>
-              <dim>28</dim>
-              <dim>28</dim>
-          </port>
-          <port id="1">
-              <dim>7</dim>
-              <dim>8</dim>
-              <dim>28</dim>
-              <dim>28</dim>
-          </port>
-          <port id="2">
-              <dim>3</dim>
-          </port>
-      </input>
-      <output>
-          <port id="3" precision="FP32">
-              <dim>7000</dim>
-              <dim>5</dim>
-          </port>
-          <port id="4" precision="FP32">
-              <dim>7000</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="Proposal" ... >
+       <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
+       <input>
+           <port id="0">
+               <dim>7</dim>
+               <dim>4</dim>
+               <dim>28</dim>
+               <dim>28</dim>
+           </port>
+           <port id="1">
+               <dim>7</dim>
+               <dim>8</dim>
+               <dim>28</dim>
+               <dim>28</dim>
+           </port>
+           <port id="2">
+               <dim>3</dim>
+           </port>
+       </input>
+       <output>
+           <port id="3" precision="FP32">
+               <dim>7000</dim>
+               <dim>5</dim>
+           </port>
+           <port id="4" precision="FP32">
+               <dim>7000</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

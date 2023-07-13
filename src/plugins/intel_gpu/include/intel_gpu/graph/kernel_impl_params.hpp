@@ -22,6 +22,7 @@
 namespace cldnn {
 
 struct program;
+struct network;
 
 
 struct kernel_impl_params {
@@ -36,6 +37,7 @@ struct kernel_impl_params {
     stream::ptr strm;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
+    bool _can_be_optimized = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -53,6 +55,9 @@ struct kernel_impl_params {
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
+    std::vector<std::shared_ptr<program>> inner_progs = {};
+    std::vector<std::shared_ptr<network>> inner_nets = {};
+    std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
 
     kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
 
@@ -114,8 +119,19 @@ struct kernel_impl_params {
         return false;
     }
 
+    bool can_be_optimized() const {
+        return _can_be_optimized;
+    }
+
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    template <class PType>
+    bool is_type() const {
+        return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
+    }
+
+virtual primitive_type_id type() const { return desc->type; }
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);

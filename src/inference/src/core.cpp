@@ -9,8 +9,8 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
-#include "so_extension.hpp"
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {
@@ -221,9 +221,8 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+        auto exec = _impl->import_model(modelStream, context, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -254,8 +253,8 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
 }
 
-void Core::register_plugin(const std::string& plugin, const std::string& device_name) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name););
+void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {

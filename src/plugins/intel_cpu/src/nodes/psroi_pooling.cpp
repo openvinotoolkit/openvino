@@ -482,12 +482,12 @@ void PSROIPooling::executeBilinearDeformable(const inputType *srcData, outputTyp
 
 template <typename inputType, typename outputType>
 void PSROIPooling::executeSpecified() {
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
@@ -503,7 +503,7 @@ void PSROIPooling::executeSpecified() {
     int channelsEachClass = outputDim;
     if (!noTrans) {
         const auto mem = getParentEdgeAt(2)->getMemoryPtr();
-        bottomTrans = reinterpret_cast<const float *>(mem->GetPtr());
+        bottomTrans = reinterpret_cast<const float *>(mem->getData());
         numClasses = static_cast<int>(mem->getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }

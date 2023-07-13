@@ -46,6 +46,7 @@
 #include "pyopenvino/graph/discrete_type_info.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
+#include "pyopenvino/graph/ops/assign.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
@@ -185,6 +186,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_descriptor_Tensor(m);
     regclass_graph_DiscreteTypeInfo(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
+    regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);

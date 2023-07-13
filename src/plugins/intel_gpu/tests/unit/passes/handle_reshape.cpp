@@ -91,7 +91,7 @@ TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
 
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_TRUE(prog->get_node("matmul").get_dependency(0).get_output_layout().data_type == data_types::f16);
+    ASSERT_TRUE(prog->get_node("matmul").get_input_layout(0).data_type == data_types::f16);
 }
 
 TEST(handle_reshape, correct_parameters_propagation) {
@@ -123,8 +123,8 @@ TEST(handle_reshape, correct_parameters_propagation) {
 
     ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
 
-    auto out_shape0 = prog->get_node("e2").get_output_layout().get_partial_shape();
-    auto out_shape1 = prog->get_node("reorder").get_output_layout().get_partial_shape();
+    auto out_shape0 = prog->get_node("e2").get_output_pshape();
+    auto out_shape1 = prog->get_node("reorder").get_output_pshape();
 
     ov::PartialShape expected_out_shape{2, 12};
 
@@ -171,8 +171,8 @@ TEST(handle_reshape, correct_parameters_propagation_2_inputs) {
     ASSERT_TRUE(reshape_split_node.is_type<reshape>());
     ASSERT_EQ(reshape_split_node.get_dependencies().size(),  2);
 
-    auto out_shape0 = prog->get_node("e2").get_output_layout().get_partial_shape();
-    auto out_shape1 = prog->get_node("reorder").get_output_layout().get_partial_shape();
+    auto out_shape0 = prog->get_node("e2").get_output_pshape();
+    auto out_shape1 = prog->get_node("reorder").get_output_pshape();
 
     ov::PartialShape expected_out_shape{2, 12};
 
@@ -220,7 +220,8 @@ TEST(handle_reshape, reshape_input_reorder) {
     // converts tensor to default format with rank = reshape_out_rank
     // Likely in the future we'll update that reorder so it will use reshape_input_rank
     // After that expected in format will be bfzyx
-    ASSERT_EQ(reshape_layout_in.format, format::bfyx);
+    // [Updated] get_preferred_format() updated to use 'in_lay_rank' instead of 'out_lay_rank' for preferred input format
+    ASSERT_EQ(reshape_layout_in.format, format::bfzyx);
     ASSERT_EQ(reshape_layout_out.format, format::bfyx);
 
     ov::PartialShape expected_out_shape{-1, 16, 64, 64};
