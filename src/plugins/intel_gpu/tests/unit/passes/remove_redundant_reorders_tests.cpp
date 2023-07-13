@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -143,6 +144,7 @@ TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_pad
 }
 
 TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto data0_layout = engine.allocate_memory({ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx });
     auto in_layout = layout{ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx };
@@ -172,7 +174,7 @@ TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
     network network(engine, topology, config);
 
     auto input = engine.allocate_memory(in_layout);
-    VVVVF<float> input_all_neg = generate_random_4d<float>(1, 32, 2, 2, -10.f, 0.f);
+    VVVVF<float> input_all_neg = rg.generate_random_4d<float>(1, 32, 2, 2, -10.f, 0.f);
     set_values(input, input_all_neg);
     network.set_input_data("input", input);
     auto outputs = network.execute();

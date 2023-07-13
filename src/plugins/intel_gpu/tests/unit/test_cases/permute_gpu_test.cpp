@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/permute.hpp>
@@ -691,6 +692,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
 
 TEST(permute_gpu_f32, permute_bfwzyx)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     const int b = 1;
     const int f = 2;
@@ -702,7 +704,7 @@ TEST(permute_gpu_f32, permute_bfwzyx)
 
     auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y, z, w));
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfwzyx, input_size });
-    auto input_data = generate_random_1d<float>(input_mem->get_layout().count(), -1, 1);
+    auto input_data = rg.generate_random_1d<float>(input_mem->get_layout().count(), -1, 1);
 
     set_values(input_mem, input_data);
 

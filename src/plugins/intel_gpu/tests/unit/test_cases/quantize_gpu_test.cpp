@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
@@ -699,6 +700,12 @@ struct quantize_random_test_params {
 
 struct quantize_random_test : testing::TestWithParam<quantize_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_typed(memory::ptr src, memory::ptr dst) {
         auto l = dst->get_layout();
@@ -731,7 +738,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/border.hpp>
@@ -59,6 +60,7 @@ using border_test_param = std::tuple<ov::op::PadMode,      // pad mode
 template <class T, data_types T_dt>
 class border_test : public ::testing::TestWithParam<border_test_param<T>> {
 public:
+    tests::random_generator rg;
     ov::op::PadMode pad_mode;
     T pad_value;
     format::type fmt;
@@ -66,13 +68,14 @@ public:
     bool is_caching_test;
     void SetUp() override {
         ::testing::TestWithParam<border_test_param<T>>::SetUp();
+        rg.set_seed(GET_SUITE_NAME);
         std::tie(pad_mode, pad_value, fmt, sh_in, cd_lt, cd_rb, is_caching_test) = this->GetParam();
         sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
                   sh_in[1] + cd_lt[1] + cd_rb[1],
                   sh_in[2] + cd_lt[2] + cd_rb[2],
                   sh_in[3] + cd_lt[3] + cd_rb[3]};
         auto& engine = get_test_engine();
-        auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
+        auto input_data = rg.generate_random_1d<T>(mult(sh_in), -9, 9, 1);
         auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
         set_values(input, input_data);
 
@@ -195,9 +198,10 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
               sh_in[1] + cd_lt[1] + cd_rb[1],
               sh_in[2] + cd_lt[2] + cd_rb[2],
               sh_in[3] + cd_lt[3] + cd_rb[3]};
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
+    auto input_data = rg.generate_random_1d<T>(mult(sh_in), -9, 9, 1);
     auto input = engine.allocate_memory({T_dt, format::bfyx, {sh_in[0], sh_in[1], sh_in[3], sh_in[2]}});
     set_values(input, input_data);
 
@@ -274,8 +278,9 @@ TEST(border_gpu, zyx_bsv16fsv16) {
               sh_in[2] + cd_lt[2] + cd_rb[2],
               sh_in[3] + cd_lt[3] + cd_rb[3],
               sh_in[4] + cd_lt[4] + cd_rb[4]};
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    auto input_data = generate_random_1d<T>(mult(sh_in), -9, 9, 1);
+    auto input_data = rg.generate_random_1d<T>(mult(sh_in), -9, 9, 1);
     auto input = engine.allocate_memory({T_dt, format::bfzyx, {sh_in[0], sh_in[1], sh_in[4], sh_in[3], sh_in[2]}});
     set_values(input, input_data);
 

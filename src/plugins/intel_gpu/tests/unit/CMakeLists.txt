@@ -39,9 +39,11 @@ if (MSVC)
   )
 endif()
 
+
 set(SOURCES_ALL
     ${SOURCES_MAIN}
     ${SOURCES_NATVIS}
+    ${TEST_COMMON_SOURCE_FILES}
   )
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
@@ -69,7 +71,8 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_kernels,INTERFACE_INCLUDE_DIRECTORIES>
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
-                                                  ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/)
+                                                  ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/
+                                                  ${TEST_COMMON_INCLUDE_DIR})
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)

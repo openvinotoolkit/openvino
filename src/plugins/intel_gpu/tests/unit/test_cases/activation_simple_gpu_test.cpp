@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -1631,6 +1632,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     constexpr int x = 2;
     constexpr int y = 2;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& eng = get_test_engine();
 
     auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
@@ -1639,8 +1641,8 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     auto in_mem = eng.allocate_memory(in_lay);
     auto params_mem = eng.allocate_memory(params_lay);
 
-    auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
-    auto params_data = generate_random_1d<float>(f, -1, 1);
+    auto in_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = rg.generate_random_1d<float>(f, -1, 1);
 
     set_values(params_mem, params_data);
 
@@ -1685,7 +1687,12 @@ using activation_random_test_params = std::tuple<data_types,
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
+    tests::random_generator rg;
     bool enable_profiling = false;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     size_t get_x_pitch(layout& layout) {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
@@ -1703,7 +1710,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -2003,13 +2010,14 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(true)));
 
 TEST(activation_gpu, has_proper_synchronization) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto in_layout = layout({1, 2, 2, 4}, data_types::f32, format::bfyx);
     auto input_mem = engine.allocate_memory(in_layout);
     auto const_mem = engine.allocate_memory({{1, 2, 2, 4}, data_types::f32, format::bfyx});
 
-    auto in_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
-    auto const_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto in_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto const_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
 
     set_values(input_mem, flatten_4d(format::bfyx, in_data));
     set_values(const_mem, flatten_4d(format::bfyx, const_data));

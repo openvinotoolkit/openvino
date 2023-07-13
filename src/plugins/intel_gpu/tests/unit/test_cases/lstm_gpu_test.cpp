@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/lstm.hpp>
@@ -194,11 +195,13 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
     bool hasBias, bool hasHidden, bool is_caching_test = false) {
     int min_random = -2, max_random = 2;
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
-    VVVVF<T> ref_weights = generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
-    VVVVF<T> ref_recurrent = generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
-    VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
+    VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
+    VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
     VF<T> ref_input_vec = flatten_4d<T>(cldnn::format::bfyx, ref_input);
     VF<T> ref_weights_vec = flatten_4d<T>(cldnn::format::bfyx, ref_weights);
     VF<T> ref_recurrent_vec = flatten_4d<T>(cldnn::format::bfyx, ref_recurrent);
@@ -270,9 +273,10 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     // cell      = [        1, direction,           batch,     hidden_size ] optional
     // output    = [        2, direction,           batch,     hidden_size ] output concat[hidden, cell]
     int min_random = -2, max_random = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<T> ref_tempGEMM = generate_random_4d<T>(batch_size, direction, 1, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
+    VVVVF<T> ref_tempGEMM = rg.generate_random_4d<T>(batch_size, direction, 1, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
     VF<T> ref_tempGEMM_vec = flatten_4d<T>(cldnn::format::bfyx, ref_tempGEMM);
     VF<T> ref_cell_vec = flatten_4d<T>(cldnn::format::bfyx, ref_cell);
 
@@ -393,12 +397,13 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
     bool hasBias, bool hasInitialHidden, bool hasInitialCell, bool is_caching_test = false) {
     std::cout << "Input Size = " << input_size << " Hidden Size = " << hidden_size << " Sequence Len = " << sequence_len << " Batch Size = " << batch_size << std::endl;
     int min_random = -2, max_random = 2;
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
-    VVVVF<T> ref_weights = generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
-    VVVVF<T> ref_recurrent = generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
-    VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
-    VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
+    tests::random_generator rg(GET_SUITE_NAME);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, input_size, min_random, max_random);
+    VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random);
+    VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
+    VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, direction, 1, hidden_size, min_random, max_random);
     VVVVF<T> ref_output(batch_size, VVVF<T>(sequence_len, VVF<T>(direction, VF<T>(hidden_size))));
     VVVVF<T> last_hidden(batch_size, VVVF<T>(direction, VVF<T>(1, VF<T>(hidden_size))));
     VVVVF<T> last_cell(batch_size, VVVF<T>(direction, VVF<T>(1, VF<T>(hidden_size))));
@@ -462,8 +467,9 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
             << " Sequence Len = " << sequence_len << " Direction = " << direction << " Batch Size = " << batch_size << std::endl;
     int min_random = -2, max_random = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
 
     std::vector<VVVVF<T>> ref_weights;
     std::vector<VVVVF<T>> ref_recurrent;
@@ -473,11 +479,11 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
     std::vector<VVVVF<T>> ref_output;
 
     for (int i = 0; i < layers; ++i) {
-        ref_weights.push_back(generate_random_4d<T>(1, direction, 4 * hidden_size, i==0 ? input_size : hidden_size, min_random, max_random));
-        ref_recurrent.push_back(generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random));
-        ref_bias.push_back(generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random));
-        ref_hidden.push_back(generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
-        ref_cell.push_back(generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
+        ref_weights.push_back(rg.generate_random_4d<T>(1, direction, 4 * hidden_size, i==0 ? input_size : hidden_size, min_random, max_random));
+        ref_recurrent.push_back(rg.generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random));
+        ref_bias.push_back(rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random));
+        ref_hidden.push_back(rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
+        ref_cell.push_back(rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
         ref_output.push_back(VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(direction, VF<T>(hidden_size)))));
     }
 
@@ -648,13 +654,14 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
             << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
 			<< " Output selection: " << static_cast<int>(output_selection) << std::endl;
     int min_random = -2, max_random = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
-    VVVVF<T> ref_weights = generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
-    VVVVF<T> ref_recurrent = generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
-    VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
-    VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
+    VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
+    VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
     VVVVF<T> ref_output = VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(directions, VF<T>(hidden_size))));
 
     VF<T> ref_input_vec = flatten_4d<T>(cldnn::format::bfyx, ref_input);
@@ -811,13 +818,14 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions, bool is_c
             << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
             << " Output selection: " << static_cast<int>(output_selection) << std::endl;
     int min_random = -2, max_random = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
-    VVVVF<T> ref_weights = generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
-    VVVVF<T> ref_recurrent = generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
-    VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
-    VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
+    VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
+    VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
     VVVVF<T> ref_output = VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(directions, VF<T>(hidden_size))));
 
     VF<T> ref_input_vec = flatten_4d<T>(format, ref_input);
@@ -987,6 +995,7 @@ void lstm_gpu_users_test(bool is_caching_test = false) {
     int hidden_size = 1;
     int directions = 1;
     int min_random = -2, max_random = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
     // The following test is designed to test the user dependencies of an LSTM node when replaced by subcomponents
     // by the graph compiler.
@@ -996,12 +1005,12 @@ void lstm_gpu_users_test(bool is_caching_test = false) {
     // If the replacing is is done correctly then the initial_hidden tensor should match the output of the concatenation
     // by an offset along the sequence.
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
-    VVVVF<T> ref_weights = generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
-    VVVVF<T> ref_recurrent = generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
-    VVVVF<T> ref_bias = generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
-    VVVVF<T> ref_hidden = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
-    VVVVF<T> ref_cell = generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_weights = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, input_size, min_random, max_random);
+    VVVVF<T> ref_recurrent = rg.generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random);
+    VVVVF<T> ref_bias = rg.generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random);
+    VVVVF<T> ref_hidden = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
+    VVVVF<T> ref_cell = rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random);
     VVVVF<T> ref_output = VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(directions, VF<T>(hidden_size))));
 
     VF<T> ref_input_vec = flatten_4d<T>(format::bfyx, ref_input);
@@ -1087,11 +1096,12 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 						              bool has_initial_cell, float clip_threshold,
 						              bool input_forget, bool is_caching_test = false)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
 	std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
 		<< " Sequence Len = " << sequence_len << " Direction = " << direction << " Batch Size = " << batch_size << std::endl;
 	int min_random = -2, max_random = 2;
 
-	VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+	VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
 
 	std::vector<VVVVF<T>> ref_weights;
 	std::vector<VVVVF<T>> ref_recurrent;
@@ -1101,11 +1111,11 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 	std::vector<VVVVF<T>> ref_output;
 
 	for (int i = 0; i < layers; ++i) {
-		ref_weights.push_back(generate_random_4d<T>(1, direction, 4 * hidden_size, i == 0 ? input_size : hidden_size, min_random, max_random));
-		ref_recurrent.push_back(generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random));
-		ref_bias.push_back(generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random));
-		ref_hidden.push_back(generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
-		ref_cell.push_back(generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
+		ref_weights.push_back(rg.generate_random_4d<T>(1, direction, 4 * hidden_size, i == 0 ? input_size : hidden_size, min_random, max_random));
+		ref_recurrent.push_back(rg.generate_random_4d<T>(1, direction, 4 * hidden_size, hidden_size, min_random, max_random));
+		ref_bias.push_back(rg.generate_random_4d<T>(1, 1, direction, 4 * hidden_size, min_random, max_random));
+		ref_hidden.push_back(rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
+		ref_cell.push_back(rg.generate_random_4d<T>(batch_size, 1, direction, hidden_size, min_random, max_random));
 		ref_output.push_back(VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(direction, VF<T>(hidden_size)))));
 	}
 
@@ -1258,6 +1268,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
                          int directions, size_t layers, size_t chains, int sequence_len,
                          const lstm_output_selection& output_selection, bool is_caching_test = false)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     int min_random = -2, max_random = 2;
     bool has_bias = false;
     bool has_initial_hidden = false;
@@ -1269,7 +1280,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         << " Sequence Len = " << sequence_len << " Directions = " << directions << " Batch Size = " << batch_size
         << " Output selection: " << static_cast<int>(output_selection) << std::endl;
 
-    VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
+    VVVVF<T> ref_input = rg.generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
     std::vector<std::vector< VVVVF<T>>> ref_weights;
     std::vector<std::vector< VVVVF<T>>> ref_recurrent;
     std::vector<std::vector< VVVVF<T>>> ref_bias;
@@ -1288,11 +1299,11 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         std::vector<VVVVF<T>> per_chain_ref_output;
 
         for (size_t layer = 0; layer < layers; layer++) {
-            per_chain_ref_weights.push_back(generate_random_4d<T>(1, directions, 4 * hidden_size, (layer == 0) ? input_size : hidden_size, min_random, max_random));
-            per_chain_ref_recurrent.push_back(generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random));
-            per_chain_ref_bias.push_back(generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random));
-            per_chain_ref_hidden.push_back(generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random));
-            per_chain_ref_cell.push_back(generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random));
+            per_chain_ref_weights.push_back(rg.generate_random_4d<T>(1, directions, 4 * hidden_size, (layer == 0) ? input_size : hidden_size, min_random, max_random));
+            per_chain_ref_recurrent.push_back(rg.generate_random_4d<T>(1, directions, 4 * hidden_size, hidden_size, min_random, max_random));
+            per_chain_ref_bias.push_back(rg.generate_random_4d<T>(1, 1, directions, 4 * hidden_size, min_random, max_random));
+            per_chain_ref_hidden.push_back(rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random));
+            per_chain_ref_cell.push_back(rg.generate_random_4d<T>(batch_size, 1, directions, hidden_size, min_random, max_random));
             per_chain_ref_output.push_back(VVVVF<T>(batch_size, VVVF<T>(sequence_len, VVF<T>(directions, VF<T>(hidden_size)))));
         }
 

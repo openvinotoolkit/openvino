@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -361,6 +362,7 @@ public:
     }
 
     void test_shared_mem_pool_diff_batches(bool is_caching_test) {
+        tests::random_generator rg(GET_SUITE_NAME);
         // We need a new engine here to get correct get_max_used_device_memory() result
         // If we reuse common engine, then max memory value will be taken from some previously executed tests
         // as it's tracked within engine instance
@@ -378,8 +380,8 @@ public:
         auto input_8 = engine->allocate_memory(lay_batch_8);
         auto weights = engine->allocate_memory({ dt, fmt, { 1, 3, 3, 2 } });
 
-        std::vector<float> dummy_input_data_1 = generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
-        std::vector<float> dummy_input_data_8 = generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
+        std::vector<float> dummy_input_data_1 = rg.generate_random_1d<float>(batch_1 * feature_num * inp_x_size * inp_y_size, 0, 1);
+        std::vector<float> dummy_input_data_8 = rg.generate_random_1d<float>(batch_8 * feature_num * inp_x_size * inp_y_size, 0, 1);
 
         set_values(input_1, dummy_input_data_1);
         set_values(input_8, dummy_input_data_8);

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/region_yolo.hpp>
@@ -166,9 +167,10 @@ struct region_yolo_test_params {
 
 template <typename T>
 void runRegionTest(region_yolo_test_params& params, bool is_caching_test = false) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     const tensor kInputTensor(params.tensor[0], params.tensor[1], params.tensor[2], params.tensor[3]);
-    auto inputData = generate_random_1d<T>(params.tensor[0] * params.tensor[1] * params.tensor[2] * params.tensor[3], -1, 1);
+    auto inputData = rg.generate_random_1d<T>(params.tensor[0] * params.tensor[1] * params.tensor[2] * params.tensor[3], -1, 1);
 
     auto inputPrim = engine.allocate_memory({ params.dataType, format::bfyx, kInputTensor });
     set_values(inputPrim, inputData);
