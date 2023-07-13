@@ -1516,7 +1516,7 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
             return idx;
     }
 
-    IE_THROW() << "[get_index_in_deps]: not found in _deps";
+    OPENVINO_THROW("[get_index_in_deps]: not found in _deps");
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {

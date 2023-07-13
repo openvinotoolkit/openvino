@@ -144,7 +144,7 @@ protected:
                         break;
                     }
                     default:
-                        IE_THROW() << "roi_pooling. Unsupported precision";
+                        OPENVINO_THROW("roi_pooling. Unsupported precision");
                     }
                 } else {
                     switch (funcInput.get_element_type()) {
@@ -157,7 +157,7 @@ protected:
                         break;
                     }
                     default:
-                        IE_THROW() << "roi_pooling. Unsupported precision";
+                        OPENVINO_THROW("roi_pooling. Unsupported precision");
                     }
                 }
             } else {

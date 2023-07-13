@@ -19,7 +19,7 @@
 #include <cmath>
 #include <iomanip>
 
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 using namespace cldnn;
 
@@ -34,7 +34,7 @@ void compile_graph::run(program& p) {
 
     auto task_executor = p.get_task_executor();
     auto& proc_order = p.get_processing_order();
-    std::vector<InferenceEngine::Task> tasks;
+    std::vector<ov::threading::Task> tasks;
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
@@ -96,7 +96,7 @@ void compile_graph::run(program& p) {
         }
     }
 
-    task_executor->runAndWait(tasks);
+    task_executor->run_and_wait(tasks);
     tasks.clear();
 
     if (exception) {
