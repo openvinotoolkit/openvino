@@ -163,9 +163,12 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
             scales = read_vector<float>(mem, impl_param.get_stream());
         }
 
-        for (size_t i = 0; i < scales.size(); ++i) {
-            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
-        }
+        params.scales = scales;
+        std::vector<kernel_selector::InterpolateAxis> axes;
+        std::transform(primitive->axes.begin(), primitive->axes.end(),
+                       std::back_inserter(axes),
+                       [dimsNum](std::int64_t axis){ return convert_axis(axis, dimsNum); });
+        params.axes = std::move(axes);
 
         return {params, optional_params};
     }
