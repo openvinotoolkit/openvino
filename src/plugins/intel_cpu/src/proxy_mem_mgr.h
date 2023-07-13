@@ -34,7 +34,7 @@ private:
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory manager changes.
-    mutable size_t m_Size = 0ul;
+    size_t m_size = 0ul;
 };
 using ProxyMemoryMngrPtr = std::shared_ptr<ProxyMemoryMngr>;
 using ProxyMemoryMngrCPtr = std::shared_ptr<const ProxyMemoryMngr>;
