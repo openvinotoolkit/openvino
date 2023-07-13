@@ -42,12 +42,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
-    const ov::RemoteContext& context,
+    const ov::SoPtr<ov::IRemoteContext>& context,
     const ov::AnyMap& properties) const  {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -204,11 +204,11 @@ ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_
     return ov::Any(result);
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

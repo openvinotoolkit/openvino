@@ -14,7 +14,6 @@
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "plugin.hpp"
-#include "variable_state.hpp"
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
@@ -66,20 +65,20 @@ ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov
     OPENVINO_THROW("Cannot find infer request for port ", port);
 }
 
-ov::Tensor ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     return get_request(port)->get_tensor(port);
 }
 
-void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     get_request(port)->set_tensor(port, tensor);
 }
 
-std::vector<ov::Tensor> ov::hetero::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+std::vector<ov::SoPtr<ov::ITensor>> ov::hetero::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     return get_request(port)->get_tensors(port);
 }
 
 void ov::hetero::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                           const std::vector<ov::Tensor>& tensors) {
+                                           const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     return get_request(port)->set_tensors(port, tensors);
 }
 
@@ -89,12 +88,14 @@ void ov::hetero::InferRequest::check_tensors() const {
     return;
 }
 
-std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
-    std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
+std::vector<ov::SoPtr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
+    std::vector<ov::SoPtr<ov::IVariableState>> variable_states = {};
     for (const auto& request : m_subrequests) {
         OPENVINO_ASSERT(request);
         for (auto&& state : request->query_state()) {
-            variable_states.emplace_back(std::make_shared<VariableState>(state, request._so));
+            if (!state._so)
+                state._so = request._so;
+            variable_states.emplace_back(state);
         }
     }
     return variable_states;
