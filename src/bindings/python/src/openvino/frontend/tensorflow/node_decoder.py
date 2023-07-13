@@ -46,14 +46,6 @@ def tf_attr_to_ov(attr):
     return OVAny(tf_attr_to_numpy(attr))
 
 
-def try_decode(line: bytes):
-    assert isinstance(line, bytes), "Expected bytes, got object of type {}".format(type(line))
-    try:
-        return True, line.decode()
-    except ValueError:
-        return False, line
-
-
 class TFGraphNodeDecoder(DecoderBase):
     def __init__(self, operation: tf.Operation, inner_graph: bool):
         DecoderBase.__init__(self)
