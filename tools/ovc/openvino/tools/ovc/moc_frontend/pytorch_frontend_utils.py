@@ -97,7 +97,7 @@ def extract_input_info_from_example(args, inputs):
 
             data_rank = getattr(example_input, "ndim", 0)
             user_input_shape = get_value_from_list_or_dict(input_shapes, input_name, input_id)
-            if user_input_shape.rank.get_length() != data_rank:
+            if user_input_shape.rank.is_static and user_input_shape.rank.get_length() != data_rank:
                 raise Error(
                     f"Requested input shape {user_input_shape.rank.get_length()} rank"
                     f" is not equal to provided example_input rank {data_rank}")
@@ -132,7 +132,7 @@ def to_torch_tensor(tensor):
         return torch.tensor(tensor.data)
     if isinstance(tensor, (float, int, bool)):
         return tensor
-    if isinstance(tensor, tuple):
+    if isinstance(tensor, (tuple, list)):
         # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
         return tuple(to_torch_tensor(x) for x in tensor)
     else:
