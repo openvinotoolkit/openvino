@@ -34,6 +34,8 @@ $(document).ready(function () {
                         // ---------- debug request data
                         // console.log(data);
                         console.log('#############');
+                        console.log('Origin: ' + data.headers['Origin'][0]);
+                        console.log('Url: ' + data.url);
                         console.log('Form data:');
                         for (key in data.form) {
                             console.log(`-- ${key}: ${data.form[key]}`);
