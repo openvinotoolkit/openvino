@@ -44,7 +44,7 @@ OutputVector translate_dequantize(const NodeContext& context) {
     } else if (quantized_pt_node = cast_quantized_fw_node(input.get_node_shared_ptr())) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in dequantize.");
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert dequantize node input to QuantizedPtNode.");
+        FRONT_END_OP_CONVERSION_CHECK(false, "Special case for input of a non-QuantizedPtNode type");
     }
     return {context.mark_node(output)};
 }
