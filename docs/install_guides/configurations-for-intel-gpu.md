@@ -10,8 +10,6 @@ To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of
 Linux
 ##########
 
-@sphinxdirective
-
 To use a GPU device for OpenVINO inference, you must meet the following prerequisites:
 
 - Use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
@@ -58,8 +56,6 @@ Depending on your operating system, there may be different methods to install th
       .. code-block:: sh
       
          rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm
-
-@endsphinxdirective
 
 .. _gpu guide windows:
 
