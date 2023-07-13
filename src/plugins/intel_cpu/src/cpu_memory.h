@@ -32,6 +32,7 @@ namespace ov {
 namespace intel_cpu {
 
 class Memory;
+class ProxyMemoryMngr;
 
 /**
  * @interface IMemoryMngr
@@ -93,8 +94,6 @@ class IMemoryMngrObserver : public IMemoryMngr {
 public:
     virtual void registerMemory(Memory* memPtr) = 0;
     virtual void unregisterMemory(Memory* memPtr) = 0;
-
-    virtual void notifyUpdate() {};
 };
 
 /**
@@ -110,7 +109,8 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-    void notifyUpdate() override;
+private:
+    void notifyUpdate();
 
 private:
     std::unordered_set<Memory*> m_setMemPtrs;
@@ -314,6 +314,7 @@ public:
 
 private:
     friend DnnlMemoryMngr;
+    friend ProxyMemoryMngr;
 
 private:
     void update();

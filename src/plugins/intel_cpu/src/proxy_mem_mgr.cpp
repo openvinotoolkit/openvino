@@ -7,7 +7,7 @@
 
 using namespace ov::intel_cpu;
 
-void ProxyMemoryMngr::setManager(MemoryMngrPtr _pMngr) {
+void ProxyMemoryMngr::setManager(std::shared_ptr<IMemoryMngr> _pMngr) {
     auto _validated = (_pMngr != m_pMngr);
     if (_pMngr) {
         m_pMngr = _pMngr;
@@ -18,11 +18,10 @@ void ProxyMemoryMngr::setManager(MemoryMngrPtr _pMngr) {
     // WA: unconditionally resize to last size
     if (_validated) {
         auto res = m_pMngr->resize(m_size);
-        // TODO  notify actual manager
         DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", m_size, " resized? ", res, " RawPtr ", getRawPtr());
-    }
 
-    notifyUpdate();
+        notifyUpdate();
+    }
 }
 
 void* ProxyMemoryMngr::getRawPtr() const noexcept {
@@ -47,13 +46,21 @@ bool ProxyMemoryMngr::hasExtBuffer() const noexcept {
 }
 
 void ProxyMemoryMngr::registerMemory(Memory* memPtr) {
-    m_pMngr->registerMemory(memPtr);
+    if (memPtr) {
+        m_setMemPtrs.insert(memPtr);
+    }
 }
 
 void ProxyMemoryMngr::unregisterMemory(Memory* memPtr) {
-    m_pMngr->unregisterMemory(memPtr);
+    if (memPtr) {
+        m_setMemPtrs.erase(memPtr);
+    }
 }
 
 void ProxyMemoryMngr::notifyUpdate() {
-    m_pOrigMngr->notifyUpdate();
+    for (auto& item : m_setMemPtrs) {
+        if (item) {
+            item->update();
+        }
+    }
 }

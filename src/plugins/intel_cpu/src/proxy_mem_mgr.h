@@ -9,6 +9,9 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * @brief A proxy object that additionally implements observer pattern
+ */
 class ProxyMemoryMngr : public IMemoryMngrObserver {
 public:
     ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>())), m_pMngr(m_pOrigMngr) {}
@@ -25,14 +28,15 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-    void setManager(MemoryMngrPtr _pMngr);
-
-    void notifyUpdate() override;
+    void setManager(std::shared_ptr<IMemoryMngr> _pMngr);
 
 private:
+    void notifyUpdate();
+
     // We keep the original MemMngr as may fallback to copy output.
     const MemoryMngrPtr m_pOrigMngr;
-    MemoryMngrPtr m_pMngr;
+    std::unordered_set<Memory*> m_setMemPtrs;
+    std::shared_ptr<IMemoryMngr> m_pMngr;
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory manager changes.
