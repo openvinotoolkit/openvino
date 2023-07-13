@@ -12,7 +12,7 @@ from ngraph.impl import Node, Output
 
 from ngraph.exceptions import UserInputError
 
-DEFAULT_OPSET = "opset12"
+DEFAULT_OPSET = "opset11"
 
 
 class NodeFactory(object):

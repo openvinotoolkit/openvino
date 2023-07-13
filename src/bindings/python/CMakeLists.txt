@@ -341,7 +341,6 @@ if(ENABLE_PYTHON_PACKAGING)
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
 
     install(DIRECTORY ${python_package_prefix}/
-            PATTERN ${CMAKE_CURRENT_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt EXCLUDE
             DESTINATION ${CMAKE_INSTALL_PREFIX}
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
