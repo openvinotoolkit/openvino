@@ -20,6 +20,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
@@ -491,7 +492,7 @@ Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) {
         return m_cache->get_node(name);
     }
     const auto from_parent_node = m_parent_graph->get_ng_node_from_cache(name);
-    if (op::is_constant(from_parent_node.get_node()))
+    if (ov::op::util::is_constant(from_parent_node.get_node()))
         return from_parent_node;
     auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
