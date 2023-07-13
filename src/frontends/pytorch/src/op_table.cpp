@@ -281,7 +281,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::PRelu>>},
         {"aten::len", op::translate_len},
-        // lift ops is torchscript specific ops responsible for tensors coping with guarantee of new memory allocation
+        // lift op is torchscript specific op responsible for tensors coping with guarantee of new memory allocation
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
         {"aten::lift_fresh_copy", op::skip_node},
