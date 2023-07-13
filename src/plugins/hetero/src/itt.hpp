@@ -9,12 +9,14 @@
 
 #pragma once
 
-#include <openvino/itt.hpp>
+#include "openvino/itt.hpp"
 
-namespace HeteroPlugin {
+namespace ov {
+namespace hetero {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(HeteroPlugin);
-}
+OV_ITT_DOMAIN(Hetero);
+}  // namespace domains
 }  // namespace itt
-}  // namespace HeteroPlugin
+}  // namespace hetero
+}  // namespace ov
