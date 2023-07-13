@@ -131,65 +131,22 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
-py::array array_from_tensor(ov::Tensor&& t) {
-    switch (t.get_element_type()) {
-    case ov::element::Type_t::f32: {
-        return py::array_t<float>(t.get_shape(), t.data<float>());
-        break;
+py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
+    auto ov_type = t.get_element_type();
+    auto dtype = Common::ov_type_to_dtype().at(ov_type);
+
+    // Return the array as a view:
+    if (is_shared) {
+        if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+            return py::array(dtype, t.get_byte_size(), t.data(), py::cast(t));
+        }
+        return py::array(dtype, t.get_shape(), t.get_strides(), t.data(), py::cast(t));
     }
-    case ov::element::Type_t::f64: {
-        return py::array_t<double>(t.get_shape(), t.data<double>());
-        break;
+    // Return the array as a copy:
+    if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+        return py::array(dtype, t.get_byte_size(), t.data());
     }
-    case ov::element::Type_t::bf16: {
-        return py::array(py::dtype("float16"), t.get_shape(), t.data<ov::bfloat16>());
-        break;
-    }
-    case ov::element::Type_t::f16: {
-        return py::array(py::dtype("float16"), t.get_shape(), t.data<ov::float16>());
-        break;
-    }
-    case ov::element::Type_t::i8: {
-        return py::array_t<int8_t>(t.get_shape(), t.data<int8_t>());
-        break;
-    }
-    case ov::element::Type_t::i16: {
-        return py::array_t<int16_t>(t.get_shape(), t.data<int16_t>());
-        break;
-    }
-    case ov::element::Type_t::i32: {
-        return py::array_t<int32_t>(t.get_shape(), t.data<int32_t>());
-        break;
-    }
-    case ov::element::Type_t::i64: {
-        return py::array_t<int64_t>(t.get_shape(), t.data<int64_t>());
-        break;
-    }
-    case ov::element::Type_t::u8: {
-        return py::array_t<uint8_t>(t.get_shape(), t.data<uint8_t>());
-        break;
-    }
-    case ov::element::Type_t::u16: {
-        return py::array_t<uint16_t>(t.get_shape(), t.data<uint16_t>());
-        break;
-    }
-    case ov::element::Type_t::u32: {
-        return py::array_t<uint32_t>(t.get_shape(), t.data<uint32_t>());
-        break;
-    }
-    case ov::element::Type_t::u64: {
-        return py::array_t<uint64_t>(t.get_shape(), t.data<uint64_t>());
-        break;
-    }
-    case ov::element::Type_t::boolean: {
-        return py::array_t<bool>(t.get_shape(), t.data<bool>());
-        break;
-    }
-    default: {
-        OPENVINO_THROW("Numpy array cannot be created from given OV Tensor!");
-        break;
-    }
-    }
+    return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
 }
 
 };  // namespace array_helpers
@@ -342,10 +299,10 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     }
 }
 
-py::dict outputs_to_dict(InferRequestWrapper& request) {
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out));
+        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out), share_outputs);
     }
     return res;
 }
