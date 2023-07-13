@@ -1115,9 +1115,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         case ActivationFunction::CLAMP: {
             const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             const JitTerm n = disable_type_conversion ? "n"_jit : to_type("n"_jit);
+            const JitTerm converted_input = disable_type_conversion ? input : to_type(input);
             jitConstants.AddConstant(MakeJitConstant(
                  macro_def,
-                 max_func(m, min_func(n, input)).str()));
+                 max_func(m, min_func(n, converted_input)).str()));
             break;
         }
         case ActivationFunction::SOFTRELU:
