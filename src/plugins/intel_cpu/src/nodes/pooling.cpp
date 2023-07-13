@@ -271,8 +271,8 @@ void Pooling::getSupportedDescriptors() {
     const auto &childShape = getOutputShapeAtPort(0);
     const size_t inputRank = getInputShapeAtPort(0).getRank();
 
-    inShape = MemoryDescUtils::makeDummyShape(parentShape);
     if (isDynamicNode()) {
+        inShape = MemoryDescUtils::makeDummyShape(parentShape);
         const auto& origDims = parentShape.getDims();
         const auto& origMaxDims = parentShape.getMaxDims();
 
@@ -283,6 +283,8 @@ void Pooling::getSupportedDescriptors() {
             }
         }
         inShape = Shape(inDims);
+    } else {
+        inShape = parentShape;
     }
 
 #if defined(OV_CPU_WITH_ACL)
@@ -292,7 +294,8 @@ void Pooling::getSupportedDescriptors() {
                                                                     1,
                                                                     precisionToAclDataType(inputPrecision),
                                                                     dataLayout);
-    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(MemoryDescUtils::makeDummyShape(childShape).getDims()),
+    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() :
+                                                                                                childShape.getDims()),
                                                                     1,
                                                                     precisionToAclDataType(outputPrecision),
                                                                     dataLayout);
