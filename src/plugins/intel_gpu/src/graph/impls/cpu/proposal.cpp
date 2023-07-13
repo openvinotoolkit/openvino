@@ -61,6 +61,17 @@ inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t
  *                                                                          *
  ****************************************************************************/
 
+void sort_and_keep_n_items(std::vector<proposal_t>& proposals, size_t n) {
+    auto cmp_fn = [](const proposal_t& a, const proposal_t& b) { return (a.confidence > b.confidence); };
+
+    if (proposals.size() > n) {
+        std::partial_sort(proposals.begin(), proposals.begin() + n, proposals.end(), cmp_fn);
+        proposals.resize(n);
+    } else {
+        std::sort(proposals.begin(), proposals.end(), cmp_fn);
+    }
+}
+
 roi_t gen_bbox(const proposal_inst::anchor& box,
                const delta_t& delta,
                int anchor_shift_x,
@@ -112,66 +123,49 @@ roi_t gen_bbox(const proposal_inst::anchor& box,
     return {new_x0, new_y0, new_x1, new_y1};
 }
 
-void perform_nms(const int num_boxes,
-                 const std::vector<proposal_t>& proposals,
-                 std::vector<unsigned int>& index_out,
-                 int& num_out,
-                 float iou_threshold,
-                 int top_n,
-                 float coordinates_offset) {
-    std::vector<int> is_dead(num_boxes, 0);
+std::vector<roi_t> perform_nms(const std::vector<proposal_t>& proposals,
+                               float iou_threshold,
+                               size_t top_n,
+                               float coordinates_offset) {
+    std::vector<roi_t> res;
+    res.reserve(top_n);
 
-    for (int box = 0; box < num_boxes; ++box) {
-        const roi_t& bbox = proposals[box].roi;
+    for (const auto& prop : proposals) {
+        const roi_t& bbox = prop.roi;
 
-        if (is_dead[box])
-            continue;
+        bool overlaps = std::any_of(res.begin(), res.end(), [&](const roi_t& res_bbox) {
+            bool intersecting =
+                (bbox.x0 < res_bbox.x1) & (res_bbox.x0 < bbox.x1) & (bbox.y0 < res_bbox.y1) & (res_bbox.y0 < bbox.y1);
+            float overlap = 0.0f;
+            if (intersecting) {
+                const float x0 = std::max(bbox.x0, res_bbox.x0);
+                const float y0 = std::max(bbox.y0, res_bbox.y0);
+                const float x1 = std::min(bbox.x1, res_bbox.x1);
+                const float y1 = std::min(bbox.y1, res_bbox.y1);
 
-        index_out[num_out++] = box;
-        if (num_out == top_n)
-            break;
+                const float intersect_width = std::max(0.0f, x1 - x0 + coordinates_offset);
+                const float intersect_height = std::max(0.0f, y1 - y0 + coordinates_offset);
+                const float intersect_size = intersect_width * intersect_height;
 
-        int tail = box + 1;
-        for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
-            const roi_t& bbox_tail = proposals[tail].roi;
+                const float A_area =
+                    (bbox.x1 - bbox.x0 + coordinates_offset) * (bbox.y1 - bbox.y0 + coordinates_offset);
+                const float B_area =
+                    (res_bbox.x1 - res_bbox.x0 + coordinates_offset) * (res_bbox.y1 - res_bbox.y0 + coordinates_offset);
 
-            const float x0i = bbox.x0;
-            const float y0i = bbox.y0;
-            const float x1i = bbox.x1;
-            const float y1i = bbox.y1;
-
-            const float x0j = bbox_tail.x0;
-            const float y0j = bbox_tail.y0;
-            const float x1j = bbox_tail.x1;
-            const float y1j = bbox_tail.y1;
-
-            // Checking if the boxes are overlapping:
-            // x0i <= x1j && y0i <= y1j first box begins before second ends
-            // x0j <= x1i && y0j <= y1i second box begins before the first ends
-            const bool box_i_begins_before_j_ends = x0i <= x1j && y0i <= y1j;
-            const bool box_j_begins_before_i_ends = x0j <= x1i && y0j <= y1i;
-            if (box_i_begins_before_j_ends && box_j_begins_before_i_ends) {
-                // overlapped region
-                const float x0 = std::max(x0i, x0j);
-                const float y0 = std::max(y0i, y0j);
-                const float x1 = std::min(x1i, x1j);
-                const float y1 = std::min(y1i, y1j);
-                // intersection area
-                const float width = std::max(0.0f, x1 - x0 + coordinates_offset);
-                const float height = std::max(0.0f, y1 - y0 + coordinates_offset);
-                const float area = width * height;
-                // area of A, B
-                const float A_area = (x1i - x0i + coordinates_offset) * (y1i - y0i + coordinates_offset);
-                const float B_area = (x1j - x0j + coordinates_offset) * (y1j - y0j + coordinates_offset);
-
-                // IoU
-                res = static_cast<float>(area / (A_area + B_area - area));
+                overlap = intersect_size / (A_area + B_area - intersect_size);
             }
-            if (iou_threshold < res)
-                is_dead[tail] = 1;
+            return overlap > iou_threshold;
+        });
+
+        if (!overlaps) {
+            res.push_back(bbox);
+            if (res.size() == top_n)
+                break;
         }
     }
+
+    res.resize(top_n);
+    return res;
 }
 }  // anonymous namespace
 
@@ -286,10 +280,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         const auto& score_layout = cls_scores->get_layout();
         int fm_h = score_layout.spatial(1);
         int fm_w = score_layout.spatial(0);
-        int fm_sz = fm_w * fm_h;
 
-        int num_rois = 0;
-        std::vector<unsigned int> roi_indices(primitive->post_nms_topn);
+        int fm_sz = fm_w * fm_h;
 
         mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
         mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{bbox_pred, stream};
@@ -297,8 +289,6 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
         for (int n = 0; n < score_layout.batch(); n++) {
-            std::fill(roi_indices.begin(), roi_indices.end(), 0);
-            num_rois = 0;
             std::vector<proposal_t> sorted_proposals_confidence;
             size_t num_proposals = fm_h * fm_w * anchors_num;
             sorted_proposals_confidence.reserve(num_proposals);
@@ -351,19 +341,11 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             }
 
             size_t pre_nms = std::min(primitive->pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
-            std::partial_sort(sorted_proposals_confidence.begin(),
-                              sorted_proposals_confidence.begin() + pre_nms,
-                              sorted_proposals_confidence.end(),
-                              [](const proposal_t& a, const proposal_t& b) {
-                                  return (a.confidence > b.confidence);
-                              });
-            perform_nms(pre_nms,
-                        sorted_proposals_confidence,
-                        roi_indices,
-                        num_rois,
-                        primitive->iou_threshold,
-                        primitive->post_nms_topn,
-                        coordinates_offset);
+            sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
+            std::vector<roi_t> res = perform_nms(sorted_proposals_confidence,
+                                                 primitive->iou_threshold,
+                                                 primitive->post_nms_topn,
+                                                 coordinates_offset);
 
             auto output = instance.output_memory_ptr();
 
@@ -372,42 +354,34 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
             dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * primitive->post_nms_topn;
 
-            for (int i = 0; i < num_rois; ++i) {
-                const unsigned int index = roi_indices[i];
-                const roi_t& bbox = sorted_proposals_confidence[index].roi;
+            size_t res_num_rois = res.size();
 
-                float x0 = bbox.x0;
-                float y0 = bbox.y0;
-                float x1 = bbox.x1;
-                float y1 = bbox.y1;
+            for (size_t i = 0; i < res_num_rois; ++i) {
                 if (clip_after_nms) {
-                    x0 = clamp(x0, 0.0f, static_cast<float>(im_info.img_w));
-                    y0 = clamp(y0, 0.0f, static_cast<float>(im_info.img_h));
-                    x1 = clamp(x1, 0.0f, static_cast<float>(im_info.img_w));
-                    y1 = clamp(y1, 0.0f, static_cast<float>(im_info.img_h));
+                    res[i].x0 = clamp(res[i].x0, 0.0f, static_cast<float>(im_info.img_w));
+                    res[i].y0 = clamp(res[i].y0, 0.0f, static_cast<float>(im_info.img_h));
+                    res[i].x1 = clamp(res[i].x1, 0.0f, static_cast<float>(im_info.img_w));
+                    res[i].y1 = clamp(res[i].y1, 0.0f, static_cast<float>(im_info.img_h));
                 }
 
                 float_write_helper(top_data + 5 * i + 0, static_cast<float>(n));
-                float_write_helper(top_data + 5 * i + 1, x0 / (primitive->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 2, y0 / (primitive->normalize ? im_info.img_h : 1.0f));
-                float_write_helper(top_data + 5 * i + 3, x1 / (primitive->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 4, y1 / (primitive->normalize ? im_info.img_h : 1.0f));
-                if (top_data_prob != nullptr && i < static_cast<int>(sorted_proposals_confidence.size())) {
-                    float_write_helper(top_data_prob + i, sorted_proposals_confidence[index].confidence);
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (primitive->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (primitive->normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (primitive->normalize ? im_info.img_w : 1.0f));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (primitive->normalize ? im_info.img_h : 1.0f));
+                if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
+                    float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
             }
 
-            if (num_rois < primitive->post_nms_topn) {
-                for (int i = num_rois; i < primitive->post_nms_topn; i++) {
-                    float_write_helper(top_data + 5 * i + 0, 0.0f);
-                    float_write_helper(top_data + 5 * i + 1, 0.0f);
-                    float_write_helper(top_data + 5 * i + 2, 0.0f);
-                    float_write_helper(top_data + 5 * i + 3, 0.0f);
-                    float_write_helper(top_data + 5 * i + 4, 0.0f);
-                    if (top_data_prob != nullptr)
-                        float_write_helper(top_data_prob + i, 0.0f);
-                }
-                float_write_helper(top_data + 5 * num_rois, -1.0f);
+            for (size_t i = res_num_rois; i < (size_t)primitive->post_nms_topn; i++) {
+                float_write_helper(top_data + 5 * i + 0, -1.0f);
+                float_write_helper(top_data + 5 * i + 1, 0.0f);
+                float_write_helper(top_data + 5 * i + 2, 0.0f);
+                float_write_helper(top_data + 5 * i + 3, 0.0f);
+                float_write_helper(top_data + 5 * i + 4, 0.0f);
+                if (top_data_prob != nullptr)
+                    float_write_helper(top_data_prob + i, 0.0f);
             }
         }
     }
