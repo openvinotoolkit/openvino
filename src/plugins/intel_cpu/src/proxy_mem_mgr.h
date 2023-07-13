@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ProxyMemoryMngr : public IMemoryMngrObserver {
 public:
-    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), m_pMngr(m_pOrigMngr) {}
+    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>())), m_pMngr(m_pOrigMngr) {}
     explicit ProxyMemoryMngr(MemoryMngrPtr pMngr) : ProxyMemoryMngr() {
         OPENVINO_ASSERT(pMngr, "Memory manager is uninitialized");
         m_pMngr = pMngr;
@@ -34,8 +34,9 @@ private:
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory manager changes.
-    size_t m_size = 0ul;
+    mutable size_t m_size = 0ul;
 };
+
 using ProxyMemoryMngrPtr = std::shared_ptr<ProxyMemoryMngr>;
 using ProxyMemoryMngrCPtr = std::shared_ptr<const ProxyMemoryMngr>;
 
