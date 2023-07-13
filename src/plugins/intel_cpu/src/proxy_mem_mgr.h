@@ -11,8 +11,10 @@ namespace intel_cpu {
 
 class ProxyMemoryMngr : public IMemoryMngrObserver {
 public:
-    explicit ProxyMemoryMngr(MemoryMngrPtr pMngr) : m_pOrigMngr(pMngr), m_pMngr(pMngr) {
-        OPENVINO_ASSERT(m_pOrigMngr, "Memory manager is uninitialized");
+    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), m_pMngr(m_pOrigMngr) {}
+    explicit ProxyMemoryMngr(MemoryMngrPtr pMngr) : ProxyMemoryMngr() {
+        OPENVINO_ASSERT(pMngr, "Memory manager is uninitialized");
+        m_pMngr = pMngr;
     }
 
     void* getRawPtr() const noexcept override;
