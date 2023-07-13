@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reduce.hpp>
@@ -464,6 +465,11 @@ protected:
 
     static std::vector<std::tuple<cldnn::reduce_mode,double, double, double>> perf_data;
 
+    tests::random_generator rg;
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     ReduceTestBase() {
         this->batch_num = testing::get<0>(GetParam());
         this->input_f = testing::get<1>(GetParam());
@@ -497,7 +503,7 @@ public:
         using output_t = typename output_data_type<OutputT>::type;
 
         auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
-        auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 10);
+        auto input_data = rg.generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 10);
         auto input_lay = layout(input_dt, layout_format, input_size);
         auto input_mem = engine.allocate_memory(input_lay);
 
@@ -1809,6 +1815,11 @@ protected:
 
     static std::vector<std::tuple<cldnn::reduce_mode,double, double, double>> perf_data;
 
+    tests::random_generator rg;
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     ReduceXYWithBigTensorTestBase() {
         this->batch_num = testing::get<0>(GetParam());
         this->input_f = testing::get<1>(GetParam());
@@ -1843,7 +1854,7 @@ public:
         using output_t = typename output_data_type<OutputT>::type;
 
         auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
-        auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 5, 9);
+        auto input_data = rg.generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 5, 9);
         auto input_lay = layout(input_dt, layout_format, input_size);
         auto input_mem = engine.allocate_memory(input_lay);
 
@@ -1978,8 +1989,13 @@ protected:
     cldnn::data_types input_dt;
     cldnn::data_types output_dt;
     bool force_output_dt;
+    tests::random_generator rg;
 
     static std::vector<std::tuple<cldnn::reduce_mode,double, double, double>> perf_data;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     ReduceOnednnTestBase() {
         this->batch_num = testing::get<0>(GetParam());
@@ -2016,7 +2032,7 @@ public:
         using output_t = typename output_data_type<OutputT>::type;
 
         auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
-        auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 10);
+        auto input_data = rg.generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 10);
         auto input_lay = layout(input_dt, layout_format, input_size);
         auto input_mem = engine.allocate_memory(input_lay);
 
