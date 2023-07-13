@@ -584,7 +584,7 @@ void Deconvolution::createPrimitive() {
 
         dnnl::memory::desc dnnlBiasDesc;
         if (deconvAttrs.withBiases) {
-            DnnlMemoryDescPtr biasDesc = getParentEdgesAtPort(biasPort).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+            DnnlMemoryDescPtr biasDesc = getParentEdgesAtPort(biasPort).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
             dnnlBiasDesc = biasDesc->getDnnlDesc();
         }
 
@@ -622,8 +622,8 @@ void Deconvolution::prepareParams() {
     auto *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << deconvAttrs.layerName << ".";
-    auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
 
     AttrPtr pAttrLocal;
     if (isDynamicNode()) {
@@ -646,7 +646,7 @@ void Deconvolution::prepareParams() {
     DnnlMemoryDescCPtr biasDesc;
 
     if (deconvAttrs.isInt8) {
-        wghDesc = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>();
+        wghDesc = internalBlobMemory.front()->getDescWithType<DnnlMemoryDesc>();
         if (deconvAttrs.withBiases) {
             biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
             if (!biasMemPtr || !biasMemPtr->isAllocated())
@@ -677,20 +677,20 @@ void Deconvolution::prepareParams() {
             std::shared_ptr<DnnlExecutor> dnnlExecPtr, CacheEntryBase::LookUpStatus lookUpStatus) {
         if (dnnlExecPtr) {
             if (deconvAttrs.key.isInt8) {
-                (*primArgsPtr)[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-                (*primArgsPtr)[DNNL_ARG_WEIGHTS] = internalBlobMemory.front()->GetPrimitive();
-                (*primArgsPtr)[DNNL_ARG_DST]=  dstMemPtr->GetPrimitive();
+                (*primArgsPtr)[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
+                (*primArgsPtr)[DNNL_ARG_WEIGHTS] = internalBlobMemory.front()->getPrimitive();
+                (*primArgsPtr)[DNNL_ARG_DST]=  dstMemPtr->getPrimitive();
                 if (deconvAttrs.withBiases)
-                    (*primArgsPtr)[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+                    (*primArgsPtr)[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
             } else {
-                (*primArgsPtr)[DNNL_ARG_DIFF_DST] = srcMemPtr->GetPrimitive();
-                (*primArgsPtr)[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
-                (*primArgsPtr)[DNNL_ARG_DIFF_SRC] = dstMemPtr->GetPrimitive();
+                (*primArgsPtr)[DNNL_ARG_DIFF_DST] = srcMemPtr->getPrimitive();
+                (*primArgsPtr)[DNNL_ARG_WEIGHTS] = wghMemPtr->getPrimitive();
+                (*primArgsPtr)[DNNL_ARG_DIFF_SRC] = dstMemPtr->getPrimitive();
             }
             Node::appendPostOpArgs(*pAttrLocal, (*primArgsPtr), postOpsArgs);
 
             auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
-            (*primArgsPtr)[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+            (*primArgsPtr)[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
             if (lookUpStatus == CacheEntryBase::LookUpStatus::Miss) {
                 auto pd = dnnlExecPtr->getPrimitiveDesc();
@@ -704,11 +704,11 @@ void Deconvolution::prepareParams() {
 
     std::vector<MemoryDescPtr> srcMemoryDescs;
     for (int i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemoryDescs.push_back(getParentEdgesAtPort(i).front()->getMemory().GetDescWithType<DnnlMemoryDesc>());
+        srcMemoryDescs.push_back(getParentEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
     }
     std::vector<MemoryDescPtr> dstMemoryDescs;
     for (int i = 0; i < getOriginalOutputsNumber(); i++) {
-        dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().GetDescWithType<DnnlMemoryDesc>());
+        dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
     }
 
     execPtrDeconv = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs, srcMemoryDescs,
