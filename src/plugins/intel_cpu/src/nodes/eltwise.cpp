@@ -964,7 +964,8 @@ public:
                     if (output_shape[offset + j] == 1) {
                         output_shape[offset + j] = input_shape[j];
                     } else {
-                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch "
+                        << input_shape[j] << " vs " << output_shape[offset + j];
                     }
                 }
             }

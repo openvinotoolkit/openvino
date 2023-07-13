@@ -1292,7 +1292,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
                 }
                 // get rhs_label from value or shape source
                 if (label_value_source.count(rhs_label))
-                    rhs_alternative = label_value_source[lhs_label].get_node_shared_ptr();
+                    rhs_alternative = label_value_source[rhs_label].get_node_shared_ptr();
                 if (!rhs_alternative && label_shape_source.count(rhs_label)) {
                     rhs_alternative = get_node_representing_label_from_source_by_label(label_shape_source[rhs_label],
                                                                                        default_et,
