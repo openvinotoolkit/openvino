@@ -7,10 +7,8 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 
 using namespace ov::pass;
