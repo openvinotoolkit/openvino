@@ -312,11 +312,11 @@ void FullyConnected::prepareParams() {
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
     if (biasMemPtr) {
-        biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+        biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
 
-    DnnlMemoryDescCPtr inDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr inDesc = srcMemPtr->getDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr outDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>();
 
     useConv1x1 = canBeExecutedInConv1x1();
     FCKey key = {inDesc,
@@ -398,19 +398,19 @@ void FullyConnected::prepareParams() {
 
     if (execPtr) {
         if (execPtr->getSrcDesc()->isCompatible(*inDesc)) {
-            primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
         } else {
-            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData());
+            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->getData());
         }
 
         if (execPtr->getDstDesc()->isCompatible(*outDesc)) {
-            primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
         } else {
-            primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDnnlDstDesc(), engine, dstMemPtr->GetData());
+            primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDnnlDstDesc(), engine, dstMemPtr->getData());
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
@@ -422,11 +422,11 @@ void FullyConnected::prepareParams() {
         useConv1x1 = execPtr->getImplementationType() == brgconv_avx512_1x1;
 
         if (withBiases) {
-            primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
         }
 
         auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
             auto pd = execPtr->getPrimitiveDesc();
@@ -449,10 +449,10 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto param = primArgs.find(argType);
         if (param != primArgs.end()) {
             if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
             if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
             }
         }
     };
@@ -744,7 +744,7 @@ InferenceEngine::Precision FullyConnected::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -840,7 +840,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
         one_of(inRank, 2u, 3u) && weightRank == 2) {
         auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-        DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+        DnnlMemoryDescCPtr outDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>();
         // brg convolution does not support stride
         dnnl::impl::memory_desc_wrapper wrapped(outDesc->getDnnlDesc().get());
         if (wrapped.offset0() == 0)
@@ -905,8 +905,8 @@ bool FullyConnected::useSparseWeightsDecompression() {
     if (blb == nullptr)
         IE_THROW() << "Cannot get const blob for node " << getName() << ".";
 
-    auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
-    auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    auto weightsData = reinterpret_cast<const int8_t*>(blb->getData());
+    auto elementsCount = blb->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
     for (size_t i = 0; i < elementsCount; i++) {
         if (weightsData[i] == 0) {

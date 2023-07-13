@@ -16,7 +16,7 @@ TensorFlow `Gather <https://www.tensorflow.org/api_docs/python/tf/gather>`__ ope
 
 **Detailed description**
 
-.. code-block::
+.. code-block:: sh
 
     output[p_0, p_1, ..., p_{axis-1}, i_b, ..., i_{M-1}, p_{axis+1}, ..., p_{N-1}] =
        data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, i_b, ..., i_{M-1}], p_{axis+1}, ..., p_{N-1}]
@@ -40,7 +40,7 @@ the number of batch dimensions. ``N`` and ``M`` are numbers of dimensions of ``d
 
 Example 1 with default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 0
    axis = 0
@@ -52,7 +52,7 @@ Example 1 with default *batch_dims* value:
 
 Example 2 with non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    axis = 1
@@ -72,7 +72,7 @@ Example 2 with non-default *batch_dims* value:
 
 Example 3 with non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 2
    axis = 2
@@ -100,7 +100,7 @@ Example 3 with non-default *batch_dims* value:
 
 Example 4 with *axis* > *batch_dims*:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    axis = 2
@@ -134,7 +134,7 @@ Example 4 with *axis* > *batch_dims*:
 
 Example 5 with negative *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = -1  <-- normalized value will be indices.rank + batch_dims = 2 - 1 = 1
    axis = 1

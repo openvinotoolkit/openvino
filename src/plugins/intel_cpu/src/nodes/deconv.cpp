@@ -159,7 +159,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     if (!blb)
         IE_THROW() << "Cannot get const weights blob for node " << deconvAttrs.layerName << ".";
 
-    auto const blbSize = blb->GetSize();
+    auto const blbSize = blb->getSize();
 
     // WA: In int8 case, we are processing weights using internal blob.
     InferenceEngine::SizeVector dimsForBlockedDesc{dims};
@@ -175,7 +175,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
         orderForBlockedDesc.push_back(i);
 
     BlockingDesc blkDesc(dimsForBlockedDesc, orderForBlockedDesc);
-    InferenceEngine::TensorDesc tensorDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()), dims, blkDesc);
+    InferenceEngine::TensorDesc tensorDesc(DnnlExtensionUtils::DataTypeToIEPrecision(blb->getDataType()), dims, blkDesc);
 
     Blob::Ptr internalBlob = InferenceEngine::make_shared_blob<int8_t>(tensorDesc);
     internalBlob->allocate();
@@ -188,7 +188,7 @@ InferenceEngine::Blob::Ptr Deconvolution::createWeiBlobAsIO(InferenceEngine::Siz
     if (intBuffSize < offset) {
         IE_THROW() << "Cannot create internal buffer. Buffer can be overrun.";
     }
-    cpu_memcpy_s(data, intBuffSize, blb->GetPtr(), blbSize);
+    cpu_memcpy_s(data, intBuffSize, blb->getData(), blbSize);
 
     return internalBlob;
 }
@@ -508,8 +508,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(Precision::I32, Shape(outSpDimsVecShape));
-                auto mem = std::make_shared<Memory>(getEngine());
-                mem->Create(desc, outSpDims.data());
+                auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
             }
@@ -578,8 +577,9 @@ void Deconvolution::createPrimitive() {
         } else {
             inDims = getInputShapeAtPort(0).getStaticDims();
             outDims = getOutputShapeAtPort(0).getStaticDims();
-            inDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-            outDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+
+            inDesc = getParentEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
+            outDesc = getChildEdgesAtPort(0).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
         }
 
         dnnl::memory::desc dnnlBiasDesc;
@@ -651,10 +651,10 @@ void Deconvolution::prepareParams() {
             biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
             if (!biasMemPtr || !biasMemPtr->isAllocated())
                 IE_THROW() << "Bias memory  memory didn't allocate.";
-            biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+            biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
         }
     } else {
-        wghDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        wghDesc = getParentEdgesAtPort(1).front()->getMemory().getDescWithType<DnnlMemoryDesc>();
     }
 
     deconvAttrs.key = {inMemoryDesc,
@@ -732,9 +732,9 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
 
         for (size_t i = 0; i < descOutputNumbers(); i++) {
             auto desc = getDstMemDesc(prim_desc, i);
-
             outConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK, inPlaceOutPort);
         }
+
 
         const NodeConfig config(inConfs, outConfs);
         const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
@@ -855,7 +855,7 @@ InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -874,7 +874,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         IE_THROW() << "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements";
     }
-    const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetPtr());
+    const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->getData());
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }

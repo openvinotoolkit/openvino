@@ -47,7 +47,8 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CTCGreedyDecoder" ...>
        <data ctc_merge_repeated="true" />
