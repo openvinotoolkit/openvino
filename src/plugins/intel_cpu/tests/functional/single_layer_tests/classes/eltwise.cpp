@@ -143,13 +143,22 @@ void EltwiseLayerCPUTest::SetUp() {
                 auto data_ptr = reinterpret_cast<int32_t*>(data_tensor.data());
                 std::vector<int32_t> data(data_ptr, data_ptr + ngraph::shape_size(shape));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-            } else {
+            } else /*if (netType == ElementType::f32)*/ {
                 auto data_tensor = generate_eltwise_input(ElementType::f32, shape);
                 auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
                 std::vector<float> data(data_ptr, data_ptr + ngraph::shape_size(shape));
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
-            }
+            } /*else {
+                auto data_tensor = generate_eltwise_input(ElementType::f16, shape);
+                //typedef ov::element_type_traits<ElementType::f16>::value_type value_type;
+                //auto data_ptr = reinterpret_cast<value_type*>(data_tensor.data());
+                //std::vector<value_type> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
+                std::vector<ov::float16> data(data_ptr, data_ptr + ngraph::shape_size(shape));
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+            }*/
         }
+
         auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
         function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
@@ -168,6 +177,7 @@ const ov::AnyMap& additional_config() {
 
 const std::vector<ElementType>& netType() {
         static const std::vector<ElementType> netType = {
+                ElementType::f16,
                 ElementType::f32};
         return netType;
 }
