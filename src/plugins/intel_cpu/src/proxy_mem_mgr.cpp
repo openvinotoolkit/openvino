@@ -7,7 +7,7 @@
 
 using namespace ov::intel_cpu;
 
-void ProxyMemoryMngr::setManager(std::shared_ptr<IMemoryMngr> _pMngr) {
+void ProxyMemoryMngr::reset(std::shared_ptr<IMemoryMngr> _pMngr) {
     auto _validated = (_pMngr != m_pMngr);
     if (_pMngr) {
         m_pMngr = _pMngr;

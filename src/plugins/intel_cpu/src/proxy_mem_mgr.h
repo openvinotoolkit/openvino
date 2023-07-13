@@ -28,7 +28,7 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-    void setManager(std::shared_ptr<IMemoryMngr> _pMngr);
+    void reset(std::shared_ptr<IMemoryMngr> _pMngr);
 
 private:
     void notifyUpdate();

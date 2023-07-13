@@ -283,13 +283,13 @@ void InferRequestBase::changeDefaultPtr() {
                 if (canBeInPlace) {
                     auto tt = std::get<0>(outputsTensor2BlobMap[it.first]);  // there is no way to get tensor from blob.
                     auto memptr = tt->get_memory();
-                    outputMemMngr->setManager(memptr->getMemoryMngr());
-                    DEBUG_LOG("setManager proxy ", outputMemMngr, ", actual ", memptr->getMemoryMngr(), " graph ", graph, " inferrequest ", this);
+                    outputMemMngr->reset(memptr->getMemoryMngr());
+                    DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", memptr->getMemoryMngr(), " graph ", graph, " inferrequest ", this);
                     DEBUG_LOG(it.first, ", blob ", std::get<1>(outputsTensor2BlobMap[it.first]), ", tensor ", tt);
                 } else {
                     if (outputMemMngr) {
-                        outputMemMngr->setManager(nullptr);
-                        DEBUG_LOG("setManager nullptr", " graph ", graph, " inferrequest ", this);
+                        outputMemMngr->reset(nullptr);
+                        DEBUG_LOG("reset nullptr", " graph ", graph, " inferrequest ", this);
                     }
                 }
 
