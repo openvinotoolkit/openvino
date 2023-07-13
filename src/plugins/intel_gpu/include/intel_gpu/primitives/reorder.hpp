@@ -20,14 +20,16 @@ enum class reorder_mean_mode {
 };
 
 struct WeightsReorderParams {
-    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed)
+    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed, bool grouped = false)
         : _in_layout(in_layout),
           _out_layout(out_layout),
-          _transposed(transposed) {}
+          _transposed(transposed),
+          _grouped(grouped) {}
 
     size_t hash() const {
         size_t seed = hash_combine(_in_layout.hash(), _out_layout.hash());
         seed = hash_combine(seed, _transposed);
+        seed = hash_combine(seed, _grouped);
         return seed;
     }
 
@@ -37,12 +39,14 @@ struct WeightsReorderParams {
 
         return _in_layout == rhs._in_layout &&
                _out_layout == rhs._out_layout &&
-               _transposed == rhs._transposed;
+               _transposed == rhs._transposed &&
+               _grouped == rhs._grouped;
     }
 
     layout get_input_layout() const { return _in_layout; }
     layout get_output_layout() const { return _out_layout; }
     bool should_be_transposed() const { return _transposed; }
+    bool get_grouped() const { return _grouped; }
 
     void set_input_layout(const layout& layout) { _in_layout = layout; }
 
@@ -50,6 +54,7 @@ protected:
     layout _in_layout;
     layout _out_layout;
     bool _transposed;
+    bool _grouped;
 };
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.

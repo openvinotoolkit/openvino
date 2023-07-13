@@ -142,7 +142,7 @@ protected:
         auto output_weights_layout = input_weights_layout;
         output_weights_layout.format = out_fmt;
 
-        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, rotate);
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, rotate, grouped_weights);
     }
 
 public:
