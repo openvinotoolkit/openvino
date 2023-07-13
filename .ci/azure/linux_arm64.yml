@@ -147,6 +147,7 @@ jobs:
   - script: |
       git submodule update --init -- $(OPENVINO_REPO_DIR)/src/plugins
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gtest
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gflags
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo
     displayName: 'Init submodules for non Conan dependencies'
 
