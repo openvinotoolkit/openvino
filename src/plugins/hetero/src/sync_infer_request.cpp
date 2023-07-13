@@ -112,7 +112,7 @@ std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() co
     for (size_t i = 0; i < m_subrequests.size(); ++i) {
         auto&& subreq_info = m_subrequests[i]->get_profiling_info();
         for (auto&& rec : subreq_info)
-            rec.node_name = std::string("submodel_") + std::to_string(i) + ": " + rec.node_name;
+            rec.node_name = std::string("subgraph") + std::to_string(i) + ": " + rec.node_name;
         info.insert(info.end(), subreq_info.begin(), subreq_info.end());
     }
     return info;
