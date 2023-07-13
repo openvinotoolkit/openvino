@@ -466,6 +466,8 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
     //  * Alias - Case when we group all devices under one common name
+    remove_unavailable_plugins();
+
     std::vector<std::vector<std::string>> result;
     const auto core = get_core();
     OPENVINO_ASSERT(core != nullptr);
@@ -490,7 +492,6 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             result.emplace_back(devices);
         }
     } else {
-        remove_unavailable_plugins();
         typedef struct DeviceId {
             ov::device::UUID uuid;
             std::unordered_map<std::string, std::string> device_to_full_name;
