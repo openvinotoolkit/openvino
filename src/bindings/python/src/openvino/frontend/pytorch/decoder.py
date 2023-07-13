@@ -153,7 +153,7 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = ordered_inputs
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-                
+
             return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
@@ -183,7 +183,7 @@ class TorchScriptPythonDecoder (Decoder):
                     first_input = next(n.inputs())
                     if first_input.node().kind() == "prim::Constant":
                         ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8]:
+                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8, torch.bfloat16, torch.float16]:
                             # do not freeze models with compressed constants
                             skip_freeze = True
                             break
@@ -193,7 +193,7 @@ class TorchScriptPythonDecoder (Decoder):
                 f_model = scripted
         else:
             f_model = pt_module
-        
+
         self._input_signature = input_signature
         return f_model
 
