@@ -7,7 +7,7 @@ set(TARGET_NAME func_test_utils)
 addIeTarget(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     ADD_CPPLINT
     DEVELOPER_PACKAGE
         tests
