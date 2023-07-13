@@ -132,6 +132,10 @@ static void print_help_messages() {
                               " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
+    message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in"
+                              "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
+                              "max per-dim allowed diff(int), unconditional buffers preallocation ratio(float). For example for disabling memory"
+                              "preallocation at all, you can use OV_GPU_MemPreallocationOptions='0 0 0 1.0'");
 
     auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
@@ -197,6 +201,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
+    std::string mem_preallocation_params_str;
+    get_gpu_debug_env_var("MemPreallocationOptions", mem_preallocation_params_str);
 
     if (help > 0) {
         print_help_messages();
@@ -234,6 +240,32 @@ debug_configuration::debug_configuration()
                 break;
             }
         }
+    }
+
+    if (mem_preallocation_params_str.size() > 0) {
+        mem_preallocation_params_str = " " + mem_preallocation_params_str + " ";
+        std::istringstream ss(mem_preallocation_params_str);
+        std::vector<std::string> params;
+        std::string param;
+        while (ss >> param)
+            params.push_back(param);
+
+        bool correct_params = params.size() == 4;
+        if (correct_params) {
+            try {
+                mem_preallocation_params.next_iters_preallocation_count = std::stol(params[0]);
+                mem_preallocation_params.max_per_iter_size = std::stol(params[1]);
+                mem_preallocation_params.max_per_dim_diff = std::stol(params[2]);
+                mem_preallocation_params.buffers_preallocation_ratio = std::stof(params[3]);
+            } catch(const std::exception& ex) {
+                correct_params = false;
+            }
+        }
+
+        if (!correct_params)
+            GPU_DEBUG_COUT_ << "OV_GPU_MemPreallocationOptions were ignored, because they cannot be parsed.\n";
+
+        mem_preallocation_params.is_initialized = correct_params;
     }
 
     if (after_proc_str.length() > 0) {
