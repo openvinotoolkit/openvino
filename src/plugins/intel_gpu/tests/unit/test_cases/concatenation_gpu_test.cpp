@@ -160,7 +160,7 @@ void start_concat_test_dynamic(impl_types impl_type) {
         ASSERT_EQ(outputs.begin()->first, "concat");
 
         auto output_memory = outputs.at("concat").get_memory();
-        auto output_layout = output_memory->get_layout();
+        auto output_layout = outputs.at("concat").get_layout();
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
         ov::PartialShape expected_shape = layout0.get_partial_shape();
