@@ -25,8 +25,8 @@ RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
             continue;
         }
 
-        std::vector<size_t> start_node_idx;
-        for (size_t i = idx; i < op_cnt; ++i) {
+        std::vector<size_t> start_node_idx{idx};
+        for (size_t i = idx + 1; i < op_cnt; ++i) {
             if (manager.match(op, ordered_ops[i])) {
                 start_node_idx.push_back(i);
             }
@@ -37,29 +37,57 @@ RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
         }
 
         std::vector<std::set<std::shared_ptr<ov::Node>>> nodes(start_node_idx.size());
+        std::set<std::shared_ptr<ov::Node>> unique_nodes;
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             for (size_t j = i + 1; j < start_node_idx.size(); ++j) {
                 size_t node_idx = start_node_idx[i], ref_node_idx = start_node_idx[j];
                 while (node_idx < op_cnt && ref_node_idx < op_cnt) {
-                    if (manager.match(ordered_ops[node_idx], ordered_ops[ref_node_idx])) {
-                        bool is_add_to_graph =
-                            ordered_ops[node_idx] == ordered_ops[start_node_idx[i]] &&
-                            ordered_ops[ref_node_idx] == ordered_ops[start_node_idx[j]];
-                        for (size_t in_idx = 0; in_idx < ordered_ops[node_idx]->inputs().size(); ++in_idx) {
-                            auto in_node = ordered_ops[node_idx]->get_input_node_ptr(in_idx)->shared_from_this();
-                            auto ref_in_node = ordered_ops[ref_node_idx]->get_input_node_ptr(in_idx)->shared_from_this();
-                            if (nodes[i].count(in_node) && nodes[j].count(ref_in_node)) {
-                                is_add_to_graph = true;
+                    auto node = ordered_ops[node_idx];
+                    auto ref_node = ordered_ops[ref_node_idx];
+                    if (checked_ops.count(node->get_friendly_name()) ||
+                        checked_ops.count(ref_node->get_friendly_name())) {
+                        break;
+                    }
+                    if (!is_node_to_skip(node) && !is_node_to_skip(ref_node)) {
+                        if (node_idx == start_node_idx[i] && ref_node_idx == start_node_idx[j]) {
+                                nodes[i].insert(node);
+                                nodes[j].insert(ref_node);
+                                unique_nodes.insert(node < ref_node ? node : ref_node);
+                        } else if (manager.match(node, ref_node)) {
+                            // check if we met the same node
+                            if (manager.match(node, op)) {
+                                break;
                             }
-                        }
-                        if (is_add_to_graph) {
+                            bool is_met_before = false;
+                            for (const auto& unique_node : unique_nodes) {
+                                if (manager.match(node, unique_node)) {
+                                    is_met_before = true;
+                                    break;
+                                }
+                            }
+                            if (is_met_before) {
+                                break;
+                            }
+                            // check that any input node is using in graph
+                            bool is_input_in_graph = false;
+                            for (size_t in_idx = 0; in_idx < node->inputs().size(); ++in_idx) {
+                                auto in_node = node->get_input_node_ptr(in_idx)->shared_from_this();
+                                auto ref_in_node = ref_node->get_input_node_ptr(in_idx)->shared_from_this();
+                                if (nodes[i].count(in_node) && nodes[j].count(ref_in_node)) {
+                                    is_input_in_graph = true;
+                                    break;
+                                }
+                            }
+                            if (!is_input_in_graph) {
+                                break;
+                            }
+
                             nodes[i].insert(ordered_ops[node_idx]);
                             nodes[j].insert(ordered_ops[ref_node_idx]);
-                        } else {
-                            break;
+                            unique_nodes.insert(node < ref_node ? node : ref_node);
                         }
                     }
-                    ++node_idx,
+                    ++node_idx;
                     ++ref_node_idx;
                 }
             }
@@ -68,6 +96,7 @@ RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
             try {
                 to_cache.push_back(
                     generate_model(nodes[i], ordered_ops[start_node_idx[i]], checked_ops));
+                nodes[i].clear();
             } catch(std::exception& e) {
                 std::cout << e.what() << std::endl;
             }

@@ -39,7 +39,7 @@ private:
 
     GraphCache() {
         MatchersManager::MatchersMap matchers = {
-            // { "fused_names", FusedNamesMatcher::Ptr(new FusedNamesMatcher) },
+            { "fused_names", FusedNamesMatcher::Ptr(new FusedNamesMatcher) },
             { "repeat_patter", RepeatPatternMatcher::Ptr(new RepeatPatternMatcher) },
         };
         m_manager.set_matchers(matchers);

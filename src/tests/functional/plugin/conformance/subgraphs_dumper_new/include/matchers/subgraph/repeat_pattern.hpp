@@ -5,11 +5,7 @@
 #pragma once
 
 #include <utility>
-
-#include "matchers/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
-#include "matchers/single_op/single_op.hpp"
-#include "matchers/single_op/convolutions.hpp"
 
 namespace ov {
 namespace tools {

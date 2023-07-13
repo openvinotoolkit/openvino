@@ -141,11 +141,8 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
     model_map.insert({ start_node->get_friendly_name(), cloned_op });
 
     for (const auto& op : nodes) {
-        // std::cout << "DEBUG NODES " << nodes.size() << std::endl;
-        // std::cout << "DEBUG TYPE" << op->get_type_name() << std::endl;
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
             ov::op::util::is_output(op) || op == start_node) {
-            // std::cout << "CONTINUE " << nodes.size() << std::endl;
             continue;
         }
         cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));

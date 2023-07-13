@@ -92,7 +92,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
 }
 
 bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
-                               const std::shared_ptr<ov::Node> &ref) const {
+                                   const std::shared_ptr<ov::Node> &ref) const {
     return node->get_type_info() == ref->get_type_info();
 }
 
