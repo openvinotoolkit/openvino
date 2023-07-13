@@ -15,8 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <algorithm>
-
 namespace ov {
 namespace snippets {
 namespace pass {
@@ -94,7 +92,13 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     //              new_shape [6, 48 / 6, 512 / (48 / 6), 32 ] => [6, 8, 64, 32]
     //              Each thread has parallelism_work_amount = 6 * 8 / nthrs = 3
     auto get_lcm = [](size_t a, size_t b) {
-        return a / std::__gcd(a, b) * b;
+        std::function<size_t(size_t, size_t)> get_gcd;
+        get_gcd = [&get_gcd](size_t a, size_t b) {
+            if (b == 0)
+                return a;
+            return get_gcd(b, a % b);
+        };
+        return a / get_gcd(a, b) * b;
     };
     const auto lcm = get_lcm(batch_dim, optimal_parallelism_work_amount);  // LCM(b, nthrs)
     const auto batch_dim_multiplier = lcm / batch_dim;  // LCM(b, nthrs) / b
