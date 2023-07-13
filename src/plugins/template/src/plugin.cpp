@@ -225,7 +225,6 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
                                                     ov::device::full_name,
                                                     ov::device::architecture,
                                                     ov::device::capabilities,
-                                                    ov::caching_properties,
                                                     ov::range_for_async_infer_requests};
         return ro_properties;
     };
@@ -233,7 +232,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::exclusive_async_requests,
+                                                    ov::internal::exclusive_async_requests,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
@@ -271,6 +270,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         std::vector<std::string> available_devices = {""};
@@ -284,9 +286,9 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
-    } else if (ov::caching_properties == name) {
+    } else if (ov::internal::caching_properties == name) {
         std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
-        return decltype(ov::caching_properties)::value_type(caching_properties);
+        return decltype(ov::internal::caching_properties)::value_type(caching_properties);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};

@@ -27,6 +27,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "pre_post_process/input_output_data_handler.hpp"
 #include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
@@ -50,6 +51,7 @@ protected:
     std::shared_ptr<GnaInputs> inputs_ptr_;
     GnaOutputs outputs_;
     std::shared_ptr<GNAGraphCompiler> m_graph_compiler;
+    pre_post_processing::InputOutputDataHandler m_input_output_handler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
@@ -212,38 +214,6 @@ protected:
     void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
                           InferenceEngine::Blob::Ptr output_blob,
                           std::shared_ptr<ov::Model> model);
-
-    void ImportFrames(void* ptr_dst,
-                      const void* ptr_src,
-                      InferenceEngine::Precision input_precision,
-                      float scaleFactor,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_vector_stride);
-
-    void ExportScores(void* ptr_dst,
-                      const void* ptr_src,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_active_elements,
-                      uint32_t num_vector_stride,
-                      InferenceEngine::Precision precision_in,
-                      InferenceEngine::Precision precision_out);
-
-    template <typename T, typename U>
-    void copyInputData(T* dst,
-                       const U* src,
-                       uint32_t num_frames,
-                       uint32_t num_group,
-                       uint32_t num_vector_elements,
-                       uint32_t num_vector_stride,
-                       intel_dnn_orientation_t orientation,
-                       float scaleFactor);
-
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork&);

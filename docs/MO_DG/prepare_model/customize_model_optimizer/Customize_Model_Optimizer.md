@@ -225,6 +225,7 @@ example of the shape infer function for the :doc:`Reshape <openvino_docs_ops_sha
 available in the ``mo/ops/reshape.py`` file):
 
 .. code-block:: py
+   :force:
    
     @staticmethod
     def infer(node: Node):

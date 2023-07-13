@@ -118,7 +118,8 @@ depending on the *pad_mode*.
 
 **Example**: constant mode
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Pad" ...>
         <data pad_mode="constant"/>
@@ -153,7 +154,8 @@ depending on the *pad_mode*.
 
 **Example**: edge mode
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="Pad" ...>
         <data pad_mode="edge"/>

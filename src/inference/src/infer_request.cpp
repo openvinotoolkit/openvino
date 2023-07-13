@@ -160,7 +160,6 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
-    std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
         OPENVINO_ASSERT(_impl->get_tensors(port).empty(),
                         "get_tensor shall not be used together with batched "
@@ -168,7 +167,8 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
                         port,
                         "'");
         auto tensor = _impl->get_tensor(port);
-        tensor._so.emplace_back(_so);
+        if (!tensor._so)
+            tensor._so = _so;
 
         return tensor;
     });
