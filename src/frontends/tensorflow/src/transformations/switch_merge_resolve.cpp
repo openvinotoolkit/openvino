@@ -9,140 +9,235 @@
 
 #include "helper_ops/merge.hpp"
 #include "helper_ops/switch.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
 using namespace ov::frontend;
-using namespace ov::opset11;
+using namespace ov::op;
 using namespace std;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
-    // collect a vector of Switch and Merge nodes corresponding to each CF marker
-    unordered_map<int32_t, vector<shared_ptr<Switch>>> switch_map;
-    unordered_map<int32_t, vector<shared_ptr<Merge>>> merge_map;
-    // fuse Switch-Merge sub-graphs into If operations in topological order
-    // however, it seems to be unprincipal
-    vector<int32_t> fuse_markers;
-    for (const auto& node : m->get_ordered_ops()) {
-        if (const auto& switch_node = as_type_ptr<Switch>(node)) {
-            FRONT_END_GENERAL_CHECK(
-                switch_node->is_cond_flow_marker_set(),
-                "[TensorFlow Frontend] internal error: Switch node does not have conditional flow marker");
-            auto marker = switch_node->get_cond_flow_marker();
-            if (find(fuse_markers.begin(), fuse_markers.end(), marker) == fuse_markers.end()) {
-                fuse_markers.push_back(marker);
-            }
+namespace {
+using ClusterType = pair<unordered_set<shared_ptr<Switch>>, unordered_set<shared_ptr<Merge>>>;
 
-            if (switch_map.count(marker) > 0) {
-                switch_map[marker].push_back(switch_node);
-            } else {
-                switch_map[marker] = {switch_node};
+bool intersected(const unordered_set<shared_ptr<Switch>>& s1, const unordered_set<shared_ptr<Switch>>& s2) {
+    bool is_intersected = false;
+    for (const auto& node1 : s1) {
+        for (const auto& node2 : s2) {
+            if (node1 == node2) {
+                is_intersected = true;
+                break;
             }
-        } else if (const auto& merge_node = as_type_ptr<Merge>(node)) {
-            // in case TF1 While (with Switch, Merge, Enter, Exit and NextIteration)
-            // it skips further fusing
+        }
+    }
+    return is_intersected;
+}
+
+void generate_if_clusters(const shared_ptr<Model>& ov_model,
+                          unordered_map<uint32_t, unordered_set<shared_ptr<Switch>>>& switch_clusters,
+                          unordered_map<uint32_t, unordered_set<shared_ptr<Merge>>>& merge_clusters) {
+    // each pair represents a cluster circled with Switch and Merge nodes
+    vector<ClusterType> clusters;
+    for (const auto& node : ov_model->get_ordered_ops()) {
+        if (const auto& merge_node = as_type_ptr<Merge>(node)) {
             if (!merge_node->is_cond_flow_eliminated()) {
                 continue;
             }
             auto eliminated_markers = merge_node->get_eliminated_cond_flow_marker();
+            if (eliminated_markers.size() != 1) {
+                continue;
+            }
 
-            for (const auto& eliminated_marker : eliminated_markers) {
-                if (merge_map.count(eliminated_marker) > 0) {
-                    merge_map[eliminated_marker].push_back(merge_node);
+            auto eliminated_marker = eliminated_markers[0];
+            auto switch_nodes = merge_node->get_switch_nodes_set_by_cond_index(eliminated_marker);
+
+            // insert into clusters
+            bool is_combined = false;
+            ClusterType combined_cluster = {switch_nodes, {merge_node}};
+            vector<ClusterType> refined_clusters;
+            for (const auto& cluster : clusters) {
+                const auto& cluster_switches = cluster.first;
+                const auto& cluster_merges = cluster.second;
+                if (intersected(cluster_switches, combined_cluster.first)) {
+                    combined_cluster.first.insert(cluster_switches.begin(), cluster_switches.end());
+                    combined_cluster.second.insert(cluster_merges.begin(), cluster_merges.end());
+                    is_combined = true;
                 } else {
-                    merge_map[eliminated_marker] = {merge_node};
+                    refined_clusters.push_back(cluster);
                 }
             }
+            refined_clusters.push_back(combined_cluster);
+            clusters = refined_clusters;
+            /*
+            if (!is_combined) {
+                // not possible to combine with any existing cluster
+                // it means to create a new cluster
+                ClusterType new_cluster = {switch_nodes, {merge_node}};
+                clusters.push_back(new_cluster);
+            } else {
+                // refines clusters since some of them can be combined
+                vector<ClusterType> refined_clusters;
+                refined_clusters.push_back(combined_cluster);
+                // ??? problem here
+
+                auto& refined_cluster_switches = refined_clusters[0].first;
+                auto& refined_cluster_merges = refined_clusters[0].second;
+                for (const auto& cluster : clusters) {
+                    auto& cluster_switches = cluster.first;
+                    auto& cluster_merges = cluster.second;
+                    if (intersected(cluster_switches, refined_cluster_switches)) {
+                        refined_cluster_merges.insert(cluster_merges.begin(), cluster_merges.end());
+                        refined_cluster_switches.insert(cluster_switches.begin(), cluster_switches.end());
+                    } else {
+                        refined_clusters.push_back(cluster);
+                    }
+                }
+                clusters = refined_clusters;
+            }
+            */
         }
     }
 
-    // fuse Switch-Merge sub-graphs into If operation in topological order
-    for (const auto& marker : fuse_markers) {
-        auto switch_nodes = switch_map[marker];
+    // repack clusters to two separate maps for Switch and Merge nodes
+    switch_clusters.clear();
+    merge_clusters.clear();
+    uint32_t clusters_size = static_cast<uint32_t>(clusters.size());
+    for (uint32_t cluster_id = 0; cluster_id < clusters_size; ++cluster_id) {
+        switch_clusters[cluster_id] = clusters[cluster_id].first;
+        merge_clusters[cluster_id] = clusters[cluster_id].second;
+    }
+}
 
-        // in case TF1 While (with Switch, Merge, Enter, Exit and NextIteration)
-        // it skips further fusing
-        if (merge_map.count(marker) == 0) {
+shared_ptr<v0::Parameter> replace_switch_output_with_parameter(const shared_ptr<Switch>& switch_node,
+                                                               size_t output_ind) {
+    FRONT_END_GENERAL_CHECK(output_ind < 2,
+                            "[TensorFlow Frontend] internal error: incorrect output index for Switch node");
+    auto switch_output = switch_node->output(output_ind);
+
+    auto parameter_node =
+        make_shared<v0::Parameter>(switch_output.get_element_type(), switch_output.get_partial_shape());
+    auto cf_marker = get_cf_marker(switch_node);
+    auto switch_marker = switch_node->get_cond_flow_marker();
+    cf_marker.existing_markers_with_branches[switch_marker].insert(static_cast<uint32_t>(output_ind));
+    cf_marker.existing_markers_with_switches[switch_marker].insert(switch_node);
+    cf_marker.new_markers.clear();
+    set_cf_marker(cf_marker, parameter_node);
+
+    switch_output.replace(parameter_node);
+
+    return parameter_node;
+}
+
+void insert_result_before_merge(const shared_ptr<Merge>& merge_node,
+                                size_t input_ind,
+                                uint32_t& branch_index,
+                                shared_ptr<v0::Result>& result_output,
+                                shared_ptr<v0::Result>& result_value_index) {
+    // check that handled Marge node contains conditional flow marker
+    auto merge_node_name = merge_node->get_friendly_name();
+    FRONT_END_GENERAL_CHECK(cf_marker_exists(merge_node),
+                            "[TensorFlow Frontend] internal error: Merge node " + merge_node_name +
+                                " does not have conditional flow marker");
+
+    // get eliminated marker and check that it is the single one
+    auto merge_cf_marker = get_cf_marker(merge_node);
+    FRONT_END_GENERAL_CHECK(merge_cf_marker.merge_eliminated_markers.size() == 1,
+                            "[TensorFlow Frontend] internal error: Merge node " + merge_node_name +
+                                " does not contain the single eliminated marker");
+    auto eliminated_marker = merge_cf_marker.merge_eliminated_markers.begin()->first;
+
+    // check that producer contains the same conditional flow marker
+    // and retrive branch index for it
+    const auto& merge_input = merge_node->input(input_ind);
+    const auto& input_value = merge_node->input_value(input_ind);
+    const shared_ptr<const Node>& merge_producer = merge_node->get_input_node_shared_ptr(input_ind);
+    auto producer_cf_marker = get_cf_marker(merge_producer);
+    FRONT_END_GENERAL_CHECK(
+        producer_cf_marker.existing_markers_with_branches.count(eliminated_marker) > 0,
+        "[TensorFlow Frontend] internal error: input producer for Merge node does not contain eliminated marker");
+
+    auto branch_index_set = producer_cf_marker.existing_markers_with_branches[eliminated_marker];
+    FRONT_END_GENERAL_CHECK(branch_index_set.size() == 1,
+                            "[TensorFlow Frontend] internal error: it must contain the single branch index");
+    branch_index = *next(branch_index_set.begin(), 0);
+
+    auto value_index = make_shared<v0::Constant>(element::i32, Shape{}, input_ind);
+    result_output = make_shared<v0::Result>(input_value);
+    result_value_index = make_shared<v0::Result>(value_index);
+    input_value.remove_target_input(merge_input);
+}
+
+}  // namespace
+
+bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
+    // split set of Switch and Merge nodes to clusters
+    // where each cluster of Switch and Merge nodes will represent
+    // the single If operation for fusing
+    unordered_map<uint32_t, unordered_set<shared_ptr<Switch>>> switch_clusters;
+    unordered_map<uint32_t, unordered_set<shared_ptr<Merge>>> merge_clusters;
+    generate_if_clusters(m, switch_clusters, merge_clusters);
+
+    // fuse Switch-Merge sub-graphs into If operation
+    for (const auto& marker_to_merge_nodes : merge_clusters) {
+        const auto& cluster_id = marker_to_merge_nodes.first;
+        const auto& merge_nodes = marker_to_merge_nodes.second;
+        const auto& switch_nodes = switch_clusters[cluster_id];
+        if (merge_nodes.size() == 0 || switch_nodes.size() == 0) {
             continue;
         }
-        auto merge_nodes = merge_map[marker];
 
-        FRONT_END_GENERAL_CHECK(
-            switch_nodes.size() > 0,
-            "[TensorFlow Frontend] internal error: conditional flow must contain Switch node to fuse");
-        FRONT_END_GENERAL_CHECK(
-            merge_nodes.size() > 0,
-            "[TensorFlow Frontend] internal error: conditional flow must contain Merge nodes to fuse");
-
-        auto cond = switch_nodes[0]->input_value(1);
+        auto cond = (*(switch_nodes.begin()))->input_value(1);
 
         // collect Parameter nodes and Result nodes for then and else bodies
         // set inputs and outputs for If node
         // create then bodies for which condition is true
-        ParameterVector then_params;
-        ParameterVector else_params;
-        ResultVector then_results;
-        ResultVector else_results;
-        OutputVector if_inputs;
-        OutputVector if_outputs;
+        ParameterVector then_params, else_params;
+        ResultVector then_results, else_results;
+        OutputVector if_inputs, if_outputs;
         vector<unordered_set<string>> if_outputs_names;
+
         for (const auto& switch_node : switch_nodes) {
-            FRONT_END_GENERAL_CHECK(switch_node->input_values().size() == 2,
-                                    "[TensorFlow Frontend] internal error: Switch node must have two inputs");
             if_inputs.push_back(switch_node->input_value(0));
-            FRONT_END_GENERAL_CHECK(switch_node->outputs().size() == 2,
-                                    "[TensorFlow Frontend] internal error: Switch node must have two outputs");
-            auto switch_output_false = switch_node->outputs()[0];
-            auto switch_output_true = switch_node->outputs()[1];
-            auto parameter_node_true = make_shared<Parameter>(switch_node->get_output_element_type(0),
-                                                              switch_node->get_output_partial_shape(0));
-            auto parameter_node_false = make_shared<Parameter>(switch_node->get_output_element_type(1),
-                                                               switch_node->get_output_partial_shape(1));
+            auto parameter_node_false = replace_switch_output_with_parameter(switch_node, 0);
+            auto parameter_node_true = replace_switch_output_with_parameter(switch_node, 1);
             then_params.push_back(parameter_node_true);
-            switch_output_true.replace(parameter_node_true);
             else_params.push_back(parameter_node_false);
-            switch_output_false.replace(parameter_node_false);
         }
+
+        CfMarkerType if_cf_marker;
         for (const auto& merge_node : merge_nodes) {
+            // combine conditional markers from all Merge nodes
+            // from which it results If node
+            const auto& merge_cf_marker = get_cf_marker(merge_node);
+            copy_conditional_flow_marker(merge_cf_marker, if_cf_marker);
+
             size_t input_ind = 0;
-            for (const auto& merge_input : merge_node->inputs()) {
-                auto input_value = merge_input.get_source_output();
-
-                const shared_ptr<const Node>& merge_producer = input_value.get_node_shared_ptr();
-                auto producer_cf_marker = get_cf_marker(merge_producer);
-                if (producer_cf_marker.existing_markers.count(marker) > 0) {
-                    auto branch_index_set = producer_cf_marker.existing_markers[marker];
-                    FRONT_END_GENERAL_CHECK(
-                        branch_index_set.size() == 1,
-                        "[TensorFlow Frontend] internal error: it must contain the single branch index");
-                    auto branch_index = *next(branch_index_set.begin(), 0);
-
-                    auto value_index = make_shared<Constant>(element::i32, Shape{}, input_ind);
-                    auto result_node_value = make_shared<Result>(input_value);
-                    auto result_node_index = make_shared<Result>(value_index);
-                    input_value.remove_target_input(merge_input);
-
-                    FRONT_END_GENERAL_CHECK(
-                        branch_index == 0 || branch_index == 1,
-                        "[TensorFlow Frontend] internal error: conditional branch with unexpected index");
-                    if (branch_index == 0) {
-                        // handle else-branch since the first output of Switch is output_false
-                        else_results.push_back(result_node_value);
-                        else_results.push_back(result_node_index);
-                    } else if (branch_index == 1) {
-                        // handle then-branch since the second output of Switch is output_true
-                        then_results.push_back(result_node_value);
-                        then_results.push_back(result_node_index);
-                    }
+            for (size_t input_ind = 0; input_ind < merge_node->get_input_size(); ++input_ind) {
+                uint32_t branch_index = 0;
+                shared_ptr<v0::Result> result_output, result_value_index;
+                insert_result_before_merge(merge_node, input_ind, branch_index, result_output, result_value_index);
+                FRONT_END_GENERAL_CHECK(
+                    branch_index == 0 || branch_index == 1,
+                    "[TensorFlow Frontend] internal error: conditional branch with unexpected index");
+                if (branch_index == 0) {
+                    // handle else-branch since the first output of Switch is output_false
+                    else_results.push_back(result_output);
+                    else_results.push_back(result_value_index);
+                } else if (branch_index == 1) {
+                    // handle then-branch since the second output of Switch is output_true
+                    then_results.push_back(result_output);
+                    then_results.push_back(result_value_index);
                 }
-                ++input_ind;
             }
             for (const auto& merge_output : merge_node->outputs()) {
                 if_outputs.push_back(merge_output);
@@ -154,7 +249,8 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
         auto then_body = make_shared<Model>(then_results, then_params);
         auto else_body = make_shared<Model>(else_results, else_params);
 
-        auto if_op = make_shared<If>(cond);
+        auto if_op = make_shared<v8::If>(cond);
+        set_cf_marker(if_cf_marker, if_op);
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
 

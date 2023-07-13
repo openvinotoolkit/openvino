@@ -51,7 +51,7 @@ public:
         return cf_marker.new_markers.size() == 1;
     }
 
-    int32_t get_cond_flow_marker() const {
+    uint32_t get_cond_flow_marker() const {
         const auto this_node = this->shared_from_this();
         FRONT_END_GENERAL_CHECK(
             cf_marker_exists(this_node),
@@ -60,7 +60,7 @@ public:
         FRONT_END_GENERAL_CHECK(
             cf_marker.new_markers.size() == 1,
             "[TensorFlow Frontend] internal error: Switch node has incorrect value of conditional flow marker");
-        return cf_marker.new_markers[0];
+        return cf_marker.new_markers.begin()->first;
     }
 
     uint32_t get_switch_marker() const {

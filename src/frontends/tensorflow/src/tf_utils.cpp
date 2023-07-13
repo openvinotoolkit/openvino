@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 #include "helper_ops/merge.hpp"
 #include "helper_ops/switch.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -18,38 +20,42 @@ using namespace ov::frontend::tensorflow;
 using namespace std;
 
 namespace {
-void copy_conditional_flow_marker(const CfMarkerType& copy_from,
-                                  unordered_map<uint32_t, unordered_set<uint32_t>>& copy_to) {
-    for (const auto& marker : copy_from.existing_markers) {
+void copy_conditional_flow_marker_with_branches(const CfMarkerType& copy_from,
+                                                unordered_map<uint32_t, SetOfBranchIndices>& copy_to_braches) {
+    for (const auto& marker : copy_from.existing_markers_with_branches) {
         const auto& switch_marker = marker.first;
         const auto& branch_markers = marker.second;
-        if (copy_to.count(switch_marker) > 0) {
-            // combine two sets of branch markers
-            copy_to[switch_marker].insert(branch_markers.begin(), branch_markers.end());
-        } else {
-            copy_to[switch_marker] = marker.second;
-        }
+        copy_to_braches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
     }
 }
 
-void copy_conditional_flow_markers_for_producer(unordered_map<uint32_t, unordered_set<uint32_t>>& combined_markers,
-                                                const Output<Node>& ov_output) {
+void copy_conditional_flow_marker_with_switches(const CfMarkerType& copy_from,
+                                                unordered_map<uint32_t, SetOfSwitchNodes>& copy_to_switches) {
+    for (const auto& marker : copy_from.existing_markers_with_switches) {
+        const auto& switch_marker = marker.first;
+        const auto& branch_markers = marker.second;
+        copy_to_switches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+    }
+}
+
+void copy_conditional_flow_markers_for_producer(
+    unordered_map<uint32_t, SetOfBranchIndices>& combined_markers_with_braches,
+    unordered_map<uint32_t, SetOfSwitchNodes>& combined_markers_with_switches,
+    const Output<Node>& producer_output) {
     // walk through all data producer and collect conditional flow markers
-    const shared_ptr<const Node>& producer_node = ov_output.get_node_shared_ptr();
-    uint32_t branch_index = static_cast<uint32_t>(ov_output.get_index());
+    const shared_ptr<const Node>& producer_node = producer_output.get_node_shared_ptr();
+    uint32_t branch_index = static_cast<uint32_t>(producer_output.get_index());
     if (!cf_marker_exists(producer_node)) {
         return;
     }
     auto producer_markers = get_cf_marker(producer_node);
-    copy_conditional_flow_marker(producer_markers, combined_markers);
+    copy_conditional_flow_marker_with_branches(producer_markers, combined_markers_with_braches);
+    copy_conditional_flow_marker_with_switches(producer_markers, combined_markers_with_switches);
     // if data goes from Switch node, it needs to create a new marker and branch marker
-    for (auto new_marker : producer_markers.new_markers) {
-        if (combined_markers.count(new_marker) > 0) {
-            // combine two sets of branch markers
-            combined_markers[new_marker].insert(branch_index);
-        } else {
-            combined_markers[new_marker] = {branch_index};
-        }
+    for (const auto& new_marker : producer_markers.new_markers) {
+        auto switch_nodes = new_marker.second;
+        combined_markers_with_braches[new_marker.first].insert(branch_index);
+        combined_markers_with_switches[new_marker.first].insert(switch_nodes.begin(), switch_nodes.end());
     }
 }
 
@@ -122,6 +128,23 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+
+void copy_conditional_flow_marker(const CfMarkerType& copy_from, CfMarkerType& copy_to) {
+    for (const auto& marker : copy_from.existing_markers_with_branches) {
+        const auto& switch_marker = marker.first;
+        const auto& branch_markers = marker.second;
+        copy_to.existing_markers_with_branches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+    }
+    for (const auto& marker : copy_from.existing_markers_with_switches) {
+        const auto& switch_marker = marker.first;
+        const auto& branch_markers = marker.second;
+        copy_to.existing_markers_with_switches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+    }
+}
+
+bool CfMarkerType::is_copyable() const {
+    return false;
+}
 
 Type get_ov_type(const ::tensorflow::DataType& type) {
     static const map<::tensorflow::DataType, Type> type_map{{::tensorflow::DataType::DT_BOOL, boolean},
@@ -254,18 +277,22 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
                                 set<Output<Node>>& output_control_deps) {
     // returns if there is conditional flow to propagate
     // it checks all producer-nodes connected via data edges and control dependencies
-
     // compute combined markers
     // it is a map from conditional flow marker to a set of branch markers
-    unordered_map<uint32_t, unordered_set<uint32_t>> combined_markers;
+    unordered_map<uint32_t, SetOfBranchIndices> combined_markers_with_branches;
+    unordered_map<uint32_t, SetOfSwitchNodes> combined_markers_with_switches;
     for (const auto& ov_input : ov_inputs) {
         // walk through all input producers and propagate CF marker
-        copy_conditional_flow_markers_for_producer(combined_markers, ov_input);
+        copy_conditional_flow_markers_for_producer(combined_markers_with_branches,
+                                                   combined_markers_with_switches,
+                                                   ov_input);
     }
     // walk through all control dependencies and collect conditional flow markers
     for (const auto& input_control_dep : input_control_deps) {
         // walk through all control dependencies and collect conditional flow markers
-        copy_conditional_flow_markers_for_producer(combined_markers, input_control_dep);
+        copy_conditional_flow_markers_for_producer(combined_markers_with_branches,
+                                                   combined_markers_with_switches,
+                                                   input_control_dep);
     }
 
     // walk through all nodes and mark them if needed
@@ -284,38 +311,49 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
         // and put such markers into eliminated list
         CfMarkerType resulted_cf_marker;
         if (as_type_ptr<Merge>(node)) {
-            for (const auto& marker : combined_markers) {
+            for (const auto& marker : combined_markers_with_branches) {
                 auto switch_marker = marker.first;
                 auto branch_markers = marker.second;
                 if (branch_markers.size() > 1) {
-                    resulted_cf_marker.eliminated_markers.push_back(switch_marker);
+                    if (combined_markers_with_switches.count(switch_marker) > 0) {
+                        resulted_cf_marker.merge_eliminated_markers[switch_marker] =
+                            combined_markers_with_switches[switch_marker];
+                    }
                 } else {
-                    resulted_cf_marker.existing_markers.insert(marker);
+                    resulted_cf_marker.existing_markers_with_branches.insert(marker);
+                    if (combined_markers_with_switches.count(switch_marker) > 0) {
+                        resulted_cf_marker.existing_markers_with_switches[switch_marker] =
+                            combined_markers_with_switches[switch_marker];
+                    }
                 }
             }
         } else if (const auto& switch_node = as_type_ptr<Switch>(node)) {
             // update conditional flow marker with new marker for the current Switch node
             auto switch_marker = switch_node->get_switch_marker();
-            resulted_cf_marker.new_markers.push_back(switch_marker);
-            resulted_cf_marker.existing_markers = combined_markers;
+            resulted_cf_marker.new_markers[switch_marker] = {switch_node};
+            resulted_cf_marker.existing_markers_with_branches = combined_markers_with_branches;
+            resulted_cf_marker.existing_markers_with_switches = combined_markers_with_switches;
         } else {
             // check that non-Merge node does not expect data/flow from different Switch branches
             // it means inconsistent model
-            for (const auto& marker : combined_markers) {
+            for (const auto& marker : combined_markers_with_branches) {
                 auto branch_markers = marker.second;
                 FRONT_END_GENERAL_CHECK(
                     branch_markers.size() < 2,
                     "[TensorFlow Frontend] inconsistent input model: non-Merge node expects data or "
                     "flow from different branches of one Switch node");
-                resulted_cf_marker.existing_markers.insert(marker);
+                resulted_cf_marker.existing_markers_with_branches.insert(marker);
             }
+            resulted_cf_marker.existing_markers_with_switches.insert(combined_markers_with_switches.begin(),
+                                                                     combined_markers_with_switches.end());
         }
 
         // set conditional flow marker only if one of the fields is not empty
         // check if any input or input control dependency contain control flow
         // if yes, it makes sense to continue
-        if (resulted_cf_marker.new_markers.size() > 0 || resulted_cf_marker.existing_markers.size() > 0 ||
-            resulted_cf_marker.eliminated_markers.size() > 0) {
+        if (resulted_cf_marker.new_markers.size() > 0 || resulted_cf_marker.existing_markers_with_branches.size() > 0 ||
+            resulted_cf_marker.existing_markers_with_switches.size() > 0 ||
+            resulted_cf_marker.merge_eliminated_markers.size() > 0) {
             set_cf_marker(resulted_cf_marker, node);
             to_propagate = true;
         }

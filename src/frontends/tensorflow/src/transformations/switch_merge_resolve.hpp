@@ -21,7 +21,7 @@ namespace pass {
 class SwitchMergeResolver : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::SwitchMergeResolver");
-    SwitchMergeResolver() {}
+    SwitchMergeResolver() = default;
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
