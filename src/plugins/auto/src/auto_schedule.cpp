@@ -3,7 +3,6 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "ie_system_conf.h"
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
@@ -136,25 +135,15 @@ void AutoSchedule::init() {
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
         } else {
-            const auto CPUIter = deviceChecker().checkAndReturnIfDeviceInList("CPU", _autoSContext->_devicePriorities);
+            const auto cpu_iter =
+                deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
             // if have CPU Device,  enable _loadContext[CPU]
-            if (CPUIter != _autoSContext->_devicePriorities.end()) {
-                _loadContext[CPU].isEnabled = true;
-                _loadContext[CPU].deviceInfo = *CPUIter;
-                _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::LATENCY;
-                // limit the compilation threads for the actual selected device
-                const int num_logic_cores = ov::get_number_of_logical_cpu_cores();
-                auto max_num_threads = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
-                auto actualDeviceSupportedPro =
-                    _autoSContext->_core->get_property(_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
-                                                       ov::supported_properties);
-                auto iterCompileNumThreads = std::find(actualDeviceSupportedPro.begin(),
-                                                       actualDeviceSupportedPro.end(),
-                                                       ov::compilation_num_threads.name());
-                if (iterCompileNumThreads != actualDeviceSupportedPro.end())
-                    _loadContext[ACTUALDEVICE].deviceInfo.config[ov::compilation_num_threads.name()] =
-                        std::to_string(max_num_threads);
-                _loadContext[CPU].workName = "CPU_HELP";
+            if (cpu_iter != m_context->m_device_priorities.end()) {
+                m_compile_context[CPU].m_is_enabled = true;
+                m_compile_context[CPU].m_device_info = *cpu_iter;
+                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
+                    ov::hint::PerformanceMode::LATENCY;
+                m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
                 m_compile_context[CPU].m_is_enabled = false;
@@ -271,23 +260,26 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     auto& device_list = context.m_meta_devices;
+    bool is_compilation_num_threads = device_config.find(ov::compilation_num_threads.name()) != device_config.end();
     bool cur_dev_is_cpu = (device.find("CPU") != std::string::npos);
-    bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
-    {
+    if (!cur_dev_is_cpu && !is_compilation_num_threads) {
+        // user does not set the compiling threads
+        // limit the threads num for compiling
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled) {
-            // user does not set the compiling threads
-            // limit the threads num for compiling
-            int max_threads = 0;
-            try {
-                max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
-            } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
-            }
-            if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
-                int thread_num = max_threads / 2;
+        int max_threads = -1;
+        try {
+            max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+        } catch (const ov::Exception&) {
+            LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
+        }
+        if (m_compile_context[CPU].m_is_enabled) {
+            // default value for GPU is std::thread::hardware_concurrency()
+            // less than or equal to 0 for the other devices
+            if (max_threads <= 0 || max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
+                const int num_logic_cores = ov::get_number_of_logical_cpu_cores();
+                int thread_num = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
                 device_config.insert(ov::compilation_num_threads(thread_num));
-                LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
+                LOG_DEBUG_TAG("device %s streams number for compiling: %d", device.c_str(), thread_num);
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway
