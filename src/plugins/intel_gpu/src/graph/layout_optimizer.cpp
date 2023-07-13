@@ -1285,10 +1285,12 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_padding = node.get_dependencies().front().first->get_output_layout().data_padding;
+    auto input_layout = node.get_dependencies().front().first->get_output_layout();
+    auto in_padding = input_layout.data_padding;
     auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        // Check spatial padding
         bool no_spatial_padding = true;
         for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
             no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
@@ -1302,18 +1304,24 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
             no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
         }
+
+        // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
         bool no_batch_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        auto out_fmt = node.get_output_layout().format;
+        if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
+            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+            }
         }
         return (no_spatial_padding && no_batch_padding);
     }
@@ -1645,7 +1653,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
         // Return default format for output layout rank when user node is reshape
         // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
-        if (has_reshape_user(node))
+        // It is only applied for the dynamic shape with static input shape
+        if (!node.is_dynamic() &&  has_reshape_user(node))
             return format::get_default_format(out_lay_rank);
 
         if (node.is_type<shape_of>())

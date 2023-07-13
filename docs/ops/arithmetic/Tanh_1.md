@@ -41,7 +41,8 @@ For each element from the input tensor calculates corresponding element in the o
 
 *Example 1*
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Tanh">
         <input>
