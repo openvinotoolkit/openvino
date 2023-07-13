@@ -159,6 +159,7 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = ordered_inputs
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
+
             return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
