@@ -62,7 +62,6 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
             auto switch_nodes = merge_node->get_switch_nodes_set_by_cond_index(eliminated_marker);
 
             // insert into clusters
-            bool is_combined = false;
             ClusterType combined_cluster = {switch_nodes, {merge_node}};
             vector<ClusterType> refined_clusters;
             for (const auto& cluster : clusters) {
@@ -71,7 +70,6 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
                 if (intersected(cluster_switches, combined_cluster.first)) {
                     combined_cluster.first.insert(cluster_switches.begin(), cluster_switches.end());
                     combined_cluster.second.insert(cluster_merges.begin(), cluster_merges.end());
-                    is_combined = true;
                 } else {
                     refined_clusters.push_back(cluster);
                 }
