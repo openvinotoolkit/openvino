@@ -121,6 +121,18 @@ public:
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
     bool is_target_iteration(int64_t iteration) const;
+
+    struct memory_preallocation_params {
+        bool is_initialized = false;
+
+        // Iterations mode preallocation
+        size_t next_iters_preallocation_count = 0;
+        size_t max_per_iter_size = 0;
+        size_t max_per_dim_diff = 0;
+
+        // Percentage mode preallocation
+        float buffers_preallocation_ratio = 0.0f;
+    } mem_preallocation_params;
 };
 
 }  // namespace cldnn
