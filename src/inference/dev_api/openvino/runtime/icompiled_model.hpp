@@ -114,7 +114,7 @@ public:
     virtual std::shared_ptr<const ov::Model> get_runtime_model() const = 0;
 
     /**
-     * @brief Allows to set propertu
+     * @brief Allows to set property
      *
      * @param properties new plugin properties
      */
