@@ -15,12 +15,31 @@
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
+#ifdef ENABLE_CONFORMANCE_PGQL
+#    include "common_test_utils/postgres_link.hpp"
 
+void RegisterTestCustomQueries(void) {
+    std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::getExtTestQueries();
+    std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::getExtTestNames();
+    std::string testName("checkPluginImplementation");
+    extTestQueries[testName + "_BEFORE"] =
+        "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', '$targetDevice', '$config')";
+    extTestNames[testName] = "$opName";
+    testName = "ReadIR";
+    extTestQueries[testName + "_BEFORE"] = "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
+                                           "'$targetDevice', '$hashXml', '$pathXml', '$config')";
+    extTestNames[testName] = "$opName";
+}
+#endif
 #include "functional_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
+#ifdef ENABLE_CONFORMANCE_PGQL
+    RegisterTestCustomQueries();
+#endif
+
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;
     int argc_gflags = 0;
@@ -50,7 +69,7 @@ int main(int argc, char* argv[]) {
     ov::test::utils::OpSummary::setOutputFolder(FLAGS_output_folder);
     ov::test::utils::OpSummary::setSaveReportTimeout(FLAGS_save_report_timeout);
     {
-        auto &apiSummary = ov::test::utils::ApiSummary::getInstance();
+        auto& apiSummary = ov::test::utils::ApiSummary::getInstance();
         apiSummary.setDeviceName(FLAGS_device);
     }
     if (FLAGS_shape_mode == std::string("static")) {
@@ -58,7 +77,9 @@ int main(int argc, char* argv[]) {
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
         ov::test::conformance::shapeMode = ov::test::conformance::ShapeMode::DYNAMIC;
     } else if (FLAGS_shape_mode != std::string("")) {
-        throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
+        throw std::runtime_error(
+            "Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" +
+            FLAGS_shape_mode + "`");
     }
 
     CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
@@ -72,8 +93,8 @@ int main(int argc, char* argv[]) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
-        ov::test::conformance::disabledTests = CommonTestUtils::readListFiles(
-                CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
+        ov::test::conformance::disabledTests =
+            CommonTestUtils::readListFiles(CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);
@@ -101,7 +122,7 @@ int main(int argc, char* argv[]) {
 
     // killed by external
     signal(SIGINT, exernalSignalHandler);
-    signal(SIGTERM , exernalSignalHandler);
+    signal(SIGTERM, exernalSignalHandler);
     signal(SIGSEGV, exernalSignalHandler);
     signal(SIGABRT, exernalSignalHandler);
     return RUN_ALL_TESTS();

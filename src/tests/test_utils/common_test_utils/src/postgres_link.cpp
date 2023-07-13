@@ -586,8 +586,24 @@ static void addPair(std::map<std::string, std::string>& keyValues, const std::st
     // Parse IR_name for opName and hash
     if (key == "IR_name" && (dPos = value.find('_')) != std::string::npos) {
         keyValues["opName"] = value.substr(0, dPos);
-        keyValues["opSet"] = "";  // Need to set
+        keyValues["opSet"] = "unknown";  // Need to set
         keyValues["hashXml"] = value.substr(dPos + 1);
+        keyValues["pathXml"] = value;
+        return;
+    }
+    if (key == "Op") {
+        if ((dPos = value.find('.')) == std::string::npos) {
+            keyValues["opName"] = value.substr(0, dPos);
+            keyValues["opSet"] = "unknown";  // Need to set later
+        } else {
+            keyValues["opName"] = value.substr(0, dPos);
+            keyValues["opSet"] = value.substr(dPos + 1);
+        }
+    }
+    // Parse IR for opName and hash
+    if (key == "IR" && (dPos = value.find('_')) != std::string::npos) {
+        keyValues["hashXml"] = value.substr(dPos + 1);
+        keyValues["pathXml"] = value;
         return;
     }
     // Parse Function for opName and opSet
@@ -698,6 +714,7 @@ static bool compileString(const std::string& srcStr,
     std::string varName;
     result.clear();
     varName.reserve(srcStr.length());
+    result.reserve(srcStr.length());
     while (readPos < srcStr.length()) {
         varPos = srcStr.find('$', readPos);
         if (varPos == std::string::npos) {
@@ -707,8 +724,8 @@ static bool compileString(const std::string& srcStr,
         if (varPos > readPos)
             result += srcStr.substr(readPos, varPos - readPos);
         const char *ptr = srcStr.c_str() + varPos + 1, *varNamePtr = ptr;
-        while (*ptr > 0x20 &&
-               ((*ptr >= 'a' && *ptr <= 'z') || (*ptr >= 'A' && *ptr <= 'Z') || (*ptr >= '0' && *ptr <= '9') || (*ptr == '-') || (*ptr == '_')))
+        while (*ptr > 0x20 && ((*ptr >= 'a' && *ptr <= 'z') || (*ptr >= 'A' && *ptr <= 'Z') ||
+                               (*ptr >= '0' && *ptr <= '9') || (*ptr == '-') || (*ptr == '_')))
             ++ptr;
         varName = std::string(varNamePtr, ptr - varNamePtr);
         auto val = keyValue.find(varName);
@@ -716,6 +733,9 @@ static bool compileString(const std::string& srcStr,
             result += val->second;
         readPos = varPos + (ptr - varNamePtr) + 1;
     }
+    // Trim right
+    while (result.length() > 1 && result[result.length() - 1] == ' ')
+        result.resize(result.length() - 1);
     return readPos = srcStr.length();
 }
 
@@ -879,6 +899,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                           << "SELECT APPEND_" << query,
                       testExtId,
                       t_id)
+    GET_PG_IDENTIFIER(UpdateTestExtId(std::string query),
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL PREPARE_" << query << "; COMMIT;"
+                          << "SELECT UPDATE_" << query,
+                      testExtId,
+                      t_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
@@ -1035,6 +1061,24 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             joinedQuery << ", " << testResult << "::smallint, " << test_info.result()->elapsed_time() << ");\n";
         }
 
+        auto grpName = testDictionary.end();
+
+        if (isTestNameParsed == true && (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
+            // Looks query with GroupName + "_BEFORE", "ReadIR_BEFORE" as example
+            auto extQuery = ExtTestQueries.find(grpName->second + "_AFTER");
+            if (extQuery != ExtTestQueries.end()) {
+                std::string query;
+                // Other variables stored in the OnTestStart
+                testDictionary["__test_ext_id"] = std::to_string(this->testExtId);
+                if (compileString(extQuery->second, testDictionary, query)) {
+                    if (!UpdateTestExtId(query)) {
+                        std::cerr << PG_WRN << "Failed extended update query: " << query << std::endl;
+                    }
+                } else {
+                    std::cerr << PG_WRN << "Preparing extended update query is failed: " << test_info.name() << std::endl;
+                }
+            }
+        }
         this->testId = 0;
         testDictionary.clear();
     }
@@ -1092,7 +1136,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
             char* env_run_id = std::getenv(PGQL_ENV_RUN_NAME);
             if (env_run_id != nullptr) {
-                // In case of not-numeric it will be set to default value - 0, and will be generated at RequestRunId()
+                // In case of not-numeric it will be set to default value - 0, and will be generated at
+                // RequestRunId()
                 this->testRunId = std::atoi(env_run_id);
                 std::cerr << PG_INF << "External Run ID is provided: " << this->testRunId << std::endl;
             }

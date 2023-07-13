@@ -73,3 +73,10 @@ public:
 };
 
 }  // namespace CommonTestUtils
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+namespace PostgreSQLLink {
+extern std::map<std::string, std::string>* getExtTestQueries(void);
+extern std::map<std::string, std::string>* getExtTestNames(void);
+};  // namespace PostgreSQLLink
+#endif
