@@ -2,7 +2,12 @@ const eloquaUrl = 'https://httpbingo.org/post'
 
 
 $(document).ready(function () {
-    $('#newsletterTrigger').on('click', showForm);
+    // trigger without iframe
+    // $('#newsletterTrigger').on('click', showForm);
+
+    $('iframe').on('load', function() {
+        $('iframe').contents().find('#newsletterTrigger').on('click', showForm);
+    });
 
     function showForm() {
         fetch('_static/html/newsletter.html').then((response) => response.text()).then((text) => {
