@@ -27,6 +27,8 @@ public:
 
     void setManager(MemoryMngrPtr _pMngr);
 
+    void notifyUpdate() override;
+
 private:
     // We keep the original MemMngr as may fallback to copy output.
     const MemoryMngrPtr m_pOrigMngr;

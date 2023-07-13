@@ -93,6 +93,8 @@ class IMemoryMngrObserver : public IMemoryMngr {
 public:
     virtual void registerMemory(Memory* memPtr) = 0;
     virtual void unregisterMemory(Memory* memPtr) = 0;
+
+    virtual void notifyUpdate() {};
 };
 
 /**
@@ -108,8 +110,7 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-private:
-    void notifyUpdate();
+    void notifyUpdate() override;
 
 private:
     std::unordered_set<Memory*> m_setMemPtrs;

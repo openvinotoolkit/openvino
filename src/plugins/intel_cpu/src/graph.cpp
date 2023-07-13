@@ -818,7 +818,7 @@ void Graph::AllocateWithReuse() {
                 if (edge->getStatus() == Edge::Status::NeedAllocation &&
                     child->getType() == Type::Output) {
                     auto proxyMemMngr =
-                        std::make_shared<ProxyMemoryMngr>(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()));
+                        std::make_shared<ProxyMemoryMngr>();
                     DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
                     edge->allocate(proxyMemMngr);
 

@@ -21,6 +21,8 @@ void ProxyMemoryMngr::setManager(MemoryMngrPtr _pMngr) {
         // TODO  notify actual manager
         DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", m_size, " resized? ", res, " RawPtr ", getRawPtr());
     }
+
+    notifyUpdate();
 }
 
 void* ProxyMemoryMngr::getRawPtr() const noexcept {
@@ -28,13 +30,15 @@ void* ProxyMemoryMngr::getRawPtr() const noexcept {
 }
 
 void ProxyMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    return m_pMngr->setExtBuff(ptr, size);
+    m_pMngr->setExtBuff(ptr, size);
+    notifyUpdate();
 }
 
 bool ProxyMemoryMngr::resize(size_t size) {
     auto res = m_pMngr->resize(size);
     DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
     m_size = size;
+    notifyUpdate();
     return res;
 }
 
@@ -48,4 +52,8 @@ void ProxyMemoryMngr::registerMemory(Memory* memPtr) {
 
 void ProxyMemoryMngr::unregisterMemory(Memory* memPtr) {
     m_pMngr->unregisterMemory(memPtr);
+}
+
+void ProxyMemoryMngr::notifyUpdate() {
+    m_pOrigMngr->notifyUpdate();
 }
