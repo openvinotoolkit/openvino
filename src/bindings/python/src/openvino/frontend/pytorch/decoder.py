@@ -6,7 +6,7 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape, Tensor
 
 import typing
 from packaging.version import parse
@@ -39,12 +39,17 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        if ivalue.dim() == 0:
-            assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
-            ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
-            ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+        ivalue = ivalue.to(memory_format=torch.contiguous_format)
+        if ivalue.dtype == torch.bfloat16:
+            # reinterpret bfloat16 data as float16 to allow conversion to numpy
+            ivalue = ivalue.view(torch.float16)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
+            # TODO: this tensor doesn't share memory with initial tensor
+            tensor = Tensor(narr, ivalue.shape, OVType.bf16)
+            ov_const = op.Constant(tensor, shared_memory=True)
         else:
-            ivalue = ivalue.to(memory_format=torch.contiguous_format)
             narr = ivalue.numpy(force=True)
             if not narr.flags['C_CONTIGUOUS']:
                 narr = np.ascontiguousarray(narr)
@@ -76,6 +81,7 @@ pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
     "bool": OVType.boolean,
+    "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
     "torch.float64": OVType.f64,
@@ -153,7 +159,6 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = ordered_inputs
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-                
             return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
@@ -184,7 +189,7 @@ class TorchScriptPythonDecoder (Decoder):
                 f_model = scripted
         else:
             f_model = pt_module
-        
+
         self._input_signature = input_signature
         return f_model
 
