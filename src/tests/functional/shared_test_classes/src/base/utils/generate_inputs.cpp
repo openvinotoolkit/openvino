@@ -46,7 +46,6 @@ namespace {
 static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
     inGenData.range = 8;
     inGenData.resolution = 32;
-    inGenData.start_from *= inGenData.resolution;
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
