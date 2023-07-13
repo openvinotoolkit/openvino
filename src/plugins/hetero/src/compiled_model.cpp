@@ -694,7 +694,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         } else {
             auto model = comp_model_desc.model;
             if (!model)
-                OPENVINO_THROW("Hetero device supports only OpenVINO Model representation");
+                OPENVINO_THROW("OpenVINO Model is empty");
 
             std::stringstream xmlFile, binFile;
             ov::pass::Serialize serializer(xmlFile, binFile);
