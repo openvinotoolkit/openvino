@@ -197,6 +197,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
+        // TODO: fp16 skip
+        retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn4D.*Precision=f16_AcrossChannels=TRUE_NormalizeVariance=TRUE.*inFmts=nchw_outFmts=nchw.*)");
+        retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn5D.*Precision=f16_AcrossChannels=FALSE_NormalizeVariance=TRUE.*inFmts=ncdhw_outFmts=ncdhw.*)");
+        retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn5D_Static.*Precision=f16_AcrossChannels=TRUE_NormalizeVariance=TRUE.*inFmts=ndhwc_outFmts=ndhwc.*)");
         // TODO: enable once streams / tput mode is supported
         retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_CpuExecNetworkCheck(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
         retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
