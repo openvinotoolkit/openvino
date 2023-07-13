@@ -96,6 +96,7 @@ public:
                        ov::SoPtr<ov::ICompiledModel>(std::istream&,
                                                      const ov::SoPtr<ov::IRemoteContext>&,
                                                      const ov::AnyMap&));
+    MOCK_CONST_METHOD1(device_supports_model_caching, bool(const std::string&));
     MOCK_METHOD2(set_property, void(const std::string& device_name, const ov::AnyMap& properties));
 
     ~MockICore() = default;
