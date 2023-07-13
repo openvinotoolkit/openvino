@@ -78,33 +78,6 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
             }
             refined_clusters.push_back(combined_cluster);
             clusters = refined_clusters;
-            /*
-            if (!is_combined) {
-                // not possible to combine with any existing cluster
-                // it means to create a new cluster
-                ClusterType new_cluster = {switch_nodes, {merge_node}};
-                clusters.push_back(new_cluster);
-            } else {
-                // refines clusters since some of them can be combined
-                vector<ClusterType> refined_clusters;
-                refined_clusters.push_back(combined_cluster);
-                // ??? problem here
-
-                auto& refined_cluster_switches = refined_clusters[0].first;
-                auto& refined_cluster_merges = refined_clusters[0].second;
-                for (const auto& cluster : clusters) {
-                    auto& cluster_switches = cluster.first;
-                    auto& cluster_merges = cluster.second;
-                    if (intersected(cluster_switches, refined_cluster_switches)) {
-                        refined_cluster_merges.insert(cluster_merges.begin(), cluster_merges.end());
-                        refined_cluster_switches.insert(cluster_switches.begin(), cluster_switches.end());
-                    } else {
-                        refined_clusters.push_back(cluster);
-                    }
-                }
-                clusters = refined_clusters;
-            }
-            */
         }
     }
 
