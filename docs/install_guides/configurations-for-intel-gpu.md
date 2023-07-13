@@ -5,33 +5,61 @@
 
 .. _gpu guide:
 
-
-
-To use the OpenVINO™ GPU plugin and offload inference to Intel® Processor Graphics (GPU), Intel® Graphics Driver must be properly configured on your system.
-
-If Intel® Graphics Driver is already installed and you would like to keep it, you can skip the installation steps below.
+To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.
 
 Linux
 ##########
 
-To install the latest available **Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver** for your operating system, 
-see its `installation guide on GitHub <https://github.com/intel/compute-runtime/releases/latest>`__.
+@sphinxdirective
 
-.. note::
-   If you use RedHat 8 OS please install OpenCL library as prerequisite via the following command line: 
-   ``sh rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm``
+To use a GPU device for OpenVINO inference, you must meet the following prerequisites:
 
-   For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__ 
-   (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
+- Use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
+- Install ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the `installation documentation <https://dgpu-docs.intel.com/driver/installation.html>`__
+- Install GPU Runtime packages:
 
+  - `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
+  - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
+  - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
+  - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
-You may consider installing one of the earlier versions of the driver, based on your particular setup needs. For instructions and recommendations on the installation of a 
-specific GPU driver release, as well as the list of supported hardware platforms, refer to the 
-`Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver GitHub home page <https://github.com/intel/compute-runtime/>`__.
+Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
 
-For instructions specific to discrete graphics platforms, refer to `the dgpu guide <https://dgpu-docs.intel.com/installation-guides/index.html>`__, 
-including installation guides for Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1.
+.. tab-set::
 
+   .. tab-item:: Ubuntu 20.04 LTS
+      :sync: ubuntu-20
+
+      Ubuntu 20.04 LTS is not updated with the latest driver versions. You can install the updated versions up to the version 22.43 from apt:
+      
+      .. code-block:: sh
+         
+         apt-get update && apt-get install -y --no-install-recommends curl gpg gpg-agent && \
+         curl https://repositories.intel.com/graphics/intel-graphics.key | gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg && \
+         echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list && \
+         apt-get update
+         apt-get update && apt-get install -y --no-install-recommends intel-opencl-icd intel-level-zero-gpu level-zero
+      
+      Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
+
+   .. tab-item:: RedHat UBI 8
+      :sync: redhat-8
+
+      Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
+      
+      Install following packages: 
+      
+      .. code-block:: sh
+      
+         yum install intel-opencl level-zero intel-level-zero-gpu intel-igc-core intel-igc-cm intel-gmmlib intel-ocloc
+      
+      Install the OpenCL ICD Loader via:
+      
+      .. code-block:: sh
+      
+         rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm
+
+@endsphinxdirective
 
 .. _gpu guide windows:
 
