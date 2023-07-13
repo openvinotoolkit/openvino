@@ -27,7 +27,7 @@ OutputVector skip_layer_normalization(const Node& node) {
     int hidden_size_dim = 2;
     const auto reduction_axes = default_opset::Constant::create(element::i32, Shape{1}, {hidden_size_dim});
     std::shared_ptr<ngraph::Node> result =
-        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
     // multiply by gamma
     result = std::make_shared<default_opset::Multiply>(result, nodes[2]);
     // add beta if available
