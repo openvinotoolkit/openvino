@@ -159,7 +159,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::device::full_name == name) {
-        return decltype(ov::device::full_name)::value_type{"HETERO"};
+        return decltype(ov::device::full_name)::value_type{get_device_name()};
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
         return true;
     } else if (ov::internal::caching_properties == name) {
