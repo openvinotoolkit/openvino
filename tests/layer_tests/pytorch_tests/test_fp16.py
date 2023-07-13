@@ -26,8 +26,11 @@ class TestBF16(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_bf16(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, freeze_model=False)
+    @pytest.mark.parametrize("to_trace", [True, False])
+    def test_bf16(self, ie_device, precision, ir_version, to_trace):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=to_trace, freeze_model=False)
+
 
 class TestFP16(PytorchLayerTest):
 
@@ -47,5 +50,7 @@ class TestFP16(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_fp16(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, freeze_model=False)
+    @pytest.mark.parametrize("to_trace", [True, False])
+    def test_fp16(self, ie_device, precision, ir_version, to_trace):
+        self._test(*self.create_model(), ie_device, precision,
+                   ir_version, trace_model=to_trace, freeze_model=False)
