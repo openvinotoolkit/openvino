@@ -47,14 +47,14 @@ ov::template_plugin::Plugin::~Plugin() {
 // ! [plugin:dtor]
 
 // ! [plugin:create_context]
-std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
+ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
     const ov::AnyMap& remote_properties) const {
     return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:create_context]
 
 // ! [plugin:get_default_context]
-std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
     const ov::AnyMap& remote_properties) const {
     return std::make_shared<ov::template_plugin::RemoteContext>();
 }

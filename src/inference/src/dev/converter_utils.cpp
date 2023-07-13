@@ -198,10 +198,10 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 namespace ov {
 
 class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {
-    std::shared_ptr<ov::IVariableState> m_state;
+    ov::SoPtr<ov::IVariableState> m_state;
 
 public:
-    IVariableStateInternalWrapper(const std::shared_ptr<ov::IVariableState>& state)
+    IVariableStateInternalWrapper(const ov::SoPtr<ov::IVariableState>& state)
         : InferenceEngine::IVariableStateInternal(state->get_name()),
           m_state(state) {}
 
@@ -765,10 +765,11 @@ public:
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
 
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
-        std::vector<std::shared_ptr<ov::IVariableState>> variable_states;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        std::vector<ov::SoPtr<ov::IVariableState>> variable_states;
         for (auto&& state : m_request->QueryState()) {
-            variable_states.emplace_back(std::make_shared<InferenceEngine::IVariableStateWrapper>(state));
+            variable_states.push_back(
+                {std::make_shared<InferenceEngine::IVariableStateWrapper>(state), m_request->getPointerToSo()});
         }
         return variable_states;
     }
@@ -879,15 +880,10 @@ std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remo
     return std::make_shared<ov::RemoteContextWrapper>(context);
 }
 
-std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remote_context(
-    const std::shared_ptr<ov::IRemoteContext>& context) {
-    return convert_remote_context(ov::SoPtr<ov::IRemoteContext>{context, nullptr});
-}
-
 ov::SoPtr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
     const std::shared_ptr<InferenceEngine::RemoteContext>& context) {
     if (auto ctx = std::dynamic_pointer_cast<ov::RemoteContextWrapper>(context)) {
         return ctx->get_context();
     }
-    return ov::SoPtr<ov::IRemoteContext>(std::make_shared<InferenceEngine::IRemoteContextWrapper>(context), nullptr);
+    return {std::make_shared<InferenceEngine::IRemoteContextWrapper>(context)};
 }

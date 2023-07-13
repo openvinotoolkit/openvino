@@ -115,8 +115,15 @@ std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info
 
 ov::auto_plugin::InferRequest::~InferRequest() = default;
 
-std::vector<std::shared_ptr<ov::IVariableState>> ov::auto_plugin::InferRequest::query_state() const {
-    if (m_shared_request)
-        return m_shared_request->query_state();
+std::vector<ov::SoPtr<ov::IVariableState>> ov::auto_plugin::InferRequest::query_state() const {
+    if (m_shared_request) {
+        auto states = m_shared_request->query_state();
+        for (auto&& state : states) {
+            if (!state._so) {
+                state._so = m_shared_request._so;
+            }
+        }
+        return states;
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }

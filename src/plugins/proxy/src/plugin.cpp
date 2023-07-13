@@ -326,7 +326,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     // TODO: if no device id, try to create context for each plugin
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
@@ -364,7 +364,7 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
                    ov::Any(remote_properties).as<std::string>());
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
     auto has_dev_idx = is_device_in_config(remote_properties);

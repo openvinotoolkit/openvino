@@ -246,7 +246,7 @@ public:
         }
         m_model->evaluate(output_tensors, input_tensors);
     }
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
@@ -384,13 +384,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
             return std::make_shared<MockRemoteContext>(get_device_name());
         return std::make_shared<MockCustomRemoteContext>(get_device_name());
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         return std::make_shared<MockRemoteContext>(get_device_name());
     }
 

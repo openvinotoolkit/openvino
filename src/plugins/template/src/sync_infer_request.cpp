@@ -29,7 +29,7 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
                           const ov::element::Type& element_type,
                           const ov::Shape& shape) {
     if (!tensor || tensor->get_element_type() != element_type) {
-        tensor._ptr = ov::make_tensor(element_type, shape);
+        tensor = ov::make_tensor(element_type, shape);
     } else {
         tensor->set_shape(shape);
     }
@@ -116,7 +116,7 @@ void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const 
 // ! [infer_request:set_tensors_impl]
 
 // ! [infer_request:query_state]
-std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
 // ! [infer_request:query_state]

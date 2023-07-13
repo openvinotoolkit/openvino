@@ -93,14 +93,18 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkMode
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);
-        return {remote, m_so};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->get_default_context(params);
-        return {remote, m_so};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 

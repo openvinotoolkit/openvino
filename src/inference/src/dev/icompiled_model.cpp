@@ -142,5 +142,5 @@ ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     }
     if (m_context)
         return m_context;
-    return {m_plugin->get_default_context({}), nullptr};
+    return m_plugin->get_default_context({});
 }

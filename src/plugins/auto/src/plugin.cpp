@@ -79,13 +79,13 @@ namespace auto_plugin {
 std::mutex Plugin::m_mtx;
 std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
 
-std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     if (m_hw_compiledmodel)
-        return m_hw_compiledmodel->get_context()._ptr;
+        return m_hw_compiledmodel->get_context();
     OPENVINO_NOT_IMPLEMENTED;
 }
 

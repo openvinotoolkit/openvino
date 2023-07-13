@@ -71,13 +71,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (m_plugin)
             return m_plugin->create_context(remote_properties);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         if (m_plugin)
             return m_plugin->get_default_context(remote_properties);
         OPENVINO_NOT_IMPLEMENTED;
@@ -165,12 +165,12 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_
     return m_plugin->compile_model(model, properties, context);
 }
 
-std::shared_ptr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
     set_parameters_if_need();
     return m_plugin->create_context(remote_properties);
 }
 
-std::shared_ptr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
     set_parameters_if_need();
     return m_plugin->get_default_context(remote_properties);
 }
