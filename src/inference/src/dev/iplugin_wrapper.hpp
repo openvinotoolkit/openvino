@@ -160,8 +160,11 @@ public:
      */
     void set_device_name(const std::string& device_name);
 
+    void set_shared_object(const std::shared_ptr<void>& so);
+
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
+    std::shared_ptr<void> m_so;
 
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& update_exec_network(
         const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& network) const;

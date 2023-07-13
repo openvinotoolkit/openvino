@@ -28,6 +28,9 @@ IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInference
 const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapper::update_exec_network(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& network) const {
     network->SetPointerToPlugin(m_old_plugin);
+    if (!network->GetPointerToSo())
+        network->_so = m_so;
+
     return network;
 }
 
@@ -117,6 +120,10 @@ void IPluginWrapper::set_core(const std::weak_ptr<ov::ICore>& core) {
 void IPluginWrapper::set_device_name(const std::string& device_name) {
     m_plugin_name = device_name;
     m_old_plugin->SetName(device_name);
+}
+
+void IPluginWrapper::set_shared_object(const std::shared_ptr<void>& so) {
+    m_so = so;
 }
 
 }  //  namespace InferenceEngine
