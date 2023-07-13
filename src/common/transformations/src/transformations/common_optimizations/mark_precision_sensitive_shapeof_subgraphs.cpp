@@ -8,10 +8,9 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
@@ -28,7 +27,7 @@ ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfS
 
 ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
     m_markup_func = [](Node* node) {
-        if (ov::is_type<ov::opset8::Constant>(node)) {
+        if (ov::is_type<ov::op::v0::Constant>(node)) {
             ov::disable_fp16_compression(node->shared_from_this());
         }
     };
@@ -36,7 +35,7 @@ ov::pass::MarkPrecisionSensitiveConstants::MarkPrecisionSensitiveConstants() {
 
 ov::pass::MarkDividesInShapeSubgraphs::MarkDividesInShapeSubgraphs() {
     m_markup_func = [](Node* node) {
-        if (ov::is_type<ov::opset8::Divide>(node)) {
+        if (ov::is_type<ov::op::v1::Divide>(node)) {
             ov::disable_divide_conversion(node->shared_from_this());
         }
     };
