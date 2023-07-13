@@ -215,8 +215,10 @@ void MemoryMngrWithReuse::setExtBuff(void *ptr, size_t size) {
 
 bool MemoryMngrWithReuse::resize(size_t size) {
     constexpr int cacheLineSize = 64;
+    constexpr size_t resizeFactor = 2;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
+        size *= resizeFactor;
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
             IE_THROW() << "Failed to allocate " << size << " bytes of memory";
