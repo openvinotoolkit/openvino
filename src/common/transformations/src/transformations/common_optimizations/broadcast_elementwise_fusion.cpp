@@ -6,10 +6,10 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 
@@ -25,7 +25,7 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
     // to Broadcast operation as a output shape target. In this case we can eliminate
     // Broadcast since eltwise_input will broadcast another eltwise input automatically.
     auto broadcast_input = broadcast.get_node()->get_input_node_shared_ptr(1);
-    if ((ov::is_type<ov::opset5::ShapeOf>(broadcast_input) || ov::is_type<ov::opset1::ShapeOf>(broadcast_input)) &&
+    if ((ov::is_type<ov::op::v3::ShapeOf>(broadcast_input) || ov::is_type<ov::op::v0::ShapeOf>(broadcast_input)) &&
         broadcast_input->input_value(0) == eltwise_input) {
         return true;
     }
@@ -73,7 +73,7 @@ ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast =
-        pattern::wrap_type<ov::opset5::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
+        pattern::wrap_type<ov::op::v3::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
     auto eltwise_input = pattern::any_input();
     auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 

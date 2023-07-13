@@ -7,10 +7,9 @@
 #include <ngraph/op/util/detection_output_base.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/detection_output.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,15 +18,15 @@ using namespace ov::op::util;
 pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetectionOutput8() {
     MATCHER_SCOPE(ConvertDetectionOutput1ToDetectionOutput8);
 
-    auto detection_output_v1_pattern = pattern::wrap_type<opset1::DetectionOutput>();
+    auto detection_output_v1_pattern = pattern::wrap_type<ov::op::v0::DetectionOutput>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto detection_output_v1_node = std::dynamic_pointer_cast<opset1::DetectionOutput>(m.get_match_root());
+        auto detection_output_v1_node = std::dynamic_pointer_cast<ov::op::v0::DetectionOutput>(m.get_match_root());
         if (!detection_output_v1_node)
             return false;
 
         const auto& attributes_v1 = detection_output_v1_node->get_attrs();
-        opset8::DetectionOutput::Attributes attributes_v8;
+        ov::op::v8::DetectionOutput::Attributes attributes_v8;
         attributes_v8.background_label_id = attributes_v1.background_label_id;
         attributes_v8.clip_after_nms = attributes_v1.clip_after_nms;
         attributes_v8.clip_before_nms = attributes_v1.clip_before_nms;
@@ -44,19 +43,21 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
         attributes_v8.top_k = attributes_v1.top_k;
         attributes_v8.variance_encoded_in_target = attributes_v1.variance_encoded_in_target;
 
-        std::shared_ptr<opset8::DetectionOutput> detection_output_v8_node = nullptr;
+        std::shared_ptr<ov::op::v8::DetectionOutput> detection_output_v8_node = nullptr;
         if (detection_output_v1_node->get_input_size() == 3) {
-            detection_output_v8_node = make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                                            detection_output_v1_node->input_value(1),
-                                                                            detection_output_v1_node->input_value(2),
-                                                                            attributes_v8);
+            detection_output_v8_node =
+                make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                         detection_output_v1_node->input_value(1),
+                                                         detection_output_v1_node->input_value(2),
+                                                         attributes_v8);
         } else if (detection_output_v1_node->get_input_size() == 5) {
-            detection_output_v8_node = make_shared<opset8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                                            detection_output_v1_node->input_value(1),
-                                                                            detection_output_v1_node->input_value(2),
-                                                                            detection_output_v1_node->input_value(3),
-                                                                            detection_output_v1_node->input_value(4),
-                                                                            attributes_v8);
+            detection_output_v8_node =
+                make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                         detection_output_v1_node->input_value(1),
+                                                         detection_output_v1_node->input_value(2),
+                                                         detection_output_v1_node->input_value(3),
+                                                         detection_output_v1_node->input_value(4),
+                                                         attributes_v8);
         }
         if (!detection_output_v8_node)
             return false;

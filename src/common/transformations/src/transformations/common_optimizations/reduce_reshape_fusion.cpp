@@ -8,8 +8,9 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/util/reduction_base.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -17,12 +18,12 @@
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
-    const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
+    const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {pattern::any_input(), reduce_axes},
         pattern::consumers_count(1));
     const auto reshape =
-        pattern::wrap_type<opset9::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
+        pattern::wrap_type<ov::op::v1::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
