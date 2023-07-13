@@ -796,8 +796,8 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
 ov::pass::RPE_Optimization::RPE_Optimization() {
     MATCHER_SCOPE(RPE_Optimization);
 
-    auto sin = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
-    auto cos = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+    auto sin = pattern::wrap_type<opset6::GatherElements, opset1::Unsqueeze>();  // any_input doesn't work here
+    auto cos = pattern::wrap_type<opset6::GatherElements, opset1::Unsqueeze>();  // any_input doesn't work here
 
     auto source = pattern::any_input(pattern::has_static_rank());
 
@@ -1260,11 +1260,11 @@ void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_sou
 
     std::shared_ptr<ov::Node> alternative_source = nullptr;
 
-    auto concat = ov::as_type_ptr<ov::opset1::Concat>(output.get_node_shared_ptr());
-    if (concat && label_shape_source.count(label)) {
+    if (label_shape_source.count(label)) {
         auto source = label_shape_source[label];
+        auto concat = ov::as_type_ptr<ov::opset1::Concat>(source.get_node_shared_ptr());
         int64_t idx = get_idx_of_label_in_source(source, label);
-        if (idx != -1 && idx == concat->get_concatenation_axis() && concat->get_input_size() == 2) {
+        if (concat && idx != -1 && idx == concat->get_concatenation_axis() && concat->get_input_size() == 2) {
             // optimize using the knowledge of the Concat SI and what happens on the axis
             auto lhs_source = concat->input_value(0);
             const auto& lhs_pshape = lhs_source.get_partial_shape();
