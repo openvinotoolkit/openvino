@@ -581,20 +581,21 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> CPU;
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
-    std::list<DeviceInformation> MYRIAD;
     std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> GNA;
+    std::list<DeviceInformation> Others;
 
     for (auto& item : meta_devices) {
         if (item.device_name.find("CPU") == 0) {
             CPU.push_back(item);
             continue;
         }
-        if (item.device_name.find("MYRIAD") == 0) {
-            MYRIAD.push_back(item);
-            continue;
-        }
         if (item.device_name.find("VPUX") == 0) {
             VPUX.push_back(item);
+            continue;
+        }
+        if (item.device_name.find("GNA") == 0) {
+            GNA.push_back(item);
             continue;
         }
         if (item.device_name.find("GPU") == 0) {
@@ -614,9 +615,11 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             }
             continue;
         }
+        // 3rd part devices
+        Others.push_back(item);
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > VPUX > iGPU > CPU > 3rd part devices > GNA
     std::list<DeviceInformation> devices;
     if (model_precision == "INT8") {
         devices.splice(devices.end(), VPUX);
@@ -626,8 +629,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         devices.splice(devices.end(), VPUX);
     }
     devices.splice(devices.end(), iGPU);
-    devices.splice(devices.end(), MYRIAD);
     devices.splice(devices.end(), CPU);
+    devices.splice(devices.end(), Others);
 
     std::list<DeviceInformation> valid_devices;
 

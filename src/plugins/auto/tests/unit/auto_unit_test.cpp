@@ -68,7 +68,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::vector<std::string> cpuCability =  {"FP32", "FP16", "INT8", "BIN"};
     std::vector<std::string> gpuCability =  {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
     std::vector<std::string> vpuxCability =  {"INT8"};
-    std::vector<std::string> myriadCability =  {"FP16"};
+    std::vector<std::string> othersCability =  {"FP32", "FP16"};
     std::string igpuArchitecture = "GPU: vendor=0x8086 arch=0";
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
     auto iGpuType = ov::device::Type::INTEGRATED;
@@ -79,8 +79,8 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
     ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
-    ON_CALL(*core, get_property(StrEq("MYRIAD"),
-                   StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
+    ON_CALL(*core, get_property(StrEq("OTHERS"),
+                   StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(othersCability));
     ON_CALL(*core, get_property(StrEq("GPU"),
                 StrEq(ov::device::architecture.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuArchitecture));
     ON_CALL(*core, get_property(StrEq("GPU.0"),
