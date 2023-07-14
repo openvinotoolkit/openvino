@@ -13,7 +13,11 @@ To convert a TensorFlow Lite model, use the ``mo`` script and specify the path t
 
    mo --input_model <INPUT_MODEL>.tflite
 
-.. note:: TensorFlow Lite models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+TensorFlow Lite models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+
+.. important::
+
+   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
 
 Supported TensorFlow Lite Layers
 ###################################
