@@ -9,8 +9,8 @@ on:
 env:
   CMAKE_BUILD_TYPE: 'Release'
   CMAKE_GENERATOR: 'Ninja'
-  CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  CMAKE_C_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: ccache
+  CMAKE_C_COMPILER_LAUNCHER: ccache
   OPENVINO_REPO: "${{ github.workspace }}\\openvino"
   OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
   INSTALL_DIR: "${{ github.workspace }}\\install"
@@ -109,10 +109,10 @@ jobs:
 
       - uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Setup sccache
+      - name: Setup ccache
         uses: hendrikmuhs/ccache-action@53e53642769c4b03a7881a7283314d1f364134ec
         with:
-          variant: sccache
+          variant: ccache
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
@@ -121,52 +121,79 @@ jobs:
           restore-keys: |
             ${{ github.job }}-windows
 
+#      - name: CMake configure
+#        run: |
+#          & {{ env.VCVARSPATH }} x64 && cmake -G "Ninja Multi-Config" `
+#            -DENABLE_CPPLINT=OFF `
+#            -DENABLE_ONEDNN_FOR_GPU=OFF `
+#            -DBUILD_SHARED_LIBS=OFF `
+#            -DENABLE_TESTS=ON `
+#            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
+#            -DENABLE_STRICT_DEPENDENCIES=OFF `
+#            -DENABLE_PYTHON=ON `
+#            -DBUILD_nvidia_plugin=OFF `
+#            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+#            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+#            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}\modules `
+#            -DCMAKE_BUILD_TYPE=Release `
+#            -S ${{ env.OPENVINO_REPO }} `
+#            -B ${{ env.BUILD_DIR }}
+
       - name: CMake configure
+        shell: bash
         run: |
-          & {{ env.VCVARSPATH }} x64 && cmake -G "Ninja Multi-Config" `
-            -DENABLE_CPPLINT=OFF `
-            -DENABLE_ONEDNN_FOR_GPU=OFF `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DENABLE_TESTS=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
-            -DENABLE_STRICT_DEPENDENCIES=OFF `
-            -DENABLE_PYTHON=ON `
-            -DBUILD_nvidia_plugin=OFF `
-            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}\modules `
-            -DCMAKE_BUILD_TYPE=Release `
-            -S ${{ env.OPENVINO_REPO }} `
+          cmake -G "Ninja Multi-Config" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DENABLE_TESTS=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_PYTHON=ON \
+            -DBUILD_nvidia_plugin=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON \
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}\modules \
+            -DCMAKE_BUILD_TYPE=Release \
+            -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
       - name: Build
+        shell: bash
         run: |
-          & {{ env.VCVARSPATH }} x64 && cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
+          cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
 
       - name: Install
+        shell: bash
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Install Wheels
         run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}\tools
 
       - name: CMake Samples Tests
+        shell: bash
         run: |
-          & {{ env.VCVARSPATH }} x64 && cmake -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
+          cmake -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
 
       - name: Install Samples Tests
+        shell: bash
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/samples_tests/cmake_install.cmake
 
       - name: Install Tests
+        shell: bash
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}\cmake_install.cmake
 
       - name: Cmake Layer Tests
+        shell: bash
         run: |
-          & {{ env.VCVARSPATH }} x64 && cmake -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
+          cmake -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
       - name: Build Layer Tests
+        shell: bash
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
 
       - name: Install Layer Tests
+        shell: bash
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
 
       - name: Pack Artifacts
