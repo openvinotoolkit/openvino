@@ -28,7 +28,7 @@ namespace pytorch {
 
 using namespace ov::op;
 
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+ov::Output<ov::Node> quantize(const NodeContext& context,
                                    std::shared_ptr<ov::Node> input,
                                    std::shared_ptr<ov::Node> scale,
                                    std::shared_ptr<ov::Node> zero_point,
@@ -152,7 +152,25 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
     }
     FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in quantize.");
 }
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+
+// ========================================================
+
+ov::Output<ov::Node> quantize(const NodeContext& context,
+                                   ov::Output<ov::Node> input,
+                                   ov::Output<ov::Node> scale,
+                                   ov::Output<ov::Node> zero_point,
+                                   ov::element::Type dtype,
+                                   QuantizedPtNodeType quantization_type) {
+    return quantize(context,
+                    input.get_node_shared_ptr(),
+                    scale.get_node_shared_ptr(),
+                    zero_point.get_node_shared_ptr(),
+                    nullptr,
+                    dtype,
+                    quantization_type);
+}
+
+ov::Output<ov::Node> quantize(const NodeContext& context,
                                    ov::Output<ov::Node> input,
                                    ov::Output<ov::Node> scale,
                                    ov::Output<ov::Node> zero_point,
@@ -168,48 +186,7 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
                     quantization_type);
 }
 
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   std::shared_ptr<ov::Node> input,
-                                   std::shared_ptr<ov::Node> scale,
-                                   std::shared_ptr<ov::Node> zero_point,
-                                   ov::element::Type dtype,
-                                   QuantizedPtNodeType quantization_type) {
-    return quantize(context, input, scale, zero_point, nullptr, dtype, quantization_type);
-}
-
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   ov::Output<ov::Node> input,
-                                   ov::Output<ov::Node> scale,
-                                   ov::Output<ov::Node> zero_point,
-                                   ov::element::Type dtype,
-                                   QuantizedPtNodeType quantization_type) {
-    return quantize(context,
-                    input.get_node_shared_ptr(),
-                    scale.get_node_shared_ptr(),
-                    zero_point.get_node_shared_ptr(),
-                    nullptr,
-                    dtype,
-                    quantization_type);
-}
-
-// ========================================================
-
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   std::shared_ptr<ov::Node> input,
-                                   std::shared_ptr<ov::Node> quantized_node) {
-    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
-    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node))) {
-        return quantize(context,
-                        input,
-                        quantized_pt_node->get_scale(),
-                        quantized_pt_node->get_zero_point(),
-                        quantized_pt_node->get_axis(),
-                        quantized_pt_node->get_input_element_type(0),
-                        quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
-}
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+ov::Output<ov::Node> quantize(const NodeContext& context,
                                    ov::Output<ov::Node> input,
                                    ov::Output<ov::Node> quantized_node) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
@@ -225,27 +202,7 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
 }
 
-// ========================================================
-
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   std::shared_ptr<ov::Node> input,
-                                   std::shared_ptr<ov::Node> scale,
-                                   std::shared_ptr<ov::Node> zero_point,
-                                   std::shared_ptr<ov::Node> quantized_node) {
-    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
-    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node))) {
-        return quantize(context,
-                        input,
-                        scale,
-                        zero_point,
-                        quantized_pt_node->get_axis(),
-                        quantized_pt_node->get_input_element_type(0),
-                        quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
-}
-
-std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+ov::Output<ov::Node> quantize(const NodeContext& context,
                                    ov::Output<ov::Node> input,
                                    ov::Output<ov::Node> scale,
                                    ov::Output<ov::Node> zero_point,
@@ -263,17 +220,12 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
 }
 
-// ========================================================
-
-std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node> input) {
+ov::Output<ov::Node> dequantize(const NodeContext& context, ov::Output<ov::Node> input) {
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{input}, 1, false);
     auto attrs = fw_node->get_attrs();
     attrs[PtFrameworkNode::op_type_key] = "aten::dequantize";
     fw_node->set_attrs(attrs);
     return context.mark_node(fw_node);
-}
-std::shared_ptr<ov::Node> dequantize(const NodeContext& context, ov::Output<ov::Node> input) {
-    return dequantize(context, input.get_node_shared_ptr());
 }
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node) {
