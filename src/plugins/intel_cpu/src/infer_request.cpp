@@ -27,6 +27,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "proxy_mem_mgr.h"
 
+#include "../../inference/src/dev/make_tensor.hpp"
+
 namespace ov {
 namespace intel_cpu {
 

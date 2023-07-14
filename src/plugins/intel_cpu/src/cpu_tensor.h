@@ -44,6 +44,5 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
 }   // namespace intel_cpu
 }   // namespace ov
