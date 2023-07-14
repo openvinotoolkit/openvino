@@ -6,7 +6,7 @@ import os
 from copy import copy, deepcopy
 
 from ..conftest import model_path
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset12 as ops
 from openvino.runtime import (
     ConstOutput,
     Shape,

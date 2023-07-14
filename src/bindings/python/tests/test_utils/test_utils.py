@@ -12,7 +12,7 @@ import pytest
 from pathlib import Path
 
 import openvino
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset12 as ops
 from openvino.runtime import Model, Core, Shape
 from openvino.utils import deprecated
 
