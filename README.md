@@ -12,7 +12,6 @@
 
 ## Contents:
 
-
  - [What is OpenVINO?](#what-is-openvino-toolkit)
     - [Components](#components)
  - [Supported Hardware matrix](#supported-hardware-matrix)
