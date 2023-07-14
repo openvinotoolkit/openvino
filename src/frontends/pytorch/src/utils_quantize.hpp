@@ -30,8 +30,7 @@ public:
           type(type),
           scale(scale.get_node_shared_ptr()),
           zero_point(zero_point.get_node_shared_ptr()),
-          axis(nullptr),
-          dtype(dtype) {
+          axis(nullptr) {
         ov::op::util::FrameworkNodeAttrs attrs = get_attrs();
         if (type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
             attrs[quantized_node_type_key] = quantize_per_tensor;
@@ -41,6 +40,7 @@ public:
             FRONT_END_OP_CONVERSION_CHECK(false, "Unknown QuantizedPtNodeType: ", type);
         }
         set_attrs(attrs);
+        this->dtype = dtype;
     }
 
     QuantizedPtNode(const QuantizedPtNodeType type,
@@ -54,7 +54,7 @@ public:
           type(type),
           scale(scale.get_node_shared_ptr()),
           zero_point(zero_point.get_node_shared_ptr()),
-          axis(axis.get_node_shared_ptr(), dtype(dtype)) {
+          axis(axis.get_node_shared_ptr()) {
         ov::op::util::FrameworkNodeAttrs attrs = get_attrs();
         if (type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
             attrs[quantized_node_type_key] = quantize_per_tensor;
@@ -64,6 +64,7 @@ public:
             FRONT_END_OP_CONVERSION_CHECK(false, "Unknown QuantizedPtNodeType: ", type);
         }
         set_attrs(attrs);
+        this->dtype = dtype;
     }
 
     const std::shared_ptr<ov::Node> get_scale() {
