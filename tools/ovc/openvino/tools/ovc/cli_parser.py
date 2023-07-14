@@ -554,7 +554,6 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print('canon')
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existence=True)
         setattr(namespace, self.dest, ','.join(list_of_paths))
@@ -833,8 +832,6 @@ def get_all_cli_parser():
         ArgumentParser instance
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-    print('%(prog)s [options]')
-    print(parser)
 
     get_common_cli_parser(parser=parser)
     get_tf_cli_parser(parser=parser)
@@ -1359,10 +1356,11 @@ def get_model_name(path_input_model: str) -> str:
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
-    if hasattr(argv, 'model_name') and argv.model_name:
-        model_name = argv.model_name
+    if hasattr(argv, 'output_model_name') and argv.output_model_name:
+        model_name = argv.output_model_name
     else:
         model_name = argv.input_model
+    return model_name
 
 
 def get_absolute_path(path_to_file: str) -> str:

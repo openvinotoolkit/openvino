@@ -83,10 +83,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug("Model Conversion API started")
 
-    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
+    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model_name))
 
     if not argv.silent:
-        print_argv(argv, argv.model_name)
+        print_argv(argv, argv.output_model_name)
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
@@ -114,15 +114,12 @@ def get_moc_frontends(argv: argparse.Namespace):
         return None, []
 
     available_moc_front_ends = get_available_front_ends(fem)
-    print(available_moc_front_ends)
 
     if argv.input_model:
-        print(argv.input_model)
         moc_front_end = fem.load_by_model(argv.input_model)  # TODO: Pass all input model parts
         if not moc_front_end:
             return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()
-        print(argv.framework)
     else:
         return None, []
 
@@ -486,9 +483,9 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         argv.is_python_api_used = python_api_used
 
         if inp_model_is_object:
-            argv.model_name = "model"   # TODO: Consider removing
-        if not hasattr(argv, "model_name") or argv.model_name is None:
-            argv.model_name = get_model_name_from_args(argv)
+            argv.output_model_name = "model"   # TODO: Consider removing
+        if not hasattr(argv, "output_model_name") or argv.output_model_name is None:
+            argv.output_model_name = get_model_name_from_args(argv)
 
         argv.framework = model_framework
 
