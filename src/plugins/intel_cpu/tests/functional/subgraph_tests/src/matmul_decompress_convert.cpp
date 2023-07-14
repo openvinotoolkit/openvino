@@ -148,6 +148,7 @@ const std::vector<MatMulDecompressConvertParams> IS2D_smoke = {
     {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {false, true}},
     {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {true, false}},
     {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {true, true}},
+    {static_shapes_to_test_representation({{40, 60}, {60, 80}}), {false, true}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest, ::testing::ValuesIn(IS2D_smoke),
