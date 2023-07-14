@@ -4,12 +4,6 @@
 
 #pragma once
 
-#include <atomic>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "cpu_memory.h"
@@ -20,6 +14,12 @@
 #include "normalize_preprocess.h"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+
+#include <atomic>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
