@@ -127,16 +127,22 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
             return devices;
         });
 
-    ON_CALL(*core, get_supported_property)
-        .WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
-            auto item = fullConfigs.find(device);
-            ov::AnyMap deviceConfigs;
-            if (item != fullConfigs.end()) {
-                std::stringstream strConfigs(item->second.as<std::string>());
+    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
+        auto item = fullConfigs.find(ov::device::properties.name());
+        ov::AnyMap deviceConfigs;
+        if (item != fullConfigs.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(device);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second.as<std::string>());
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
             }
-            return deviceConfigs;
-        });
+        }
+        return deviceConfigs;
+    });
 
     ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
         return plugin->Plugin::get_device_list(config);
