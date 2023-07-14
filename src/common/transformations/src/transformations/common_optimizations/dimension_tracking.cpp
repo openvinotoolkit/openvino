@@ -1534,64 +1534,43 @@ bool ov::pass::OptimizeLabelsUsedAsValues::run_on_model(const std::shared_ptr<ov
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
-
-#define VISUALIZE(man, file) std::cout;  // << "Skipped visualization to " << (file) << std::endl;
-                                         //#define VISUALIZE(man, file) REGISTER_PASS(man, VisualizeTree, file)
-
     ov::pass::Manager pre_symbolic_manager(get_pass_config());
     pre_symbolic_manager.set_per_pass_validation(false);
-    VISUALIZE(pre_symbolic_manager, "00_before_BroadcastOnes.svg")
     REGISTER_PASS(pre_symbolic_manager, BroadcastOnes)
-    VISUALIZE(pre_symbolic_manager, "0_after_BroadcastOnes_before_SharedTileOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedTileOptimization)
-    VISUALIZE(pre_symbolic_manager, "1_after_SharedTileOptimization_before_TSSliceBackward.svg")
     auto pre_optimizations_0 = pre_symbolic_manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(pre_optimizations_0, transpose_sinking::TSSliceBackward)
     pre_optimizations_0->set_name("ov::pass::GraphRewrite::PreSymbolicOptimizations::0");
-    VISUALIZE(pre_symbolic_manager, "2_after_TSSliceBackward_before_SharedTransposeOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
-    VISUALIZE(pre_symbolic_manager, "3_after_SharedTransposeOptimization_before_SharedSliceOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedSliceOptimization)
-    VISUALIZE(pre_symbolic_manager, "4_after_SharedSliceOptimization_before_GroupedSliceToVSplitOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, GroupedSliceToVSplitOptimization)
     pre_symbolic_manager.run_passes(m);
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-    VISUALIZE(manager, "5_after_GroupedSliceToVSplitOptimization_before_SymbolicPOC.svg")
     REGISTER_PASS(manager, SymbolicPOC)
-    VISUALIZE(manager, "6_after_SymbolicPOC_before_optimizations_0_ChainedMaximumOptimization_NopBroadcast.svg")
 
     auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_0, ChainedMaximumOptimization)
     ADD_MATCHER(optimizations_0, NopBroadcast)
-    VISUALIZE(manager, "7_after_optimizations_0_before_BroadcastOnes.svg")
     REGISTER_PASS(manager, BroadcastOnes)
     optimizations_0->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::0");
     manager.run_passes(m);
 
     ov::pass::Manager manager_1(get_pass_config());
     manager_1.set_per_pass_validation(false);
-    VISUALIZE(manager_1, "8_after_BroadcastOnes_before_DeReshapeMatMul_RemoveSliceBeforeGatherElements.svg")
     auto optimizations_1 = manager_1.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_1, DeReshapeMatMul)
     ADD_MATCHER(optimizations_1, RemoveSliceBeforeGatherElements)
-    VISUALIZE(manager_1,
-              "9_after_DeReshapeMatMul_RemoveSliceBeforeGatherElements_before_SharedGatherElementsOptimization.svg")
     REGISTER_PASS(manager_1, SharedGatherElementsOptimization)
     optimizations_1->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::1");
-    VISUALIZE(manager_1, "10_after_SharedGatherElementsOptimization_before_RPE_Optimization.svg")
     //    REGISTER_PASS(manager_1, RPE_Optimization)
     REGISTER_PASS(manager_1, LabelResolvingThroughSelect)
     REGISTER_PASS(manager_1, DeReshapeMatMulWithComplications)
-    VISUALIZE(manager_1, "11_after_RPE_Optimization_before_OptimizeLabelsUsedAsValues.svg")
-    REGISTER_PASS(manager_1, OptimizeLabelsUsedAsValues)
-    VISUALIZE(manager_1, "12_after_OptimizeLabelsUsedAsValues_before_ApplyTableOfEquivalence.svg")
     REGISTER_PASS(manager_1, ApplyTableOfEquivalence)
-    VISUALIZE(manager_1, "13_after_ApplyTableOfEquivalence_before_Fused_RPE_MHA_Replacer.svg")
+    REGISTER_PASS(manager_1, OptimizeLabelsUsedAsValues)
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
-    VISUALIZE(manager_1, "final_model.svg")
     manager_1.run_passes(m);
     return true;  // cleans up all the label information
 }
