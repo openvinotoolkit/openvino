@@ -401,7 +401,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                        subgraph._sinks,
                                                        subgraph._parameters,
                                                        m_name + '_' + std::to_string(id));
-        m_compiled_submodels[id].model = subFunctions[id]->clone();
 
         auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
                                                                           m_cfg.get_device_properties());
@@ -410,7 +409,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         auto device_config = metaDevices[m_compiled_submodels[id].device];
         device_config[ov::cache_dir.name()] = "";
 
-        m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(m_compiled_submodels[id].model,
+        m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(subFunctions[id]->clone(),
                                                                                     m_compiled_submodels[id].device,
                                                                                     device_config);
         ++id;
@@ -457,7 +456,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         auto& loadConfig = metaDevices[device];
 
         ov::SoPtr<ov::ICompiledModel> compiled_model;
-        std::shared_ptr<ov::Model> ov_model;
 
         if (get_plugin()->get_core()->device_supports_model_caching(device)) {
             compiled_model = plugin->get_core()->import_model(model, device, loadConfig);
@@ -477,13 +475,12 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 model.read(weights.data<char>(), dataSize);
             }
 
-            ov_model = plugin->get_core()->read_model(xmlString, weights);
+            auto ov_model = plugin->get_core()->read_model(xmlString, weights);
             compiled_model = plugin->get_core()->compile_model(ov_model, device, loadConfig);
         }
 
         m_compiled_submodels.emplace_back(ov::hetero::CompiledModel::CompiledModelDesc{
             device,
-            ov_model,
             compiled_model,
         });
     }
@@ -690,7 +687,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
             comp_model_desc.compiled_model->export_model(model_stream);
         } else {
-            auto model = comp_model_desc.model;
+            auto model = std::const_pointer_cast<ov::Model>(comp_model_desc.compiled_model->get_runtime_model());
             if (!model)
                 OPENVINO_THROW("OpenVINO Model is empty");
 
