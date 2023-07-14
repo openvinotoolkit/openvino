@@ -4,7 +4,8 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "read_ir_test/read_ir_compare_with_refs.hpp"
+#include "read_ir_test/read_ir.hpp"
+
 #include "conformance.hpp"
 
 namespace ov {
@@ -15,6 +16,14 @@ namespace op {
 using namespace ov::test::subgraph;
 
 namespace {
+
+TEST_P(ReadIRTest, ReadIR) {
+    run();
+}
+
+TEST_P(ReadIRTest, QueryModel) {
+    query_model();
+}
 
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
     INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \

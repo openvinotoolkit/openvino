@@ -193,6 +193,8 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());

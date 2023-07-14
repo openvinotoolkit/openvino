@@ -13,7 +13,6 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 
-#include "read_ir_test/read_ir.hpp"
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
@@ -55,9 +54,9 @@ int main(int argc, char* argv[]) {
         apiSummary.setDeviceName(FLAGS_device);
     }
     if (FLAGS_shape_mode == std::string("static")) {
-        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::STATIC;
+        ov::test::conformance::shapeMode = ov::test::conformance::ShapeMode::STATIC;
     } else if (FLAGS_shape_mode == std::string("dynamic")) {
-        ov::test::subgraph::shapeMode = ov::test::subgraph::ShapeMode::DYNAMIC;
+        ov::test::conformance::shapeMode = ov::test::conformance::ShapeMode::DYNAMIC;
     } else if (FLAGS_shape_mode != std::string("")) {
         throw std::runtime_error("Incorrect value for `--shape_mode`. Should be `dynamic`, `static` or ``. Current value is `" + FLAGS_shape_mode + "`");
     }

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/op_impl_check/op_impl_check_query_model.hpp"
-#include "single_layer_tests/op_impl_check/single_op_graph.hpp"
+#include "op_impl_check/op_impl_check_compile_model.hpp"
+#include "op_impl_check/op_impl_check_query_model.hpp"
+#include "op_impl_check/single_op_graph.hpp"
 #include "conformance.hpp"
 
 namespace ov {
@@ -14,7 +15,7 @@ namespace op {
 using namespace ov::test::subgraph;
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(conformance_query_model,
+INSTANTIATE_TEST_SUITE_P(conformance,
                          OpImplCheckTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
