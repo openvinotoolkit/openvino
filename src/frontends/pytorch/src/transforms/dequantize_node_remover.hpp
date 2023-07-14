@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class DequantizeNodeReplacer : public ov::pass::MatcherPass {
+class DequantizeNodeRemover : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::DequantizeNodeReplacer");
     DequantizeNodeReplacer();
