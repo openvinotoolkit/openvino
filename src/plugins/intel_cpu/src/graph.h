@@ -18,6 +18,7 @@
 #include "graph_context.h"
 #include "node.h"
 #include "normalize_preprocess.h"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace ov {
@@ -58,8 +59,8 @@ public:
         return _normalizePreprocMap.find(name) != _normalizePreprocMap.end();
     }
 
-    void PushInputData(const std::string& name, const ov::Tensor& in);
-    void PullOutputData(std::unordered_map<std::string, ov::Tensor>& out);
+    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& in);
+    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out);
 
     void Infer(SyncInferRequest* request = nullptr);
 

@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_cpu {
 
 void VariableState::reset() {
-    std::memset(m_state.data(), 0, m_state.get_byte_size());
+    std::memset(m_state->data(), 0, m_state->get_byte_size());
 }
 
 }  // namespace intel_cpu

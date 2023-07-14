@@ -19,7 +19,7 @@ public:
                                                       const ov::AnyMap& properties) const override;
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
                                false,
@@ -31,7 +31,7 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
@@ -42,14 +42,14 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
                                false,
                                "Not Implemented",
                                "create_context  is not supported by this plugin!");
     };
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                                "",
                                false,

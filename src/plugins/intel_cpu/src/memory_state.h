@@ -11,6 +11,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -20,8 +21,8 @@ class VariableState : public ov::IVariableState {
 public:
     VariableState(std::string name, MemoryPtr storage) : ov::IVariableState{name} {
         const auto& memDesc = MemoryDescUtils::convertToTensorDesc(storage->getDesc());
-        m_state = ov::Tensor(InferenceEngine::details::convertPrecision(memDesc.getPrecision()), memDesc.getDims());
-        cpu_memcpy(m_state.data(), storage->getData(), storage->getSize());
+        m_state = ov::make_tensor(InferenceEngine::details::convertPrecision(memDesc.getPrecision()), memDesc.getDims());
+        cpu_memcpy(m_state->data(), storage->getData(), storage->getSize());
     }
 
     void reset() override;

@@ -862,20 +862,20 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
+void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in) {
     if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        auto create_mem_desc = [&](const ov::Tensor& tensor,
+        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor,
                                    InferenceEngine::Precision& precision) -> CpuBlockedMemoryDesc {
-            auto element_type = tensor.get_element_type();
-            auto shape = tensor.get_shape();
+            auto element_type = tensor->get_element_type();
+            auto shape = tensor->get_shape();
             std::vector<size_t> blk_order(shape.size());
             std::iota(blk_order.begin(), blk_order.end(), 0);
             std::vector<size_t> dim_offset(shape.size(), 0);
             std::vector<size_t> blk_strides;
-            auto byte_strides = element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{};
+            auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
             Shape mem_shape(shape);
             if (mem_shape.hasZeroDims()) {
                 blk_strides = std::vector<size_t>(shape.size(), 0);
@@ -907,18 +907,18 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
 
-        const void *ext_data_ptr = in.data();
+        const void *ext_data_ptr = in->data();
         void *inter_data_ptr = childEdge->getMemory().getData();
 
         // Convert data if precision mismatch
         auto inter_precision = childEdge->getMemory().getDesc().getPrecision();
-        auto in_precision = ie::details::convertPrecision(in.get_element_type());
+        auto in_precision = ie::details::convertPrecision(in->get_element_type());
         auto inTensorDesc = create_mem_desc(in, inter_precision);
         if (in_precision != inter_precision) {
             if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
                 OPENVINO_THROW("Get tensor has no allocated memory");
             }
-            cpu_convert(ext_data_ptr, inter_data_ptr, in_precision, inter_precision, in.get_size());
+            cpu_convert(ext_data_ptr, inter_data_ptr, in_precision, inter_precision, in->get_size());
             std::cout << "push_input: convert data " << in_precision << " to " << inter_precision << std::endl;
 
             Memory mem(getEngine(), inTensorDesc, inter_data_ptr, false);
@@ -933,7 +933,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
             if (inTensorDesc.getPrecision() == InferenceEngine::Precision::FP32) {
                 _normalizePreprocMap[name].NormalizeImage(outDims,
                                                           reinterpret_cast<float*>(inter_data_ptr),
-                                                          TensorDesc::getLayoutByDims(in.get_shape()));
+                                                          TensorDesc::getLayoutByDims(in->get_shape()));
             } else {
                 OPENVINO_THROW("Mean image of type ", inTensorDesc.getPrecision().name(), " is unsupported");
             }
@@ -943,7 +943,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
     }
 }
 
-void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
+void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -960,9 +960,9 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
         }
 
         InferenceEngine::TensorDesc expectedDesc(
-            InferenceEngine::details::convertPrecision(ext_blob.get_element_type()),
-            ext_blob.get_shape(),
-            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob.get_shape().size()));
+            InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
+            ext_blob->get_shape(),
+            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
 
@@ -980,17 +980,17 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
         }
 
         auto outDims = intr_blob.getStaticDims();
-        if (out[name].get_shape() != outDims && !isScalarOutput) {
+        if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name].set_shape(outDims);
+            ext_blob->set_shape(outDims);
             expectedDesc =
-                InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(out[name].get_element_type()),
-                                            out[name].get_shape(),
-                                            InferenceEngine::TensorDesc::getLayoutByRank(out[name].get_shape().size()));
+                InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
+                                            ext_blob->get_shape(),
+                                            InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
         }
 
         // check for empty output blob
@@ -1000,11 +1000,11 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
 
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
-        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob.get_byte_size() != intr_blob.getSize())
-            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob.get_byte_size()
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
+            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->get_byte_size()
                        << "!=" << intr_blob.getSize() << ").";
 
-        void *ext_blob_ptr = ext_blob.data();
+        void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
 
         // That is the same memory. No need to copy
