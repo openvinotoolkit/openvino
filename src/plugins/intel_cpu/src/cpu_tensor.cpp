@@ -5,6 +5,8 @@
 #include "cpu_tensor.h"
 #include "ie_ngraph_utils.hpp"
 
+#include "utils/debug_capabilities.h"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -19,8 +21,16 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
 }
 
 void Tensor::set_shape(ov::Shape new_shape) {
+    auto& shape = m_memptr->getDescPtr()->getShape();
+    if (shape.isStatic()) {
+        auto _shape = ov::Shape{shape.getStaticDims()};
+        DEBUG_LOG("tensor's memory object ", m_memptr.get(), ", ", _shape.to_string(), " -> ", new_shape.to_string());
+        if (_shape == new_shape) return;
+    }
+
     auto desc = m_memptr->getDescPtr();
     const auto newdesc = desc->cloneWithNewDims(new_shape, true);
+    DEBUG_LOG("precision ", desc->getPrecision().name(), " -> ", newdesc->getPrecision().name());
     m_memptr->redefineDesc(newdesc);
 }
 
