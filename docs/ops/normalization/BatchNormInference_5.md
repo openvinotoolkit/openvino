@@ -105,7 +105,8 @@ For a particular activation, consider a mini-batch :math:`\mathcal{B}` of m valu
 
 Example: 2D input tensor ``data``
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />
@@ -137,7 +138,8 @@ Example: 2D input tensor ``data``
 
 Example: 4D input tensor ``data``
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="BatchNormInference" ...>
        <data epsilon="9.99e-06" />

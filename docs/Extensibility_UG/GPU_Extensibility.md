@@ -242,7 +242,8 @@ Example Configuration File
 The following code sample provides an example configuration file in XML
 format. For information on the configuration file structure, see the `Configuration File Format <#config-file-format>`__.
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <CustomLayer name="ReLU" type="SimpleGPU" version="1">
      <Kernel entry="example_relu_kernel">

@@ -23,17 +23,19 @@ const auto legacy_conversion_extension = std::make_shared<ngraph::onnx_import::L
 
 namespace ngraph {
 namespace onnx_import {
-std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path) {
+std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                            const std::string& model_path,
+                                            const bool enable_mmap) {
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
-    const auto model = detail::import_onnx_model(model_proto, model_path, std::move(extensions));
+    const auto model = detail::import_onnx_model(model_proto, model_path, enable_mmap, std::move(extensions));
     const auto error_message = common::collect_translation_exceptions(model);
     NGRAPH_CHECK(error_message.empty(), error_message);
     return model;
 }
 
-std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
+std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const bool enable_mmap) {
     std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
 
     if (!model_stream.is_open()) {
@@ -41,7 +43,7 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path) {
                        ". Could not open the file.");
     };
 
-    const auto model = import_onnx_model(model_stream, file_path);
+    const auto model = import_onnx_model(model_stream, file_path, enable_mmap);
     const auto error_message = common::collect_translation_exceptions(model);
     NGRAPH_CHECK(error_message.empty(), error_message);
     return model;

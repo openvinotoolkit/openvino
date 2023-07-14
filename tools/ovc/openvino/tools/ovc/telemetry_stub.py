@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 class Telemetry(object):
     """
     Stab file for the Telemetry class which is used when Telemetry class is not available.

@@ -11,6 +11,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -41,7 +42,7 @@ OutputVector dropout(const Node& node) {
     bool training_mode = false;  // default value
     if (ng_inputs.size() > 2 && !ngraph::op::is_null(ng_inputs.at(2))) {
         CHECK_VALID_NODE(node,
-                         ngraph::op::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
+                         ov::op::util::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
                          "Non-constant training_mode input is not supported.");
         training_mode =
             ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<bool>()[0];

@@ -23,10 +23,12 @@ together.
 In this tutorial, we consider how to convert and run ImageBind model
 using OpenVINO.
 
-The tutorial consists of following steps: 1. Download the pre-trained
-model. 2. Prepare input data examples. 3. Convert the model to OpenVINO
-Intermediate Representation format (IR). 4. Run model inference and
-analyze results.
+The tutorial consists of following steps:
+
+1. Download the pre-trained model.
+2. Prepare input data examples.
+3. Convert the model to OpenVINO Intermediate Representation format (IR). 
+4. Run model inference and analyze results.
 
 About ImageBind
 ---------------
@@ -139,15 +141,11 @@ Prepare input data
 
 ImageBind works with data across 6 different modalities. Each of them
 requires its steps for preprocessing. ``data`` module is repsonsible for
-data reading and preprocessing for each modality. \*
-``data.load_and_transform_text`` accepts a list of text labels and
-tokenizes them. \* ``data.load_and_transform_vision_data`` accepts paths
-to input images, reads them, resizes to save aspect ratio with smaller
-side size 224, performs center crop, and normalizes data into [0, 1]
-floating point range. \* ``data.load_and_transofrm_audio_data`` reads
-audio files from provided paths, splits it on samples, and computes
-`mel <https://en.wikipedia.org/wiki/Mel-frequency_cepstrum>`__
-spectrogram.
+data reading and preprocessing for each modality.
+
+* ``data.load_and_transform_text`` accepts a list of text labels and tokenizes them.
+* ``data.load_and_transform_vision_data`` accepts paths to input images, reads them, resizes to save aspect ratio with smaller side size 224, performs center crop, and normalizes data into [0, 1] floating point range.
+* ``data.load_and_transofrm_audio_data`` reads audio files from provided paths, splits it on samples, and computes `mel <https://en.wikipedia.org/wiki/Mel-frequency_cepstrum>`__ spectrogram.
 
 .. code:: ipython3
 
@@ -246,11 +244,11 @@ allows using any combinations of supported modalities for
 classification.
 
 To perform zero-shot classification using ImageBind we should perform
-the following steps: 1. Preprocess data batch for requested modalities
-(one modality in our case treated as a data source, other - as a label).
-2. Calculate embeddings for each modality. 3. Find dot-product between
-embeddings vectors to get probabilities matrix. 4. Obtain the label with
-the highest probability for mapping the source into label space.
+the following steps:
+
+1. Preprocess data batch for requested modalities (one modality in our case treated as a data source, other - as a label).
+2. Calculate embeddings for each modality.
+3. Find dot-product between embeddings vectors to get probabilities matrix. 4. Obtain the label with the highest probability for mapping the source into label space.
 
 We already preprocessed data in previous step, now, we should run model
 inference for getting embeddings.

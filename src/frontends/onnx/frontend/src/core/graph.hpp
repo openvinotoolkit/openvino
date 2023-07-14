@@ -24,6 +24,7 @@ class Graph : public std::enable_shared_from_this<Graph> {
 public:
     Graph(const std::string& model_dir,
           const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+          const bool enable_mmap,
           ov::frontend::ExtensionHolder extensions = {});
     Graph() = delete;
 
@@ -40,6 +41,9 @@ public:
     }
     const std::string& model_dir() const {
         return m_model_dir;
+    }
+    bool mmap_enabled() const {
+        return m_enable_mmap;
     }
     const ParameterVector& get_ng_parameters() const {
         return m_parameters;
@@ -58,6 +62,7 @@ protected:
     Graph(const std::string& model_dir,
           const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
+          const bool enable_mmap,
           ov::frontend::ExtensionHolder extensions = {});
 
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
@@ -78,6 +83,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
     std::string m_model_dir;
+    bool m_enable_mmap;
     OperatorsBridge m_ops_bridge;
 };
 

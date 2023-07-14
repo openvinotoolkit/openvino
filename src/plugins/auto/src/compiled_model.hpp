@@ -25,9 +25,9 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     std::string get_log_tag() const noexcept;
     static ov::AnyMap get_device_supported_properties(AutoCompileContext& context);
+    ScheduleContext::Ptr   m_context;
 
 private:
-    ScheduleContext::Ptr   m_context;
     Schedule::Ptr          m_scheduler;
     std::once_flag         m_oc;
     bool m_inputs_outputs_from_hardware;

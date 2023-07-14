@@ -31,7 +31,6 @@ private:
     friend class InferRequest;
     friend class Plugin;
     std::shared_ptr<ov::Model> m_model;
-    ScheduleContext::Ptr       m_context;
     AutoSchedule::Ptr          m_scheduler;
 };
 }  // namespace auto_plugin
