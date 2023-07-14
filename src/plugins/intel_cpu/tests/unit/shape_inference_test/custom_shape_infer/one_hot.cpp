@@ -42,7 +42,6 @@ public:
         return result.str();
     }
 
-
 protected:
     void SetUp() override {
         std::tie(input_shapes, m_depth, m_on, m_off, exp_shape) = GetParam();
@@ -92,7 +91,6 @@ INSTANTIATE_TEST_SUITE_P(
     Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 5, 10, StaticShape({3, 2})),
            make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 1, 0, StaticShape({3, 2}))),
     OneHotCpuShapeInferenceTest::getTestCaseName);
-
 
 using OneHotCpuShapeInferenceThrowExceptionTest = OneHotCpuShapeInferenceTest;
 TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {

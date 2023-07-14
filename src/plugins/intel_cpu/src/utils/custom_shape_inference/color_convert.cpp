@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "nodes/color_convert.h"
 #include "color_convert.hpp"
 #include "utils.hpp"
@@ -29,7 +28,6 @@ Result ColorConvertShapeInfer::infer(const std::vector<std::reference_wrapper<co
     std::vector<VectorDims>{ { dims[ColorConvert::Converter::N_DIM], dims[ColorConvert::Converter::H_DIM], dims[ColorConvert::Converter::W_DIM], 3 } },
     ShapeInferStatus::success };
 }
-
 
 ShapeInferPtr ColorConvertShapeInferFactory::makeShapeInfer() const {
     bool isSinglePlain = m_op->get_input_size() == 1;

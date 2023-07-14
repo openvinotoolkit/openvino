@@ -19,7 +19,6 @@ using transpose_params = std::tuple<unit_test::ShapeVector, // Input shapes
                                     StaticShape             // Expected shape
                                     >;
 
-
 class TransposeCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v1::Transpose>,
                                         public WithParamInterface<transpose_params> {
 public:
@@ -48,7 +47,6 @@ protected:
     std::shared_ptr<op::v0::Parameter> arg;
 };
 
-
 TEST_P(TransposeCpuShapeInferenceTest , shape_inference_empty_const_map) {
     const auto order =
         std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
@@ -75,7 +73,6 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{0, 2, 0}, {0}}, std::vector<int64_t>{}, StaticShape({0, 2, 0})),
            make_tuple(unit_test::ShapeVector{{0, 2, 0, 0}, {0}}, std::vector<int64_t>{}, StaticShape({0, 0, 2, 0}))),
     TransposeCpuShapeInferenceTest::getTestCaseName);
-
 
 using TransposeCpuShapeInferenceThrowExceptionTest = TransposeCpuShapeInferenceTest;
 TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_map) {

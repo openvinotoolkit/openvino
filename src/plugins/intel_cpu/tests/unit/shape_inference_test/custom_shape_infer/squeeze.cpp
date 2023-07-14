@@ -15,7 +15,6 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-
 using SqueezeTestParams = std::tuple<unit_test::ShapeVector, // Input shapes
                                      std::vector<int64_t>,   // Squeeze axes
                                      StaticShape             // Expected shape
@@ -87,7 +86,6 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {5}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({3, 2})),
            make_tuple(unit_test::ShapeVector{{2, 6, 7, 8, 1}, {2}}, std::vector<int64_t>{-1, -1}, StaticShape({2, 6, 7, 8}))),
     SqueezeCpuShapeInferenceTest::getTestCaseName);
-
 
 using SqueezeCpuShapeInferenceThrowExceptionTest = SqueezeCpuShapeInferenceTest;
 TEST_P(SqueezeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {

@@ -141,7 +141,6 @@ std::string boolToString(const bool value) {
     return value ? "true" : "false";
 }
 
-
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov

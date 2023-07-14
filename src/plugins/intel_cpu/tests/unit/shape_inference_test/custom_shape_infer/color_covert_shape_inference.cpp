@@ -50,7 +50,6 @@ TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertNV12, novalid_input) {
                     testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
 
-
 REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertNV12,
                             singlePlane,
                             multiPlane,
@@ -95,7 +94,6 @@ TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertI420, novalid_input) {
                     ov::Exception,
                     testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
-
 
 REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertI420,
                             singlePlane,

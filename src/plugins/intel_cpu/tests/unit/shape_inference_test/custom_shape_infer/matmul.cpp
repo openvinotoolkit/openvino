@@ -10,7 +10,6 @@ namespace intel_cpu {
 namespace unit_test {
 namespace cpu_shape_infer {
 
-
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;

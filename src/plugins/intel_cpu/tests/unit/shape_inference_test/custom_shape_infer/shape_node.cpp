@@ -39,7 +39,6 @@ TEST(CpuShapeInfer, v3ShapeOf5DTest) {
     unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
-
 TEST(CpuShapeInfer, ShapeOf0DTest) {
     GTEST_SKIP() << "Skipping test, please check CVS-108946";
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});

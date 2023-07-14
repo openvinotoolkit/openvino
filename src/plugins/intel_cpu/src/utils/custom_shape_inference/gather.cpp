@@ -38,7 +38,6 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
     return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
 
-
 ShapeInferPtr GatherShapeInferFactory::makeShapeInfer() const {
     static constexpr size_t GATHER_INDICES = 1, GATHER_AXIS = 2;
     bool isAxisInputConst = ov::is_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));

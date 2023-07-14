@@ -53,7 +53,6 @@ private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-
 } // namespace node
 } // namespace intel_cpu
 } // namespace ov

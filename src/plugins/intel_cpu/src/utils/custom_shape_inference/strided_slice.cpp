@@ -60,7 +60,6 @@ Result StridedSliceShapeInfer::infer(
     return {{m_outputShape}, ShapeInferStatus::success};
 }
 
-
 ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
     if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
         return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);

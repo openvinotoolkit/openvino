@@ -10,8 +10,6 @@
 
 #pragma once
 
-
-
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

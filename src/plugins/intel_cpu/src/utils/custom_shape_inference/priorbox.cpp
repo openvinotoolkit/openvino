@@ -26,7 +26,6 @@ Result PriorBoxShapeInfer::infer(
     return {{{2, output}}, ShapeInferStatus::success};
 }
 
-
 ShapeInferPtr  PriorBoxShapeInferFactory::makeShapeInfer() const {
     auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
     if (!priorBox) {

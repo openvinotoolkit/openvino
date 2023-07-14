@@ -86,7 +86,6 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{3, 6, 5, 5}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({3, 150}), true)),
         ReshapeCpuShapeInferenceTest::getTestCaseName);
 
-
 using ReshapeCpuShapeInferenceThrowExceptionTest = ReshapeCpuShapeInferenceTest;
 
 TEST_P(ReshapeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
