@@ -492,6 +492,8 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                     else
                         devices.emplace_back(full_device_name);
                 }
+            } else {
+                devices.emplace_back(full_device_name);
             }
             m_hidden_devices.emplace_back(devices);
         }
