@@ -106,6 +106,17 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         }
     };
 
+    auto is_convert_and_binary_eltwise = [&] (ov::Node* op) -> bool {
+        if (ngraph::is_type<ngraph::op::v0::Convert>(op)) {
+            for (size_t i = 0; i < 2; ++i) {
+                if (is_binary_eltwise(op->get_output_target_inputs(i).begin()->get_node())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
@@ -117,8 +128,8 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
         } else if (is_binary_eltwise(outOp) ||
-                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp) ||
-                   (ngraph::is_type<ngraph::op::v0::Convert>(outOp) && is_binary_eltwise(outOp->get_output_target_inputs(0).begin()->get_node()))) {
+                   is_convert_and_binary_eltwise(outOp) ||
+                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
                 auto& in_shape = outOp->get_input_partial_shape(j);
