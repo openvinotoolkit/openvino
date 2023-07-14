@@ -2,7 +2,12 @@
 
 @sphinxdirective
 
-Supported operating systems for the Docker Base image:
+.. meta::
+   :description: Learn how to use a prebuilt Docker image or create an image 
+                 manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
+
+
+Supported operating systems for the Docker Base image: 
 
 - Ubuntu 22.04 LTS
 - Ubuntu 20.04 LTS
@@ -31,6 +36,7 @@ More information about Docker CI for Intel® Distribution of OpenVINO™ toolset
 
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
+* `Using OpenVINO™ Toolkit containers with GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
 
 @endsphinxdirective

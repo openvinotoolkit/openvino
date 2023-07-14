@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "gru_sequence_shape_inference.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "rnn_base_shape_inference.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -24,7 +24,14 @@ void shape_infer(const ov::op::internal::AUGRUSequence* op,
                           input_shapes.size(),
                           ".");
 
-    rnn::gru_sequence_shape_infer(op, input_shapes, output_shapes);
+    constexpr auto num_gates = 3;
+    constexpr auto num_state_nodes = 1;
+    output_shapes = rnn::seq_base_shape_infer(op,
+                                              input_shapes,
+                                              num_gates,
+                                              num_state_nodes,
+                                              op->get_direction(),
+                                              op->get_linear_before_reset());
 
     // A input shape validation // [batch_size, seq_length, 1]
     const auto& a_shape = input_shapes.back();

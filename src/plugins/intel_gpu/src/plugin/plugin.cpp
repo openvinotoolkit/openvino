@@ -36,7 +36,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "ie_icore.hpp"
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -256,9 +256,8 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
     auto contexts = get_default_contexts();
-    OPENVINO_ASSERT(contexts.find(device_id) != contexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
-
-    return contexts.at(device_id);;
+    OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
+    return contexts.at(device_id);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
@@ -281,9 +280,11 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
         }
     };
 
-    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
-        std::string device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        update_config(m_configs_map.at(device_id), config);
+    if (config.find(ov::internal::config_device_id.name()) != config.end()) {
+        std::string device_id = config.at(ov::internal::config_device_id.name());
+        auto config_for_device = config;
+        config_for_device.erase(ov::internal::config_device_id.name());
+        update_config(m_configs_map.at(device_id), config_for_device);
     } else {
         std::string device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
@@ -604,6 +605,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     // earler than querying actual ID to avoid exceptions when no devices are found
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
@@ -613,14 +616,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         for (auto const& dev : device_map)
             availableDevices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {availableDevices};
-    } else if (name == ov::caching_properties) {
+    } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
         cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), PropertyMutability::RW));
         cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
-        return decltype(ov::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     }
@@ -731,7 +734,6 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
         ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
@@ -761,6 +763,13 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
     };
 
     return supported_properties;
+}
+
+std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
+    static const std::vector<ov::PropertyName> supported_internal_properties = {
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO}};
+    return supported_internal_properties;
 }
 
 std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) const {

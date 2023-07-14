@@ -4,6 +4,10 @@ With model conversion API you can increase your model's efficiency by providing 
 
 @sphinxdirective
 
+.. meta:: 
+   :description: Learn how to increase the efficiency of a model with MO by providing an additional shape definition with the input_shape and static_shape parameters.
+
+
 .. _when_to_specify_input_shapes:
 
 
@@ -27,15 +31,16 @@ and specify the input shape of ``[2,300,300,3]``:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -50,15 +55,16 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -70,15 +76,16 @@ Alternatively, specify input shapes, using the ``input`` parameter as follows:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -93,15 +100,16 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -115,16 +123,17 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          from openvino.runtime import Dimension
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[Dimension(1,3),150,200,1],[Dimension(1,3)]]
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 

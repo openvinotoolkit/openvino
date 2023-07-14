@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about CumSum-3 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *CumSum-3*
 
 **Category**: *Arithmetic unary*
@@ -55,7 +59,8 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CumSum" exclusive="0" reverse="0">
        <input>
@@ -73,7 +78,8 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 2*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CumSum" exclusive="1" reverse="0">
        <input>
@@ -91,7 +97,8 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 3*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CumSum" exclusive="0" reverse="1">
        <input>
@@ -109,7 +116,8 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 *Example 4*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CumSum" exclusive="1" reverse="1">
        <input>

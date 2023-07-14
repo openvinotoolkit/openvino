@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Gather-1 - a data movement operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name:** *Gather-1*
 
 **Category:** *Data movement*
@@ -11,7 +15,7 @@ to the indices specified in the second input tensor and axis from the third inpu
 
 **Detailed description**
 
-.. code-block::
+.. code-block:: sh
 
     output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] =
       input1[p_0, p_1, ..., p_{axis-1}, input2[i, ..., j], ...]
@@ -35,7 +39,8 @@ Where ``axis`` is the value from the third input.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="1" type="Gather" ...>
        <input>

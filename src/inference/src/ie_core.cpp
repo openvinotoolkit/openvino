@@ -36,6 +36,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -44,7 +45,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -74,7 +74,6 @@ std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& net
     }
     return {res, errMsg.str()};
 }
-
 }  // namespace
 
 namespace InferenceEngine {
@@ -338,7 +337,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName, {});
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
