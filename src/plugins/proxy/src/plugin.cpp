@@ -521,13 +521,16 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         const std::vector<std::string> real_devices_ids = core->get_property(device, ov::available_devices);
         for (const auto& device_id : real_devices_ids) {
             const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
-            std::vector<std::string> devices{full_device_name};
+            std::vector<std::string> devices;
 
             // Add fallback devices use device_id for individual fallback property
             const auto fallback_order =
                 get_internal_property(ov::device::priorities.name(), device_id).as<std::vector<std::string>>();
             for (const auto& fallback_dev : fallback_order) {
-                devices.emplace_back(fallback_dev);
+                if (fallback_dev != device)
+                    devices.emplace_back(fallback_dev);
+                else
+                    devices.emplace_back(full_device_name);
             }
             m_hidden_devices.emplace_back(devices);
         }
