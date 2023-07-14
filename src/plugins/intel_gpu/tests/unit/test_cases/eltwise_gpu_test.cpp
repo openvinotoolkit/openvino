@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
@@ -79,9 +80,10 @@ template <typename T>
 void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f, int input_y, int input_x, cldnn::eltwise_mode mode,
     bool relu, T slope,    int input_padding_y, int input_padding_x, int output_padding_y, int output_padding_x) {
 
+    tests::random_generator rg(GET_SUITE_NAME);
     int min_random = -2, max_random = 2;
-    VVVVF<T> input1_rnd = generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
-    VVVVF<T> input2_rnd = generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input2_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
     VF<T> input1_rnd_vec = flatten_4d<T>(test_input_fmt, input1_rnd);
     VF<T> input2_rnd_vec = flatten_4d<T>(test_input_fmt, input2_rnd);
 
@@ -221,10 +223,11 @@ VVVVF<int8_t> eltwise_bool_reference(VVVVF<T> &input1, VVVVF<T> &input2,
 template <typename T>
 void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int input_f, int input_y, int input_x, cldnn::eltwise_mode mode,
     int input_padding_y, int input_padding_x, int output_padding_y, int output_padding_x) {
+    tests::random_generator rg(GET_SUITE_NAME);
 
     int min_random = -2, max_random = 2;
-    VVVVF<T> input1_rnd = generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
-    VVVVF<T> input2_rnd = generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
+    VVVVF<T> input2_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, min_random, max_random);
     VF<T> input1_rnd_vec = flatten_4d<T>(test_input_fmt, input1_rnd);
     VF<T> input2_rnd_vec = flatten_4d<T>(test_input_fmt, input2_rnd);
 
@@ -3251,6 +3254,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
 
 TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
     if (!f16_supported) {
@@ -3266,8 +3270,8 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(input_b, input_f, input2_x, input2_y);
 
-    VVVVF<FLOAT16> input1_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
-    VVVVF<FLOAT16> input2_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input2_y, input2_x, 1, 3);
+    VVVVF<FLOAT16> input1_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<FLOAT16> input2_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input2_y, input2_x, 1, 3);
 
     VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
     VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
@@ -3316,6 +3320,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
 
 TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     bool f16_supported = engine.get_device_info().supports_fp16;
     if (!f16_supported) {
@@ -3330,8 +3335,8 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(1, input_f, 1, 1);
 
-    VVVVF<FLOAT16> input1_rnd = generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
-    VVVVF<FLOAT16> input2_rnd = generate_random_4d<FLOAT16>(1, input_f, 1, 1, 1, 3);
+    VVVVF<FLOAT16> input1_rnd = rg.generate_random_4d<FLOAT16>(input_b, input_f, input1_y, input1_x, 1, 3);
+    VVVVF<FLOAT16> input2_rnd = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, 1, 3);
 
     VF<FLOAT16> input1_flatten = flatten_4d<FLOAT16>(format::bfyx, input1_rnd);
     VF<FLOAT16> input2_flatten = flatten_4d<FLOAT16>(format::bfyx, input2_rnd);
@@ -3434,9 +3439,9 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
 TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 {
     // Inputs are 32x96x2x2
-
+    tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
     VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
@@ -3514,9 +3519,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
 
 TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     // Inputs are 32x96x2x2
-
+    tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
     VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
@@ -3597,9 +3602,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
 TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
 {
     // Inputs are 32x96x20x20
-
+    tests::random_generator rg(GET_SUITE_NAME);
     tensor input_tensor(32, 96, 20, 20);
-    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
+    VVVVF<FLOAT16> input_rnd = rg.generate_random_4d<FLOAT16>(32, 96, 20, 20, 1, 3);
     VF<FLOAT16> fp16_bfyx_32x96x2x2_input = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
@@ -3919,6 +3924,12 @@ struct eltwise_same_input_test_params {
 
 struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -3927,7 +3938,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -4122,6 +4133,7 @@ class eltwise_test : public BaseEltwiseTest<eltwise_test_params> {
 
 TEST_P(eltwise_test, fsv16) {
     auto p = GetParam();
+    tests::random_generator rg(GET_SUITE_NAME);
 
     ASSERT_EQ(std::get<2>(p).size(), 2);
 
@@ -4143,8 +4155,8 @@ TEST_P(eltwise_test, fsv16) {
     int x1 = input1_size[input1_size.size() == 4 ? 3 : 4];
 
     int min_random = -2, max_random = 2;
-    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
-    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, z1, y1, x1, min_random, max_random);
+    VVVVVVF<float> input1_rnd = rg.generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = rg.generate_random_6d<float>(b1, f1, 1, z1, y1, x1, min_random, max_random);
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
 
@@ -4229,6 +4241,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test,
 class eltwise_test_6d : public eltwise_test {};
 TEST_P(eltwise_test_6d, bfwzyx) {
     auto p = GetParam();
+    tests::random_generator rg(GET_SUITE_NAME);
 
     ASSERT_EQ(std::get<2>(p).size(), 2);
 
@@ -4252,8 +4265,8 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     int x1 = input1_size[5];
 
     int min_random = -2, max_random = 2;
-    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, w0, z0, y0, x0, min_random, max_random);
-    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, w1, z1, y1, x1, min_random, max_random);
+    VVVVVVF<float> input1_rnd = rg.generate_random_6d<float>(b0, f0, w0, z0, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = rg.generate_random_6d<float>(b1, f1, w1, z1, y1, x1, min_random, max_random);
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
 
@@ -4311,6 +4324,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_6d,
 class eltwise_test_mixed_precision : public eltwise_test {};
 TEST_P(eltwise_test_mixed_precision, fsv16) {
     auto p = GetParam();
+    tests::random_generator rg(GET_SUITE_NAME);
 
     ASSERT_EQ(std::get<2>(p).size(), 2);
 
@@ -4334,8 +4348,8 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
 
     int min_random = input1_dt == data_types::u8 ? 0 : -2;
     int max_random = input1_dt == data_types::u8 ? 4 : 2;
-    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
-    VVVVVVF<int> input2_rnd = generate_random_6d<int>(b1, f1, 1, z1, y1, x1, min_random, max_random);
+    VVVVVVF<float> input1_rnd = rg.generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
+    VVVVVVF<int> input2_rnd = rg.generate_random_6d<int>(b1, f1, 1, z1, y1, x1, min_random, max_random);
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<int> input2_rnd_vec = flatten_6d<int>(format::bfwzyx, input2_rnd);
 
@@ -4423,6 +4437,7 @@ public:
 class eltwise_test_mixed_layout : public eltwise_layout_test {};
 TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     auto p = GetParam();
+    tests::random_generator rg(GET_SUITE_NAME);
 
     auto mode = p.mode;
     auto input0_size = p.input0_size;
@@ -4442,8 +4457,8 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     int x1 = input1_size[3];
 
     int min_random = -2, max_random = 2;
-    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, 1, y0, x0, min_random, max_random);
-    VVVVVVF<float> input2_rnd = generate_random_6d<float>(b1, f1, 1, 1, y1, x1, min_random, max_random);
+    VVVVVVF<float> input1_rnd = rg.generate_random_6d<float>(b0, f0, 1, 1, y0, x0, min_random, max_random);
+    VVVVVVF<float> input2_rnd = rg.generate_random_6d<float>(b1, f1, 1, 1, y1, x1, min_random, max_random);
     VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
     VF<float> input2_rnd_vec = flatten_6d<float>(format::bfwzyx, input2_rnd);
 
@@ -4514,6 +4529,12 @@ struct eltwise_random_test_params {
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     static std::string PrintToString(const eltwise_random_test_params& params) {
         std::string res = " data (" + cldnn::data_type_traits::name(params.input_type) + "), ";
         res += " format (" + format::traits(params.in_format).str + ") input1 : ";
@@ -4531,7 +4552,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
