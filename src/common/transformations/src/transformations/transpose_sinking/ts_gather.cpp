@@ -119,7 +119,7 @@ TSGatherForward::TSGatherForward() {
                 ++k;
             } else {  // order_val[j] > axis
                 // dimensions after axis
-                new_transpose_order[i] = order_val[j] + indices_rank_val - 1;
+                new_transpose_order[i] = order_val[j] + n_axis_dims;
                 ++j;
             }
         }
