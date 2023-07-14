@@ -36,7 +36,7 @@ class Model;
 namespace frontend {
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    OPENVINO_RTTI("ONNXFrameworkNode", "0");
+    OPENVINO_OP("ONNXFrameworkNode", "util", ov::op::util::FrameworkNode);
 
     ONNXFrameworkNode(const onnx_import::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
 
@@ -74,7 +74,7 @@ protected:
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
-    OPENVINO_RTTI("ONNXSubgraphFrameworkNode", "0");
+    OPENVINO_OP("ONNXSubgraphFrameworkNode", "util", ONNXFrameworkNode);
 
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
                               const std::vector<std::shared_ptr<Function>>& functions,
@@ -100,31 +100,31 @@ private:
 // Be aware with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
+    static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
+
 public:
-    OPENVINO_RTTI("NotSupportedONNXNode", "0");
+    OPENVINO_OP("NotSupportedONNXNode", "util", ov::op::util::FrameworkNode);
 
     NotSupportedONNXNode(const OutputVector& inputs,
                          const size_t output_size,
                          const std::string& domain,
                          const std::string& op_type,
                          const std::string& additional_error_message)
-        : ov::op::util::FrameworkNode(inputs, output_size),
-          m_additional_error_message{additional_error_message} {
+        : ov::op::util::FrameworkNode(inputs, output_size) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_opset_name(domain);
         attrs.set_type_name(op_type);
+        attrs[failed_conversion_key] = additional_error_message;
         set_attrs(attrs);
     }
 
     std::string additional_error_message() const {
-        return m_additional_error_message;
+        auto attrs = get_attrs();
+        return attrs[failed_conversion_key];
     }
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     virtual bool visit_attributes(AttributeVisitor& visitor) override;
-
-private:
-    const std::string m_additional_error_message;
 };
 
 }  // namespace frontend

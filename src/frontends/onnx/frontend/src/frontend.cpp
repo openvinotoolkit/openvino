@@ -106,11 +106,19 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::
     return model_onnx->convert();
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    // Register expected transformations
+    // ov::pass::Manager manager;
+    // manager.run_passes(model);
+}
+
 std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
     const auto partially_converted = convert_partially(model);
 
     const auto error_message = ngraph::onnx_import::common::collect_translation_exceptions(partially_converted);
     NGRAPH_CHECK(error_message.empty(), error_message);
+
+    normalize(partially_converted);
 
     return partially_converted;
 }
