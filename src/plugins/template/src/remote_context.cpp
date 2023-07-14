@@ -149,9 +149,9 @@ const ov::AnyMap& ov::template_plugin::RemoteContext::get_property() const {
 // ! [remote_context:get_property]
 
 // ! [remote_context:create_tensor]
-std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_tensor(const ov::element::Type& type,
-                                                                                     const ov::Shape& shape,
-                                                                                     const ov::AnyMap& params) {
+ov::SoPtr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_tensor(const ov::element::Type& type,
+                                                                               const ov::Shape& shape,
+                                                                               const ov::AnyMap& params) {
     std::shared_ptr<ov::IRemoteTensor> tensor;
 
     switch (type) {
@@ -199,6 +199,6 @@ std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_te
     default:
         OPENVINO_THROW("Cannot create remote tensor for unsupported type: ", type);
     }
-    return std::make_shared<VectorImpl>(tensor);
+    return {std::make_shared<VectorImpl>(tensor), nullptr};
 }
 // ! [remote_context:create_tensor]
