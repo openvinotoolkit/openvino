@@ -25,12 +25,11 @@
 namespace ov {
 namespace test {
 namespace conformance {
-// It is used while files lookup
-std::list<std::string> dirList;
+// It is used while files lookup, first value - path to model, second - amout of tests with this path
+std::list<std::pair<std::string, int>> dirListInfo;
 }
-namespace subgraph {
 
-ShapeMode shapeMode = ShapeMode::BOTH;
+namespace subgraph {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace CommonTestUtils;
@@ -228,9 +227,9 @@ void ReadIRTest::SetUp() {
             }
         }
     }
-    if (hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::STATIC) {
+    if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
         GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
-    } else if (!hasDynamic && ov::test::subgraph::shapeMode == ov::test::subgraph::ShapeMode::DYNAMIC) {
+    } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
         GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
     }
 

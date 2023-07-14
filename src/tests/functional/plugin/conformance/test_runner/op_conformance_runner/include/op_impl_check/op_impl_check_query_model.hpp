@@ -3,13 +3,13 @@
 //
 
 #include "functional_test_utils/crash_handler.hpp"
-#include "single_layer_tests/op_impl_check/op_impl_check.hpp"
+#include "op_impl_check/op_impl_check.hpp"
 
 namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(OpImplCheckTest, checkPluginImplementation) {
+TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
     if (function == nullptr) {
         GTEST_FAIL() << "Target model is empty!";
     }
