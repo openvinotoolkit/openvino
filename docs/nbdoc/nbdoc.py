@@ -134,6 +134,7 @@ class NbProcessor:
             with open(list_of_cbuttons[0]) as file:
                 list_of_cbuttons = file.read().splitlines()
             return list_of_cbuttons
+        return []
 
 
     def add_binder(self, buttons_list: list,  cbuttons_list: list, template_with_colab_and_binder: str = binder_colab_template, template_with_binder: str = binder_template, template_with_colab: str = colab_template, template_without_binder: str = no_binder_template):
