@@ -297,7 +297,6 @@ void copy_with_convert(ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
 }
 
 ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type_t prc) {
-    OPENVINO_ASSERT(tensor.get_element_type() == ov::element::Type_t::f32);
     ov::Tensor new_tensor(prc, tensor.get_shape());
 
 #define CASE(_PRC) case ov::element::Type_t::_PRC: \
@@ -324,13 +323,6 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
     }
 
     fill_data_with_broadcast(tensor, values_tensor);
-}
-
-ov::Tensor make_reshape_view(const ov::Tensor &tensor, std::vector<size_t> new_shape) {
-    auto new_size = std::accumulate(new_shape.begin(), new_shape.end(), 1, std::multiplies<size_t>());
-    OPENVINO_ASSERT(new_size == tensor.get_size());
-
-    return ov::Tensor(tensor.get_element_type(), new_shape, tensor.data());
 }
 
 }  // namespace CommonTestUtils

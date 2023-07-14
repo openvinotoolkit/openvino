@@ -37,7 +37,9 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
         quarter_blocked_shape[axis] /= vals.size();
         quarter_blocked_shape.insert(quarter_blocked_shape.begin() + axis, vals.size());
 
-        auto quarter_blocked_view = CommonTestUtils::make_reshape_view(tensor, quarter_blocked_shape);
+        OPENVINO_ASSERT(ov::shape_size(quarter_blocked_shape) == tensor.get_size());
+        auto quarter_blocked_view =  ov::Tensor(tensor.get_element_type(), quarter_blocked_shape, tensor.data());
+
         CommonTestUtils::fill_data_with_broadcast(quarter_blocked_view, axis, vals);
     };
 

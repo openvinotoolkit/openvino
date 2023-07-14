@@ -75,8 +75,6 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
  * @param new_shape new one shape for view blob
  * @return new one blob view
  */
-ov::Tensor make_reshape_view(const ov::Tensor &tensor, std::vector<size_t> new_shape);
-
 InferenceEngine::Blob::Ptr
 make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
 
