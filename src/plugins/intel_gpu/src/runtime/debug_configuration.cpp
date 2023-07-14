@@ -131,6 +131,7 @@ static void print_help_messages() {
                               " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
                               " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_DisableAsyncCompilation", "Disable async compilation");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in"
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -171,7 +172,8 @@ debug_configuration::debug_configuration()
         , dump_layers_raw(0)
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
-        , max_kernels_per_batch(0) {
+        , max_kernels_per_batch(0)
+        , disable_async_compilation(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -199,6 +201,7 @@ debug_configuration::debug_configuration()
     std::string forced_impl_types_str;
     get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    get_gpu_debug_env_var("DisableAsyncCompilation", disable_async_compilation);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;
