@@ -453,31 +453,22 @@ void ov::proxy::Plugin::remove_unavailable_plugins() const {
         } catch (const std::runtime_error&) {
             // Device cannot be loaded, so remove this device
             unsupported_devices.insert(device);
-            std::cout << "Found unsupported device! " << device << std::endl;
         }
     }
     for (const auto& device : unsupported_devices) {
-        std::cout << "Remove unsupported device: " << std::endl;
         auto it = m_alias_for.find(device);
-        std::cout << "Alias : " << ov::Any(m_alias_for).as<std::string>() << " : ";
         if (it != m_alias_for.end()) {
             m_alias_for.erase(it);
         }
-        std::cout << ov::Any(m_alias_for).as<std::string>() << std::endl;
-
-        std::cout << "Alias : " << ov::Any(m_device_order).as<std::string>() << " : ";
         m_device_order.erase(std::remove(m_device_order.begin(), m_device_order.end(), device), m_device_order.end());
-        std::cout << ov::Any(m_device_order).as<std::string>() << std::endl;
         // Remove unsupported device from fallback order from all configs
         for (auto&& config : m_configs) {
             auto it = config.second.find(ov::device::priorities.name());
             if (it == config.second.end())
                 continue;
             auto& devices = it->second.as<std::vector<std::string>>();
-            std::cout << "config : " << it->first << it->second.as<std::string>() << " : ";
             devices.erase(std::remove(devices.begin(), devices.end(), device), devices.end());
             it->second = devices;
-            std::cout << it->second.as<std::string>() << std::endl;
         }
     }
 }
@@ -488,23 +479,13 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     //  * Alias - Case when we group all devices under one common name
     remove_unavailable_plugins();
 
-    if (m_init_devs) {
-        std::cout << "Hidden devices:" << std::endl;
-        for (size_t i = 0; i < m_hidden_devices.size(); i++) {
-            std::cout << " Device " << i << " : " << ov::Any(m_hidden_devices[i]).as<std::string>() << std::endl;
-        }
+    if (m_init_devs)
         return m_hidden_devices;
-    }
 
     std::lock_guard<std::mutex> lock(m_init_devs_mutex);
 
-    if (m_init_devs) {
-        std::cout << "Hidden devices:" << std::endl;
-        for (size_t i = 0; i < m_hidden_devices.size(); i++) {
-            std::cout << " Device " << i << " : " << ov::Any(m_hidden_devices[i]).as<std::string>() << std::endl;
-        }
+    if (m_init_devs)
         return m_hidden_devices;
-    }
 
     m_hidden_devices.clear();
     const auto core = get_core();
@@ -653,10 +634,6 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         }
     }
     m_init_devs = true;
-    std::cout << "Hidden devices:" << std::endl;
-    for (size_t i = 0; i < m_hidden_devices.size(); i++) {
-        std::cout << " Device " << i << " : " << ov::Any(m_hidden_devices[i]).as<std::string>() << std::endl;
-    }
     return m_hidden_devices;
 }
 
