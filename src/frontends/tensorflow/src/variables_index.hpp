@@ -8,6 +8,7 @@
 
 #include "graph_iterator_proto.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "saved_model.pb.h"
 
 namespace ov {

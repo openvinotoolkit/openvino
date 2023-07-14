@@ -41,7 +41,8 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../core/include)
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
