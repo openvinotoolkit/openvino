@@ -299,6 +299,10 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      checkpoint.restore(save_path)
      ov_model = convert_model(checkpoint)
 
+.. important::
+
+   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
+
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
