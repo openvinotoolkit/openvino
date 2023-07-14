@@ -14,6 +14,8 @@ def tf_type_to_ov_type(tf_type_int):
     tf_type = tf.dtypes.as_dtype(tf_type_int)
     if tf_type.name == "variant":
         return Type.dynamic
+    if tf_type.name == "string":
+        return "DT_STRING"
     numpy_type = tf_type.as_numpy_dtype
     try:
         ret_type = Type(numpy_type)
@@ -51,18 +53,29 @@ class TFGraphNodeDecoder(DecoderBase):
                                                     "Expected tf.Operation, got {}".format(type(operation))
         self.m_operation = operation
         self.m_inner_graph = inner_graph
+        self.m_data_type = None
         if self.m_operation.type == "Const":
-            value = self.m_operation.node_def.attr["value"].tensor
+            data_type = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type).name
+            self.m_data_type = data_type
             # copies tensor value from node_def
-            self.m_parsed_content = tf.make_ndarray(value)
+            value = self.m_operation.node_def.attr["value"].tensor
+            if data_type == "string":
+                self.m_parsed_content = [str(val) for val in value.string_val]
+            else:
+                self.m_parsed_content = tf.make_ndarray(value)
 
         if self.m_operation.type == "Placeholder":
-            data_type = self.m_operation.node_def.attr["dtype"].type
-            if tf.dtypes.DType(data_type).name == "resource" and not self.m_inner_graph:
+            data_type = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type).name
+            self.m_data_type = data_type
+            if data_type == "resource" and not self.m_inner_graph:
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
                 if variable_value is not None:
                     # does not copy data
                     self.m_parsed_content = variable_value.value().__array__()
+
+                    if isinstance(self.m_parsed_content, bytes):
+                        self.m_data_type = "string"
+                        self.m_parsed_content = [str(self.m_parsed_content)]
 
     def get_op_name(self) -> str:
         return self.m_operation.name
@@ -114,6 +127,8 @@ class TFGraphNodeDecoder(DecoderBase):
             return OVAny(tf_type_to_ov_type(type_num))
 
         if name == "value":
+            if self.m_data_type == 'string':
+                return OVAny(self.m_parsed_content)
             if self.m_parsed_content.size == 1:
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
