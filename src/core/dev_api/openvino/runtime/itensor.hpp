@@ -69,6 +69,13 @@ public:
         return static_cast<T*>(data(element::from<datatype>()));
     }
 
+    /**
+     * @brief Reports whether the tensor is continuous or not
+     *
+     * @return true if tensor is continuous
+     */
+    bool is_continuous() const;
+
 protected:
     virtual ~ITensor();
 };

@@ -20,8 +20,7 @@ OutputVector translate_quantized_hardswish(const NodeContext& context) {
     const auto scale = context.get_input(1);
     const auto zero_point = context.get_input(2);
 
-    const auto x_dequantize = context.mark_node(dequantize(context, x.get_node_shared_ptr()));
-    const auto quantized_hardswish = context.mark_node(std::make_shared<v4::HSwish>(x_dequantize));
+    const auto quantized_hardswish = context.mark_node(std::make_shared<v4::HSwish>(x));
 
     return {context.mark_node(quantize(context,
                                        quantized_hardswish,

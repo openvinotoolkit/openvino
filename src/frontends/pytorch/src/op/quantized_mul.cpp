@@ -21,9 +21,7 @@ OutputVector translate_quantized_mul(const NodeContext& context) {
     const auto scale = context.get_input(2);
     const auto zero_point = context.get_input(3);
 
-    const auto x_dequantize = context.mark_node(dequantize(context, x.get_node_shared_ptr()));
-    const auto y_dequantize = context.mark_node(dequantize(context, y.get_node_shared_ptr()));
-    const auto quantized_mul = context.mark_node(std::make_shared<v1::Multiply>(x_dequantize, y_dequantize));
+    const auto quantized_mul = context.mark_node(std::make_shared<v1::Multiply>(x, y));
 
     return {context.mark_node(quantize(context,
                                        quantized_mul,

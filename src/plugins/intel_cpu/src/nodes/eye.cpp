@@ -108,7 +108,7 @@ void Eye::executeSpecified() {
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!outPtr || !outPtr ->isAllocated())
             THROW_ERROR << errorPrefix << "Destination memory didn't allocate.";
-    T *dst = reinterpret_cast<T *>(outPtr->GetPtr());
+    T *dst = reinterpret_cast<T *>(outPtr->getData());
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
     const size_t spatialCount = colNum * rowNum;

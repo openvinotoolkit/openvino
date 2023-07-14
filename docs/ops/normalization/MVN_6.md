@@ -85,7 +85,8 @@ If *normalize_variance* is set to ``true``, the output blob is divided by varian
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MVN">
        <data eps="1e-9" eps_mode="inside_sqrt" normalize_variance="true"/>
