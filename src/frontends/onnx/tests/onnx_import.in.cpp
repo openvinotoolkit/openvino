@@ -26,6 +26,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "default_opset.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
@@ -638,6 +639,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_dynamic_axis_input) {
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
     test_case.add_input<std::int32_t>({1});
     test_case.add_expected_output<float>(Shape{2, 3}, {1.f, 3.f, 6.f, 4.f, 9.f, 15.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_axis_input_1d) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/cum_sum_2d_axis_input_1d.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_expected_output<float>(Shape{2, 3}, {1.f, 3.f, 6.f, 4.f, 9.f, 15.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_cum_sum_2d_dynamic_axis_input_1d) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/cum_sum_2d_dynamic_axis_input_1d.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    test_case.add_input<std::int64_t>({0});
+    test_case.add_expected_output<float>(Shape{2, 3}, {1.f, 2.f, 3.f, 5.f, 7.f, 9.f});
     test_case.run();
 }
 
@@ -3592,7 +3616,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10) {
     const auto scatter_fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/scatter_opset10.onnx"));
 
@@ -3600,11 +3624,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({12.01f, 3.f, 4.f, 13.99f});
+    test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset11) {
     const auto scatter_fn =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -3614,8 +3642,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1.f, 1.1f, 3.f, 2.1f, 5.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none) {
@@ -3628,16 +3660,135 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none)
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1.f, 1.1f, 3.f, 2.1f, 5.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_add) {
-    const auto path = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                           SERIALIZED_ZOO,
-                                           "onnx/scatter_elements_opset16_reduction_add.onnx");
-    EXPECT_THROW(onnx_import::import_onnx_model(path), ngraph_error)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_opset16_reduction_add.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1.f, 3.1f, 3.f, 6.1f, 5.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_default_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_default_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_none_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_none_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_none_neg_ind_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_none_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});               // Shape: (2, 5)
+    test_case.add_input<int64_t>({-4, -2, -3, -1});                                                // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                                          // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});  // Shape: (2, 5)
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_add_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_add_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 13.f, 3.f, 16.f, 5.f, 6.f, 7.f, 21.f, 9.f, 24.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_add_neg_ind_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_add_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});               // Shape: (2, 5)
+    test_case.add_input<int64_t>({-4, -2, -3, -1});                                                // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                                          // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 13.f, 3.f, 16.f, 5.f, 6.f, 7.f, 21.f, 9.f, 24.f});  // Shape: (2, 5)
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_mul_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_mul_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 22.f, 3.f, 48.f, 5.f, 6.f, 7.f, 104.f, 9.f, 140.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_min_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_min_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({0.f, 100.f, -1.f, 200.f});                            // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 0.f, 3.f, 4.f, 5.f, 6.f, 7.f, -1.f, 9.f, 10.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_max_opset18) {
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_max_opset18.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
+    test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
+    test_case.add_input<float>({0.f, 100.f, -1.f, 200.f});                            // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 2.f, 3.f, 100.f, 5.f, 6.f, 7.f, 8.f, 9.f, 200.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {

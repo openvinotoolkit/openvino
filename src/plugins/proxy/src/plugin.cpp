@@ -62,7 +62,7 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
 
 ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_properties = false) {
     const static std::vector<ov::PropertyName> proxy_properties = {ov::device::id,
-                                                                   CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID),
+                                                                   ov::internal::config_device_id,
                                                                    ov::device::priorities,
                                                                    ov::proxy::alias_for,
                                                                    ov::proxy::device_priorities};
@@ -137,7 +137,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // Replace device::id by CONFIG_DEVICE_ID
-    it = hw_config.find(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+    it = hw_config.find(ov::internal::config_device_id.name());
     if (it != hw_config.end()) {
         hw_config[ov::device::id.name()] = it->second;
         hw_config.erase(it);
@@ -242,7 +242,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
         for (const auto& it : hw_config) {
             // Skip proxy and primary device properties
-            if (CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) == it.first || ov::device::id.name() == it.first ||
+            if (ov::internal::config_device_id.name() == it.first || ov::device::id.name() == it.first ||
                 it.first == ov::device::priorities.name() || it.first == ov::proxy::device_priorities.name() ||
                 it.first == ov::proxy::alias_for.name() ||
                 // Skip options from config for primaty device
@@ -261,7 +261,7 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
     if (name == ov::device::id)
         return m_default_device;
 
-    if (name == CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
+    if (name == ov::internal::config_device_id)
         return std::to_string(device_id);
 
     if (name == ov::device::priorities) {
@@ -284,9 +284,13 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
         // ov::device::id changes the default proxy device
         if (std::find(supported_prop.begin(), supported_prop.end(), ov::device::id) == supported_prop.end())
             supported_prop.emplace_back(ov::device::id);
-        if (std::find(supported_prop.begin(), supported_prop.end(), CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)) ==
+        return supported_prop;
+    } else if (name == ov::internal::supported_properties) {
+        auto supported_prop =
+            get_core()->get_property(get_primary_device(device_id), name, {}).as<std::vector<ov::PropertyName>>();
+        if (std::find(supported_prop.begin(), supported_prop.end(), ov::internal::config_device_id) ==
             supported_prop.end())
-            supported_prop.emplace_back(ov::PropertyName(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)));
+            supported_prop.emplace_back(ov::internal::config_device_id);
         return supported_prop;
     }
 
@@ -306,11 +310,12 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                     const ov::AnyMap& properties,
-                                                                     const ov::RemoteContext& context) const {
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
-    auto dev_name = ctx.get_device_name();
+    auto dev_name = ctx->get_device_name();
     auto device_config = construct_device_config(dev_name, m_configs, properties);
 
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
@@ -321,7 +326,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     // TODO: if no device id, try to create context for each plugin
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
@@ -338,7 +343,7 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
             dev_idx,
             has_dev_idx,
             is_new_api);
-        return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
+        return remote_context;
     }
     // Properties doesn't have device id, so try to create context for all devices
     const auto hidden_devices = get_hidden_devices();
@@ -351,7 +356,7 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
                 i,
                 has_dev_idx,
                 is_new_api);
-            return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
+            return remote_context;
         } catch (const ov::Exception&) {
         }
     }
@@ -359,7 +364,7 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
                    ov::Any(remote_properties).as<std::string>());
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
     auto has_dev_idx = is_device_in_config(remote_properties);
@@ -374,7 +379,7 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const
         dev_idx,
         has_dev_idx,
         is_new_api);
-    return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
+    return remote_context;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
@@ -387,10 +392,10 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
-                                                                    const ov::RemoteContext& context,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const ov::AnyMap& properties) const {
     auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
-    auto dev_name = ctx.get_device_name();
+    auto dev_name = ctx->get_device_name();
     auto device_config = construct_device_config(dev_name, m_configs, properties);
 
     return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
