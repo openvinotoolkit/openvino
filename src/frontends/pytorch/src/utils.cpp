@@ -385,7 +385,7 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
             if (otype != lhs_type) {
                 lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
             }
-            if (otype != lhs_type) {
+            if (otype != rhs_type) {
                 rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
             }
             return;

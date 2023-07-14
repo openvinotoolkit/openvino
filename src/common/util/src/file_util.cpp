@@ -634,3 +634,10 @@ void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary)
         throw std::runtime_error("Could not save binary to " + path);
     }
 }
+
+const char* ov::util::trim_file_name(const char* const fname) {
+    static const auto pattern = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+
+    const auto has_pattern_ptr = std::strstr(fname, pattern.c_str());
+    return has_pattern_ptr ? has_pattern_ptr + pattern.size() : fname;
+}

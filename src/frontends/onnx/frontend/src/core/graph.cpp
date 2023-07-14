@@ -20,6 +20,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
@@ -144,16 +145,19 @@ ov::frontend::ExtensionHolder subgraph_required_extensions(
 
 Graph::Graph(const std::string& model_dir,
              const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             const bool enable_mmap,
              ov::frontend::ExtensionHolder extensions)
-    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
+    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), enable_mmap, std::move(extensions)) {}
 
 Graph::Graph(const std::string& model_dir,
              const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
+             const bool enable_mmap,
              ov::frontend::ExtensionHolder extensions)
     : m_cache{std::move(cache)},
       m_extensions{std::move(extensions)},
-      m_model_dir{model_dir} {
+      m_model_dir{model_dir},
+      m_enable_mmap{enable_mmap} {
     const auto ops_bridge = detail::init_ops_bridge(m_extensions.conversions);
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
 
@@ -164,7 +168,7 @@ Graph::Graph(const std::string& model_dir,
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
-            Tensor tensor = Tensor{initializer_tensor, m_model_dir};
+            Tensor tensor = Tensor{initializer_tensor, m_model_dir, enable_mmap};
             std::shared_ptr<default_opset::Constant> ng_constant;
             // For each initializer create a Constant node and store it in cache
             try {
@@ -476,6 +480,7 @@ Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_prot
     : Graph(parent_graph->model_dir(),
             model_proto,
             common::make_unique<GraphCache>(),
+            parent_graph->mmap_enabled(),
             detail::subgraph_required_extensions(parent_graph->get_extensions())),
       m_parent_graph(parent_graph) {}
 
@@ -491,7 +496,7 @@ Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) {
         return m_cache->get_node(name);
     }
     const auto from_parent_node = m_parent_graph->get_ng_node_from_cache(name);
-    if (op::is_constant(from_parent_node.get_node()))
+    if (ov::op::util::is_constant(from_parent_node.get_node()))
         return from_parent_node;
     auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
