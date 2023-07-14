@@ -50,14 +50,18 @@ DequantizeNodeReplacer::DequantizeNodeReplacer() {
             ov::pass::NodeRegistry rg;
             const auto input =
                 rg.make<v0::Convert>(quantized_pt_node->input_value(0).get_node_shared_ptr(), element::f32);
-            const auto scale = quantized_pt_node->get_scale();
-            const auto zero_point = quantized_pt_node->get_zero_point();
-            const auto scale_convert = rg.make<v0::Convert>(scale, element::f32);
-            const auto zero_point_convert = rg.make<v0::Convert>(zero_point, element::f32);
-            const auto input_sub_zero_pt = rg.make<v1::Subtract>(input, zero_point_convert);
-            const auto dequantized_input = rg.make<v1::Multiply>(input_sub_zero_pt, scale_convert);
+            // const auto scale = quantized_pt_node->get_scale();
+            // const auto zero_point = quantized_pt_node->get_zero_point();
+            // const auto scale_convert = rg.make<v0::Convert>(scale, element::f32);
+            // const auto zero_point_convert = rg.make<v0::Convert>(zero_point, element::f32);
+            // const auto input_sub_zero_pt = rg.make<v1::Subtract>(input, zero_point_convert);
+            // const auto dequantized_input = rg.make<v1::Multiply>(input_sub_zero_pt, scale_convert);
+            // copy_runtime_info_and_name(dequantize_node, rg.get(), {input});
+            // replace_node(dequantize_node, dequantized_input);
+            // return true;
+
             copy_runtime_info_and_name(dequantize_node, rg.get(), {input});
-            replace_node(dequantize_node, dequantized_input);
+            replace_node(dequantize_node, input);
             return true;
         }
         add_exception_to_fw_node(dequantize_node, "aten::dequantize could not find a matching quantized input.");

@@ -81,26 +81,22 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
             out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
             out_high_i64 = (int64_t)std::numeric_limits<int>::max();
         }
-        int64_t levels = std::abs(out_high_i64 - out_low_i64) + 1;
+        int64_t levels = out_high_i64 - out_low_i64 + 1;
         const auto out_low = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_low_i64}));
         const auto out_high = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_high_i64}));
         const auto out_low_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_low, zero_point_convert));
         const auto out_high_normalized =
             context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_convert));
 
-        const auto bound_a = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized));
-        const auto bound_b = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized));
-        const auto bound_low = context.mark_node(std::make_shared<v1::Minimum>(bound_a, bound_b));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Maximum>(bound_a, bound_b));
+        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_low_normalized));
+        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_convert, out_high_normalized));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
-        const auto quantized_input_with_dtype =
-            context.mark_node(std::make_shared<v0::Convert>(quantized_input, dtype));
 
         return context.mark_node(std::make_shared<QuantizedPtNode>(quantization_type,
                                                                    context,
-                                                                   quantized_input_with_dtype,
+                                                                   quantized_input,
                                                                    scale_convert,
                                                                    zero_point_convert));
     } else if (quantization_type == QuantizedPtNodeType::QUANTIZE_PER_CHANNEL) {
@@ -125,7 +121,7 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
             out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
             out_high_i64 = (int64_t)std::numeric_limits<int>::max();
         }
-        int64_t levels = std::abs(out_high_i64 - out_low_i64) + 1;
+        int64_t levels = out_high_i64 - out_low_i64 + 1;
         const auto out_low = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_low_i64}));
         const auto out_high = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_high_i64}));
 
