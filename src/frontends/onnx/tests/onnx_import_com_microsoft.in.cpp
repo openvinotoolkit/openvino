@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
                                           1.354462f,
                                           1.8336612f,
                                           0.3068893f});
-    test_case.run_with_tolerance_as_fp(1e-6f);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {

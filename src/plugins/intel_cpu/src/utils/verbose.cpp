@@ -10,7 +10,6 @@
 
 #include "dnnl_types.h"
 #include "dnnl_debug.h"
-#include "../src/common/c_types_map.hpp"
 #include "../src/common/verbose.hpp"
 
 #include <string>
@@ -106,7 +105,7 @@ void Verbose::printInfo() {
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        std::string fmt_str = dnnl::impl::md2fmt_str(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
