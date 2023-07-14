@@ -613,14 +613,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 if (it != desc.defaultConfig.end()) {
                     initial_config[ov::device::priorities.name()] = it->second;
                 }
-                try {
-                    plugin.set_property(initial_config);
-                } catch (const ov::Exception& ex) {
-                    OPENVINO_THROW("Failed to create plugin for device ",
-                                   deviceName,
-                                   "\nPlease, check your environment\n",
-                                   ex.what());
-                }
+                plugin.set_property(initial_config);
             }
 #endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
@@ -669,6 +662,17 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     plugin.add_extension(std::make_shared<InferenceEngine::Extension>(extensionLocation));
                 }
             });
+        }
+
+        if (is_proxy_device(plugin)) {
+            try {
+                plugin.get_property(ov::available_devices);
+            } catch (const ov::Exception& ex) {
+                OPENVINO_THROW("Failed to create plugin for device ",
+                               deviceName,
+                               "\nPlease, check your environment\n",
+                               ex.what());
+            }
         }
 
         std::lock_guard<std::mutex> g_lock(get_mutex());

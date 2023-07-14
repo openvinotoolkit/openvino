@@ -217,12 +217,23 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
                 m_alias_for.insert(it->second.as<std::vector<std::string>>()[0]);
         }
     }
-    const std::string primary_dev = get_primary_device(get_device_from_config(hw_config));
+    if (proxy_config_was_changed) {
+        // need initialization of hidden devices
+        m_init_devs = false;
+    }
+
     // Add fallback priority to detect supported devices in case of HETERO fallback
     auto device_priority = get_internal_property(ov::device::priorities.name(), config_name);
     if (!device_priority.empty())
         hw_config[ov::device::priorities.name()] = device_priority;
+    auto dev_id = get_device_from_config(hw_config);
     auto dev_properties = remove_proxy_properties(hw_config, true);
+
+    if (dev_properties.empty() && hw_config.empty())
+        // Nothing to do
+        return;
+
+    const std::string primary_dev = get_primary_device(dev_id);
     std::string dev_prop_name;
     ov::DeviceIDParser pr_parser(primary_dev);
     for (const auto& it : dev_properties) {
@@ -257,12 +268,6 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         }
     }
     get_core()->set_property(primary_dev, hw_config);
-
-    if (proxy_config_was_changed) {
-        m_init_devs = false;
-        // Check that proxy found available devices
-        get_hidden_devices();
-    }
 }
 
 ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
