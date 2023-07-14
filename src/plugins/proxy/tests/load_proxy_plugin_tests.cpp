@@ -148,7 +148,7 @@ TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
-TEST_F(ProxyTests, load_proxy_without_sevelal_devices) {
+TEST_F(ProxyTests, load_proxy_without_several_devices) {
     ov::AnyMap config;
     config[ov::proxy::alias_for.name()] = std::vector<std::string>{"Fake1", "Fake2"};
     config[ov::proxy::device_priorities.name()] = std::vector<std::string>{"Fake1:0", "Fake2:1"};
