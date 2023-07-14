@@ -299,14 +299,22 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
             if (static_cast<int>(res_stream_ids[j].size()) < streams_info_table[j][NUMBER_OF_STREAMS]) {
                 std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == streams_info_table[j][PROC_TYPE] &&
+                    (streams_info_table[j][STREAM_NUMA_NODE_ID] < 0 ||
+                     (streams_info_table[j][STREAM_NUMA_NODE_ID] >= 0 &&
+                      cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == streams_info_table[j][STREAM_NUMA_NODE_ID])) &&
+                    (streams_info_table[j][STREAM_SOCKET_ID] < 0 ||
+                     (streams_info_table[j][STREAM_SOCKET_ID] >= 0 &&
+                      cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == streams_info_table[j][STREAM_SOCKET_ID])) &&
                     cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED) {
                     stream_ids[j].push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                     cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                }
-                if (static_cast<int>(stream_ids[j].size()) == streams_info_table[j][THREADS_PER_STREAM]) {
-                    std::vector<int> stream_group(stream_ids[j].begin(), stream_ids[j].end());
-                    res_stream_ids[j].push_back(stream_group);
-                    stream_ids[j].clear();
+
+                    if (static_cast<int>(stream_ids[j].size()) == streams_info_table[j][THREADS_PER_STREAM]) {
+                        std::vector<int> stream_group(stream_ids[j].begin(), stream_ids[j].end());
+                        res_stream_ids[j].push_back(stream_group);
+                        stream_ids[j].clear();
+                    }
+                    break;
                 }
             }
         }
