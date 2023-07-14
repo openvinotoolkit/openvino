@@ -69,11 +69,13 @@ ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<con
     return get_request(port)->get_tensor(port);
 }
 
-void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                          const ov::SoPtr<ov::ITensor>& tensor) {
     get_request(port)->set_tensor(port, tensor);
 }
 
-std::vector<ov::SoPtr<ov::ITensor>> ov::hetero::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+std::vector<ov::SoPtr<ov::ITensor>> ov::hetero::InferRequest::get_tensors(
+    const ov::Output<const ov::Node>& port) const {
     return get_request(port)->get_tensors(port);
 }
 

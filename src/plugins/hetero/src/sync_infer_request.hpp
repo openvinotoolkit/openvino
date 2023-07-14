@@ -40,7 +40,8 @@ public:
 
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
 
-    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void check_tensors() const override;
 
