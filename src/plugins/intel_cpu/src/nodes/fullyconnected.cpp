@@ -321,11 +321,12 @@ void FullyConnected::prepackMLASWeight() {
         auto packedBsize = mlas_sgemm_pack_get_size(N, K);
         MemoryPtr ptr;
         auto create = [&]() {
-            float* weightPtr = reinterpret_cast<float*>(weightsMem->GetPtr());
+            float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
             size_t ldb = K;
-            MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-            _ptr->Create(intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
-            float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
+            MemoryPtr _ptr =
+                std::make_shared<Memory>(getEngine(),
+                                         intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
+            float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
             mlas_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
@@ -333,8 +334,8 @@ void FullyConnected::prepackMLASWeight() {
         auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
-            const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->GetSize()) +
-                                            "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->GetData()));
+            const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->getSize()) +
+                                            "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
@@ -539,14 +540,14 @@ void FullyConnected::executeMLAS() {
                        N,
                        K,
                        1.0f,
-                       reinterpret_cast<float*>(src0MemPtr->GetPtr()),
+                       reinterpret_cast<float*>(src0MemPtr->getData()),
                        lda,
-                       reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
+                       reinterpret_cast<float*>(mlasPackedPtr->getData()),
                        ldb,
                        0.0f,
-                       reinterpret_cast<float*>(dstMemPtr->GetPtr()),
+                       reinterpret_cast<float*>(dstMemPtr->getData()),
                        ldc,
-                       withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
+                       withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
 }
 
 #endif
