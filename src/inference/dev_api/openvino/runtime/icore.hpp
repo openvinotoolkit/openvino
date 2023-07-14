@@ -80,7 +80,7 @@ public:
      * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::RemoteContext& context,
+                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                         const ov::AnyMap& config = {}) const = 0;
 
     /**
@@ -138,7 +138,7 @@ public:
      * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
-                                                       const ov::RemoteContext& context,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
@@ -168,7 +168,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    virtual ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const = 0;
 
     virtual bool is_new_api() const = 0;
 
@@ -177,7 +177,7 @@ public:
      * @param device_name  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    virtual ov::RemoteContext get_default_context(const std::string& device_name) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const = 0;
 
     /**
      * @brief Gets properties related to device behaviour.
@@ -228,6 +228,8 @@ public:
      * @return map of properties that are supported by device
      */
     virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties) const = 0;
+
+    virtual bool device_supports_model_caching(const std::string& device_name) const = 0;
 
     /**
      * @brief Default virtual destructor

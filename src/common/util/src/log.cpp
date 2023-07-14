@@ -8,6 +8,9 @@
 #include <ctime>
 #include <functional>
 #include <iostream>
+#include <mutex>
+
+#include "openvino/util/file_util.hpp"
 
 void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
@@ -33,15 +36,19 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
         break;
     }
 
-    time_t tt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    auto tm = gmtime(&tt);
-    if (tm) {
-        char buffer[256];
-        strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%Sz", tm);
-        m_stream << buffer << " ";
+    {
+        static std::mutex m;
+        time_t tt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        std::lock_guard<std::mutex> lock(m);
+        auto tm = gmtime(&tt);
+        if (tm) {
+            char buffer[256];
+            strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%Sz", tm);
+            m_stream << buffer << " ";
+        }
     }
 
-    m_stream << file;
+    m_stream << util::trim_file_name(file);
     m_stream << " " << line;
     m_stream << "\t";
 }

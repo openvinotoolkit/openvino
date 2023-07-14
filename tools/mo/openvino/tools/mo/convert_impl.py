@@ -314,8 +314,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
-        # corresponds to TF1 If and TF1 While operations
-        "Switch", "Merge",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
@@ -444,7 +442,9 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
-    function = fe.convert(fe.load(path_to_xml))
+    # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
+    enable_mmap = False
+    function = fe.convert(fe.load(path_to_xml, enable_mmap))
     return function
 
 
