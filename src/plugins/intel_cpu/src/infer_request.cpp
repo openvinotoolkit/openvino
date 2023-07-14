@@ -863,10 +863,16 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     }
                 }
 
+                auto _compatible = [isDynamic](const InferenceEngine::TensorDesc& tensor_desc, const MemoryDesc& mem_desc) {
+                    if (isDynamic) {
+                        return tensor_desc.getPrecision() == mem_desc.getPrecision();  // Any more resctrictions that blocks memory sharing?
+                    }
+                    return tensor_desc == MemoryDescUtils::convertToTensorDesc(mem_desc);
+                };
+
                 _outputs[name] = data;
                 if (!externalPtr.count(name) &&
-                    (isDynamic ||
-                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()))) {
+                    _compatible(data->getTensorDesc(), output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
                     externalPtr[name] = data;
                 }
             } else {
