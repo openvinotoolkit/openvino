@@ -104,8 +104,8 @@
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
+#include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
-#include "transformations/cpu_opset/common/pass/ref_convert_i64_i32.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 
 // Snippets
@@ -260,8 +260,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_REGISTER_PASS_COMMON(manager, ngraph::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
-
+    // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
+    // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
+    // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
@@ -625,13 +627,17 @@ void Transformations::MainSnippets(void) {
         !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
+    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     // At the moment Snippets supports Transposes in MHA pattern only in FP32 case since
     //      - ConvertSaturation[BF16->FP32] will be inserted after Parameters and before Transposes in canonicalization stage
     //      - ConvertSaturation[FP32->BF16] will be inserted after Transposes and before Brgemm in precision propagation stage
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
+    tokenization_config.minimal_concurrency = parallel_get_num_threads();
+    // The optimization "SplitDimensionM" depends on target machine (thread count).
+    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
+    tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
@@ -680,22 +686,15 @@ void Transformations::MainSnippets(void) {
                 const auto shape = pshape.get_shape();
                 const auto parallel_work_amount =
                         std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-                const auto kernel_buffer_size =
-                        std::accumulate(shape.rbegin(), shape.rbegin() + 2, 1, std::multiplies<size_t>()) *
-                        n->get_output_element_type(0).size();
                 // Heuristic values:
                 //    parallelism work amount - not enough work amount for parallelism
-                //    kernel work amount - large shape for kernel execution, not cache-local
-                // TODO: The heuristics will be removed after
-                //       - loop blocking support on code generation level
-                //       - parallelism support on JIT level
+                // TODO: The heuristic will be removed after parallelism support on JIT level
                 const auto needed_num_of_threads = 12lu;
-                const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
                 const auto is_unsupported_parallel_work_amount =
-                    parallel_get_num_threads() / 2 > parallel_work_amount &&
-                    static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
-                const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
-                return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
+                        parallel_get_num_threads() / 2 > parallel_work_amount &&
+                        static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
+                        !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.minimal_concurrency);
+                return is_unsupported_parallel_work_amount;
             },
             snippets::pass::TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(snippetsManager,
