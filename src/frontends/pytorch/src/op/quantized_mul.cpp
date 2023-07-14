@@ -25,9 +25,9 @@ OutputVector translate_quantized_mul(const NodeContext& context) {
 
     return {context.mark_node(quantize(context,
                                        quantized_mul,
-                                       scale.get_node_shared_ptr(),
-                                       zero_point.get_node_shared_ptr(),
-                                       x.get_node_shared_ptr()))};  // take dtype from x
+                                       scale,
+                                       zero_point,
+                                       x))};  // take dtype from x
 }
 
 }  // namespace op

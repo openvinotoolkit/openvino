@@ -23,7 +23,7 @@ OutputVector translate_quantized_add(const NodeContext& context) {
     const auto zero_point = context.get_input(3);
 
     
-    const ov::Output<ov::Node> quantized_add = context.mark_node(std::make_shared<v1::Add>(x, y));
+    const auto quantized_add = context.mark_node(std::make_shared<v1::Add>(x, y));
 
     return {context.mark_node(quantize(context,
                                        quantized_add,
