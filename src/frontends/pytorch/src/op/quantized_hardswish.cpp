@@ -22,7 +22,8 @@ OutputVector translate_quantized_hardswish(const NodeContext& context) {
 
     const auto quantized_hardswish = context.mark_node(std::make_shared<v4::HSwish>(x));
 
-    return {context.mark_node(quantize(context, quantized_hardswish, scale, zero_point, x))};  // take dtype from x
+    return {context.mark_node(
+        quantize(context, quantized_hardswish, scale, zero_point, x).get_node_shared_ptr())};
 }
 
 }  // namespace op
