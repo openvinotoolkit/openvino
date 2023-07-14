@@ -87,7 +87,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 
     // for activation function
     jit.Merge(MakeUnitTypeJitConstants(unitType));
-    jit.Merge(MakeActivationJitConstants(params.activations, unitType));
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType()));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
