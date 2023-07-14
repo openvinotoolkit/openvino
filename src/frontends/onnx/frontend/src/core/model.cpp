@@ -58,10 +58,7 @@ bool Model::is_operator_available(const std::string& name, const std::string& do
         return false;
     }
     const auto op = dm->second.find(name);
-    if (op == std::end(dm->second)) {
-        return false;
-    }
-    return true;
+    return (op != std::end(dm->second));
 }
 
 void Model::enable_opset_domain(const std::string& domain, const OperatorsBridge& ops_bridge) {

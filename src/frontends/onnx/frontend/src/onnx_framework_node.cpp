@@ -28,7 +28,11 @@ std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const Out
 
 std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVector& inputs) const {
     auto attrs = get_attrs();
-    return std::make_shared<NotSupportedONNXNode>(inputs, get_output_size(), attrs.get_opset_name(), attrs.get_type_name(), m_additional_error_message);
+    return std::make_shared<NotSupportedONNXNode>(inputs,
+                                                  get_output_size(),
+                                                  attrs.get_opset_name(),
+                                                  attrs.get_type_name(),
+                                                  m_additional_error_message);
 }
 
 bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
