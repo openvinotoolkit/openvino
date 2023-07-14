@@ -194,6 +194,34 @@ void Transformations::CpuSpecificOpSet(void) {
     ConvertToCPUSpecificOpset(model);
 }
 
+precisions_map Transformations::get_convert_precisions() {
+    precisions_map map = {{ov::element::i64, ov::element::i32},
+                          {ov::element::u64, ov::element::i32},
+                          {ov::element::i16, ov::element::i32},
+                          {ov::element::u16, ov::element::i32},
+                          {ov::element::u32, ov::element::i32},
+                          {ov::element::f64, ov::element::f32},
+                          {ov::element::f16, ov::element::f32},
+                          {ov::element::boolean, ov::element::u8},
+                          {ov::element::i4, ov::element::i8},
+                          {ov::element::u4, ov::element::u8}};
+
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        map.insert({ov::element::bf16, ov::element::f32});
+
+    return map;
+}
+
+void Transformations::RunPrecisionConvert() {
+    static const auto precisions = get_convert_precisions();
+    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
+
+    ov::pass::Manager manager;
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, true);
+    manager.run_passes(model);
+}
+
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
@@ -209,25 +237,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
     }
 
-    auto get_convert_precisions = []() {
-        precisions_map map = {
-            {ov::element::i64,     ov::element::i32},
-            {ov::element::u64,     ov::element::i32},
-            {ov::element::i16,     ov::element::i32},
-            {ov::element::u16,     ov::element::i32},
-            {ov::element::u32,     ov::element::i32},
-            {ov::element::f64,     ov::element::f32},
-            {ov::element::f16,     ov::element::f32},
-            {ov::element::boolean, ov::element::u8},
-            {ov::element::i4,      ov::element::i8},
-            {ov::element::u4,      ov::element::u8}
-        };
-
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            map.insert({ov::element::bf16, ov::element::f32});
-
-        return map;
-    };
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
@@ -264,6 +273,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    // Precision convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, false);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);

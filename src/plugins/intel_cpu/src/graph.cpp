@@ -867,7 +867,8 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        auto create_mem_desc = [&](const ov::Tensor& tensor) -> CpuBlockedMemoryDesc {
+        auto create_mem_desc = [&](const ov::Tensor& tensor,
+                                   InferenceEngine::Precision& precision) -> CpuBlockedMemoryDesc {
             auto element_type = tensor.get_element_type();
             auto shape = tensor.get_shape();
             std::vector<size_t> blk_order(shape.size());
@@ -894,7 +895,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
                                    return byte_stride / element_type.size();
                                });
             }
-            return CpuBlockedMemoryDesc(ie::details::convertPrecision(element_type),
+            return CpuBlockedMemoryDesc(precision,
                                         mem_shape,
                                         shape,
                                         blk_order,
@@ -902,16 +903,28 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
                                         dim_offset,
                                         blk_strides);
         };
-        auto inTensorDesc = create_mem_desc(in);
         auto node = input->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
 
         const void *ext_data_ptr = in.data();
         void *inter_data_ptr = childEdge->getMemory().getData();
-        if (ext_data_ptr != inter_data_ptr) {
-            Memory ext_mem(getEngine(), inTensorDesc, ext_data_ptr, false);
 
+        // Convert data if precision mismatch
+        auto inter_precision = childEdge->getMemory().getDesc().getPrecision();
+        auto in_precision = ie::details::convertPrecision(in.get_element_type());
+        auto inTensorDesc = create_mem_desc(in, inter_precision);
+        if (in_precision != inter_precision) {
+            if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
+                OPENVINO_THROW("Get tensor has no allocated memory");
+            }
+            cpu_convert(ext_data_ptr, inter_data_ptr, in_precision, inter_precision, in.get_size());
+            std::cout << "push_input: convert data " << in_precision << " to " << inter_precision << std::endl;
+
+            Memory mem(getEngine(), inTensorDesc, inter_data_ptr, false);
+            childEdge->getMemory().load(mem, false);
+        } else if (ext_data_ptr != inter_data_ptr) {
+            Memory ext_mem(getEngine(), inTensorDesc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
         }
 
@@ -922,11 +935,11 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
                                                           reinterpret_cast<float*>(inter_data_ptr),
                                                           TensorDesc::getLayoutByDims(in.get_shape()));
             } else {
-                IE_THROW() << "Mean image of type " << inTensorDesc.getPrecision().name() << " is unsupported";
+                OPENVINO_THROW("Mean image of type ", inTensorDesc.getPrecision().name(), " is unsupported");
             }
         }
     } else {
-        IE_THROW() << "Input blob for infer '" << name << "' doesn't correspond to input in network";
+        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
     }
 }
 
@@ -997,7 +1010,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
+        if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput && dstPrec == srcPrec) {
             // User can initialize output via SetOutput API using tensorDesc with ANY layout.
             // For these cases we create planar memory descriptor.
             auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
@@ -1007,7 +1020,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
             outBloMem.load(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-
+            std::cout << "pull_output: convert " << srcPrec << " to " << dstPrec << std::endl;
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }
     }

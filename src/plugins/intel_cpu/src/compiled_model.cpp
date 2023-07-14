@@ -15,6 +15,7 @@
 #include "precision_utils.h"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
+#include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
@@ -166,7 +167,15 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
 
                     ctx = std::make_shared<GraphContext>(m_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
-                const std::shared_ptr<const ov::Model> model = m_model;
+                auto graph_model = m_model->clone();
+                Transformations graph_transformations(graph_model,
+                                                      false,
+                                                      ov::element::i32,
+                                                      false,
+                                                      Config::SnippetsMode::Disable,
+                                                      {});
+                graph_transformations.RunPrecisionConvert();
+                const std::shared_ptr<const ov::Model> model = graph_model;
                 graphLock._graph.CreateGraph(model, ctx);
             } catch (...) {
                 exception = std::current_exception();

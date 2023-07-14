@@ -15,8 +15,6 @@
 #include <memory>
 #include <vector>
 
-using namespace InferenceEngine;
-
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
 
 namespace ov {
@@ -41,6 +39,7 @@ public:
 
     void UpToCpuSpecificOpSet();
     void CpuSpecificOpSet();
+    void RunPrecisionConvert();
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -61,6 +60,8 @@ private:
     void PostSnippets(void);
 
     void Snippets(void);
+
+    static precisions_map get_convert_precisions();
 
     static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };

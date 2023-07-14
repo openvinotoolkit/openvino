@@ -34,10 +34,14 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
     for (const auto& in : get_inputs()) {
         auto port_name = get_port_name(in, m_is_legacy_api);
         m_input_ports_map[port_name] = in;
+        std::cout << "input port: name = " << port_name << ", precision = " << in.get_element_type()
+                  << ", shape =" << in.get_partial_shape().to_string() << std::endl;
     }
     for (const auto& out : get_outputs()) {
         auto port_name = get_port_name(out, m_is_legacy_api);
         m_output_ports_map[port_name] = out;
+        std::cout << "output port: name = " << port_name << ", precision = " << out.get_element_type()
+                  << ", shape =" << out.get_partial_shape().to_string() << std::endl;
     }
     create_infer_request();
 }
@@ -205,8 +209,8 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
     return perfMap;
 }
 
-static inline void change_edge_ptr(const EdgePtr &edge, ov::Tensor& tensor) {
-    auto size = tensor.get_byte_size();//blob->byteSize();
+static inline void change_edge_ptr(const EdgePtr& edge, ov::Tensor& tensor) {
+    auto size = tensor.get_byte_size();  // blob->byteSize();
     auto& mem = edge->getMemory();
     auto memMngr = mem.getMemoryMngr();
     IE_ASSERT(memMngr);
@@ -619,32 +623,7 @@ void SyncInferRequest::push_input_data() {
                            input_name);
         }
         auto tensor = get_port_tensor(input);
-        // DNNL doesn't support i64/u64/u32/u16/i16, convert input tensor to i32
-        if (tensor.get_element_type() == ov::element::i64 || tensor.get_element_type() == ov::element::u64 ||
-            tensor.get_element_type() == ov::element::u32 || tensor.get_element_type() == ov::element::u16 ||
-            tensor.get_element_type() == ov::element::i16) {
-            if (m_aux_tensors.find(input_name) == m_aux_tensors.end()) {
-                // Cache it avoid allocating frequently
-                m_aux_tensors[input_name] = ov::Tensor(ov::element::i32, tensor.get_shape());
-            }
-            auto& aux_tensor = m_aux_tensors[input_name];
-            if (aux_tensor.get_shape() != tensor.get_shape()) {
-                tensor.set_shape(aux_tensor.get_shape());
-            }
-            const void* srcData = tensor.data();
-            void* dstData = aux_tensor.data();
-            if ((dstData == nullptr) || (srcData == nullptr)) {
-                OPENVINO_THROW("Get tensor has no allocated memory");
-            }
-            cpu_convert(srcData,
-                        dstData,
-                        InferenceEngine::details::convertPrecision(tensor.get_element_type()),
-                        InferenceEngine::details::convertPrecision(aux_tensor.get_element_type()),
-                        tensor.get_size());
-            graph->PushInputData(input_name, aux_tensor);
-        } else {
-            graph->PushInputData(input_name, tensor);
-        }
+        graph->PushInputData(input_name, tensor);
     }
 }
 }  // namespace intel_cpu
