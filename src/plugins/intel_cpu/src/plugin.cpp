@@ -747,6 +747,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             Transformations transformation(model, enableLPT, conf.inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
+            transformation.RunPrecisionConvert();
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             std::unique_ptr<Node> ptr;
