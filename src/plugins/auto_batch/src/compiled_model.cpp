@@ -27,7 +27,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // WA for gcc 4.8 ( fails compilation with member init-list)
     m_device_info = device_info;
     auto time_out = config.find(ov::auto_batch_timeout.name());
-    OPENVINO_ASSERT(time_out != config.end());
+    OPENVINO_ASSERT(time_out != config.end(), "No timeout property be set in config, default will be used!");
     m_time_out = time_out->second.as<std::uint32_t>();
 }
 

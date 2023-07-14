@@ -739,7 +739,6 @@ public:
             tensor._so = m_request->getPointerToSo();
         return tensor;
     }
-
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
         m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor, m_unwrap_tensor));
     }
