@@ -322,11 +322,11 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_proxy_context(
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties) const {
-    auto device = get_fallback_device(get_device_from_config(properties));
-    auto device_config = construct_device_config(device, m_configs, properties);
+    auto dev_name = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(dev_name, m_configs, properties);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
 
-    auto device_model = get_core()->compile_model(model, device, device_config);
+    auto device_model = get_core()->compile_model(model, dev_name, device_config);
     auto remote_context = create_proxy_context(device_model, properties);
     auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
@@ -406,9 +406,9 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::A
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
                                                                     const ov::AnyMap& properties) const {
-    auto device = get_fallback_device(get_device_from_config(properties));
-    auto device_config = construct_device_config(device, m_configs, properties);
-    auto device_model = get_core()->import_model(model, device, device_config);
+    auto dev_name = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(dev_name, m_configs, properties);
+    auto device_model = get_core()->import_model(model, dev_name, device_config);
     auto remote_context = create_proxy_context(device_model, properties);
 
     return std::make_shared<ov::proxy::CompiledModel>(device_model, shared_from_this(), remote_context);
