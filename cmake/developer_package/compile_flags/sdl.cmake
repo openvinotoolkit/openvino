@@ -15,9 +15,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
         endif()
     endif()
-    if(NOT APPLE)
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
-    endif()
+
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
 
     if(CMAKE_COMPILER_IS_GNUCXX)
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
