@@ -11,6 +11,8 @@ from utils import (
 from consts import (
     artifacts_link,
     binder_template,
+    colab_template,
+    binder_colab_template,
     blacklisted_extensions,
     notebooks_docs,
     notebooks_path,
@@ -98,24 +100,44 @@ class NbProcessor:
             "repo": repo_name,
             "folder": repo_directory,
         }
+        self.colab_data = {
+            "owner": repo_owner,
+            "repo": repo_name,
+            "folder": repo_directory,
+        }
 
-    def fetch_binder_list(self, file_format: str = 'txt') -> list:
+    def fetch_binder_list(self, file) -> list:
         """Function that fetches list of notebooks with binder buttons
 
         :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
         :type file_format: str
-        :return: List of notebooks conaining binder buttons
+        :return: List of notebooks containing binder buttons
         :rtype: list
         """
-        list_of_buttons = glob(f"{self.nb_path}/*.{file_format}")
+        list_of_buttons = glob(f"{self.nb_path}/{file}")
         if list_of_buttons:
             with open(list_of_buttons[0]) as file:
                 list_of_buttons = file.read().splitlines()
             return list_of_buttons
-        else:
-            return []
+        return []
 
-    def add_binder(self, buttons_list: list,  template_with_binder: str = binder_template, template_without_binder: str = no_binder_template):
+    def fetch_colab_list(self, file) -> list:
+        """Function that fetches list of notebooks with colab buttons
+
+        :param file_format: Format of file containing list of notebooks with button. Defaults to 'lst'
+        :type file_format: str
+        :return: List of notebooks containing colab buttons
+        :rtype: list
+        """
+        list_of_cbuttons = glob(f"{self.nb_path}/{file}")
+        if list_of_cbuttons:
+            with open(list_of_cbuttons[0]) as file:
+                list_of_cbuttons = file.read().splitlines()
+            return list_of_cbuttons
+        return []
+
+
+    def add_binder(self, buttons_list: list,  cbuttons_list: list, template_with_colab_and_binder: str = binder_colab_template, template_with_binder: str = binder_template, template_with_colab: str = colab_template, template_without_binder: str = no_binder_template):
         """Function working as an example how to add binder button to existing rst files
 
         :param buttons_list: List of notebooks that work on Binder.
@@ -127,19 +149,20 @@ class NbProcessor:
         :raises FileNotFoundError: In case of failure of adding content, error will appear
 
         """
+
         for notebook in [
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
         ]:
-            if '-'.join(notebook.split('-')[:-2]) in buttons_list:
-                button_text = create_content(
-                    template_with_binder, self.binder_data, notebook)
-                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
-                    raise FileNotFoundError("Unable to modify file")
+            notebook_item = '-'.join(notebook.split('-')[:-2])
+
+            if notebook_item in buttons_list:
+                template = template_with_colab_and_binder if notebook_item in cbuttons_list else template_with_binder
             else:
-                button_text = create_content(
-                    template_without_binder, self.binder_data, notebook)
-                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
-                    raise FileNotFoundError("Unable to modify file")
+                template = template_with_colab if notebook_item in cbuttons_list else template_without_binder
+
+            button_text = create_content(template, self.binder_data, notebook)
+            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                raise FileNotFoundError("Unable to modify file")
 
     def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
         """Rendering rst file for all notebooks
@@ -170,8 +193,9 @@ def main():
         shutil.copytree(sourcedir, outdir)
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
-    buttons_list = nbp.fetch_binder_list('txt')
-    nbp.add_binder(buttons_list)
+    buttons_list = nbp.fetch_binder_list('notebooks_with_binder_buttons.txt')
+    cbuttons_list = nbp.fetch_colab_list('notebooks_with_colab_buttons.txt')
+    nbp.add_binder(buttons_list, cbuttons_list)
     nbp.render_rst(outdir.joinpath(notebooks_docs))
 
 

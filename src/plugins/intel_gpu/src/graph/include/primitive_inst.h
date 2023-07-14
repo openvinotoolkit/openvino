@@ -276,6 +276,7 @@ protected:
     layout _node_output_layout;
 
     bool update_shape_done_by_other = false;
+    bool allocation_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;

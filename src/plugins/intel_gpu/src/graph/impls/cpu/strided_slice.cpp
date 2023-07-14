@@ -88,6 +88,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         }
 
         auto ev = stream.create_user_event(false);
+        auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -120,11 +121,11 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         auto input_mem_ptr = instance.dep_memory_ptr(0);
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        input_host_tensors.push_back(make_tensor(input_mem_ptr->get_layout(), input_mem_ptr->lock(stream, mem_lock_type::read)));
+        input_host_tensors.push_back(make_tensor(params->input_layouts[0], input_mem_ptr->lock(stream, mem_lock_type::read)));
         input_host_tensors.push_back(begin_host_tensor);
         input_host_tensors.push_back(end_host_tensor);
         input_host_tensors.push_back(strides_host_tensor);
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_mem_ptr->lock(stream, mem_lock_type::write)));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_mem_ptr->lock(stream, mem_lock_type::write)));
 
         if (!op) {
             op = std::make_shared<ov::op::v1::StridedSlice>();
