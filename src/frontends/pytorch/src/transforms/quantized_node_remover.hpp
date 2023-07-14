@@ -12,6 +12,12 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+/**
+ * Quantized Node Remover
+ * Removes QuantizedNodes from the graph.
+ * These nodes are created in translation processes to propagate scale/zero_point information,
+ * and are not needed in the final graph.
+ */
 class QuantizedNodeRemover : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");

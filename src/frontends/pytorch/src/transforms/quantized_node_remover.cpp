@@ -18,12 +18,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-/**
- * Quantized Node Remover
- * Removes QuantizedNodes from the graph.
- * These nodes are created in translation processes to propagate scale/zero_point information,
- * and are not needed in the final graph.
- */
+
 QuantizedNodeRemover::QuantizedNodeRemover() {
     auto quantized_pt_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::QuantizedPtNode>();
 

@@ -12,6 +12,11 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+/**
+ * Dequantize Node Remover
+ * Replacer finds the unconverted dequantize ops and removes them.
+ * This matches the behavior of OV's LPT.
+ */
 class DequantizeNodeRemover : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::DequantizeNodeRemover");

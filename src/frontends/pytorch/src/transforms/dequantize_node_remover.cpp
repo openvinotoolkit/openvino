@@ -4,7 +4,6 @@
 
 #include "dequantize_node_remover.hpp"
 
-#include <list>
 #include <memory>
 #include <utility>
 
@@ -19,15 +18,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-#define MAX_SEARCH_NODES 100000
 
-using namespace ov::op;
-
-/**
- * Dequantize Node Remover
- * Replacer finds the unconverted dequantize ops and removes them.
- * This matches the behavior of OV's LPT.
- */
 DequantizeNodeRemover::DequantizeNodeRemover() {
     auto dequantize_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::PtFrameworkNode>();
 
