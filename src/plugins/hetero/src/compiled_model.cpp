@@ -45,12 +45,11 @@ static bool intersects(const Set& lhs, const Set& rhs) {
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg,
-                                         bool loaded_from_cache)
+                                         const Configuration& cfg)
     : ov::ICompiledModel(model, plugin),
       m_cfg(cfg),
       m_name(model->get_friendly_name()),
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(false) {
     bool dumpDotFile = m_cfg.dump_graph;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         dumpDotFile = true;
@@ -422,12 +421,11 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg,
-                                         bool loaded_from_cache)
+                                         const Configuration& cfg)
     : ov::ICompiledModel(nullptr, plugin),
       m_cfg(cfg),
       m_name(),
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(true) {
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 

@@ -52,7 +52,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
     auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config);
     return compiled_model;
 }
 
