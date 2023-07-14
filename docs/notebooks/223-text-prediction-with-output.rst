@@ -81,13 +81,13 @@ used for text generation wheras PersonaGPT is used for Conversation.
     # Install Gradio for Interactive Inference and other requirements
     !pip install -q 'openvino-dev>=2023.0.0'
     !pip install -q gradio
-    !pip install -q transformers onnx
+    !pip install -q transformers[torch] onnx
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.23.3 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.23.4 which is incompatible.
     
 
 .. code:: ipython3
@@ -202,7 +202,7 @@ function) for optimization of memory consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:810: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:810: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
@@ -601,23 +601,23 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good, how are you?
+    PersonaGPT: good, how are you doing?
     Person: What are you doing?
-    PersonaGPT: good, just watching tv. what are you up to?
+    PersonaGPT: i'm good thanks what are you up too
     Person: I like to dance,do you?
-    PersonaGPT: sometimes! i prefer dancing in my living room.
+    PersonaGPT: i like to read books
     Person: Can you recommend me some books?
-    PersonaGPT: probably, what kind of music you like?
+    PersonaGPT: yes i can i like books about dance
     Person: Hi,How are you?
-    PersonaGPT: i'm good. are you into dancing?
+    PersonaGPT: i am good thanks for asking
     Person: What are you doing?
-    PersonaGPT: watching television.
+    PersonaGPT: i'm just sitting at home reading
     Person: I like to dance,do you?
-    PersonaGPT: yes i love it. do you like books?
+    PersonaGPT: no but i love reading
     Person: Can you recommend me some books?
-    PersonaGPT: i think i can. what do you like about dancing?
+    PersonaGPT: yes i like to read too
     Person: Hi,How are you?
-    PersonaGPT: i'm great. i like to listen to music while i am doing it.
+    PersonaGPT: good. do you like to cook?
     Person: What are you doing?
-    PersonaGPT: watching show right now.
+    PersonaGPT: i'm cooking right now.
 

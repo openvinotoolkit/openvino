@@ -59,21 +59,9 @@ Prerequisites
 
 .. code:: ipython3
 
-    import sys
-    from pathlib import Path
-    
-    import numpy as np
-    import yaml
-    
-    sys.path.append("../utils")
-    from notebook_utils import download_file
-
-We’ll need timm, mmsegmentation, enops and mmcv, to use functions from
-segmenter repo
-
-.. code:: ipython3
-
-    !pip install timm "mmsegmentation==0.30.0" einops "mmcv==1.7.1" "timm == 0.4.12" -q
+    # Installing requirements
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q timm "mmsegmentation==0.30.0" einops "mmcv==1.7.1" "timm == 0.4.12" onnx 
 
 
 .. parsed-literal::
@@ -81,6 +69,25 @@ segmenter repo
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     black 21.7b0 requires tomli<2.0.0,>=0.2.6, but you have tomli 2.0.1 which is incompatible.
     
+
+.. code:: ipython3
+
+    import sys
+    from pathlib import Path
+    
+    import numpy as np
+    import yaml
+    
+    # Fetch the notebook utils script from the openvino_notebooks repo
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    from notebook_utils import download_file, load_image
+
+We’ll need timm, mmsegmentation, enops and mmcv, to use functions from
+segmenter repo
 
 First, we will clone the Segmenter repo and then download weights and
 config for our model.
@@ -102,7 +109,7 @@ config for our model.
     Cloning into 'segmenter'...
     remote: Enumerating objects: 268, done.[K
     remote: Total 268 (delta 0), reused 0 (delta 0), pack-reused 268[K
-    Receiving objects: 100% (268/268), 15.34 MiB | 3.67 MiB/s, done.
+    Receiving objects: 100% (268/268), 15.34 MiB | 4.21 MiB/s, done.
     Resolving deltas: 100% (117/117), done.
 
 
@@ -180,7 +187,7 @@ Load normalization settings from config file.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mmcv/__init__.py:20: UserWarning: On January 1, 2023, MMCV will release v2.0.0, in which it will remove components related to the training process and add a data transformation module. In addition, it will rename the package names mmcv to mmcv-lite and mmcv-full to mmcv. See https://github.com/open-mmlab/mmcv/blob/master/docs/en/compatibility.md for more details.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mmcv/__init__.py:20: UserWarning: On January 1, 2023, MMCV will release v2.0.0, in which it will remove components related to the training process and add a data transformation module. In addition, it will rename the package names mmcv to mmcv-lite and mmcv-full to mmcv. See https://github.com/open-mmlab/mmcv/blob/master/docs/en/compatibility.md for more details.
       warnings.warn(
 
 
@@ -194,9 +201,12 @@ Preprocessing
 ~~~~~~~~~~~~~
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
-format, where: \* ``B`` - batch size (in our case 1, as we are just
-adding 1 with unsqueeze) \* ``C`` - image channels (in our case RGB - 3)
-\* ``H`` - image height \* ``W`` - image width
+format, where:
+
+* ``B`` - batch size (in our case 1, as we are just adding 1 with unsqueeze)
+* ``C`` - image channels (in our case RGB - 3)
+* ``H`` - image height
+* ``W`` - image width
 
 Resizing to the correct scale and splitting to batches is done inside
 inference, so we don’t need to resize or split the image in
@@ -235,9 +245,11 @@ Visualization
 ~~~~~~~~~~~~~
 
 Inference output contains labels assigned to each pixel, so the output
-in our case is ``[150, H, W]`` in ``CL, H, W`` format where: \* ``CL`` -
-number of classes for labels (in our case 150) \* ``H`` - image height
-\* ``W`` - image width
+in our case is ``[150, H, W]`` in ``CL, H, W`` format where: 
+
+* ``CL`` - number of classes for labels (in our case 150)
+* ``H`` - image height
+* ``W`` - image width
 
 Since we want to visualize this output, we reduce dimensions to
 ``[1, H, W]`` where we keep only class with the highest value as that is
@@ -284,7 +296,9 @@ example image ``coco_hollywood.jpg``.
     from segmenter.segm.model.utils import inference
     
     # load image with PIL
-    pil_image = Image.open("../data/image/coco_hollywood.jpg")
+    image = load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg")
+    # load_image reads the image in BGR format, [:,:,::-1] reshape transfroms it to RGB
+    pil_image = Image.fromarray(image[:,:,::-1])
     
     # preprocess image with normalization params loaded in previous steps
     image = preprocess(pil_image, normalization)
@@ -331,10 +345,16 @@ will first export it to ONNX format.
 
 To do this, we first get input dimensions from the model configuration
 file and create torch dummy input. Input dimensions are in our case
-``[2, 3, 512, 512]`` in ``B, C, H, W]`` format, where: \* ``B`` - batch
-size \* ``C`` - image channels (in our case RGB - 3) \* ``H`` - model
-input image height \* ``W`` - model input image width > Note that H and
-W are here fixed to 512, as this is required by the model. Resizing is
+``[2, 3, 512, 512]`` in ``B, C, H, W]`` format, where:
+
+* ``B`` - batch size 
+* ``C`` - image channels (in our case RGB - 3) 
+* ``H`` - model input image height
+* ``W`` - model input image width 
+
+.. note::
+
+   Note that H and W are here fixed to 512, as this is required by the model. Resizing is
 done inside the inference function from the original repository.
 
 After that, we use ``export`` function from PyTorch to convert the model
@@ -368,23 +388,23 @@ problem.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if H % patch_size > 0:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if W % patch_size > 0:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x.shape[1] != pos_embed.shape[1]:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       masks = rearrange(masks, "b (h w) n -> b n h w", h=int(GS))
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_h > 0:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_w > 0:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -440,18 +460,19 @@ any additional custom code required to process input.
     
         """
     
-        def __init__(self, model_path: Path):
+        def __init__(self, model_path: Path, device:str = "CPU"):
             """
             Constructor method.
             Initializes OpenVINO model and sets all required attributes
     
             :param model_path: path to model's .xml file, also containing variant.yml
+            :param device: device string for selecting inference device
             """
             # init OpenVino core
             core = Core()
             # read model
             model_xml = core.read_model(model_path)
-            self.model = core.compile_model(model_xml, 'CPU')
+            self.model = core.compile_model(model_xml, device)
             self.output_blob = self.model.output(0)
     
             # load model configs
@@ -478,10 +499,38 @@ any additional custom code required to process input.
 Now that we have created SegmenterOV helper class, we can use it in
 inference function.
 
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     # load model into SegmenterOV class
-    model = SegmenterOV(MODEL_DIR / "segmenter.xml")
+    model = SegmenterOV(MODEL_DIR / "segmenter.xml", device.value)
 
 .. code:: ipython3
 
@@ -505,7 +554,7 @@ inference function.
 
 
 
-.. image:: 204-segmenter-semantic-segmentation-with-output_files/204-segmenter-semantic-segmentation-with-output_32_0.png
+.. image:: 204-segmenter-semantic-segmentation-with-output_files/204-segmenter-semantic-segmentation-with-output_34_0.png
 
 
 
@@ -533,8 +582,21 @@ to measure the inference performance of the model.
 
 .. code:: ipython3
 
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # Inference FP32 model (OpenVINO IR)
-    !benchmark_app -m ./model/segmenter.xml -d CPU -api async
+    !benchmark_app -m ./model/segmenter.xml -d $device.value -api async
 
 
 .. parsed-literal::
@@ -542,19 +604,20 @@ to measure the inference performance of the model.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
+    [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 32.06 ms
+    [ INFO ] Read model took 16.16 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input (node: input) : f32 / [...] / [2,3,512,512]
@@ -568,37 +631,44 @@ to measure the inference performance of the model.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [2,150,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 279.07 ms
+    [ INFO ] Compile model took 349.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   NETWORK_NAME: torch_jit
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
-    [ INFO ]   NUM_STREAMS: 6
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 24
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     CPU_BIND_THREAD: YES
+    [ INFO ]     CPU_THREADS_NUM: 0
+    [ INFO ]     CPU_THROUGHPUT_STREAMS: 6
+    [ INFO ]     DEVICE_ID: 
+    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
+    [ INFO ]     DYN_BATCH_ENABLED: NO
+    [ INFO ]     DYN_BATCH_LIMIT: 0
+    [ INFO ]     ENFORCE_BF16: NO
+    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
+    [ INFO ]     NETWORK_NAME: torch_jit
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
     [ INFO ] Fill input 'input' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 230.53 ms
+    [ INFO ] First inference took 219.27 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            690 iterations
-    [ INFO ] Duration:         60351.52 ms
+    [ INFO ] Count:            1374 iterations
+    [ INFO ] Duration:         120364.60 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        521.86 ms
-    [ INFO ]    Average:       523.54 ms
-    [ INFO ]    Min:           265.46 ms
-    [ INFO ]    Max:           793.17 ms
-    [ INFO ] Throughput:   22.87 FPS
+    [ INFO ]    Median:        523.66 ms
+    [ INFO ]    Average:       524.91 ms
+    [ INFO ]    Min:           217.86 ms
+    [ INFO ]    Max:           612.22 ms
+    [ INFO ] Throughput:   22.83 FPS
 

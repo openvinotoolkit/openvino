@@ -399,12 +399,11 @@ context. Therefore, in such cases, you can see random results.
 Sample source: a paragraph from `Computational complexity
 theory <https://rajpurkar.github.io/SQuAD-explorer/explore/v2.0/dev/Computational_complexity_theory.html>`__
 
-Sample questions: - What is the term for a task that generally lends
-itself to being solved by a computer? - By what main attribute are
-computational problems classified utilizing computational complexity
-theory? - What branch of theoretical computer science deals with broadly
-classifying computational problems by difficulty and class of
-relationship?
+Sample questions:
+
+- What is the term for a task that generally lends itself to being solved by a computer?
+- By what main attribute are computational problems classified utilizing computational complexity theory?
+- What branch of theoretical computer science deals with broadly classifying computational problems by difficulty and class of relationship?
 
 If you want to stop the processing just put an empty string.
 
@@ -444,8 +443,11 @@ paragraphs, the algorithm wil not be able to find it.
 Sample source: `OpenVINO
 wiki <https://en.wikipedia.org/wiki/OpenVINO>`__
 
-Sample questions: - What does OpenVINO mean? - What is the license for
-OpenVINO? - Where can you deploy OpenVINO code?
+Sample questions:
+
+- What does OpenVINO mean?
+- What is the license for OpenVINO?
+- Where can you deploy OpenVINO code?
 
 If you want to stop the processing just put an empty string.
 

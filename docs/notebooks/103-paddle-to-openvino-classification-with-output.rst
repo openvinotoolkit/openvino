@@ -25,7 +25,7 @@ Imports
     import sys
     
     if sys.version_info.minor > 7:
-        !pip install -q "paddlepaddle==2.5.0rc0"
+        !pip install -q "paddlepaddle>=2.5.0"
     else:
         !pip install -q "paddlepaddle==2.4.2"
 
@@ -61,8 +61,8 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:26:35 INFO: Loading faiss with AVX2 support.
-    2023-06-21 22:26:35 INFO: Successfully loaded faiss with AVX2 support.
+    2023-07-11 22:26:05 INFO: Loading faiss with AVX2 support.
+    2023-07-11 22:26:05 INFO: Successfully loaded faiss with AVX2 support.
 
 
 Settings
@@ -130,16 +130,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2023/06/21 22:27:03] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
-
-
-.. parsed-literal::
-
-    W0621 22:27:03.734274 1205526 analysis_config.cc:971] It is detected that mkldnn and memory_optimize_pass are enabled at the same time, but they are not supported yet. Currently, memory_optimize_pass is explicitly disabled
-
-
-.. parsed-literal::
-
+    [2023/07/11 22:26:25] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -148,7 +139,7 @@ inference on that image, and then show the top three prediction results.
 
 
 
-.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_8_3.png
+.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_8_1.png
 
 
 ``classifier.predict()`` takes an image file name, reads the image,
@@ -205,7 +196,7 @@ values.
 
 .. parsed-literal::
 
-    2023-06-21 22:27:04 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2023-07-11 22:26:25 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -217,7 +208,7 @@ values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fedb78da400>
+    <matplotlib.image.AxesImage at 0x7fd87c6ee3a0>
 
 
 
@@ -265,6 +256,34 @@ for more information about Model Optimizer.
     else:
         print(f"{model_xml} already exists.")
 
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    ie = Core()
+    device = widgets.Dropdown(
+        options=ie.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 Show Inference on OpenVINO Model
 --------------------------------
 
@@ -277,9 +296,9 @@ information.
 .. code:: ipython3
 
     # Load OpenVINO Runtime and OpenVINO IR model
-    ie = Core()
-    model = ie.read_model(model_xml)
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    core = Core()
+    model = core.read_model(model_xml)
+    compiled_model = core.compile_model(model=model, device_name="CPU")
     
     # Get model output
     output_layer = compiled_model.output(0)
@@ -291,11 +310,11 @@ information.
     input_image = process_image(np.array(image))[None,]
     
     # Do inference
-    ie_result = compiled_model([input_image])[output_layer][0]
+    ov_result = compiled_model([input_image])[output_layer][0]
     
     # find the top three values
-    top_indices = np.argsort(ie_result)[-3:][::-1]
-    top_scores = ie_result[top_indices]
+    top_indices = np.argsort(ov_result)[-3:][::-1]
+    top_scores = ov_result[top_indices]
     
     # Convert the inference results to class names, using the same labels as the PaddlePaddle classifier
     for index, softmax_probability in zip(top_indices, top_scores):
@@ -310,7 +329,7 @@ information.
 
 
 
-.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_21_1.png
+.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_23_1.png
 
 
 Timing and Comparison
@@ -331,9 +350,13 @@ Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
 
-    # Show CPU information
-    ie = Core()
-    print(f"CPU: {ie.get_property('CPU', 'FULL_DEVICE_NAME')}")
+    # Show device information
+    core = Core()
+    devices = core.available_devices
+    
+    for device_name in devices:
+        device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
+        print(f"{device_name}: {device_full_name}")
 
 
 .. parsed-literal::
@@ -363,7 +386,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.70
+    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 135.48
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -374,13 +397,31 @@ Note that many optimizations are possible to improve the performance.
 
 
 
-.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_25_1.png
+.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_27_1.png
+
+
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
 
 
 .. code:: ipython3
 
     # Show inference speed on OpenVINO IR model
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    compiled_model = ie.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
     
     
@@ -395,7 +436,7 @@ Note that many optimizations are possible to improve the performance.
     time_ir = end - start
     
     print(
-        f"OpenVINO IR model in OpenVINO Runtime (CPU): {time_ir/num_images:.4f} "
+        f"OpenVINO IR model in OpenVINO Runtime ({device.value}): {time_ir/num_images:.4f} "
         f"seconds per image, FPS: {num_images/time_ir:.2f}"
     )
     print()
@@ -407,7 +448,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (CPU): 0.0027 seconds per image, FPS: 364.96
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0031 seconds per image, FPS: 326.50
     
     OpenVINO result:
     Labrador retriever, 0.75138
@@ -418,7 +459,7 @@ Note that many optimizations are possible to improve the performance.
 
 
 
-.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_26_1.png
+.. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_30_1.png
 
 
 References

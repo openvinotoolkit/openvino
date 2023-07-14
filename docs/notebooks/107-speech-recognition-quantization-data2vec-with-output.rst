@@ -316,21 +316,11 @@ OpenVINO with minimal accuracy drop.
 
 Create a quantized model from the pre-trained ``FP16`` model and the
 calibration dataset. The optimization process contains the following
-steps: 1. Create a Dataset for quantization. 2. Run ``nncf.quantize``
-for getting an optimized model. The ``nncf.quantize`` function provides
-an interface for model quantization. It requires an instance of the
-OpenVINO Model and quantization dataset. Optionally, some additional
-parameters for the configuration quantization process (number of samples
-for quantization, preset, ignored scope, etc.) can be provided. For more
-accurate results, we should keep the operation in the postprocessing
-subgraph in floating point precision, using the ``ignored_scope``
-parameter. ``advanced_parameters`` can be used to specify advanced
-quantization parameters for fine-tuning the quantization algorithm. In
-this tutorial we pass range estimator parameters for activations. For
-more information see `Tune quantization
-parameters <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
-3. Serialize OpenVINO IR model using ``openvino.runtime.serialize``
-function.
+steps:
+
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model. The ``nncf.quantize`` function provides an interface for model quantization. It requires an instance of the  OpenVINO Model and quantization dataset. Optionally, some additional parameters for the configuration quantization process (number of samples for quantization, preset, ignored scope, etc.) can be provided. For more accurate results, we should keep the operation in the postprocessing subgraph in floating point precision, using the ``ignored_scope`` parameter. ``advanced_parameters`` can be used to specify advanced quantization parameters for fine-tuning the quantization algorithm. In this tutorial we pass range estimator parameters for activations. For more information, see `Tune quantization parameters <https://docs.openvino.ai/2023.0/basic_quantization_flow.html#tune-quantization-parameters>`__.
+3. Serialize OpenVINO IR model using ``openvino.runtime.serialize`` function.
 
 .. code:: ipython3
 

@@ -196,25 +196,24 @@ probabilities is driven by the selected decoding methodology. You can
 find more information about the most popular decoding methods in this
 `blog <https://huggingface.co/blog/how-to-generate>`__.
 
-| There are several parameters that can control text generation quality:
-  \* ``Temperature`` is a parameter used to control the level of
-  creativity in AI-generated text. By adjusting the ``temperature``, you
-  can influence the AI model’s probability distribution, making the text
-  more focused or diverse.
-| Consider the following example: The AI model has to complete the
+There are several parameters that can control text generation quality:
+
+- ``Temperature`` is a parameter used to control the level of creativity in AI-generated text. By adjusting the ``temperature``, you can influence the AI model’s probability distribution, making the text more focused or diverse.
+
+  Consider the following example: The AI model has to complete the
   sentence “The cat is \____.” with the following token probabilities:
 
-::
+  ::
 
-   playing: 0.5  
-   sleeping: 0.25  
-   eating: 0.15  
-   driving: 0.05  
-   flying: 0.05  
+      playing: 0.5  
+      sleeping: 0.25  
+      eating: 0.15  
+      driving: 0.05  
+      flying: 0.05  
 
-   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
-   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."  
-   - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
+      - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
+      - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as   "playing," "sleeping," or "eating."  
+      - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
    control the range of tokens considered by the AI model based on their

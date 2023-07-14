@@ -126,10 +126,10 @@ steps.
 
 .. parsed-literal::
 
-    2023-06-21 23:29:28.199271: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 23:29:28.230988: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-11 23:27:42.102607: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-11 23:27:42.133276: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 23:29:28.796719: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-11 23:27:42.701655: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Let us write helper functions first. You will generate crop coordinates
@@ -174,13 +174,12 @@ formula above.
     ) -> Union[np.ndarray, torch.Tensor]:
         return one @ other.T / (np.linalg.norm(one) * np.linalg.norm(other))
 
-Parameters to be defined: - ``n_iters`` - number of times the procedure
-will be repeated. Larger is better, but will require more time to
-inference - ``min_crop_size`` - minimum size of the crop window. A
-smaller size will increase the resolution of the saliency map but may
-require more iterations - ``query`` - text that will be used to query
-the image - ``image`` - the actual image that will be queried. You will
-download the image from a link
+Parameters to be defined:
+
+- ``n_iters`` - number of times the procedure will be repeated. Larger is better, but will require more time to inference
+- ``min_crop_size`` - minimum size of the crop window. A smaller size will increase the resolution of the saliency map but may require more iterations
+- ``query`` - text that will be used to query the image
+- ``image`` - the actual image that will be queried. You will download the image from a link
 
 The image at the beginning was acquired with ``n_iters=2000`` and
 ``min_crop_size=50``. You will start with the lower number of inferences
@@ -384,17 +383,17 @@ information on ONNX conversion.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:324: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:684: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:684: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:292: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:301: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:301: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/symbolic_opset9.py:5408: UserWarning: Exporting aten::index operator of advanced indexing in opset 14 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
       warnings.warn(
 
 
@@ -589,9 +588,11 @@ performance hint.
     saliency_map = np.zeros((y_dim, x_dim))
 
 Your callback should do the same thing that you did after inference in
-the sync mode: - Pull the image embeddings from an inference request. -
-Compute cosine similarity between text and image embeddings. - Update
-saliency map based.
+the sync mode:
+
+- Pull the image embeddings from an inference request.
+- Compute cosine similarity between text and image embeddings.
+- Update saliency map based.
 
 If you do not change the progress bar, it will show the progress of
 pushing data to the inference queue. To track the actual progress, you
@@ -791,15 +792,12 @@ What To Do Next
 ---------------
 
 Now that you have a convenient interface and accelerated inference, you
-can explore the CLIP capabilities further. For example: - Can CLIP read?
-Can it detect text regions in general and specific words on the image? -
-Which famous people and places does CLIP know? - Can CLIP identify
-places on a map? Or planets, stars, and constellations? - Explore
-different CLIP models from Huggingface Hub: just change the
-``model_checkpoint`` at the beginning of the notebook. - Add batch
-processing to the pipeline: modify ``get_random_crop_params``,
-``get_cropped_image`` and ``update_saliency_map`` functions to process
-multiple crop images at once and accelerate the pipeline even more. -
-Optimize models with
-`NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__
-to get further acceleration.
+can explore the CLIP capabilities further. For example: 
+
+- Can CLIP read? Can it detect text regions in general and specific words on the 
+image?
+- Which famous people and places does CLIP know? - Can CLIP identify places on 
+a map? Or planets, stars, and constellations? 
+- Explore different CLIP models from Huggingface Hub: just change the ``model_checkpoint`` at the beginning of the notebook. 
+- Add batch processing to the pipeline: modify ``get_random_crop_params``, ``get_cropped_image`` and ``update_saliency_map`` functions to process multiple crop images at once and accelerate the pipeline even more. 
+- Optimize models with `NNCF <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__ to get further acceleration.

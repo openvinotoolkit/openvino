@@ -14,17 +14,21 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
 
    anime
 
-Imports
-~~~~~~~
+Preparation
+-----------
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
+    !pip install -q "openvino-dev>=2023.0.0"
+    
     !pip install -q "paddlepaddle==2.5.0rc0" "paddle2onnx>=0.6"
-
-.. code:: ipython3
-
-    !pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" "easydict" "munch" "natsort"
     !pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
+    
+    !pip install -q opencv-python matplotlib scikit-learn scikit-image
+    !pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" easydict munch natsort
 
 
 .. parsed-literal::
@@ -32,8 +36,13 @@ Imports
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.0.post2 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.74 which is incompatible.
     scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
     
+
+Imports
+~~~~~~~
 
 .. code:: ipython3
 
@@ -41,6 +50,7 @@ Imports
     import time
     import os
     from pathlib import Path
+    import urllib.request
     
     import cv2
     import matplotlib.pyplot as plt
@@ -123,7 +133,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [06/21 23:07:12] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [07/11 23:03:15] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -156,7 +166,13 @@ cell.
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     # Step 1. Load the image and convert to RGB.
-    image_path = Path("../data/image/coco_bricks.png")
+    image_path = Path("./data/coco_bricks.png")
+    # fetch the image from the web
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bricks.png",
+        image_path
+    )
     
     image = cv2.cvtColor(cv2.imread(str(image_path), flags=cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
     
@@ -252,19 +268,19 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2023-06-21 23:07:20 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2023-07-11 23:03:23 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
     [Paddle2ONNX] Start to parse PaddlePaddle model...
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2023-06-21 23:07:20 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2023-07-11 23:03:24 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0621 23:07:20.536170 1218719 interpretercore.cc:267] New Executor is Running.
+    I0711 23:03:23.947630 3455115 interpretercore.cc:267] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -420,7 +436,7 @@ input shapes, results may differ from the PaddleGAN results.
 .. code:: ipython3
 
     # Step 1. Load an image and convert it to RGB.
-    image_path = Path("../data/image/coco_bricks.png")
+    image_path = Path("./data/coco_bricks.png")
     image = cv2.cvtColor(cv2.imread(str(image_path), flags=cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
     
     # Step 2. Transform the image (only resize and transpose are still required).
@@ -528,8 +544,8 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.472 seconds per image, FPS: 2.12
-    PaddleGAN model on CPU: 6.423 seconds per image, FPS: 0.16
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.473 seconds per image, FPS: 2.12
+    PaddleGAN model on CPU: 6.541 seconds per image, FPS: 0.15
 
 
 References

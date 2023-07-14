@@ -10,7 +10,7 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
-OpenVINO <101-tensorflow-to-openvino-with-output.html>`__
+OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
 Imports
@@ -52,7 +52,6 @@ Download the Model and data samples
 
 
 
-
 .. parsed-literal::
 
     artifacts/v3-small_224_1.0_float.xml:   0%|          | 0.00/294k [00:00<?, ?B/s]
@@ -64,14 +63,42 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 Load the Model
 --------------
 
 .. code:: ipython3
 
-    ie = Core()
-    model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    core = Core()
+    model = core.read_model(model=model_xml_path)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     output_layer = compiled_model.output(0)
 
@@ -92,7 +119,7 @@ Load an Image
 
 
 
-.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_8_0.png
+.. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
 
 
 Do Inference

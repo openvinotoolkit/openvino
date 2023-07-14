@@ -39,6 +39,30 @@ instructions <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_confi
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
+Install required packages
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q tensorflow
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+
+
+
+
+.. parsed-literal::
+
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f2d0c5baa40>)
+
+
+
 Checking GPUs with Query Device
 -------------------------------
 
@@ -1050,7 +1074,7 @@ Load and Preprocess Video Frames
 .. code:: ipython3
 
     # Load video
-    video_file = "../data/video/Coco Walking in Berkeley.mp4"
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     video = cv2.VideoCapture(video_file)
     framebuf = []
     
@@ -1259,19 +1283,13 @@ of a basic object detection application that uses a GPU and displays the
 detected bounding boxes.
 
 To read more about any of these topics, feel free to visit their
-corresponding documentation: \* `GPU
-Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html>`__
-\* `AUTO
-Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
-\* `Model
-Caching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_caching_overview.html>`__
-\* `MULTI Device
-Mode <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
-\* `Query Device
-Properties <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_query_api.html>`__
-\* `Configurations for GPUs with
-OpenVINO <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
-\* `Benchmark Python
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
-\* `Asynchronous
-Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
+corresponding documentation:
+
+* `GPU Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html>`__
+* `AUTO Plugin <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+* `Model Caching <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_caching_overview.html>`__
+* `MULTI Device Mode <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__
+* `Query Device Properties <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_query_api.html>`__
+* `Configurations for GPUs with OpenVINO <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__
+* `Benchmark Python Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+* `Asynchronous Inferencing <https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_async_infer_request.html>`__

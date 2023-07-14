@@ -196,23 +196,18 @@ best mask, instead of returning multiple masks. For high resolution
 images this can improve runtime when upscaling masks is expensive.
 
 Combined prompt encoder and mask decoder model has following list of
-inputs: \* ``image_embeddings``: The image embedding from
-``image_encoder``. Has a batch index of length 1. \* ``point_coords``:
-Coordinates of sparse input prompts, corresponding to both point inputs
-and box inputs. Boxes are encoded using two points, one for the top-left
-corner and one for the bottom-right corner. *Coordinates must already be
-transformed to long-side 1024.* Has a batch index of length 1. \*
-``point_labels``: Labels for the sparse input prompts. 0 is a negative
-input point, 1 is a positive input point, 2 is a top-left box corner, 3
-is a bottom-right box corner, and -1 is a padding point. \*If there is
-no box input, a single padding point with label -1 and coordinates (0.0,
-0.0) should be concatenated.
+inputs:
 
-Model outputs: \* ``masks`` - predicted masks resized to original image
-size, to obtain a binary mask, should be compared with ``threshold``
-(usually equal 0.0). \* ``iou_predictions`` - intersection over union
-predictions \* ``low_res_masks`` - predicted masks before
-postprocessing, can be used as mask input for model.
+* ``image_embeddings``: The image embedding from ``image_encoder``. Has a batch index of length 1.
+* ``point_coords``: Coordinates of sparse input prompts, corresponding to both point inputs and box inputs. Boxes are encoded using two points, one for the top-left corner and one for the bottom-right corner. *Coordinates must already be transformed to long-side 1024.* Has a batch index of length 1.
+* ``point_labels``: Labels for the sparse input prompts. 0 is a negative input point, 1 is a positive input point, 2 is a top-left box corner, 3 is a bottom-right box corner, and -1 is a padding point.
+* If there is no box input, a single padding point with label -1 and coordinates (0.0,0.0) should be concatenated.
+
+Model outputs: 
+
+* ``masks`` - predicted masks resized to original image size, to obtain a binary mask, should be compared with ``threshold`` (usually equal 0.0).
+* ``iou_predictions`` - intersection over union predictions
+* ``low_res_masks`` - predicted masks before postprocessing, can be used as mask input for model.
 
 .. code:: ipython3
 
@@ -1140,13 +1135,14 @@ smaller objects, and post-processing can remove stray pixels and holes
 
 ``automatic_mask_generation`` returns a list over masks, where each mask
 is a dictionary containing various data about the mask. These keys are:
-\* ``segmentation`` : the mask \* ``area`` : the area of the mask in
-pixels \* ``bbox`` : the boundary box of the mask in XYWH format \*
-``predicted_iou`` : the model’s own prediction for the quality of the
-mask \* ``point_coords`` : the sampled input point that generated this
-mask \* ``stability_score`` : an additional measure of mask quality \*
-``crop_box`` : the crop of the image used to generate this mask in XYWH
-format
+
+* ``segmentation`` : the mask
+* ``area`` : the area of the mask in pixels
+* ``bbox`` : the boundary box of the mask in XYWH format
+* ``predicted_iou`` : the model’s own prediction for the quality of the mask
+* ``point_coords`` : the sampled input point that generated this mask
+* ``stability_score`` : an additional measure of mask quality
+* ``crop_box`` : the crop of the image used to generate this mask in XYWH format
 
 .. code:: ipython3
 

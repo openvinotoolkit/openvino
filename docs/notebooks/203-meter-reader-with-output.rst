@@ -150,7 +150,7 @@ Define a common class for model loading and inference
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime
-    ie_core = ov.Core()
+    core = ov.Core()
     
     
     class Model:
@@ -158,7 +158,7 @@ Define a common class for model loading and inference
         This class represents a OpenVINO model object.
     
         """
-        def __init__(self, model_path, new_shape):
+        def __init__(self, model_path, new_shape, device="CPU"):
             """
             Initialize the model object
             
@@ -167,9 +167,9 @@ Define a common class for model loading and inference
                 new_shape (dict): new shape of model input
     
             """
-            self.model = ie_core.read_model(model=model_path)
+            self.model = core.read_model(model=model_path)
             self.model.reshape(new_shape)
-            self.compiled_model = ie_core.compile_model(model=self.model, device_name="CPU")
+            self.compiled_model = core.compile_model(model=self.model, device_name=device)
             self.output_layer = self.compiled_model.output(0)
     
         def predict(self, input_image):
@@ -521,6 +521,30 @@ Main Function
 Initialize the model and parameters.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
@@ -544,8 +568,8 @@ bounds of input batch size.
     input_shape = 608
     
     # Intialize the model objects
-    detector = Model(det_model_path, det_model_shape)
-    segmenter = Model(seg_model_path, seg_model_shape)
+    detector = Model(det_model_path, det_model_shape, device.value)
+    segmenter = Model(seg_model_path, seg_model_shape, device.value)
     
     # Visulize a original input photo
     image = cv2.imread(img_file)
@@ -557,12 +581,12 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fbebc7c0250>
+    <matplotlib.image.AxesImage at 0x7fc73dea8c70>
 
 
 
 
-.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_12_1.png
+.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_15_1.png
 
 
 Run meter detection model
@@ -607,7 +631,7 @@ segmentation.
 
 
 
-.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_14_1.png
+.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_17_1.png
 
 
 Run meter segmentation model
@@ -647,7 +671,7 @@ Get the results of segmentation task on detected ROI.
 
 
 
-.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_16_1.png
+.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_19_1.png
 
 
 Postprocess the models result and calculate the final readings
@@ -684,7 +708,7 @@ Use OpenCV function to find the location of the pointer in a scale map.
 
 
 
-.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_18_1.png
+.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_21_1.png
 
 
 Get the reading result on the meter picture
@@ -715,7 +739,7 @@ Get the reading result on the meter picture
 
 
 
-.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_20_1.png
+.. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_23_1.png
 
 
 ## Try it with your meter photos!

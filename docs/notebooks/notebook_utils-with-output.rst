@@ -17,6 +17,12 @@ There are five categories:
 Each category contains a test cell that also shows how to use the
 functions in the section.
 
+.. code:: ipython3
+
+    # Install requirements
+    !pip install -q "openvino>=2023.0.0" opencv-python
+    !pip install -q pillow tqdm requests matplotlib
+
 Files
 -----
 
@@ -78,7 +84,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -95,12 +101,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/9.70k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/10.2k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -118,19 +124,19 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
 
-    url = "../data/image/coco.jpg"
+    url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg"
     image = load_image(url)
     Image.fromarray(image[:, :, ::-1])
 
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_11_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_12_0.png
 
 
 
@@ -206,7 +212,7 @@ Test Video Player
 
 .. code:: ipython3
 
-    video = "../data/video/Coco Walking in Berkeley.mp4"
+    video = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     
     player = VideoPlayer(video, fps=15, skip_first_frames=10)
     player.start()
@@ -222,7 +228,7 @@ Test Video Player
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_25_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_26_0.png
 
 
 .. parsed-literal::
@@ -394,19 +400,19 @@ Test Visualization Functions
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_0.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_0.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_1.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_1.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_2.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_2.png
 
 
 
-.. image:: notebook_utils-with-output_files/notebook_utils-with-output_40_3.png
+.. image:: notebook_utils-with-output_files/notebook_utils-with-output_41_3.png
 
 
 Checks and Alerts

@@ -26,12 +26,17 @@ tracking and object counting, medical image analysis, and many others.
 This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch Yolo V7 with OpenVINO.
 
-The tutorial consists of the following steps: - Prepare PyTorch model -
-Download and prepare dataset - Validate original model - Convert PyTorch
-model to ONNX - Convert ONNX model to OpenVINO IR - Validate converted
-model - Prepare and run optimization pipeline - Compare accuracy of the
-FP32 and quantized models. - Compare performance of the FP32 and
-quantized models.
+The tutorial consists of the following steps:
+
+- Prepare PyTorch model
+- Download and prepare dataset
+- Validate original model
+- Convert PyTorch model to ONNX
+- Convert ONNX model to OpenVINO IR
+- Validate converted model
+- Prepare and run optimization pipeline
+- Compare accuracy of the FP32 and quantized models.
+- Compare performance of the FP32 and quantized models.
 
 Get Pytorch model
 -----------------
@@ -69,11 +74,13 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'yolov7'...
-    remote: Enumerating objects: 1185, done.[K
-    remote: Total 1185 (delta 0), reused 0 (delta 0), pack-reused 1185[K
-    Receiving objects: 100% (1185/1185), 74.23 MiB | 3.87 MiB/s, done.
-    Resolving deltas: 100% (509/509), done.
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
+    remote: Enumerating objects: 1191, done.[K
+    remote: Counting objects: 100% (6/6), done.[K
+    remote: Compressing objects: 100% (4/4), done.[K
+    remote: Total 1191 (delta 2), reused 6 (delta 2), pack-reused 1185[K
+    Receiving objects: 100% (1191/1191), 74.23 MiB | 4.24 MiB/s, done.
+    Resolving deltas: 100% (511/511), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -98,7 +105,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
@@ -124,9 +131,9 @@ result,
      traced_script_module saved! 
      model is traced! 
     
-    5 horses, Done. (71.7ms) Inference, (0.8ms) NMS
+    5 horses, Done. (70.2ms) Inference, (0.8ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.085s)
+    Done. (0.084s)
 
 
 .. code:: ipython3
@@ -187,17 +194,21 @@ Let us check its arguments.
       --int8                CoreML INT8 quantization
 
 
-The most important parameters: \* ``--weights`` - path to model weigths
-checkpoint \* ``--img-size`` - size of input image for onnx tracing
+The most important parameters:
+
+* ``--weights`` - path to model weigths checkpoint
+* ``--img-size`` - size of input image for onnx tracing
 
 When exporting the ONNX model from PyTorch, there is an opportunity to
 setup configurable parameters for including post-processing results in
-model: \* ``--end2end`` - export full model to onnx including
-post-processing \* ``--grid`` - export Detect layer as part of model \*
-``--topk-all`` - topk elements for all images \* ``--iou-thres`` -
-intersection over union threshold for NMS \* ``--conf-thres`` - minimal
-confidence threshold \* ``--max-wh`` - max bounding box width and height
-for NMS
+model:
+
+* ``--end2end`` - export full model to onnx including post-processing
+* ``--grid`` - export Detect layer as part of model
+* ``--topk-all`` - topk elements for all images
+* ``--iou-thres`` - intersection over union threshold for NMS
+* ``--conf-thres`` - minimal confidence threshold
+* ``--max-wh`` - max bounding box width and height for NMS
 
 Including whole post-processing to model can help to achieve more
 performant results, but in the same time it makes the model less
@@ -231,7 +242,7 @@ an end2end ONNX model, you can check this
     Starting ONNX export with onnx 1.14.0...
     ONNX export success, saved as model/yolov7-tiny.onnx
     
-    Export complete (2.49s). Visualize with https://github.com/lutzroeder/netron.
+    Export complete (2.52s). Visualize with https://github.com/lutzroeder/netron.
 
 
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
@@ -265,9 +276,12 @@ Preprocessing
 ~~~~~~~~~~~~~
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
-``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
-size) \* ``C`` - image channels \* ``H`` - image height \* ``W`` - image
-width
+``N, C, H, W`` format, where
+
+* ``N`` - number of images in batch (batch size)
+* ``C`` - image channels
+* ``H`` - image height
+* ``W`` - image width
 
 Model expects images in RGB channels format and normalized in [0, 1]
 range. To resize images to fit model size ``letterbox`` resize approach
@@ -508,7 +522,7 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2973.19it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2847.41it/s]
 
 
 Define validation function
@@ -746,8 +760,8 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:38<00:00,  7.89it/s]
-    Biases correction: 100%|██████████| 58/58 [00:03<00:00, 14.50it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:38<00:00,  7.87it/s]
+    Biases correction: 100%|██████████| 58/58 [00:04<00:00, 13.47it/s]
 
 
 Validate Quantized model inference
@@ -839,7 +853,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 31.19 ms
+    [ INFO ] Read model took 26.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -853,7 +867,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 203.32 ms
+    [ INFO ] Compile model took 202.20 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -875,17 +889,17 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 45.65 ms
+    [ INFO ] First inference took 46.24 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5730 iterations
-    [ INFO ] Duration:         60058.97 ms
+    [ INFO ] Count:            5772 iterations
+    [ INFO ] Duration:         60086.63 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        62.63 ms
-    [ INFO ]    Average:       62.72 ms
-    [ INFO ]    Min:           50.31 ms
-    [ INFO ]    Max:           86.54 ms
-    [ INFO ] Throughput:   95.41 FPS
+    [ INFO ]    Median:        62.23 ms
+    [ INFO ]    Average:       62.30 ms
+    [ INFO ]    Min:           30.97 ms
+    [ INFO ]    Max:           86.17 ms
+    [ INFO ] Throughput:   96.06 FPS
 
 
 .. code:: ipython3
@@ -911,7 +925,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 40.31 ms
+    [ INFO ] Read model took 44.99 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -925,7 +939,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 382.47 ms
+    [ INFO ] Compile model took 385.78 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -947,15 +961,15 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 24.59 ms
+    [ INFO ] First inference took 25.50 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            15786 iterations
-    [ INFO ] Duration:         60038.82 ms
+    [ INFO ] Count:            15864 iterations
+    [ INFO ] Duration:         60030.26 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        22.62 ms
-    [ INFO ]    Average:       22.69 ms
-    [ INFO ]    Min:           17.16 ms
-    [ INFO ]    Max:           42.82 ms
-    [ INFO ] Throughput:   262.93 FPS
+    [ INFO ]    Median:        22.53 ms
+    [ INFO ]    Average:       22.58 ms
+    [ INFO ]    Min:           12.63 ms
+    [ INFO ]    Max:           42.07 ms
+    [ INFO ] Throughput:   264.27 FPS
 

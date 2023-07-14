@@ -25,13 +25,7 @@ immediately on the CPU and then transparently shifts inference to the
 GPU, once it is ready. This dramatically reduces the time to execute
 first inference.
 
-.. raw:: html
-
-   <center>
-
-.. raw:: html
-
-   </center>
+.. image:: https://camo.githubusercontent.com/cc526c3f5fc992cc7176d097894303248adbd04b4d158bd98e65edc8270af5fc/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f31353730393732332f3136313435313834372d37353965326264622d373062632d343633642d393831382d3430306330636366336331362e706e67
 
 Import modules and create Core
 ------------------------------
@@ -266,7 +260,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.19 seconds.
+    Time to load model using AUTO device and get first inference: 0.18 seconds.
 
 
 .. code:: ipython3
@@ -430,12 +424,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  190.61fps, latency:  29.81ms, time interval: 10.00s
-    throughput:  194.35fps, latency:  30.08ms, time interval: 10.00s
-    throughput:  194.90fps, latency:  30.02ms, time interval: 10.01s
-    throughput:  192.30fps, latency:  30.47ms, time interval: 10.00s
-    throughput:  192.76fps, latency:  30.38ms, time interval: 10.02s
-    throughput:  194.26fps, latency:  30.10ms, time interval: 10.00s
+    throughput:  190.70fps, latency:  29.76ms, time interval: 10.02s
+    throughput:  191.95fps, latency:  30.48ms, time interval: 10.00s
+    throughput:  192.78fps, latency:  30.40ms, time interval: 10.00s
+    throughput:  191.39fps, latency:  30.62ms, time interval: 10.00s
+    throughput:  192.18fps, latency:  30.44ms, time interval: 10.03s
+    throughput:  191.33fps, latency:  30.62ms, time interval: 10.00s
     Done
 
 
@@ -479,12 +473,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  138.65fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  142.09fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  142.03fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  142.07fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  141.79fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  142.19fps, latency:  6.67ms, time interval: 10.00s
+    throughput:  136.99fps, latency:  6.75ms, time interval: 10.00s
+    throughput:  140.91fps, latency:  6.74ms, time interval: 10.01s
+    throughput:  140.83fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.90fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.83fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.85fps, latency:  6.74ms, time interval: 10.00s
     Done
 
 
