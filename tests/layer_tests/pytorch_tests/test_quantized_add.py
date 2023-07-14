@@ -23,8 +23,8 @@ class quantized_add(torch.nn.Module):
 
 class TestQuantizedAdd(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32),
-                np.array(5.00 * np.random.randn(100, 100) + 5.00, dtype=np.float32))
+        return (np.array(5.00 * np.random.rand(100, 100) + 5.00, dtype=np.float32),
+                np.array(5.00 * np.random.rand(100, 100) + 5.00, dtype=np.float32))
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
