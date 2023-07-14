@@ -40,6 +40,9 @@ int main(int argc, char *argv[]) {
         caches.push_back(GraphCache::get());
     }
 
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(FLAGS_output_folder);
+    }
     std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
     // Upload previously cached graphs to cache
     if (!FLAGS_local_cache.empty()) {

@@ -31,6 +31,10 @@ public:
         m_cache_instance = nullptr;
     }
 
+    void reset_cache() override {
+        reset();
+    };
+
 protected:
     std::map<std::shared_ptr<ov::Node>, MetaInfo> m_ops_cache;
     static std::shared_ptr<OpCache> m_cache_instance;

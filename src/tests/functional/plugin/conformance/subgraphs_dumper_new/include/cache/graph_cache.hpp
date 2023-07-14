@@ -35,6 +35,10 @@ public:
         m_cache_instance = nullptr;
     }
 
+    void reset_cache() override {
+        reset();
+    };
+
 private:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
     ExtractorsManager m_manager = ExtractorsManager();
@@ -43,7 +47,7 @@ private:
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
             { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
-            { "repeat_patter", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
     }

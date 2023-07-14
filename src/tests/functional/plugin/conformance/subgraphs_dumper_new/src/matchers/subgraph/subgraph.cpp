@@ -17,7 +17,7 @@ SubgraphExtractor::match(const std::shared_ptr<ov::Model> &model,
     }
     std::vector<std::shared_ptr<ov::Node>> ordered_ops = model->get_ordered_ops(),
                                            ref_ordered_ops = ref_model->get_ordered_ops();
-    if (ordered_ops.size() != ordered_ops.size())
+    if (ordered_ops.size() != ref_ordered_ops.size())
         return false;
 
     MatchersManager::MatchersMap matchers = {

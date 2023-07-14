@@ -106,23 +106,25 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
                 std::cout << e.what() << std::endl;
             }
         }
-        if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
-            auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
-            auto ti_body = ti->get_function();
-            auto tmp_res = extract(ti_body);
-            to_cache.insert(to_cache.end(), tmp_res.begin(), tmp_res.end());
-        } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
-            auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
-            auto loop_body = loop->get_function();
-            auto tmp_res = extract(loop_body);
-            to_cache.insert(to_cache.end(), tmp_res.begin(), tmp_res.end());
-        } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
-            auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
-            std::vector<std::shared_ptr<ov::Model>> bodies;
-            for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
-                auto if_body = if_op->get_function(i);
-                auto tmp_res = extract(if_body);
+        if (is_extract_body) {
+            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
+                auto ti_body = ti->get_function();
+                auto tmp_res = extract(ti_body);
                 to_cache.insert(to_cache.end(), tmp_res.begin(), tmp_res.end());
+            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
+                auto loop_body = loop->get_function();
+                auto tmp_res = extract(loop_body);
+                to_cache.insert(to_cache.end(), tmp_res.begin(), tmp_res.end());
+            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+                auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
+                std::vector<std::shared_ptr<ov::Model>> bodies;
+                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                    auto if_body = if_op->get_function(i);
+                    auto tmp_res = extract(if_body);
+                    to_cache.insert(to_cache.end(), tmp_res.begin(), tmp_res.end());
+                }
             }
         }
     }
