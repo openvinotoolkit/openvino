@@ -491,7 +491,7 @@ class IgnoredAction(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
-def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
+def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name,
                                  try_mo_root=False, check_existence=True) -> List[str]:
     if values is not None:
         list_of_values = list()
@@ -735,10 +735,10 @@ def add_args_by_description(args_group, params_description):
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     type=str if param_type is None else param_type,
-                    nargs='+' if param_name == 'input_model' else '?',
+                    nargs='*' if param_name == 'input_model' else '?',
                     action=action,
                     help=help_text,
-                    default=signature.parameters[param_name].default)
+                    default=None if param_name == 'input_model' else signature.parameters[param_name].default)
             # Other params
             else:
                 additional_params = {}
@@ -765,8 +765,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
 
     # Command line tool specific params
-    common_group.add_argument('--output_model_name', '-n',
+    common_group.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
+    common_group.add_argument('--compress_to_fp16', action='store_true',
+                              help='Compress weights in output IR .xml/bin files to FP16.')
     add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
@@ -774,8 +776,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
 def get_common_cli_options(model_name):
     d = OrderedDict()
     d['input_model'] = '- Path to the Input Model'
-    d['output_dir'] = ['- Path for generated IR', lambda x: x if x != '.' else os.getcwd()]
-    d['output_model_name'] = ['- IR output name', lambda x: x if x else model_name]
+    d['output_dir'] = ['- Path for generated IR', lambda x: x if x != '.' else os.getcwd()]    # TODO: Consider removing
+    d['output_model'] = ['- IR output name', lambda x: x if x else model_name]
     d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
@@ -787,7 +789,7 @@ def get_common_cli_options(model_name):
 
 
 def get_params_with_paths_list():
-    return ['input_model', 'output_model_name', 'extensions']
+    return ['input_model', 'output_model', 'extensions']
 
 
 def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
@@ -1356,8 +1358,8 @@ def get_model_name(path_input_model: str) -> str:
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
-    if hasattr(argv, 'output_model_name') and argv.output_model_name:
-        model_name = argv.output_model_name
+    if hasattr(argv, 'output_model') and argv.output_model:
+        model_name = argv.output_model
     else:
         model_name = argv.input_model
     return model_name

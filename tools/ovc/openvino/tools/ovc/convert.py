@@ -19,7 +19,6 @@ LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults
 def convert_model(
         input_model: [str, pathlib.Path, Any, list],    # TODO: Instead of list just accept arbitrary number of positional arguments
 
-
         # Framework-agnostic parameters
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,

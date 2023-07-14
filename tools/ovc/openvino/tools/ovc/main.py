@@ -22,7 +22,7 @@ def main():
         return 1
 
     output_dir = os.getcwd()
-    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.output_model_name))
+    model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.output_model))
     model_path = model_path_no_ext + '.xml'
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))

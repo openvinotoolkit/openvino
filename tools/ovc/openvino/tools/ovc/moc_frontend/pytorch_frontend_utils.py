@@ -22,9 +22,7 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs, args.get("input"), allow_none=True)
     decoder = TorchScriptPythonDecoder(model, example_input=inputs)
     args['input_model'] = decoder
-    args["framework"] = "pytorch"
     args["example_input"] = inputs
-    print('I AM HERE')
 
     return args
 

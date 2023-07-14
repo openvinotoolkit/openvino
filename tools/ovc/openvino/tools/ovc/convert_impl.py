@@ -83,10 +83,10 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug("Model Conversion API started")
 
-    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model_name))
+    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
     if not argv.silent:
-        print_argv(argv, argv.output_model_name)
+        print_argv(argv, argv.output_model)
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
@@ -399,7 +399,7 @@ def python_api_params_parsing(argv: argparse.Namespace):
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
     if len(args) > 0:
         args_string = params_to_string(**args)
-        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
+        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))  # FIXME: input_model_args can be a list
 
         # get list of all available params for convert_model()
         all_params = {}
@@ -440,6 +440,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args)
+
         if inp_model_is_object:
             model_framework = check_model_object(args)
             if model_framework == "pytorch":
@@ -464,17 +465,13 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                                                                      example_outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
-                args['framework'] = model_framework
 
         argv = pack_params_to_args_namespace(args, cli_parser)
+        argv.framework = model_framework
 
         argv.feManager = FrontEndManager()
         frameworks = list(set(get_available_front_ends(argv.feManager)))
         framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
-        if framework is not None:
-            assert framework in frameworks, "error: argument \"framework\": invalid choice: '{}'. " \
-                                            "Expected one of {}.".format(framework, frameworks)
-            setattr(argv, 'framework', framework)
 
         # send telemetry with params info
         send_params_info(argv, cli_parser)
@@ -483,9 +480,9 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         argv.is_python_api_used = python_api_used
 
         if inp_model_is_object:
-            argv.output_model_name = "model"   # TODO: Consider removing
-        if not hasattr(argv, "output_model_name") or argv.output_model_name is None:
-            argv.output_model_name = get_model_name_from_args(argv)
+            argv.output_model = "model"   # TODO: Consider removing
+        if not hasattr(argv, "output_model") or argv.output_model is None:
+            argv.output_model = get_model_name_from_args(argv)
 
         argv.framework = model_framework
 
