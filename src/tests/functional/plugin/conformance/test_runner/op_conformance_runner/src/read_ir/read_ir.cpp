@@ -239,9 +239,9 @@ void ReadIRTest::SetUp() {
 
         // Do not store waste results
         if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
-            pgLink->SetWasteResult();
+            pgLink->SetRefuseResult();
         } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
-            pgLink->SetWasteResult();
+            pgLink->SetRefuseResult();
         }
     }
 #endif

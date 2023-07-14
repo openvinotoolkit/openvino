@@ -62,7 +62,7 @@ public:
     bool RemoveCustomField(const std::string fieldName) const;
     /// \brief Sets waste result flag which means do not store results
     /// \param[in] value Value should be set, true is default
-    void SetWasteResult(bool value = true) const;
+    void SetRefuseResult(bool value = true) const;
     /// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
     /// Each pair has test name as a key and SQL-query as a value.
     /// Query can contain a variables started with $ and be replaced by an actual values

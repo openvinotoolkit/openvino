@@ -23,20 +23,20 @@ void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::getExtTestNames();
 
     std::string testName("checkPluginImplementation");
-    extTestQueries[testName + "_BEFORE"] =
+    extTestQueries[testName + "_ON_START"] =
         "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', '$targetDevice', '$config')";
-    extTestQueries[testName + "_AFTER"] = "OpImplCheck_CheckPluginImpl($__test_ext_id, $__test_id)";
-    extTestQueries[testName + "_WASTE"] =
+    extTestQueries[testName + "_ON_END"] = "OpImplCheck_CheckPluginImpl($__test_ext_id, $__test_id)";
+    extTestQueries[testName + "_ON_REFSUE"] =
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a waste results
     extTestNames[testName] = "$opName";
 
     testName = "ReadIR";
-    extTestQueries[testName + "_BEFORE"] =
+    extTestQueries[testName + "_ON_START"] =
         "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
         "'$targetDevice', '$hashXml', '$pathXml', '$config', '$caseType', $__is_temp)";
-    extTestQueries[testName + "_AFTER"] = "ReadIRTest_ReadIR($__test_ext_id, '$opName', '$opSet', '$Type', "
+    extTestQueries[testName + "_ON_END"] = "ReadIRTest_ReadIR($__test_ext_id, '$opName', '$opSet', '$Type', "
                                           "'$targetDevice', '$caseType', $__test_id)";
-    extTestQueries[testName + "_WASTE"] = "ReadIRTest_ReadIR($__test_id)";  // Query expected in case of a waste results
+    extTestQueries[testName + "_ON_REFUSE"] = "ReadIRTest_ReadIR($__test_id)";  // Query expected in case of a waste results
     extTestNames[testName] = "$opName";
 }
 #endif

@@ -803,7 +803,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     size_t jqLastCommandOffset;  // Stores offset of beginning of a last command, to be able to rewind
     std::stringstream joinedQuery;
-    bool isWasteResult = false;  // Signals test result is a waste and shouldn't be stored in DB
+    bool isRefusedResult = false;  // Signals test result is a waste and shouldn't be stored in DB
 
     /* Test name parsing */
     std::map<std::string, std::string>
@@ -887,7 +887,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     GET_PG_IDENTIFIER(RequestApplicationId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_APPLICATION('" << GetExecutableName() << "');"
+                          << "CALL ON_MISS_APPLICATION('" << GetExecutableName() << "');"
                           << "COMMIT; "
                           << "SELECT GET_APPLICATION('" << GetExecutableName() << "');",
                       appId,
@@ -900,34 +900,34 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       run_id)
     GET_PG_IDENTIFIER(RequestHostId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');"
+                          << "CALL ON_MISS_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');"
                           << "COMMIT; "
                           << "SELECT GET_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');",
                       hostId,
                       host_info_id)
     GET_PG_IDENTIFIER(RequestSessionId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_SESSION('" << this->session_id << "');"
+                          << "CALL ON_MISS_SESSION('" << this->session_id << "');"
                           << "COMMIT;"
                           << "SELECT GET_SESSION('" << this->session_id << "');",
                       sessionId,
                       session_id)
     GET_PG_IDENTIFIER(RequestSuiteNameId(const char* test_suite_name),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");"
+                          << "CALL ON_MISS_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");"
                           << "COMMIT; "
                           << "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");",
                       testSuiteNameId,
                       sn_id)
     GET_PG_IDENTIFIER(RequestTestNameId(std::string query),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_" << query << "; COMMIT;"
+                          << "CALL ON_MISS_" << query << "; COMMIT;"
                           << "SELECT GET_" << query,
                       testNameId,
                       tn_id)
     GET_PG_IDENTIFIER(RequestSuiteId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL CHECK_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
+                          << "CALL ON_MISS_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
                           << this->testRunId << ");"
                           << "COMMIT; "
                           << "SELECT GET_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
@@ -938,32 +938,33 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
     GET_PG_IDENTIFIER(RequestTestExtId(std::string query),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL PREPARE_" << query << "; COMMIT;"
-                          << "SELECT APPEND_" << query,
+                          << "CALL ON_MISS_" << query << "; COMMIT;"
+                          << "SELECT ON_START_" << query,
                       testExtId,
                       t_id)
     GET_PG_IDENTIFIER(UpdateTestExtId(std::string query),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL VERIFY_" << query << "; COMMIT;"
-                          << "SELECT UPDATE_" << query,
+                          << "CALL ON_END_MISS_" << query << "; COMMIT;"
+                          << "SELECT ON_END_" << query,
                       testExtId,
                       t_id)
 
     /// \brief Send an update query. Depends on mode in calls specific UPDATE query in case of default reporting
-    /// and regular APPEND query in case of fast reporting.
+    /// and regular ON_START query in case of fast reporting.
     /// In such case UPDATE query is used only for updating changed values in runtime, when
-    /// APPEND query in this place already has all updated data, that's why UPDATE query is skipping
+    /// ON_START query in this place already has all updated data, that's why UPDATE query is skipping
     void UpdateTestResults(const ::testing::TestInfo* test_info = nullptr) {
         auto grpName = testDictionary.end();
 
         if (isTestNameParsed == true && (reportingLevel == REPORT_LVL_FAST || isFieldsUpdated == true) &&
             (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
-            // Looks query with GroupName + "_AFTER", "ReadIR_AFTER" as example
             auto extQuery = ExtTestQueries.end();
             if (reportingLevel == REPORT_LVL_DEFAULT) {
-                extQuery = ExtTestQueries.find(grpName->second + "_AFTER");
+                // Looks query with GroupName + "_ON_END", "ReadIR_ON_END" as example
+                extQuery = ExtTestQueries.find(grpName->second + "_ON_END");
             } else if (reportingLevel == REPORT_LVL_FAST) {
-                extQuery = ExtTestQueries.find(grpName->second + "_BEFORE");
+                // Looks query with GroupName + "_ON_START", "ReadIR_ON_START" as example
+                extQuery = ExtTestQueries.find(grpName->second + "_ON_START");
             }
             if (extQuery != ExtTestQueries.end()) {
                 std::string query;
@@ -981,7 +982,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                         joinedQuery.read(addQuery.data(),
                                          jqLen - jqLastCommandOffset - 3);  // Ignores ");\n" at the end
                         joinedQuery.seekp(jqLastCommandOffset);
-                        joinedQuery << "WITH rows AS (" << addQuery.data() << ") AS test_id) SELECT APPEND_" << query
+                        joinedQuery << "WITH rows AS (" << addQuery.data() << ") AS test_id) SELECT ON_START_" << query
                                     << " FROM rows;\n";
                     }
                 } else {
@@ -1039,7 +1040,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
-        isWasteResult = false;
+        isRefusedResult = false;
         testDictionary.clear();
 
         auto grpName = testDictionary.end();
@@ -1115,8 +1116,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
 
         if (grpName != testDictionary.end()) {
-            // Looks query with GroupName + "_BEFORE", "ReadIR_BEFORE" as example
-            auto extQuery = ExtTestQueries.find(grpName->second + "_BEFORE");
+            // Looks query with GroupName + "_ON_START", "ReadIR_ON_START" as example
+            auto extQuery = ExtTestQueries.find(grpName->second + "_ON_START");
             if (extQuery != ExtTestQueries.end()) {
                 std::string query;
                 testDictionary["__test_id"] = std::to_string(this->testId);
@@ -1142,7 +1143,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
-        if (isWasteResult) {
+        if (isRefusedResult) {
             return;
         }
     }
@@ -1156,19 +1157,19 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
-        if (isWasteResult) {
+        if (isRefusedResult) {
             if (reportingLevel == REPORT_LVL_DEFAULT) {
                 auto grpName = testDictionary.end();
 
                 if (isTestNameParsed == true && isFieldsUpdated == true &&
                     (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
-                    // Looks query with GroupName + "_WASTE", "ReadIR_WASTE" as example
-                    auto extQuery = ExtTestQueries.find(grpName->second + "_WASTE");
+                    // Looks query with GroupName + "_ON_REFUSE", "ReadIR_ON_REFUSE" as example
+                    auto extQuery = ExtTestQueries.find(grpName->second + "_ON_REFUSE");
                     if (extQuery != ExtTestQueries.end()) {
                         std::string query;
                         if (compileString(extQuery->second, testDictionary, query)) {
                             auto pgresult =
-                                connectionKeeper->Query((std::string("CALL WASTE_") + query).c_str(), PGRES_COMMAND_OK);
+                                connectionKeeper->Query((std::string("CALL ON_REFUSE_") + query).c_str(), PGRES_COMMAND_OK);
                             CHECK_PGRESULT(pgresult, "Cannot remove extended waste results", /* no return */);
                         } else {
                             std::cerr << PG_WRN
@@ -1342,8 +1343,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     friend class PostgreSQLEnvironment;
 
 public:
-    void SetWasteResult(bool value = true) {
-        isWasteResult = true;
+    void SetRefuseResult(bool value = true) {
+        isRefusedResult = value;
     }
 
     bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
@@ -1445,9 +1446,9 @@ std::map<std::string, std::string>* PostgreSQLLink::getExtTestNames(void) {
     return &ExtTestNames;
 }
 
-void PostgreSQLLink::SetWasteResult(bool value) const {
+void PostgreSQLLink::SetRefuseResult(bool value) const {
     if (pgEventListener) {
-        pgEventListener->SetWasteResult(value);
+        pgEventListener->SetRefuseResult(value);
     }
 }
 
