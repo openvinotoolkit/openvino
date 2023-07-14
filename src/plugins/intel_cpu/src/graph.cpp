@@ -930,9 +930,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
     }
 }
 
-void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
-                           std::unordered_map<std::string, bool>& out_precision_changed,
-                           std::unordered_map<std::string, ov::Tensor>& aux_tensors) {
+void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -995,34 +993,6 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
 
         void *ext_blob_ptr = ext_blob.data();
         void *intr_blob_ptr = intr_blob.getData();
-
-        // If output precision has been changed comparing to original model's output, it must be copied to aux tensor
-        if (out_precision_changed[name]) {
-            auto it = aux_tensors.find(name);
-            if (it == aux_tensors.end()) {
-                OPENVINO_THROW("Output precision has been changed, but cannot find its aux tensor.");
-            }
-
-            auto& aux_tensor = it->second;
-            aux_tensor.set_shape(out[name].get_shape());
-            ext_blob_ptr = aux_tensor.data();
-            if ((intr_blob_ptr == nullptr) || (ext_blob_ptr == nullptr)) {
-                OPENVINO_THROW("Get tensor has no allocated memory");
-            }
-
-            cpu_convert(intr_blob_ptr,
-                        ext_blob_ptr,
-                        srcPrec,
-                        InferenceEngine::details::convertPrecision(aux_tensor.get_element_type()),
-                        intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount());
-
-            if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-                // Reorder if shape or stride has been changed, but it will impact performance
-                // Add assert here to capture this performance issue.
-                OPENVINO_ASSERT("Precision changes and reorder occurred at the same time.");
-            }
-            continue;
-        }
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;

@@ -43,14 +43,12 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 };
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                             const std::shared_ptr<const ov::Model>& orig_model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
                              const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
-      m_original_model(orig_model),
       m_plugin(plugin),
       m_cfg{cfg},
       extensionManager(extMgr),
@@ -63,7 +61,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
     m_cfg.isLegacyApi = !core->is_new_api();
-
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
@@ -354,9 +351,7 @@ ov::Any CompiledModel::get_metric(const std::string& name) const {
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
     ModelSerializer serializer(modelStream, extensionManager);
-    std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>> models =
-        std::make_pair(m_model, m_original_model);
-    serializer << models;
+    serializer << m_model;
 }
 
 }  // namespace intel_cpu

@@ -511,7 +511,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
         }
     }
 
-    return std::make_shared<CompiledModel>(cloned_model, model, shared_from_this(), conf, extensionManager);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
@@ -776,11 +776,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
         });
 
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::Model> orig_model;
-    std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>> models = std::make_pair(model, orig_model);
-    deserializer >> models;
-    model = models.first;
-    orig_model = models.second;
+    deserializer >> model;
 
     Config conf = engConfig;
     conf.readProperties(config);
@@ -804,7 +800,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
         get_num_streams(conf.streamExecutorConfig._streams, function, conf);
     }
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, orig_model, shared_from_this(), conf, extensionManager, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
     return compiled_model;
 }
 }   // namespace intel_cpu

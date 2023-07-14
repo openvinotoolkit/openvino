@@ -38,10 +38,7 @@ ModelSerializer::ModelSerializer(std::ostream & ostream, ExtensionManager::Ptr e
     , _extensionManager(extensionManager) {
 }
 
-void ModelSerializer::operator<<(
-    std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>>& models) {
-    auto model = std::get<0>(models);
-    auto orig_model = std::get<1>(models);
+void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto getCustomOpSets = [this]() {
         std::map<std::string, ngraph::OpSet> custom_opsets;
 
@@ -64,14 +61,14 @@ void ModelSerializer::operator<<(
         pugi::xml_node outputs = root.append_child("outputs");
 
         // Need it?
-        for (const auto& in : orig_model->inputs()) {
+        for (const auto& in : model->inputs()) {
             auto in_node = inputs.append_child("in");
             in_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(in).c_str());
             in_node.append_attribute("precision").set_value(in.get_element_type().get_type_name().c_str());
             in_node.append_attribute("shape").set_value(in.get_partial_shape().to_string().c_str());
         }
 
-        for (const auto& out : orig_model->outputs()) {
+        for (const auto& out : model->outputs()) {
             auto out_node = outputs.append_child("out");
             const auto node = out.get_node_shared_ptr();
             out_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(node->input_value(0)).c_str());
@@ -93,14 +90,11 @@ ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
     , _model_builder(fn) {
 }
 
-void ModelDeserializer::operator>>(std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>>& models) {
+void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
 
     std::string xmlString, xmlInOutString;
     ov::Tensor dataBlob;
-
-    auto& network = models.first;
-    auto& orig_model = models.second;
 
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
@@ -127,16 +121,7 @@ void ModelDeserializer::operator>>(std::pair<std::shared_ptr<ov::Model>, std::sh
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
-    network = _model_builder(xmlString, std::move(dataBlob));
-    orig_model = network->clone();
-
-    // Set input and output precisions
-    pugi::xml_node root = xmlInOutDoc.child("cnndata");
-    pugi::xml_node inputs = root.child("inputs");
-    pugi::xml_node outputs = root.child("outputs");
-
-    setInfo(inputs.children("in"), orig_model->inputs());
-    setInfo(outputs.children("out"), orig_model->outputs());
+    model = _model_builder(xmlString, std::move(dataBlob));
 }
 
 }   // namespace intel_cpu

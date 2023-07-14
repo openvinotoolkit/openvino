@@ -24,7 +24,6 @@ public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
-                  const std::shared_ptr<const ov::Model>& orig_model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
                   const ExtensionManager::Ptr& extMgr,
@@ -46,16 +45,11 @@ public:
                                "CompiledModel::set_property is not supported by this plugin!");
     };
 
-    const std::shared_ptr<const ov::Model>& get_orig_model() const {
-        return m_original_model;
-    }
-
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     friend class SyncInferRequest;
 
     const std::shared_ptr<ov::Model> m_model;
-    const std::shared_ptr<const ov::Model> m_original_model;
     std::vector<std::shared_ptr<ov::IVariableState>> m_memory_states;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
