@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
 namespace proxy {
