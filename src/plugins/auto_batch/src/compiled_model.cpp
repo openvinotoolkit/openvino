@@ -210,6 +210,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return std::vector<std::string>{ov::auto_batch_timeout.name()};
         } else if (name == ov::execution_devices) {
             return m_compiled_model_without_batch->get_property(name);
+        } else if (name == ov::loaded_from_cache) {
+            return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
