@@ -51,7 +51,7 @@ void mlas_sgemm(const char* transa,
     sgemmParam.beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    ov::cpu::ThreadPool threadPool(0 == thread_num ? parallel_get_num_threads() : thread_num);
+    ov::cpu::OVThreadPool threadPool(0 == thread_num ? parallel_get_num_threads() : thread_num);
     MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }
 
@@ -70,7 +70,7 @@ void mlas_sgemm_compute(const char* transa,
                         const int64_t ldc,
                         const float* bias) {
     // C = alpha*op( A )op( B ) + beta * C
-    ov::cpu::ThreadPool threadPool(parallel_get_num_threads());
+    ov::cpu::OVThreadPool threadPool(parallel_get_num_threads());
     MLAS_SGEMM_DATA_PARAMS sgemmParam;
     sgemmParam.BIsPacked = true;
     sgemmParam.A = A;

@@ -7,19 +7,19 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include "mlas.h"
 
 namespace ov {
 namespace cpu {
-class ThreadPool {
+class OVThreadPool : public ThreadPool {
 public:
-    ThreadPool() = delete;
-    explicit ThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+    OVThreadPool() = delete;
+    explicit OVThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+    size_t DegreeOfParallelism() override;
+    void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) override;
 public:
     // the actual threads used for sgemm
     size_t threadNum = 0;
 };
-size_t DegreeOfParallelism(ThreadPool* tp);
-void TrySimpleParallelFor(ThreadPool* tp, const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn);
-size_t getCacheSize(int level, bool perCore);
 };  // namespace cpu
 };  // namespace ov
