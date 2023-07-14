@@ -80,7 +80,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     manager.register_pass<EnumerateNodes>();
     manager.register_pass<TokenizeMHASnippets>(m_config);
     manager.register_pass<TokenizeSnippets>();
-    manager.register_pass<CommonOptimizations>();
+    manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 
     // Returning value is false because pass::Manager always apply Validation pass if function was changed.
