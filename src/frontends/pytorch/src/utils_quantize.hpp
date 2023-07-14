@@ -48,12 +48,7 @@ public:
                     const std::shared_ptr<ov::Node> input,
                     const std::shared_ptr<ov::Node> scale,
                     const std::shared_ptr<ov::Node> zero_point)
-        : QuantizedPtNode(type,
-                          context,
-                          input,
-                          scale,
-                          zero_point,
-                          nullptr) {}
+        : QuantizedPtNode(type, context, input, scale, zero_point, nullptr) {}
 
     QuantizedPtNode(const QuantizedPtNodeType type,
                     const NodeContext& context,
@@ -104,35 +99,35 @@ private:
  * Quantizes input node with the given parameters. Returns a shared pointer to the new QuantizedPtNode.
  */
 ov::Output<ov::Node> quantize(const NodeContext& context,
-                                   ov::Output<ov::Node> input,
-                                   ov::Output<ov::Node> scale,
-                                   ov::Output<ov::Node> zero_point,
-                                   ov::element::Type dtype,
-                                   QuantizedPtNodeType quantization_type);
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> scale,
+                              ov::Output<ov::Node> zero_point,
+                              ov::element::Type dtype,
+                              QuantizedPtNodeType quantization_type);
 ov::Output<ov::Node> quantize(const NodeContext& context,
-                                   ov::Output<ov::Node> input,
-                                   ov::Output<ov::Node> scale,
-                                   ov::Output<ov::Node> zero_point,
-                                   ov::Output<ov::Node> axis,
-                                   ov::element::Type dtype,
-                                   QuantizedPtNodeType quantization_type);
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> scale,
+                              ov::Output<ov::Node> zero_point,
+                              ov::Output<ov::Node> axis,
+                              ov::element::Type dtype,
+                              QuantizedPtNodeType quantization_type);
 
 /**
  * Quantizes input node like the quantized node. Returns a shared pointer to the new QuantizedPtNode.
  */
 ov::Output<ov::Node> quantize(const NodeContext& context,
-                                   ov::Output<ov::Node> input,
-                                   ov::Output<ov::Node> quantized_node);
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> quantized_node);
 
 /**
  * Quantizes input node like the quantized node, with new scale and zero_point parameters. Returns a shared pointer to
  * the new QuantizedPtNode.
  */
 ov::Output<ov::Node> quantize(const NodeContext& context,
-                                   ov::Output<ov::Node> input,
-                                   ov::Output<ov::Node> scale,
-                                   ov::Output<ov::Node> zero_point,
-                                   ov::Output<ov::Node> quantized_node);
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> scale,
+                              ov::Output<ov::Node> zero_point,
+                              ov::Output<ov::Node> quantized_node);
 
 /**
  * Dequantizes QuantizedPtNode, returns dequantized input.

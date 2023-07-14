@@ -9,9 +9,9 @@
 #include <utility>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
@@ -48,7 +48,8 @@ DequantizeNodeReplacer::DequantizeNodeReplacer() {
         }
         if (quantized_pt_node) {
             ov::pass::NodeRegistry rg;
-            const auto input = rg.make<v0::Convert>(quantized_pt_node->input_value(0).get_node_shared_ptr(), element::f32);
+            const auto input =
+                rg.make<v0::Convert>(quantized_pt_node->input_value(0).get_node_shared_ptr(), element::f32);
             const auto scale = quantized_pt_node->get_scale();
             const auto zero_point = quantized_pt_node->get_zero_point();
             const auto scale_convert = rg.make<v0::Convert>(scale, element::f32);
