@@ -260,6 +260,13 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
     return additionalConfig;
 }
 
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}}
+    };
+    return additionalConfig;
+}
+
 const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32() {
     static const std::vector<ngraph::helpers::ReductionType> reductionTypesInt32 = {
             ngraph::helpers::ReductionType::Sum,

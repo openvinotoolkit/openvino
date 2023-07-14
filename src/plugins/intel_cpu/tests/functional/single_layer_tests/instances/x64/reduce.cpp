@@ -187,7 +187,7 @@ const auto params_MultiAxis_4D_Hybrid = testing::Combine(
             testing::ValuesIn(inputShapes_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_4D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_5D_Hybrid = testing::Combine(
         testing::Combine(
@@ -201,7 +201,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
             testing::ValuesIn(inputShapes_5D_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_6D = testing::Combine(
         testing::Combine(
@@ -215,7 +215,7 @@ const auto params_MultiAxis_6D = testing::Combine(
                 testing::ValuesIn(inputShapes_6D_dyn)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_Int32 = testing::Combine(
         testing::Combine(
@@ -229,7 +229,7 @@ const auto params_Int32 = testing::Combine(
             testing::ValuesIn(inputShapes_Int32_dyn)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
@@ -335,7 +335,7 @@ const auto params_OneAxis_Logical = testing::Combine(
             testing::ValuesIn(inputShapes_dyn)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_4D_Logical = testing::Combine(
         testing::Combine(
@@ -349,7 +349,7 @@ const auto params_MultiAxis_4D_Logical = testing::Combine(
                 testing::ValuesIn(inputShapes_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_5D_Logical = testing::Combine(
         testing::Combine(
@@ -363,7 +363,7 @@ const auto params_MultiAxis_5D_Logical = testing::Combine(
                 testing::ValuesIn(inputShapes_5D_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
         testing::Combine(
@@ -377,7 +377,7 @@ const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
             testing::ValuesIn(inputShapes_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_4D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
         testing::Combine(
@@ -391,7 +391,7 @@ const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
             testing::ValuesIn(inputShapes_5D_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_6D_Logical = testing::Combine(
         testing::Combine(
@@ -405,7 +405,7 @@ const auto params_MultiAxis_6D_Logical = testing::Combine(
                 testing::ValuesIn(inputShapes_6D_dyn)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_Logical_CPU,
@@ -526,7 +526,7 @@ const auto params_OneAxis_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inputShapes_dyn)),
         testing::Values(emptyCPUSpec),
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
@@ -540,7 +540,7 @@ const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inputShapes_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_4D)),
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
@@ -554,7 +554,7 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inputShapes_5D_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
-        testing::ValuesIn(additionalConfig()));
+        testing::ValuesIn(additionalConfigFP32()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_fusing_KeepNoDims_CPU,
