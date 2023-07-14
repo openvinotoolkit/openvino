@@ -97,23 +97,27 @@ private:
     std::vector<std::shared_ptr<Function>> m_functions;
 };
 
-class NotSupportedONNXNode : public ONNXFrameworkNode {
+// Be aware with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
+// which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
+class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_RTTI("NotSupportedONNXNode", "0");
 
-    NotSupportedONNXNode(const onnx_import::Node& node, const std::string& additional_error_message)
-        : ONNXFrameworkNode(node),
-          m_additional_error_message{additional_error_message} {}
-
-    NotSupportedONNXNode(const onnx_import::Node& node,
-                         const OutputVector& inputs,
-                         const std::string& additional_error_message)
-        : ONNXFrameworkNode(node, inputs),
-          m_additional_error_message{additional_error_message} {}
+    NotSupportedONNXNode(const OutputVector& inputs, const size_t output_size, const std::string& domain, const std::string& op_type, const std::string& additional_error_message)
+        : ov::op::util::FrameworkNode(inputs, output_size),
+          m_additional_error_message{additional_error_message} {
+            ov::op::util::FrameworkNodeAttrs attrs;
+            attrs.set_opset_name(domain);
+            attrs.set_type_name(op_type);
+            set_attrs(attrs);
+          }
 
     std::string additional_error_message() const {
         return m_additional_error_message;
     }
+
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+    virtual bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
     const std::string m_additional_error_message;

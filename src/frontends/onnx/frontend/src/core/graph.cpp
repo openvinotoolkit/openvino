@@ -362,7 +362,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         }
     }
     if (ng_subgraph_outputs.empty()) {  // translation not possible (not supported op or exception during processing)
-        const auto not_supported_node = std::make_shared<frontend::NotSupportedONNXNode>(onnx_node, error_message);
+        const auto not_supported_node = std::make_shared<frontend::NotSupportedONNXNode>(onnx_node.get_ng_inputs(), onnx_node.get_outputs_size(), onnx_node.domain(), onnx_node.op_type(), error_message);
         ng_subgraph_outputs = not_supported_node->outputs();
     }
 
