@@ -338,9 +338,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                     "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
                 }
 
-                // skip conditional edges for all operators
                 if (is_conditional_edge(producer_name)) {
-                    continue;
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_name = producer_name.substr(1);
                 }
 
                 // is_input is a flag to leave producer operation node or not.

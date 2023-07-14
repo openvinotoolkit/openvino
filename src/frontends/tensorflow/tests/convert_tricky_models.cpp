@@ -716,3 +716,31 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ControlDependencyNumberOutputs) {
         model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{input1, input2});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
+    // This test aims to check conversion of a model with TF1 If operation that
+    // contains unsupported operation in one branch
+    // the conversion must avoid such branch in case proper condition freezing
+    {
+        bool cond_value = false;
+        model = convert_model("tf1_if_with_nonexistent_op/tf1_if_with_nonexistent_op.pb",
+                              nullptr,
+                              {},
+                              {},
+                              {},
+                              {"cond"},
+                              {&cond_value});
+    }
+    {
+        auto y = make_shared<Parameter>(f32, Shape{2, 3});
+        auto ind = make_shared<Parameter>(i32, Shape{3});
+
+        auto const_two = make_shared<Constant>(i32, Shape{}, 2);
+        auto sub = make_shared<Subtract>(ind, const_two);
+
+        auto convert = make_shared<Convert>(sub, f32);
+        auto mul = make_shared<Multiply>(convert, y);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
+    }
+}
