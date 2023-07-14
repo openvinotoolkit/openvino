@@ -72,9 +72,9 @@ ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& 
                                        supported_properties.end());
             return supported_properties;
         } catch (ov::Exception&) {
-            get_supported_properties();
+            return get_supported_properties();
         } catch (InferenceEngine::Exception&) {
-            get_supported_properties();
+            return get_supported_properties();
         }
     }
     try {
