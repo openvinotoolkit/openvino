@@ -5,7 +5,6 @@ import os
 import tempfile
 import unittest
 
-import gc
 import numpy as np
 from defusedxml.common import EntitiesForbidden
 
