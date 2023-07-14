@@ -811,16 +811,18 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (isDynamicNetwork && FLAGS_api == "sync") {
+        bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);
+
+        if (!allow_inference_only_or_sync && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only. "
-                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+                                   "Please use -api async -hint latency -nireq 1 to emulate sync behavior");
         }
 
         // Defining of benchmark mode
         // for static models inference only mode is used as default one
         bool inferenceOnly = FLAGS_inference_only;
         if (isDynamicNetwork) {
-            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() != 1) {
+            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && !allow_inference_only_or_sync) {
                 throw std::logic_error(
                     "Dynamic models with different input data shapes must be benchmarked only in full mode.");
             }
