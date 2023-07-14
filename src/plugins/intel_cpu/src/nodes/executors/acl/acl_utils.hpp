@@ -11,6 +11,17 @@ namespace ov {
 namespace intel_cpu {
 
 /**
+* @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
+* NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)
+* @param shape shape to convert
+* @return none
+*/
+inline void changeLayoutToNhwc(VectorDims& shape) {
+    std::swap(shape[1], shape[2]);
+    std::swap(shape[2], shape[3]);
+}
+
+/**
 * @brief Return ComputeLibrary TensorShape with reverted layout schema used in ACL 
 * @param dims vector of dimensions to convert
 * @return ComputeLibrary TensorShape object
