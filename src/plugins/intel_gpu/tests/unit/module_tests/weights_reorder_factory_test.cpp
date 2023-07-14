@@ -39,7 +39,6 @@ TEST(weights_factory, shape_types) {
 TEST(weights_factory, reorder_test) {
     auto& engine = get_test_engine();
     const int input_f = 32, output_f = 32;
-    tests::random_generator rg;
 
     auto weights_layout = layout(ov::PartialShape{ output_f, input_f }, data_types::f32, format::bfyx);
     auto weights_data_input = engine.allocate_memory(weights_layout);
