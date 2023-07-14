@@ -18,7 +18,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                   const ov::RemoteContext& context,
+                                   const ov::SoPtr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
@@ -136,7 +136,7 @@ void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threadi
     m_callback_executor = callback_executor;
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
+ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         try {
             return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
@@ -145,6 +145,6 @@ std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
         }
     }
     if (m_context)
-        return m_context._impl;
+        return m_context;
     return m_plugin->get_default_context({});
 }

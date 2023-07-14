@@ -32,7 +32,7 @@ public:
      * In legacy API remote context doesn't contain the index in the name but Blob contains.
      * In 2.0 API Tensor and Context always contain device index
      */
-    RemoteContext(ov::RemoteContext&& ctx,
+    RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
                   const std::string& dev_name,
                   size_t dev_index,
                   bool has_index,
@@ -46,22 +46,20 @@ public:
 
     const ov::AnyMap& get_property() const override;
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override;
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override;
 
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
-    ov::Tensor wrap_tensor(const ov::RemoteTensor& tensor);
+    ov::SoPtr<ov::ITensor> wrap_tensor(const ov::SoPtr<ov::ITensor>& tensor);
 
-    static const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
-    static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(
-        const std::shared_ptr<ov::IRemoteContext>& context);
+    static const ov::SoPtr<ov::IRemoteContext>& get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context);
 
     static ov::RemoteContext make_context(const ov::SoPtr<ov::IRemoteContext>& ctx);
 
 private:
-    ov::RemoteContext m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
     std::string m_name;
     std::string m_tensor_name;
 
