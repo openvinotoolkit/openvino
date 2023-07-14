@@ -89,7 +89,7 @@ TSGatherForward::TSGatherForward() {
         */
         const auto& indices_rank_val = indices_rank.get_length();
         std::vector<size_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
-        const int n_axis_dims = indices_rank_val - 1;
+        const int n_axis_dims = static_cast<int>(indices_rank_val) - 1;
         /*
             i - new_transpose_order index
             j - order_val index
