@@ -20,6 +20,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}-windows
+  cancel-in-progress: true
+
 env:
   CMAKE_BUILD_TYPE: 'Release'
   CMAKE_GENERATOR: 'Ninja'

@@ -30,17 +30,18 @@ public:
 
     void infer() override;
 
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
 
-    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void check_tensors() const override;
 
