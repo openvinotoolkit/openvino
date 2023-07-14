@@ -20,6 +20,7 @@ struct typed_program_node<proposal> : public typed_program_node_base<proposal> {
     program_node& cls_score() const { return get_dependency(0); }
     program_node& bbox_pred() const { return get_dependency(1); }
     program_node& image_info() const { return get_dependency(2); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using proposal_node = typed_program_node<proposal>;
@@ -72,6 +73,8 @@ public:
         image_info_scale_depth_index,
     };
 
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
