@@ -1316,8 +1316,8 @@ const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions()
     return extensions;
 }
 
-bool ov::CoreImpl::device_supports_model_caching(const std::string& deviceName) const {
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
+bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
+    auto parsed = parseDeviceNameIntoConfig(device_name);
     return device_supports_model_caching(get_plugin(parsed._deviceName));
 }
 
