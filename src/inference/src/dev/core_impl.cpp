@@ -664,6 +664,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             });
         }
 
+        std::lock_guard<std::mutex> g_lock(get_mutex());
+
         if (is_proxy_device(plugin)) {
             try {
                 plugin.get_property(ov::available_devices);
@@ -674,8 +676,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                                ex.what());
             }
         }
-
-        std::lock_guard<std::mutex> g_lock(get_mutex());
         // add plugin as extension itself
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
