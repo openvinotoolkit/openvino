@@ -50,7 +50,7 @@ public:
     /// \param[in] fieldValue Value to store as field value, any applicable string
     /// \param[in] rewrite Flag defines behaviour in case field already exists. Rewrites if true.
     /// \returns True if value has been stored, false otherwise.
-    bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite = false);
+    bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite = false) const;
     /// \brief Gets custom field value for current test instance
     /// \param[in] fieldName Field name, any applicable string
     /// \param[in] defaultValue Value should be returned in case of value wasn't stored, any applicable string
@@ -59,7 +59,10 @@ public:
     /// \brief Removes custom field for current test instance
     /// \param[in] fieldName Field name, any applicable string
     /// \returns True if value has been removed, false otherwise.
-    bool RemoveCustomField(const std::string fieldName);
+    bool RemoveCustomField(const std::string fieldName) const;
+    /// \brief Sets waste result flag which means do not store results
+    /// \param[in] value Value should be set, true is default
+    void SetWasteResult(bool value = true) const;
     /// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
     /// Each pair has test name as a key and SQL-query as a value.
     /// Query can contain a variables started with $ and be replaced by an actual values

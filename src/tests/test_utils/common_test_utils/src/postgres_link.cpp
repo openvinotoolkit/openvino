@@ -205,6 +205,7 @@ public:
 class PostgreSQLConnection {
 #ifdef PGQL_DYNAMIC_LOAD
     std::shared_ptr<HMODULE> modLibPQ;
+    bool LoadLibPQ(void);
 #endif
     PGconn* activeConnection;
 
@@ -315,7 +316,7 @@ public:
 static std::shared_ptr<PostgreSQLConnection> connection(nullptr);
 std::shared_ptr<PostgreSQLConnection> PostgreSQLConnection::GetInstance(void) {
     if (connection.get() == nullptr) {
-        connection = std::shared_ptr<PostgreSQLConnection>(new PostgreSQLConnection());
+        connection.reset(new PostgreSQLConnection());
     }
     return connection;
 }
@@ -338,26 +339,70 @@ bool PostgreSQLConnection::Initialize(void) {
     }
 
 #ifdef PGQL_DYNAMIC_LOAD
+    if (!LoadLibPQ()) {
+        return false;
+    }
+#endif
 
+    const char* envConnString = nullptr;
+    envConnString = std::getenv(PGQL_ENV_CONN_NAME);
+
+    if (envConnString == nullptr) {
+        std::cerr << PG_WRN << "PostgreSQL connection string isn't found in Environment (" << PGQL_ENV_CONN_NAME
+                  << ")\n";
+        return false;
+    } else {
+        std::cerr << PG_INF << "PostgreSQL connection string:\n";
+        std::cerr << PG_INF << envConnString << std::endl;
+    }
+
+    this->activeConnection = PQconnectdb(envConnString);
+
+    ConnStatusType connStatus = PQstatus(this->activeConnection);
+
+    if (connStatus != CONNECTION_OK) {
+        std::cerr << PG_ERR << "Cannot connect to PostgreSQL: " << static_cast<uint32_t>(connStatus) << std::endl;
+        return false;
+    } else {
+        std::cerr << PG_INF << "Connected to PostgreSQL successfully\n";
+    }
+
+    this->isConnected = true;
+
+    return true;
+}
+
+#ifdef PGQL_DYNAMIC_LOAD
+/// \brief Loads libpq module in runtime
+bool PostgreSQLConnection::LoadLibPQ(void) {
 #    ifdef _WIN32
     modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(LoadLibrary("libpq.dll")), [](HMODULE* ptr) {
         if (*ptr != (HMODULE)0) {
             std::cerr << PG_INF << "Freeing libPQ.dll handle\n";
-            FreeLibrary(*ptr);
+            try {
+                FreeLibrary(*ptr);
+            } catch (...) {
+            }
         }
     });
 #    else
     modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.so", RTLD_LAZY)), [](HMODULE* ptr) {
         if (*ptr != (HMODULE)0) {
             std::cerr << PG_INF << "Freeing libPQ.so handle\n";
-            dlclose(*ptr);
+            try {
+                dlclose(*ptr);
+            } catch (...) {
+            }
         }
     });
     if (*modLibPQ == (HMODULE)0) {
         modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.so.5", RTLD_LAZY)), [](HMODULE* ptr) {
             if (*ptr != (HMODULE)0) {
                 std::cerr << PG_INF << "Freeing libPQ.so.5 handle\n";
-                dlclose(*ptr);
+                try {
+                    dlclose(*ptr);
+                } catch (...) {
+                }
             }
         });
     }
@@ -396,35 +441,10 @@ bool PostgreSQLConnection::Initialize(void) {
     GETPROC(PQgetisnull);
     GETPROC(PQclear);
     GETPROC(PQresultErrorMessage);
-#endif
-
-    const char* envConnString = nullptr;
-    envConnString = std::getenv(PGQL_ENV_CONN_NAME);
-
-    if (envConnString == nullptr) {
-        std::cerr << PG_WRN << "PostgreSQL connection string isn't found in Environment (" << PGQL_ENV_CONN_NAME
-                  << ")\n";
-        return false;
-    } else {
-        std::cerr << PG_INF << "PostgreSQL connection string:\n";
-        std::cerr << PG_INF << envConnString << std::endl;
-    }
-
-    this->activeConnection = PQconnectdb(envConnString);
-
-    ConnStatusType connStatus = PQstatus(this->activeConnection);
-
-    if (connStatus != CONNECTION_OK) {
-        std::cerr << PG_ERR << "Cannot connect to PostgreSQL: " << static_cast<uint32_t>(connStatus) << std::endl;
-        return false;
-    } else {
-        std::cerr << PG_INF << "Connected to PostgreSQL successfully\n";
-    }
-
-    this->isConnected = true;
 
     return true;
 }
+#endif
 
 /// \brief This method is used for parsing serialized value_param string.
 ///        Known limitations:
@@ -706,6 +726,12 @@ static bool parseTestName(const char* line, std::map<std::string, std::string>& 
     return true;
 }
 
+/// \brief Compiles string and replaces variables defined as $[0-9A-Za-z-_] by values from
+/// provided key=value map. Replaces by blank in case of key isn't found in the map.
+/// \param[in] srcStr String contains variables
+/// \param[in] keyValue Key=value map with variable values
+/// \param[out] result String for result
+/// \returns Returns true if all input string was compiled, false in case of any compilation error
 static bool compileString(const std::string& srcStr,
                           const std::map<std::string, std::string>& keyValue,
                           std::string& result) {
@@ -753,10 +779,6 @@ static bool compileString(const std::string& srcStr,
         return _internalRequestId(sstr.str(), #fieldName, varName);     \
     }
 
-/*
-    Known issues:
-    - String escape isn't applied for all fields (PoC limitation)
-*/
 /// \brief Class which handles gtest keypoints and send data to PostgreSQL database.
 ///        May be separated for several source files in case it'll become to huge.
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
@@ -778,7 +800,10 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testId = 0;
     uint64_t testRunId = 0;
     uint64_t testExtId = 0;
+
+    size_t jqLastCommandOffset;  // Stores offset of beginning of a last command, to be able to rewind
     std::stringstream joinedQuery;
+    bool isWasteResult = false;  // Signals test result is a waste and shouldn't be stored in DB
 
     /* Test name parsing */
     std::map<std::string, std::string>
@@ -836,7 +861,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         return true;
     }
 
-    std::string EscapeString(const std::string sourceString) const {
+    /// \brief Escapes control symbols in a string by using PostgreSQL escapeStringConn function
+    /// \returns Return escaped string or throws an error in case of any error
+    std::string EscapeString(const std::string& sourceString) const {
+        if (sourceString.length() == 0) {
+            return std::string("");
+        }
+
         std::vector<char> escapedString;
         escapedString.resize(sourceString.length() * 2);  // Doc requires to allocate two times more than initial length
         escapedString[0] = 0;
@@ -918,6 +949,49 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       testExtId,
                       t_id)
 
+    /// \brief Send an update query. Depends on mode in calls specific UPDATE query in case of default reporting
+    /// and regular APPEND query in case of fast reporting.
+    /// In such case UPDATE query is used only for updating changed values in runtime, when
+    /// APPEND query in this place already has all updated data, that's why UPDATE query is skipping
+    void UpdateTestResults(const ::testing::TestInfo* test_info = nullptr) {
+        auto grpName = testDictionary.end();
+
+        if (isTestNameParsed == true && (reportingLevel == REPORT_LVL_FAST || isFieldsUpdated == true) &&
+            (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
+            // Looks query with GroupName + "_AFTER", "ReadIR_AFTER" as example
+            auto extQuery = ExtTestQueries.end();
+            if (reportingLevel == REPORT_LVL_DEFAULT) {
+                extQuery = ExtTestQueries.find(grpName->second + "_AFTER");
+            } else if (reportingLevel == REPORT_LVL_FAST) {
+                extQuery = ExtTestQueries.find(grpName->second + "_BEFORE");
+            }
+            if (extQuery != ExtTestQueries.end()) {
+                std::string query;
+                if (compileString(extQuery->second, testDictionary, query)) {
+                    if (reportingLevel == REPORT_LVL_DEFAULT) {
+                        if (!UpdateTestExtId(query)) {
+                            std::cerr << PG_WRN << "Failed extended update query: " << query << std::endl;
+                        } else {
+                            isFieldsUpdated = false;
+                        }
+                    } else if (reportingLevel == REPORT_LVL_FAST) {
+                        size_t jqLen = joinedQuery.tellp();
+                        std::vector<char> addQuery(jqLen - jqLastCommandOffset);
+                        joinedQuery.seekg(jqLastCommandOffset);
+                        joinedQuery.read(addQuery.data(),
+                                         jqLen - jqLastCommandOffset - 3);  // Ignores ");\n" at the end
+                        joinedQuery.seekp(jqLastCommandOffset);
+                        joinedQuery << "WITH rows AS (" << addQuery.data() << ") AS test_id) SELECT APPEND_" << query
+                                    << " FROM rows;\n";
+                    }
+                } else {
+                    std::cerr << PG_WRN << "Preparing extended update query is failed: "
+                              << (test_info != nullptr ? test_info->name() : "[no test info]") << std::endl;
+                }
+            }
+        }
+    }
+
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
             return;
@@ -929,6 +1003,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
         /*
+        // This part of code left because it is preferred way, but incompatible with external parallel running
         std::stringstream sstr;
         sstr << "INSERT INTO suite_results (sr_id, session_id, run_id, suite_id) VALUES (DEFAULT, " << this->sessionId
              << ", " << this->testRunId << ", " << this->testSuiteNameId << ") RETURNING sr_id";
@@ -940,6 +1015,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         // Cleanup accumulator for quieries
         if (reportingLevel == REPORT_LVL_FAST) {
+            jqLastCommandOffset = 0;
             joinedQuery.str("");
             joinedQuery.clear();
         }
@@ -963,7 +1039,11 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
+        isWasteResult = false;
+        testDictionary.clear();
+
         auto grpName = testDictionary.end();
+        testName = test_info.name();
 
         if ((isTestNameParsed = parseTestName(test_info.name(), testDictionary)) == true &&
             (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
@@ -985,7 +1065,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             if (reportingLevel == REPORT_LVL_DEFAULT) {
                 sstr << "TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(testName) << "'";
             } else if (reportingLevel == REPORT_LVL_FAST) {
-                sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId
+                sstr << "SELECT ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId
                      << ", " << this->testSuiteId << ", " << this->testSuiteNameId << ", '" << EscapeString(testName)
                      << "'";
             }
@@ -999,13 +1079,25 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             sstr << ", NULL";
         }
 
+        testDictionary["__suite_id"] = std::to_string(this->testSuiteId);
+        testDictionary["__suite_name_id"] = std::to_string(this->testSuiteNameId);
+        testDictionary["__session_id"] = std::to_string(this->testId);
+        testDictionary["__run_id"] = std::to_string(this->testId);
+        testDictionary["__is_temp"] = (reportingLevel == REPORT_LVL_DEFAULT ? "1::boolean" : "0::boolean");
+        isFieldsUpdated = false;
+
         if (reportingLevel == REPORT_LVL_DEFAULT) {
             sstr << ")";
         } else if (reportingLevel == REPORT_LVL_FAST) {
+            jqLastCommandOffset = joinedQuery.tellp();
             joinedQuery << sstr.str();
             // This will allow to pass checks later, but this values isn't expected to see in real
             this->testNameId = ~0;
             this->testId = ~0;
+            // In case of fast reporting __test_id will be unset because of lazy execution.
+            // It should be replaced in WITH ... AS (... AS test_id) SELECT ... construction to test_id
+            testDictionary["__test_id"] = "test_id";
+            testDictionary["__test_ext_id"] = "test_id";
             return;
         }
 
@@ -1014,7 +1106,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         sstr.str("");
         sstr.clear();
-        sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, run_id, test_id) VALUES (DEFAULT, "
+        // Creates temporary record
+        sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id) VALUES (DEFAULT, "
              << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId << ", " << this->testNameId
              << ") RETURNING tr_id";
 
@@ -1027,12 +1120,6 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             if (extQuery != ExtTestQueries.end()) {
                 std::string query;
                 testDictionary["__test_id"] = std::to_string(this->testId);
-                testDictionary["__test_name_id"] = std::to_string(this->testNameId);
-                testDictionary["__suite_id"] = std::to_string(this->testSuiteId);
-                testDictionary["__suite_name_id"] = std::to_string(this->testSuiteNameId);
-                testDictionary["__session_id"] = std::to_string(this->testId);
-                testDictionary["__run_id"] = std::to_string(this->testId);
-                isFieldsUpdated = false;
                 if (compileString(extQuery->second, testDictionary, query)) {
                     if (!RequestTestExtId(query)) {
                         std::cerr << PG_WRN << "Failed extended query: " << query << std::endl;
@@ -1050,8 +1137,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
             !this->testSuiteId || !this->testNameId || !this->testId)
             return;
-        //        std::stringstream sstr;
-        //        sstr << "INSERT INTO test_starts(part) (name) VALUES (\"partresult\")";
+
+        if (reportingLevel == REPORT_LVL_SUITES_ONLY) {
+            return;
+        }
+
+        if (isWasteResult) {
+            return;
+        }
     }
 
     void OnTestEnd(const ::testing::TestInfo& test_info) override {
@@ -1063,6 +1156,45 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
+        if (isWasteResult) {
+            if (reportingLevel == REPORT_LVL_DEFAULT) {
+                auto grpName = testDictionary.end();
+
+                if (isTestNameParsed == true && isFieldsUpdated == true &&
+                    (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
+                    // Looks query with GroupName + "_WASTE", "ReadIR_WASTE" as example
+                    auto extQuery = ExtTestQueries.find(grpName->second + "_WASTE");
+                    if (extQuery != ExtTestQueries.end()) {
+                        std::string query;
+                        if (compileString(extQuery->second, testDictionary, query)) {
+                            auto pgresult =
+                                connectionKeeper->Query((std::string("CALL WASTE_") + query).c_str(), PGRES_COMMAND_OK);
+                            CHECK_PGRESULT(pgresult, "Cannot remove extended waste results", /* no return */);
+                        } else {
+                            std::cerr << PG_WRN
+                                      << "Preparing extended waste cleanup query is failed: " << test_info.name()
+                                      << std::endl;
+                        }
+                    }
+                }
+
+                // Remove temporary record
+                std::stringstream sstr;
+                sstr << "DELETE FROM test_results_temp WHERE tr_id=" << this->testId;
+                auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+                CHECK_PGRESULT(pgresult, "Cannot remove waste results", return);
+
+                this->testId = 0;
+                testDictionary.clear();
+            } else if (reportingLevel == REPORT_LVL_FAST) {
+                // Rewind to a last command
+                std::string tmp = joinedQuery.str();
+                tmp.resize(jqLastCommandOffset);
+                joinedQuery.str(tmp);
+            }
+            return;
+        }
+
         uint32_t testResult = 0;
         if (test_info.result()->Passed())
             testResult = 1;
@@ -1071,32 +1203,33 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         if (reportingLevel == REPORT_LVL_DEFAULT) {
             std::stringstream sstr;
-            sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
-                 << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
-            auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-            CHECK_PGRESULT(pgresult, "Cannot update test results", return);
+            uint64_t testTempId = this->testId;
+            sstr << "INSERT INTO test_results (session_id, suite_id, run_id, test_id, started_at, finished_at, "
+                    "duration, test_result) "
+                 << "(SELECT session_id, suite_id, run_id, test_id, started_at, NOW(), "
+                 << test_info.result()->elapsed_time() << ", " << testResult << "::smallint FROM test_results_temp "
+                 << "WHERE tr_id=" << this->testId << ") RETURNING tr_id";
+            if (!RequestTestId(sstr.str())) {
+                return;
+            } else {
+                sstr.str("");
+                sstr.clear();
+                sstr << "DELETE FROM test_results_temp WHERE tr_id=" << testTempId;
+                auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
+                CHECK_PGRESULT(pgresult, "Cannot remove temporary test results", /* no return */);
+
+                // Set correct information about
+                SetCustomField("__test_ext_id", std::to_string(this->testId), true);
+                SetCustomField("__test_id", std::to_string(testTempId), true);
+                // Force updating fields because in some conditions IDs might be equal
+                isFieldsUpdated = true;
+            }
         } else if (reportingLevel == REPORT_LVL_FAST) {
             joinedQuery << ", " << testResult << "::smallint, " << test_info.result()->elapsed_time() << ");\n";
         }
 
-        auto grpName = testDictionary.end();
+        UpdateTestResults(&test_info);
 
-        if (isTestNameParsed == true && isFieldsUpdated == true &&
-            (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
-            // Looks query with GroupName + "_BEFORE", "ReadIR_BEFORE" as example
-            auto extQuery = ExtTestQueries.find(grpName->second + "_AFTER");
-            if (extQuery != ExtTestQueries.end()) {
-                std::string query;
-                if (compileString(extQuery->second, testDictionary, query)) {
-                    if (!UpdateTestExtId(query)) {
-                        std::cerr << PG_WRN << "Failed extended update query: " << query << std::endl;
-                    }
-                } else {
-                    std::cerr << PG_WRN << "Preparing extended update query is failed: " << test_info.name()
-                              << std::endl;
-                }
-            }
-        }
         this->testId = 0;
         testDictionary.clear();
     }
@@ -1120,7 +1253,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         this->testSuiteId = 0;
 
         if (reportingLevel == REPORT_LVL_FAST) {
-            pgresult = connectionKeeper->Query(joinedQuery.str().c_str(), PGRES_COMMAND_OK);
+            pgresult = connectionKeeper->Query(joinedQuery.str().c_str());
             CHECK_PGRESULT(pgresult, "Cannot update test cases results", return);
         }
     }
@@ -1209,6 +1342,10 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     friend class PostgreSQLEnvironment;
 
 public:
+    void SetWasteResult(bool value = true) {
+        isWasteResult = true;
+    }
+
     bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
         auto field = this->testDictionary.find(fieldName);
         if (rewrite || field == this->testDictionary.end()) {
@@ -1308,7 +1445,15 @@ std::map<std::string, std::string>* PostgreSQLLink::getExtTestNames(void) {
     return &ExtTestNames;
 }
 
-bool PostgreSQLLink::SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
+void PostgreSQLLink::SetWasteResult(bool value) const {
+    if (pgEventListener) {
+        pgEventListener->SetWasteResult(value);
+    }
+}
+
+bool PostgreSQLLink::SetCustomField(const std::string fieldName,
+                                    const std::string fieldValue,
+                                    const bool rewrite) const {
     if (pgEventListener) {
         return pgEventListener->SetCustomField(fieldName, fieldValue, rewrite);
     }
@@ -1322,7 +1467,7 @@ std::string PostgreSQLLink::GetCustomField(const std::string fieldName, const st
     return defaultValue;
 }
 
-bool PostgreSQLLink::RemoveCustomField(const std::string fieldName) {
+bool PostgreSQLLink::RemoveCustomField(const std::string fieldName) const {
     if (pgEventListener) {
         pgEventListener->RemoveCustomField(fieldName);
     }

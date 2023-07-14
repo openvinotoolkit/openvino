@@ -229,6 +229,23 @@ void ReadIRTest::SetUp() {
             }
         }
     }
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+    // Updating data in runtime. Should be set before possible call of a first GTEST status
+    auto pgLink = this->GetPGLink();
+    if (pgLink) {
+        pgLink->SetCustomField("targetDevice", this->targetDevice);
+        pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
+
+        // Do not store waste results
+        if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
+            pgLink->SetWasteResult();
+        } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
+            pgLink->SetWasteResult();
+        }
+    }
+#endif
+
     if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
         GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
     } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
@@ -276,14 +293,6 @@ void ReadIRTest::SetUp() {
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
-#ifdef ENABLE_CONFORMANCE_PGQL
-    // Updating data in runtime
-    auto pgLink = this->GetPGLink();
-    if (pgLink) {
-        pgLink->SetCustomField("targetDevice", this->targetDevice);
-        pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
-    }
-#endif
     std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
     init_input_shapes(inputShapes);
     is_report_stages = true;
