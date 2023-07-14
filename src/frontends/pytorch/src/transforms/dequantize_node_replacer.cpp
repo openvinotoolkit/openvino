@@ -28,9 +28,8 @@ using namespace ov::op;
 
 /**
  * Dequantize Node Replacer
- * Replacer finds the unconverted dequantize ops and converts them 
- * using scale/zero_point from the matching quantized input nodes.
- * To obtain them, a BFS search is performed on the graph structure.
+ * Replacer finds the unconverted dequantize ops and removes them.
+ * This matches the behavior of OV's LPT.
  */
 DequantizeNodeReplacer::DequantizeNodeReplacer() {
     auto dequantize_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::PtFrameworkNode>();
@@ -40,38 +39,9 @@ DequantizeNodeReplacer::DequantizeNodeReplacer() {
         if (!dequantize_node)
             return false;
 
-        std::list<std::shared_ptr<ov::Node>> inputs = {dequantize_node->get_input_node_shared_ptr(0)};
-        std::shared_ptr<ov::frontend::pytorch::QuantizedPtNode> quantized_pt_node;
-        size_t iter = 0;
-        while (inputs.size() && iter++ < MAX_SEARCH_NODES) {
-            auto node = inputs.front();
-            inputs.pop_front();
-            if ((quantized_pt_node = cast_quantized_fw_node(node)))
-                break;
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                inputs.push_back(node->get_input_node_shared_ptr(i));
-            }
-        }
-        if (quantized_pt_node) {
-            ov::pass::NodeRegistry rg;
-            const auto input =
-                rg.make<v0::Convert>(quantized_pt_node->input_value(0).get_node_shared_ptr(), element::f32);
-            // const auto scale = quantized_pt_node->get_scale();
-            // const auto zero_point = quantized_pt_node->get_zero_point();
-            // const auto scale_convert = rg.make<v0::Convert>(scale, element::f32);
-            // const auto zero_point_convert = rg.make<v0::Convert>(zero_point, element::f32);
-            // const auto input_sub_zero_pt = rg.make<v1::Subtract>(input, zero_point_convert);
-            // const auto dequantized_input = rg.make<v1::Multiply>(input_sub_zero_pt, scale_convert);
-            // copy_runtime_info_and_name(dequantize_node, rg.get(), {input});
-            // replace_node(dequantize_node, dequantized_input);
-            // return true;
-
-            copy_runtime_info_and_name(dequantize_node, rg.get(), {input});
-            replace_node(dequantize_node, input);
-            return true;
-        }
-        add_exception_to_fw_node(dequantize_node, "aten::dequantize could not find a matching quantized input.");
-        return false;
+        auto dequantized_input = dequantize_node->input_value(0);
+        dequantize_node->output(0).replace(dequantized_input);
+        return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(dequantize_node,

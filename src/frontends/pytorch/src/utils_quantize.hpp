@@ -108,32 +108,8 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                               ov::element::Type dtype,
                               QuantizedPtNodeType quantization_type);
 
-/**
- * Quantizes input node like the quantized node. Returns a shared pointer to the new QuantizedPtNode.
- */
-ov::Output<ov::Node> quantize(const NodeContext& context,
-                              ov::Output<ov::Node> input,
-                              ov::Output<ov::Node> quantized_node);
-
-/**
- * Quantizes input node like the quantized node, with new scale and zero_point parameters. Returns a shared pointer to
- * the new QuantizedPtNode.
- */
-ov::Output<ov::Node> quantize(const NodeContext& context,
-                              ov::Output<ov::Node> input,
-                              ov::Output<ov::Node> scale,
-                              ov::Output<ov::Node> zero_point,
-                              ov::Output<ov::Node> quantized_node);
-
-/**
- * Dequantizes QuantizedPtNode, returns dequantized input.
- */
-ov::Output<ov::Node> dequantize(const NodeContext& context, ov::Output<ov::Node> input);
-
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(ov::Output<ov::Node> node);
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(ov::Output<ov::Node> node, const std::string& type);
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<ov::Node> node);
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<ov::Node> node, const std::string& type);
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
