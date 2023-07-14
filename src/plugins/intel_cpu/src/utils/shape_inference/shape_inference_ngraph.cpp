@@ -15,7 +15,6 @@ NgraphShapeInfer::infer(
     const auto& iranks = m_shape_infer->get_input_ranks();
     IE_ASSERT(iranks.size() <= input_shapes.size()) << "Too few input shapes passed to Shape infer.";
     std::vector<StaticShape> input_static_shapes;
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
 
     input_static_shapes.reserve(input_shapes.size());
     IShapeInferCommon::Result shape_infer_result;
@@ -33,6 +32,7 @@ NgraphShapeInfer::infer(
         // call shape inference API
         shape_infer_result = static_shape_infer->infer(input_static_shapes, MemoryAccessor(data_dependency, iranks));
     } else {
+        std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
         for (size_t port = 0; port < iranks.size(); port++) {
             auto itr = data_dependency.find(port);
             if (itr != data_dependency.end()) {
