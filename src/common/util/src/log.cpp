@@ -9,8 +9,6 @@
 #include <functional>
 #include <iostream>
 
-#include "openvino/util/file_util.hpp"
-
 void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
 }
@@ -43,7 +41,7 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
         m_stream << buffer << " ";
     }
 
-    m_stream << util::trim_file_name(file);
+    m_stream << file;
     m_stream << " " << line;
     m_stream << "\t";
 }
