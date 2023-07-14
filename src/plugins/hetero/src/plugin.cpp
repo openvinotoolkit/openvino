@@ -2,66 +2,57 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include "itt.hpp"
 #include "plugin.hpp"
-#include "compiled_model.hpp"
 
-#include <memory>
-#include <vector>
-#include <map>
-#include <string>
-#include <utility>
 #include <fstream>
+#include <map>
+#include <memory>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "openvino/runtime/device_id_parser.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include "compiled_model.hpp"
 #include "ie/ie_plugin_config.hpp"
-
+#include "itt.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "properties.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
-    
+
     auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(
-        model->clone(),
-        shared_from_this(),
-        config);
+    auto compiled_model = std::make_shared<CompiledModel>(model->clone(), shared_from_this(), config);
     return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
     const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
-    const ov::SoPtr<ov::IRemoteContext>& context,
-    const ov::AnyMap& properties) const  {
+                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                     const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
-    
+
     auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(
-        model,
-        shared_from_this(),
-        config,
-        true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, true);
     return compiled_model;
 }
 
@@ -84,8 +75,9 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    Configuration full_config{properties, m_cfg};    
-    DeviceProperties properties_per_device = get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
+    Configuration full_config{properties, m_cfg};
+    DeviceProperties properties_per_device =
+        get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
 
     std::map<std::string, ov::SupportedOpsMap> query_results;
     for (const auto& it : properties_per_device) {
@@ -120,8 +112,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::supported_properties,
                                                     ov::device::full_name,
-                                                    ov::device::capabilities
-                                                    };
+                                                    ov::device::capabilities};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -180,13 +171,10 @@ ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_
     std::vector<ov::AnyMap> result = {};
     for (const auto& device_name : device_names) {
         ov::AnyMap properties = {};
-        auto supported_properties =
-            get_core()->get_property(device_name, ov::supported_properties);
-        auto supported_internal_properties =
-            get_core()->get_property(device_name, ov::internal::supported_properties);
+        auto supported_properties = get_core()->get_property(device_name, ov::supported_properties);
+        auto supported_internal_properties = get_core()->get_property(device_name, ov::internal::supported_properties);
         if (ov::util::contains(supported_internal_properties, ov::internal::caching_properties)) {
-            auto caching_properties =
-                get_core()->get_property(device_name, ov::internal::caching_properties);
+            auto caching_properties = get_core()->get_property(device_name, ov::internal::caching_properties);
             for (const auto& property_name : caching_properties) {
                 properties[property_name] = get_core()->get_property(device_name, std::string(property_name), {});
             }
