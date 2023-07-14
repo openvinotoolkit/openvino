@@ -1,7 +1,7 @@
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-const { display } = require('node-kernel');
+// const { display } = require('node-kernel');
 const { createCanvas, createImageData, loadImage, Image, ImageData } = require('canvas');
 
 exports.arrayToImageData = arrayToImageData;
@@ -17,7 +17,7 @@ function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
 }
 
-function displayImage(imageOrImageData) {
+function displayImage(imageOrImageData, display) {
   const canvas = createCanvas(imageOrImageData.width, imageOrImageData.height);
   const ctx = canvas.getContext('2d');
 
