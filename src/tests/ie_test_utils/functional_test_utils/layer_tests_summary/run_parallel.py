@@ -583,6 +583,9 @@ class TestParallelRunner:
                                     break
                             if not dir is None:
                                 break
+                    # Collect PostgreSQL reporting errors and warnings
+                    if (constants.PG_ERR in line) or (constants.PG_WARN in line):
+                        test_log.append(line)
                     if test_name is not None:
                         test_log.append(line)
                         if dir:
