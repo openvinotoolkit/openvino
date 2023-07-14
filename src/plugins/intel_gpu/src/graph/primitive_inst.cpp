@@ -540,27 +540,29 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
-            if (_dynamic_impl && use_async_compilation()) {
-                auto& compilation_context = get_network().get_program()->get_compilation_context();
-                compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
-                    if (compilation_context.is_stopped())
-                        return;
-                    auto _program = get_network().get_program();
-                    auto& cache = _program->get_implementations_cache();
-                    {
-                        // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
-                        // tasks created for same shapes
-                        if (cache.has(updated_params_no_dyn_pad))
+            if (_dynamic_impl) {
+                if (use_async_compilation()) {
+                    auto& compilation_context = get_network().get_program()->get_compilation_context();
+                    compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
+                        if (compilation_context.is_stopped())
                             return;
-                    }
+                        auto _program = get_network().get_program();
+                        auto& cache = _program->get_implementations_cache();
+                        {
+                            // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
+                            // tasks created for same shapes
+                            if (cache.has(updated_params_no_dyn_pad))
+                                return;
+                        }
 
-                    auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
-                    if (!can_be_optimized()) {
-                        auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
-                        impl->set_kernels(kernels);
-                        cache.add(updated_params_no_dyn_pad, impl->clone());
-                    }
-                });
+                        auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                        if (!can_be_optimized()) {
+                            auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
+                            impl->set_kernels(kernels);
+                            cache.add(updated_params_no_dyn_pad, impl->clone());
+                        }
+                    });
+                }
                 if (!can_be_optimized())  {
                     _impl = _dynamic_impl->clone();
                     auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
