@@ -5,18 +5,12 @@
 #include "utils_quantize.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/round.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
 

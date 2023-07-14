@@ -42,7 +42,10 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
         0, 4, -7
     ])
     @pytest.mark.parametrize("dtype", [
-        torch.quint8, torch.qint8, # torch.qint32 - Not supported with FakeQuantize
+        torch.quint8,
+        torch.qint8,
+        pytest.param(torch.qint32, marks=pytest.mark.skip(
+            reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
     # @pytest.mark.precommit - sporadic issue
@@ -68,7 +71,10 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
         np.array([-1, 0, -4, 5], dtype=np.int32),
     ])
     @pytest.mark.parametrize("dtype", [
-        torch.quint8, torch.qint8, # torch.qint32 - Not supported with FakeQuantize
+        torch.quint8,
+        torch.qint8,
+        pytest.param(torch.qint32, marks=pytest.mark.skip(
+            reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.parametrize("axis", [
         0, 1, 2, 3
