@@ -32,7 +32,7 @@ class TestQuantizedHardswish(PytorchLayerTest):
         0, 4, -7
     ])
     @pytest.mark.parametrize("dtype", [
-        torch.quint8, torch.qint8, # torch.qint32
+        torch.quint8, torch.qint8, # torch.qint32 - Not supported with FakeQuantize
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
