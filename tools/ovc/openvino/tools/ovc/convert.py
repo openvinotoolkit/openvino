@@ -1,15 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import os
 import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.runtime import PartialShape, Shape, Layout, Model
+from openvino.runtime import PartialShape, Shape, Layout, Model # pylint: disable=no-name-in-module,import-error
 
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
@@ -48,6 +45,7 @@ def convert_model(
         version: bool = None,
         progress: bool = False,
         stream_output: bool = False,
+        enable_mmap: bool = True,
 
         # PaddlePaddle-specific parameters:
         example_output: Any = None,
@@ -276,6 +274,10 @@ def convert_model(
             Enable model conversion progress display.
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
+        :param enable_mmap:
+            Force reading weights instead of mapping weights files into memory. 
+            Currently, mmap feature is provided only for ONNX models 
+            that do not require fallback to the legacy ONNX frontend for the conversion.
 
     PaddlePaddle-specific parameters:
         :param example_output:
