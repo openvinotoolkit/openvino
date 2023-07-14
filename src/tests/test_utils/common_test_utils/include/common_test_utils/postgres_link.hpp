@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@ public:
 
     /// \brief Returns pointer to stored parentObject.
     /// \returns Unsafe pointer to parent object.
-    void* GetParentObject(void) {
+    void* get_parent_object(void) {
         return this->parentObject;
     }
     /// \brief Replaces stored pointer on parent object. Might be nullptr to reset stored pointer.
     /// \param[in] ptrParentObject Unsafe pointer to a parent object
-    void SetParentObject(void* ptrParentObject) {
+    void set_parent_object(void* ptrParentObject) {
         this->parentObject = ptrParentObject;
     }
     /// \brief Sets custom field for current test instance
@@ -50,36 +50,36 @@ public:
     /// \param[in] fieldValue Value to store as field value, any applicable string
     /// \param[in] rewrite Flag defines behaviour in case field already exists. Rewrites if true.
     /// \returns True if value has been stored, false otherwise.
-    bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite = false) const;
+    bool set_custom_field(const std::string fieldName, const std::string fieldValue, const bool rewrite = false) const;
     /// \brief Gets custom field value for current test instance
     /// \param[in] fieldName Field name, any applicable string
     /// \param[in] defaultValue Value should be returned in case of value wasn't stored, any applicable string
     /// \returns Stored value or defaultValue otherwise.
-    std::string GetCustomField(const std::string fieldName, const std::string defaultValue) const;
+    std::string get_custom_field(const std::string fieldName, const std::string defaultValue) const;
     /// \brief Removes custom field for current test instance
     /// \param[in] fieldName Field name, any applicable string
     /// \returns True if value has been removed, false otherwise.
-    bool RemoveCustomField(const std::string fieldName) const;
+    bool remove_custom_field(const std::string fieldName) const;
     /// \brief Sets waste result flag which means do not store results
     /// \param[in] value Value should be set, true is default
-    void SetRefuseResult(bool value = true) const;
+    void set_refuse_result(bool value = true) const;
     /// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
     /// Each pair has test name as a key and SQL-query as a value.
     /// Query can contain a variables started with $ and be replaced by an actual values
     /// Variables are parsed from test name.
-    static std::map<std::string, std::string>* getExtTestQueries(void);
+    static std::map<std::string, std::string>* get_ext_test_queries(void);
     /// \brief Returns pointer on a global map which contains pairs of Extended Test Names
     /// Each pair has test name as a key and string as a value.
     /// Query can contain a variables started with $ and be replaced by an actual values
     /// Variables are parsed from test name.
-    static std::map<std::string, std::string>* getExtTestNames(void);
+    static std::map<std::string, std::string>* get_ext_test_names(void);
 };
 
 }  // namespace CommonTestUtils
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 namespace PostgreSQLLink {
-extern std::map<std::string, std::string>* getExtTestQueries(void);
-extern std::map<std::string, std::string>* getExtTestNames(void);
+extern std::map<std::string, std::string>* get_ext_test_queries(void);
+extern std::map<std::string, std::string>* get_ext_test_names(void);
 };  // namespace PostgreSQLLink
 #endif

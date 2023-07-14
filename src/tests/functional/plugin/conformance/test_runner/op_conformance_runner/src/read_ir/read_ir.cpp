@@ -245,21 +245,22 @@ void ReadIRTest::SetUp() {
             auto devName = core->get_property("GPU", "FULL_DEVICE_NAME").as<std::string>();
             std::cerr << "GPU Device: " << devName << std::endl;
             if (devName.find("dGPU") != std::string::npos) {
-                pgLink->SetCustomField("targetDevice", "DGPU", true);
+                pgLink->set_custom_field("targetDevice", "DGPU", true);
             } else {
-                pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+                pgLink->set_custom_field("targetDevice", this->targetDevice, true);
             }
         } else {
-            pgLink->SetCustomField("targetDevice", this->targetDevice, true);
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
         }
 #    endif
-        pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
+        pgLink->set_custom_field("caseType", hasDynamic ? "dynamic" : "static");
+        pgLink->set_custom_field("irWeight", std::to_string(rel_influence_coef), true);
 
         // Do not store waste results
         if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
-            pgLink->SetRefuseResult();
+            pgLink->set_refuse_result();
         } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
-            pgLink->SetRefuseResult();
+            pgLink->set_refuse_result();
         }
 
         auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
@@ -276,8 +277,8 @@ void ReadIRTest::SetUp() {
                     std::find(ov::test::conformance::unique_ops[op_name].begin(),
                               ov::test::conformance::unique_ops[op_name].end(),
                               op_version) != ov::test::conformance::unique_ops[op_name].end()) {
-                    pgLink->SetCustomField("opName", op_name, true);
-                    pgLink->SetCustomField("opSet", op_version, true);
+                    pgLink->set_custom_field("opName", op_name, true);
+                    pgLink->set_custom_field("opSet", op_version, true);
                 }
             } else {
                 for (const auto& path_part : splittedFilename) {
@@ -290,7 +291,7 @@ void ReadIRTest::SetUp() {
                     for (const auto& node : function->get_ordered_ops()) {
                         if (node->get_type_name() == op_name) {
                             op_version = node->get_type_info().version_id;
-                            pgLink->SetCustomField("opSet", op_version, true);
+                            pgLink->set_custom_field("opSet", op_version, true);
                         }
                     }
                 }

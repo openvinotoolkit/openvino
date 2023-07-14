@@ -9,7 +9,9 @@ function(add_common_utils ADD_TARGET_NAME)
     if(NOT ENABLE_CONFORMANCE_PGQL)
         list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
             ${CMAKE_CURRENT_SOURCE_DIR}/include/common_test_utils/postgres_link.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/common_test_utils/postgres_helpers.hpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/postgres_link.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/postgres_helpers.cpp
         )
     endif()
 
