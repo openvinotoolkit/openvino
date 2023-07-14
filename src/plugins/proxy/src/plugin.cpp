@@ -209,6 +209,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
         it = hw_config.find(ov::device::priorities.name());
         if (it != hw_config.end()) {
+            proxy_config_was_changed = true;
             m_configs[config_name][ov::device::priorities.name()] = it->second;
             // Main device is needed in case if we don't have alias and would like to be able change fallback order per
             // device
