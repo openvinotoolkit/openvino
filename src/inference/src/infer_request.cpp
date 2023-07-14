@@ -14,6 +14,8 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
 #define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
@@ -62,7 +64,7 @@ InferRequest::InferRequest(const std::shared_ptr<ov::IAsyncInferRequest>& impl, 
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, get_tensor_impl(tensor)); });
 }
 
 void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
@@ -90,7 +92,12 @@ void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor
 }
 
 void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<Tensor>& tensors) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensors(port, tensors); })
+    std::vector<ov::SoPtr<ov::ITensor>> tensor_ptrs;
+    tensor_ptrs.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        tensor_ptrs.emplace_back(get_tensor_impl(tensor));
+    }
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensors(port, tensor_ptrs); })
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
@@ -170,7 +177,7 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         if (!tensor._so)
             tensor._so = _so;
 
-        return tensor;
+        return make_tensor(tensor);
     });
 }
 
@@ -269,7 +276,9 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->query_state()) {
-            variable_states.emplace_back(ov::VariableState{state, {_so}});
+            if (!state._so)
+                state._so = _so;
+            variable_states.emplace_back(ov::VariableState{state._ptr, state._so});
         }
     })
     return variable_states;

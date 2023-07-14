@@ -26,14 +26,14 @@ public:
     ~InferRequest();
 
     void infer() override;
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     const SoAsyncInferRequest& get_shared_request();
     void set_scheduled_request(SoAsyncInferRequest request);
     // Auto-Device impl specific: sets the data (tensors from the device-less requests to the specific device request)
     void set_tensors_to_another_request(const SoAsyncInferRequest& req);
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
 private:
     SoAsyncInferRequest m_shared_request;

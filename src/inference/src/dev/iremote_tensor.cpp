@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "dev/make_tensor.hpp"
 #include "ie_blob.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"

@@ -4,11 +4,14 @@
 
 #include "openvino/proxy/infer_request.hpp"
 
+#include <memory>
+#include <openvino/runtime/iremote_tensor.hpp>
+
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "remote_context.hpp"
-#include "variable_state.hpp"
 
 ov::proxy::InferRequest::InferRequest(ov::SoPtr<ov::IAsyncInferRequest>&& request,
                                       const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
@@ -43,42 +46,43 @@ std::vector<ov::ProfilingInfo> ov::proxy::InferRequest::get_profiling_info() con
     return m_infer_request->get_profiling_info();
 }
 
-ov::Tensor ov::proxy::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor> ov::proxy::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     auto tensor = m_infer_request->get_tensor(port);
-    if (tensor.is<ov::RemoteTensor>()) {
-        auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context());
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+        auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context()._ptr);
         OPENVINO_ASSERT(remote_context);
-        tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
+        tensor = remote_context->wrap_tensor(tensor);
     }
-    return ov::Tensor(tensor, m_infer_request._so);
+    return tensor;
 }
 
-void ov::proxy::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+void ov::proxy::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     m_infer_request->set_tensor(port, tensor);
 }
 
-std::vector<ov::Tensor> ov::proxy::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+std::vector<ov::SoPtr<ov::ITensor>> ov::proxy::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     auto tensors = m_infer_request->get_tensors(port);
     for (auto&& tensor : tensors) {
-        if (tensor.is<ov::RemoteTensor>()) {
-            auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context());
+        if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+            auto remote_context =
+                std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context()._ptr);
             OPENVINO_ASSERT(remote_context);
-            tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
+            tensor = remote_context->wrap_tensor(tensor);
         }
-        tensor = ov::Tensor(tensor, m_infer_request._so);
     }
     return tensors;
 }
 
 void ov::proxy::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                          const std::vector<ov::Tensor>& tensors) {
+                                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     return m_infer_request->set_tensors(port, tensors);
 }
 
-std::vector<std::shared_ptr<ov::IVariableState>> ov::proxy::InferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::proxy::InferRequest::query_state() const {
     auto states = m_infer_request->query_state();
     for (auto&& state : states) {
-        state = std::make_shared<ov::proxy::VariableState>(state, m_infer_request._so);
+        if (!state._so)
+            state._so = m_infer_request._so;
     }
     return states;
 }

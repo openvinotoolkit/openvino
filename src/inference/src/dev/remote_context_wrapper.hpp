@@ -4,21 +4,22 @@
 
 #include <memory>
 
-#include "dev/make_tensor.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 
 class RemoteContextWrapper : public InferenceEngine::RemoteContext {
 private:
-    std::shared_ptr<ov::IRemoteContext> m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
 
 public:
-    RemoteContextWrapper(const std::shared_ptr<ov::IRemoteContext>& context) : m_context(context) {}
+    RemoteContextWrapper(const ov::SoPtr<ov::IRemoteContext>& context) : m_context(context) {}
 
-    const std::shared_ptr<ov::IRemoteContext>& get_context() const {
+    const ov::SoPtr<ov::IRemoteContext>& get_context() const {
         return m_context;
     }
 

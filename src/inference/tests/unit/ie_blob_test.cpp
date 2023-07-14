@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <ie_blob.h>
 
-#include "dev/make_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -600,7 +600,7 @@ TEST_F(BlobTests, readRangeRoiBlob) {
 
 TEST_F(BlobTests, setBiggerShapeOnPreAllocatedMemory) {
     const auto t = ov::make_tensor(ov::element::i64, ov::Shape{2, 6});
-    const auto b = ov::tensor_to_blob(t);
+    const auto b = ov::tensor_to_blob({t, nullptr});
 
     const auto origin_ptr = t->data();
     b->setShape({2, 8});
@@ -612,7 +612,7 @@ TEST_F(BlobTests, setBiggerShapeOnPreAllocatedMemory) {
 
 TEST_F(BlobTests, setSmallerShapeOnPreAllocatedMemory) {
     const auto t = ov::make_tensor(ov::element::i64, ov::Shape{2, 6});
-    const auto b = ov::tensor_to_blob(t);
+    const auto b = ov::tensor_to_blob({t, nullptr});
 
     const auto origin_ptr = t->data();
     b->setShape({2, 4});

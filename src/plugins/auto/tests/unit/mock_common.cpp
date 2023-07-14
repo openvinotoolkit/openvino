@@ -3,6 +3,7 @@
 //
 
 #include "include/mock_common.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 //  getMetric will return a fake ov::Any, gmock will call ostreamer << ov::Any
 //  it will cause core dump, so add this special implemented
@@ -29,11 +30,11 @@ MockAsyncInferRequest::MockAsyncInferRequest(const std::shared_ptr<IInferRequest
                 } });
 }
 
-void MockSyncInferRequest::allocate_tensor_impl(Tensor& tensor, const element::Type& element_type, const Shape& shape) {
-    if (!tensor || tensor.get_element_type() != element_type) {
-        tensor = ov::Tensor(element_type, shape);
+void MockSyncInferRequest::allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const element::Type& element_type, const Shape& shape) {
+    if (!tensor || tensor->get_element_type() != element_type) {
+        tensor = ov::make_tensor(element_type, shape);
     } else {
-        tensor.set_shape(shape);
+        tensor->set_shape(shape);
     }
 }
 
@@ -42,7 +43,7 @@ MockSyncInferRequest::MockSyncInferRequest(const std::shared_ptr<const MockCompi
     OPENVINO_ASSERT(compiled_model);
     // Allocate input/output tensors
     for (const auto& input : get_inputs()) {
-        allocate_tensor(input, [this, input](ov::Tensor& tensor) {
+        allocate_tensor(input, [this, input](ov::SoPtr<ov::ITensor>& tensor) {
             // Can add a check to avoid double work in case of shared tensors
             allocate_tensor_impl(tensor,
                                     input.get_element_type(),
@@ -50,7 +51,7 @@ MockSyncInferRequest::MockSyncInferRequest(const std::shared_ptr<const MockCompi
         });
     }
     for (const auto& output : get_outputs()) {
-        allocate_tensor(output, [this, output](ov::Tensor& tensor) {
+        allocate_tensor(output, [this, output](ov::SoPtr<ov::ITensor>& tensor) {
             // Can add a check to avoid double work in case of shared tensors
             allocate_tensor_impl(tensor,
                                     output.get_element_type(),

@@ -18,7 +18,7 @@ public:
           m_compiled_model(model) {}
     CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const ov::RemoteContext& context)
+                  const ov::SoPtr<ov::IRemoteContext>& context)
         : ov::ICompiledModel(nullptr, plugin, context),
           m_compiled_model(model) {}
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {

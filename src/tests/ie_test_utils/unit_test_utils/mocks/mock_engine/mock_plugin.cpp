@@ -52,7 +52,7 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         if (m_plugin)
             return m_plugin->compile_model(model, properties, context);
         OPENVINO_NOT_IMPLEMENTED;
@@ -71,13 +71,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (m_plugin)
             return m_plugin->create_context(remote_properties);
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         if (m_plugin)
             return m_plugin->get_default_context(remote_properties);
         OPENVINO_NOT_IMPLEMENTED;
@@ -90,7 +90,7 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         if (m_plugin)
             return m_plugin->import_model(model, context, properties);
@@ -160,17 +160,17 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string&
 
 std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const {
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
     set_parameters_if_need();
     return m_plugin->compile_model(model, properties, context);
 }
 
-std::shared_ptr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> MockPlugin::create_context(const ov::AnyMap& remote_properties) const {
     set_parameters_if_need();
     return m_plugin->create_context(remote_properties);
 }
 
-std::shared_ptr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> MockPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
     set_parameters_if_need();
     return m_plugin->get_default_context(remote_properties);
 }
@@ -180,7 +180,7 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model
     return m_plugin->import_model(model, properties);
 }
 std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
-                                                             const ov::RemoteContext& context,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const {
     set_parameters_if_need();
     return m_plugin->import_model(model, context, properties);

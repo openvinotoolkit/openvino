@@ -17,6 +17,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -51,7 +52,7 @@ public:
      * @param port Port of the tensor to get.
      * @return Tensor for the port @p port.
      */
-    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const = 0;
+    virtual ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const = 0;
 
     /**
      * @brief Sets an input/output tensor to infer.
@@ -59,7 +60,7 @@ public:
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
-    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) = 0;
+    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) = 0;
 
     /**
      * @brief Gets a batch of tensors for input data to infer by input port.
@@ -72,7 +73,7 @@ public:
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      * @return vector of tensors
      */
-    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const = 0;
+    virtual std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const = 0;
 
     /**
      * @brief Sets a batch of tensors for input data to infer by input port.
@@ -84,7 +85,8 @@ public:
      * @param tensors Input tensors for batched infer request. The type of each tensor must match the model
      * input element type and shape (except batch dimension). Total size of tensors must match the input size.
      */
-    virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) = 0;
+    virtual void set_tensors(const ov::Output<const ov::Node>& port,
+                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) = 0;
 
     /**
      * @brief Gets state control interface for the given infer request.
@@ -92,7 +94,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    virtual std::vector<std::shared_ptr<ov::IVariableState>> query_state() const = 0;
+    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const = 0;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)

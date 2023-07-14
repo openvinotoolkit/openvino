@@ -62,7 +62,7 @@ public:
     //MOCK_METHOD(std::vector<Tensor>, get_tensors, (const Output<const Node>&), (const, override));
     //MOCK_METHOD(void, set_tensors, (const Output<const Node>&, const std::vector<Tensor>&), (override));
     MOCK_METHOD(void, infer, (), (override));
-    MOCK_METHOD(std::vector<std::shared_ptr<IVariableState>>, query_state, (), (const, override));
+    MOCK_METHOD(std::vector<ov::SoPtr<IVariableState>>, query_state, (), (const, override));
     //MOCK_METHOD(const std::shared_ptr<const ICompiledModel>&, get_compiled_model, (), (const, override));
     //MOCK_METHOD(const std::vector<Output<const Node>>&, get_inputs, (), (const, override));
     //MOCK_METHOD(const std::vector<Output<const Node>>&, get_outputs, (), (const, override));
@@ -70,6 +70,6 @@ public:
     ~MockSyncInferRequest() = default;
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape);
+    void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape);
 };
 } // namespace ov

@@ -6,6 +6,7 @@
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -81,11 +82,14 @@ std::string VariableState::get_name() const {
 }
 
 Tensor VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return _impl->get_state());
+    OV_VARIABLE_CALL_STATEMENT({
+        auto tensor = _impl->get_state();
+        return make_tensor(tensor);
+    });
 }
 
 void VariableState::set_state(const Tensor& state) {
-    OV_VARIABLE_CALL_STATEMENT(_impl->set_state(state));
+    OV_VARIABLE_CALL_STATEMENT(_impl->set_state(get_tensor_impl(state)));
 }
 
 }  // namespace ov

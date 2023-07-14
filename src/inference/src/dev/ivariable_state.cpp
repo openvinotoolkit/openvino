@@ -18,10 +18,10 @@ void ov::IVariableState::reset() {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ov::IVariableState::set_state(const ov::Tensor& state) {
+void ov::IVariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_state = state;
 }
 
-const ov::Tensor& ov::IVariableState::get_state() const {
+const ov::SoPtr<ov::ITensor>& ov::IVariableState::get_state() const {
     return m_state;
 }

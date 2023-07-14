@@ -27,6 +27,7 @@ class Result;
 namespace InferenceEngine {
 
 class IInferencePlugin;
+class IPluginWrapper;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
@@ -216,6 +217,7 @@ protected:
     bool _loadedFromCache = false;
 
     friend InferenceEngine::ICompiledModelWrapper;
+    friend InferenceEngine::IPluginWrapper;
 };
 
 /**

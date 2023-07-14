@@ -206,8 +206,8 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
                     for (const auto& it : compiled_model->inputs()) {
                         auto tensor = infer_request->get_tensor(it);
-                        if (tensor.is<ov::RemoteTensor>()) {
-                            const auto name = tensor.as<ov::RemoteTensor>().get_device_name();
+                        if (auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+                            const auto name = remote_tensor->get_device_name();
                             const auto res = std::find_if(
                                 m_context->m_device_priorities_initial.cbegin(),
                                 m_context->m_device_priorities_initial.cend(),
