@@ -20,9 +20,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Configuration& cfg);
 
-    CompiledModel(std::istream& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Configuration& cfg);
+    CompiledModel(std::istream& model, const std::shared_ptr<const ov::IPlugin>& plugin, const Configuration& cfg);
 
     void export_model(std::ostream& model) const override;
 
