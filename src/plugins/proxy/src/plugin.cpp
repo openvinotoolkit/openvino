@@ -442,43 +442,10 @@ std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     }
 }
 
-void ov::proxy::Plugin::remove_unavailable_plugins() const {
-    std::lock_guard<std::mutex> lock(m_plugin_mutex);
-    const auto core = get_core();
-    OPENVINO_ASSERT(core != nullptr);
-    std::unordered_set<std::string> unsupported_devices;
-    for (const auto& device : m_device_order) {
-        try {
-            core->get_property(device, ov::available_devices);
-        } catch (const std::runtime_error&) {
-            // Device cannot be loaded, so remove this device
-            unsupported_devices.insert(device);
-        }
-    }
-    for (const auto& device : unsupported_devices) {
-        auto it = m_alias_for.find(device);
-        if (it != m_alias_for.end()) {
-            m_alias_for.erase(it);
-        }
-        m_device_order.erase(std::remove(m_device_order.begin(), m_device_order.end(), device), m_device_order.end());
-        // Remove unsupported device from fallback order from all configs
-        for (auto&& config : m_configs) {
-            auto it = config.second.find(ov::device::priorities.name());
-            if (it == config.second.end())
-                continue;
-            auto& devices = it->second.as<std::vector<std::string>>();
-            devices.erase(std::remove(devices.begin(), devices.end(), device), devices.end());
-            it->second = devices;
-        }
-    }
-}
-
 std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() const {
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
     //  * Alias - Case when we group all devices under one common name
-    remove_unavailable_plugins();
-
     if (m_init_devs)
         return m_hidden_devices;
 
@@ -499,7 +466,12 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     if (m_alias_for.size() == 1) {
         auto device = *m_alias_for.begin();
         // Allow to get runtime error, because only one plugin under the alias
-        const std::vector<std::string> real_devices_ids = core->get_property(device, ov::available_devices);
+        std::vector<std::string> real_devices_ids;
+        try {
+            real_devices_ids = core->get_property(device, ov::available_devices);
+        } catch (const std::runtime_error&) {
+            OPENVINO_THROW(get_device_name(), " cannot find available devices!");
+        }
         for (const auto& device_id : real_devices_ids) {
             const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
             std::vector<std::string> devices;
@@ -530,8 +502,16 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         // 2. Use individual fallback priorities to fill each list
         std::vector<DeviceID_t> all_highlevel_devices;
         std::set<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>> unique_devices;
+        std::unordered_set<std::string> unavailable_devices;
         for (const auto& device : m_device_order) {
-            std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
+            std::vector<std::string> supported_device_ids;
+            try {
+                supported_device_ids = core->get_property(device, ov::available_devices);
+            } catch (const std::runtime_error&) {
+                unavailable_devices.emplace(device);
+                // Device cannot be loaded
+                continue;
+            }
             for (const auto& device_id : supported_device_ids) {
                 const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
                 try {
@@ -563,6 +543,10 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             }
         }
 
+        OPENVINO_ASSERT(!all_highlevel_devices.empty(),
+                        get_device_name(),
+                        " cannot find available devices!");  // Devices should be found
+
         // Use individual fallback order to generate result list
         for (size_t i = 0; i < all_highlevel_devices.size(); i++) {
             std::vector<std::string> real_fallback_order;
@@ -575,6 +559,8 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             bool use_hetero_mode = device.no_uuid ? true : false;
             std::vector<std::string> device_order;
             for (const auto& fallback_dev : fallback_order) {
+                if (unavailable_devices.count(fallback_dev))
+                    continue;
                 if (!found_primary_device) {
                     auto it = device.device_to_full_name.find(fallback_dev);
                     if (it != device.device_to_full_name.end()) {

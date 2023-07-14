@@ -47,7 +47,6 @@ private:
     ov::Any get_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
     bool has_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
     size_t get_device_from_config(const ov::AnyMap& config) const;
-    void remove_unavailable_plugins() const;
 
     size_t m_default_device = 0;
     mutable std::vector<std::string> m_device_order;
