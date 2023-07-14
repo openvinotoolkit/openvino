@@ -35,7 +35,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
                              size == static_cast<google::protobuf::int64>(entry.size() / sizeof(T)),
                              "[TensorFlow Frontend] Internal error: Available data size isn't equal to calculated.");
     if (var_index->is_mmap_enabled()) {
-        auto fs = var_index->get_data_file<ngraph::runtime::AlignedBuffer>(entry.shard_id());
+        auto fs = var_index->get_data_buffer(entry.shard_id());
         if (!fs.get()) {
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }
@@ -43,7 +43,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
     } else {
         std::vector<T> var_data;
         var_data.resize(size);
-        auto fs = var_index->get_data_file<std::ifstream>(entry.shard_id());
+        auto fs = var_index->get_data_file(entry.shard_id());
         if (!fs.get()) {
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }

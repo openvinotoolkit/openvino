@@ -101,11 +101,7 @@ public:
 
     /// \brief Returns shared pointer to a requested shard_id, or nullptr in case of shard_id isn't found
     /// \param shard_id Requested shard_id
-    /// \returns Valid shared_ptr with ifstream/AlignedBuffer or with nullptr if shard isn't found
-    template <typename T>
-    std::shared_ptr<T> get_data_file(const int32_t shard_id) const;
-
-    template <>
+    /// \returns Valid shared_ptr with ifstream or with nullptr if shard isn't found
     std::shared_ptr<std::ifstream> get_data_file(const int32_t shard_id) const {
         FRONT_END_GENERAL_CHECK(m_mmap_enabled == false,
                                 "[TensorFlow Frontend] Requested ifstream, but mmap is enabled");
@@ -113,8 +109,10 @@ public:
         return result != m_data_files.end() ? result->second.stream : nullptr;
     }
 
-    template <>
-    std::shared_ptr<ngraph::runtime::AlignedBuffer> get_data_file(const int32_t shard_id) const {
+    /// \brief Returns shared pointer to a requested shard_id, or nullptr in case of shard_id isn't found
+    /// \param shard_id Requested shard_id
+    /// \returns Valid shared_ptr with AlignedBuffer or with nullptr if shard isn't found
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> get_data_buffer(const int32_t shard_id) const {
         FRONT_END_GENERAL_CHECK(m_mmap_enabled == true,
                                 "[TensorFlow Frontend] Requested AlignedBuffer, but mmap is disabled");
         auto result = m_data_files.find(shard_id);
