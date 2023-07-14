@@ -86,6 +86,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     function = f.getOriginal();
     function_ref = f.getReference();
     config.minimal_concurrency = 16;
+    run();
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
