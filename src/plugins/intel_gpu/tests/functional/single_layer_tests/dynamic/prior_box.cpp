@@ -10,6 +10,7 @@
 #include "ie_precision.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <string>
+#include <openvino/pass/constant_folding.hpp>
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -72,7 +73,8 @@ protected:
         auto strideInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
 
         auto functionParams = builder::makeDynamicParams(inType, inputDynamicShapes);
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
+        auto staticParams = ngraph::builder::makeParams(inType, {{1, 3, 30, 30}, {1, 3, 224, 224}});
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(staticParams));
 
         auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);
         auto stridedSliceOp1 = ngraph::builder::makeStridedSlice(shapeOfOp1, beginInput, endInput, strideInput, element::i32,
@@ -95,8 +97,9 @@ protected:
 
         auto priorBoxOp = std::make_shared<ngraph::op::v8::PriorBox>(stridedSliceOp1, stridedSliceOp2, attributes);
 
+        ov::pass::disable_constant_folding(priorBoxOp);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBoxOp)};
-        function = std::make_shared <ngraph::Function>(results, functionParams, "PriorBoxFunction");
+        function = std::make_shared <ngraph::Function>(results, staticParams, "PriorBoxFunction");
     }
 };
 

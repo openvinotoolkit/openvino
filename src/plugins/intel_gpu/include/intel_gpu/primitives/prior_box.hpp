@@ -281,11 +281,6 @@ struct prior_box : public primitive_base<prior_box> {
         return attrs;
     }
 
-    void set_output_img_size(const cldnn::tensor& outputSize, const cldnn::tensor& imgSize) {
-        output_size = outputSize;
-        img_size = imgSize;
-    }
-
     /// @brief Spatial size of generated grid with boxes.
     mutable cldnn::tensor output_size{};
     /// @brief Image width and height.

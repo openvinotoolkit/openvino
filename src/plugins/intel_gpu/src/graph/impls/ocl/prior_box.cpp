@@ -27,11 +27,19 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         const auto& primitive = impl_param.typed_desc<prior_box>();
         auto params = get_default_params<kernel_selector::prior_box_params>(impl_param);
 
-        const auto width = primitive->output_size.spatial[0];
-        const auto height = primitive->output_size.spatial[1];
-        const auto image_width = primitive->img_size.spatial[0];
-        const auto image_height = primitive->img_size.spatial[1];
+        auto width = primitive->output_size.spatial[0];
+        auto height = primitive->output_size.spatial[1];
+        auto image_width = primitive->img_size.spatial[0];
+        auto image_height = primitive->img_size.spatial[1];
 
+        if (width == 0 || height == 0 || image_width == 0 || image_height == 0) {
+            auto output_size = impl_param.get_input1_tensors();
+            auto img_size = impl_param.get_input2_tensors();
+            width = output_size.spatial[0];
+            height = output_size.spatial[1];
+            image_width = img_size.spatial[0];
+            image_height = img_size.spatial[1];
+        }
         params.min_size = primitive->min_sizes;
         params.max_size = primitive->max_sizes;
         params.density = primitive->density;
