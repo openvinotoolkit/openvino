@@ -138,6 +138,7 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     run();
     CheckNumberOfNodesWithType(compiledModel, "FullyConnected", 1);
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
 }
 
 namespace {
