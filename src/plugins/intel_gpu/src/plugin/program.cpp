@@ -33,6 +33,7 @@ const cldnn::primitive_id Program::m_meanValuesTag("_cldnn_mean_values");
 const cldnn::primitive_id Program::m_preCustomLayerTag("_cldnn_custom_preprocess");
 const cldnn::primitive_id Program::m_postCustomLayerTag("_cldnn_custom_postprocess");
 Program::factories_map_t Program::factories_map = {};
+std::mutex Program::m_mutex = {};
 
 std::string layer_type_lower(const ngraph::Node* op) {
     std::string layerType = op->get_type_name();
