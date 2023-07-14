@@ -12,7 +12,6 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "plugin.hpp"
-#include "remote_context.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
@@ -41,13 +40,11 @@ public:
                   const std::set<std::string>& batched_outputs,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
-                  const ov::RemoteContext& context);
+                  const ov::SoPtr<ov::IRemoteContext>& context);
 
     void set_property(const ov::AnyMap& properties) override;
 
     ov::Any get_property(const std::string& name) const override;
-
-    std::shared_ptr<ov::IRemoteContext> get_context() const override;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -63,7 +60,6 @@ protected:
     std::atomic_bool m_terminate = {false};
     ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    AutoBatchRemoteContext m_remote_context;
 
     std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest()
         const;

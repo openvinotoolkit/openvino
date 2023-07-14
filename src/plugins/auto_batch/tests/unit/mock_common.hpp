@@ -10,6 +10,7 @@
 #include "async_infer_request.hpp"
 #include "compiled_model.hpp"
 #include "ie_icore.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "sync_infer_request.hpp"
 
@@ -26,19 +27,19 @@ public:
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 compile_model,
-                (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::RemoteContext&),
+                (const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::SoPtr<ov::IRemoteContext>&),
                 (const, override));
     MOCK_METHOD(ov::Any, get_property, (const std::string&, const ov::AnyMap&), (const, override));
     MOCK_METHOD(void, set_property, (const ov::AnyMap&), (override));
-    MOCK_METHOD(std::shared_ptr<ov::IRemoteContext>, create_context, (const ov::AnyMap&), (const, override));
-    MOCK_METHOD(std::shared_ptr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap&), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, create_context, (const ov::AnyMap&), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap&), (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
                 (std::istream&, const ov::AnyMap&),
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (std::istream&, const ov::RemoteContext&, const ov::AnyMap&),
+                (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const, override));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,
@@ -73,7 +74,7 @@ public:
                               const std::set<std::string>& batched_outputs,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                               const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
-                              const ov::RemoteContext& context)
+                              const ov::SoPtr<ov::IRemoteContext>& context)
         : CompiledModel(model,
                         plugin,
                         config,
@@ -93,7 +94,7 @@ public:
         OPENVINO_ASSERT(compiled_model);
         // Allocate input/output tensors
         for (const auto& input : get_inputs()) {
-            allocate_tensor(input, [this, input](ov::Tensor& tensor) {
+            allocate_tensor(input, [this, input](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
@@ -101,7 +102,7 @@ public:
             });
         }
         for (const auto& output : get_outputs()) {
-            allocate_tensor(output, [this, output](ov::Tensor& tensor) {
+            allocate_tensor(output, [this, output](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
@@ -111,15 +112,17 @@ public:
     }
     MOCK_METHOD(std::vector<ov::ProfilingInfo>, get_profiling_info, (), (const, override));
     MOCK_METHOD(void, infer, (), (override));
-    MOCK_METHOD(std::vector<std::shared_ptr<ov::IVariableState>>, query_state, (), (const, override));
+    MOCK_METHOD(std::vector<ov::SoPtr<ov::IVariableState>>, query_state, (), (const, override));
     ~MockISyncInferRequest() = default;
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
-        if (!tensor || tensor.get_element_type() != element_type) {
-            tensor = ov::Tensor(element_type, shape);
+    void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
+                              const ov::element::Type& element_type,
+                              const ov::Shape& shape) {
+        if (!tensor || tensor->get_element_type() != element_type) {
+            tensor = ov::make_tensor(element_type, shape);
         } else {
-            tensor.set_shape(shape);
+            tensor->set_shape(shape);
         }
     }
 };

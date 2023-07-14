@@ -38,7 +38,7 @@ public:
     std::shared_ptr<NiceMock<MockICore>> m_core;
     std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>> m_plugin;
     std::shared_ptr<ov::Model> m_model;
-    ov::RemoteContext m_remote_context;
+    ov::SoPtr<ov::IRemoteContext> m_remote_context;
 
     ov::SoPtr<MockICompiledModel> m_mock_compile_model;
     std::shared_ptr<MockICompiledModel> m_mock_i_compile_model;
@@ -109,7 +109,7 @@ public:
 
         ON_CALL(*m_core,
                 compile_model(MatcherCast<const std::shared_ptr<const ov::Model>&>(_),
-                              MatcherCast<const ov::RemoteContext&>(_),
+                              MatcherCast<const ov::SoPtr<ov::IRemoteContext>&>(_),
                               _))
             .WillByDefault(Return(m_mock_compile_model));
     }

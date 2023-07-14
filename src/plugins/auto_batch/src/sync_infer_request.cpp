@@ -6,25 +6,27 @@
 #include "sync_infer_request.hpp"
 
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
 
-inline ov::Tensor create_shared_tensor_on_batched_tensor(ov::Tensor batched_tensor,
-                                                         std::string name,
-                                                         const std::set<std::string>& batched_names,
-                                                         size_t batch_id,
-                                                         size_t batch_num) {
-    auto ptr = static_cast<uint8_t*>(batched_tensor.data());
-    auto sizePerBatch = batched_tensor.get_byte_size() / batch_num;
-    auto batched_shape = batched_tensor.get_shape();
+inline ov::SoPtr<ov::ITensor> create_shared_tensor_on_batched_tensor(ov::SoPtr<ov::ITensor> batched_tensor,
+                                                                     std::string name,
+                                                                     const std::set<std::string>& batched_names,
+                                                                     size_t batch_id,
+                                                                     size_t batch_num) {
+    auto ptr = static_cast<uint8_t*>(batched_tensor->data());
+    auto sizePerBatch = batched_tensor->get_byte_size() / batch_num;
+    auto batched_shape = batched_tensor->get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
     if (batched_names.count(name)) {
         batched_shape[0] = 1;
-        return ov::Tensor(batched_tensor.get_element_type(), batched_shape, ptr + sizePerBatch * batch_id);
+        return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr + sizePerBatch * batch_id),
+                batched_tensor._so};
     } else {
-        return ov::Tensor(batched_tensor.get_element_type(), batched_shape, ptr);
+        return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr), batched_tensor._so};
     }
 }
 
@@ -45,24 +47,24 @@ SyncInferRequest::SyncInferRequest(
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
                                                       const std::set<std::string>& batched_outputs) {
     for (const auto& it : get_inputs()) {
-        ov::Tensor res;
+        ov::SoPtr<ov::ITensor> res;
         res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
                                                      ov::op::util::get_ie_output_name(it),
                                                      batched_inputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, ov::Tensor(res, m_batched_request_wrapper->_infer_request_batched._so));
+        set_tensor(it, res);
     }
 
     for (const auto& it : get_outputs()) {
         auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
-        ov::Tensor res;
+        ov::SoPtr<ov::ITensor> res;
         res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
                                                      name,
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, ov::Tensor(res, m_batched_request_wrapper->_infer_request_batched._so));
+        set_tensor(it, res);
     }
 }
 
@@ -70,17 +72,17 @@ void SyncInferRequest::set_tensors_to_another_request(std::shared_ptr<ov::IAsync
     for (const auto& it : get_inputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
-        auto type = tensor.get_element_type();
-        if (req->get_tensor(it).data(type) != tensor.data(type)) {
-            req->set_tensor(it, ov::Tensor(it, tensor.data()));
+        auto type = tensor->get_element_type();
+        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+            req->set_tensor(it, get_tensor_impl(ov::Tensor(it, tensor->data())));
         }
     }
     for (const auto& it : get_outputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
-        auto type = tensor.get_element_type();
-        if (req->get_tensor(it).data(type) != tensor.data(type)) {
-            req->set_tensor(it, ov::Tensor(it, tensor.data()));
+        auto type = tensor->get_element_type();
+        if (req->get_tensor(it)->data(type) != tensor->data(type)) {
+            req->set_tensor(it, get_tensor_impl(ov::Tensor(it, tensor->data())));
         }
     }
 }
@@ -93,11 +95,13 @@ void SyncInferRequest::copy_inputs_if_needed() {
     }
 }
 
-void SyncInferRequest::copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& dst, const bool bInput) {
-    auto ptrDst = static_cast<char*>(dst.data());
-    auto ptrSrc = static_cast<char*>(src.data());
-    ptrdiff_t szDst = dst.get_byte_size();
-    ptrdiff_t szSrc = src.get_byte_size();
+void SyncInferRequest::copy_tensor_if_needed(const ov::SoPtr<ov::ITensor>& src,
+                                             ov::SoPtr<ov::ITensor>& dst,
+                                             const bool bInput) {
+    auto ptrDst = static_cast<char*>(dst->data());
+    auto ptrSrc = static_cast<char*>(src->data());
+    ptrdiff_t szDst = dst->get_byte_size();
+    ptrdiff_t szSrc = src->get_byte_size();
     if (bInput) {
         ptrdiff_t offset = szSrc != szDst ? m_batch_id * szDst / m_batch_size : 0;
         if ((ptrDst + offset) == ptrSrc)
@@ -125,7 +129,7 @@ void SyncInferRequest::infer() {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::vector<std::shared_ptr<ov::IVariableState>> SyncInferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

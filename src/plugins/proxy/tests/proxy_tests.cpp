@@ -218,8 +218,8 @@ public:
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
                                      input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape(),
-                                     compiled_model->has_proxy_context(),
-                                     compiled_model->get_proxy_context());
+                                     compiled_model->has_context(),
+                                     compiled_model->get_context());
             });
         }
         for (const auto& output : get_outputs()) {
@@ -228,8 +228,8 @@ public:
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
                                      output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape(),
-                                     compiled_model->has_proxy_context(),
-                                     compiled_model->get_proxy_context());
+                                     compiled_model->has_context(),
+                                     compiled_model->get_context());
             });
         }
     }

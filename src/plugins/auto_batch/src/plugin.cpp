@@ -12,7 +12,6 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "remote_context.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -68,22 +67,8 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
     return meta_device;
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    auto full_properties = merge_properties(m_plugin_config, remote_properties);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == full_properties.end())
-        it = full_properties.find(ov::device::priorities.name());
-    if (it == full_properties.end())
-        OPENVINO_THROW("Value for ov::device::priorities is not set");
-
-    auto val = it->second.as<std::string>();
-    auto metaDevice = parse_meta_device(val, ov::AnyMap());
-    full_properties.erase(it);
-    auto remote_context = std::make_shared<ov::autobatch_plugin::AutoBatchRemoteContext>(
-        get_core()->create_context(metaDevice.device_name, full_properties));
-    return remote_context->_impl;
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -156,7 +141,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties,
-                                                          const ov::RemoteContext& context) const {
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto core = get_core();
     if (core == nullptr) {
         OPENVINO_THROW("Please, work with Auto-Batching device via InferencEngine::Core object");
@@ -372,22 +357,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OPENVINO_THROW("Value for ov::device::priorities for AUTO BATCH PLUGIN is not set");
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    auto full_properties = merge_properties(m_plugin_config, remote_properties);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == full_properties.end())
-        it = full_properties.find(ov::device::priorities.name());
-    if (it == full_properties.end())
-        OPENVINO_THROW("Value for ov::device::priorities is not set");
-
-    auto val = it->second.as<std::string>();
-    auto metaDevice = parse_meta_device(val, ov::AnyMap());
-    full_properties.erase(it);
-    auto remote_context = std::make_shared<ov::autobatch_plugin::AutoBatchRemoteContext>(
-        get_core()->get_default_context(metaDevice.device_name));
-    return remote_context->_impl;
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
@@ -395,7 +366,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

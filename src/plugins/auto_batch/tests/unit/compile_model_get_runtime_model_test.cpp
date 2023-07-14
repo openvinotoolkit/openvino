@@ -62,7 +62,7 @@ public:
 
         ON_CALL(*m_core,
                 compile_model(MatcherCast<const std::shared_ptr<const ov::Model>&>(_),
-                              MatcherCast<const ov::RemoteContext&>(_),
+                              MatcherCast<const ov::SoPtr<ov::IRemoteContext>&>(_),
                               _))
             .WillByDefault(Return(m_mock_compile_model));
 

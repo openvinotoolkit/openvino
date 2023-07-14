@@ -29,7 +29,7 @@ public:
 
     void infer() override;
 
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
@@ -44,7 +44,7 @@ public:
     } m_batched_request_status = eExecutionFlavor::NOT_EXECUTED;
 
 protected:
-    void copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& dst, const bool bInput);
+    void copy_tensor_if_needed(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const bool bInput);
 
     void share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
                                         const std::set<std::string>& batched_outputs);

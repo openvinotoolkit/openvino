@@ -44,7 +44,7 @@ public:
     DeviceInformation m_device_info;
     std::set<std::string> m_batched_inputs;
     std::set<std::string> m_batched_outputs;
-    ov::RemoteContext m_remote_context;
+    ov::SoPtr<ov::IRemoteContext> m_remote_context;
 
     std::shared_ptr<MockAutoBatchCompileModel> m_auto_batch_compile_model;
 
