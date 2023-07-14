@@ -86,6 +86,7 @@ protected:
 
         ngraph::op::v8::PriorBox::Attributes attributes;
         attributes.min_size = {64};
+        attributes.max_size = {300};
         attributes.aspect_ratio = {2};
         attributes.variance = {0.1, 0.1, 0.2, 0.2};
         attributes.step = 16;
