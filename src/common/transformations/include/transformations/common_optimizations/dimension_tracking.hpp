@@ -33,6 +33,8 @@ class TRANSFORMATIONS_API RPE_Optimization;
 class TRANSFORMATIONS_API Fused_RPE_MHA_Replacer;
 class TRANSFORMATIONS_API ApplyTableOfEquivalence;
 class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
+class TRANSFORMATIONS_API DeReshapeMatMulWithComplications;
+class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 
 }  // namespace pass
 }  // namespace ov
@@ -87,6 +89,18 @@ class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DeReshapeMatMul", "0");
     DeReshapeMatMul();
+};
+
+class ov::pass::DeReshapeMatMulWithComplications : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("DeReshapeMatMulWithComplications", "0");
+    DeReshapeMatMulWithComplications();
+};
+
+class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("LabelResolvingThroughSelect", "0");
+    LabelResolvingThroughSelect();
 };
 
 class ov::pass::RemoveSliceBeforeGatherElements : public ov::pass::MatcherPass {
