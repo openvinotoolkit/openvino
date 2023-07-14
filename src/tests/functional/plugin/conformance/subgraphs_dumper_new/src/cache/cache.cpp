@@ -6,6 +6,7 @@
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 
@@ -19,6 +20,17 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
                              const std::string& rel_serialization_dir) {
     std::shared_ptr<ov::Model> model = graph_info.first;
     MetaInfo meta = graph_info.second;
+    for (auto& op : model->get_ordered_ops()) {
+        if (ov::op::util::is_constant(op)) {
+            auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
+            if (op_to_replace->get_byte_size() > 1024) {
+            auto param = std::make_shared<ov::op::v0::Parameter>(
+                op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
+                model->replace_node(op_to_replace, param);
+            }
+        }
+    }
+
     std::string model_name = model->get_friendly_name();
     std::string abs_searilization_dir = ov::util::path_join({ m_serialization_dir, rel_serialization_dir });
     std::string xml_path =  ov::util::path_join({ abs_searilization_dir, model_name + ".xml" });
