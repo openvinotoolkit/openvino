@@ -15,16 +15,36 @@ After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image.
 
+Preparation
+-----------
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
 .. code:: ipython3
 
-    import sys
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q opencv-python requests tqdm
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    );
+
+Imports
+~~~~~~~
+
+.. code:: ipython3
+
     from pathlib import Path
     import numpy as np
     from PIL import Image
     from openvino.runtime import Core, serialize
     from openvino.tools import mo
-    sys.path.append("../utils")
-    from notebook_utils import download_file
+    
+    from notebook_utils import download_file, load_image
 
 Download TFLite model
 ---------------------
@@ -50,7 +70,7 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
@@ -105,9 +125,38 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 
 .. code:: ipython3
 
-    image = Image.open("../data/image/coco_bricks.png")
+    image = load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bricks.png")
+    # load_image reads the image in BGR format, [:,:,::-1] reshape transfroms it to RGB
+    image = Image.fromarray(image[:,:,::-1])
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
+
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
@@ -116,7 +165,8 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 
 .. code:: ipython3
 
-    imagenet_classes = open("../data/datasets/imagenet/imagenet_2012.txt").read().splitlines()
+    imagenet_classes_file_path = download_file("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt")
+    imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
     
     top1_predicted_cls_id = np.argmax(predicted_scores)
     top1_predicted_score = predicted_scores[0][top1_predicted_cls_id]
@@ -127,7 +177,13 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 
 
 
-.. image:: 119-tflite-to-openvino-with-output_files/119-tflite-to-openvino-with-output_11_0.png
+.. parsed-literal::
+
+    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+
+
+
+.. image:: 119-tflite-to-openvino-with-output_files/119-tflite-to-openvino-with-output_16_1.png
 
 
 .. parsed-literal::
@@ -177,7 +233,7 @@ GPU.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.15 ms
+    [ INFO ] Read model took 21.86 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -191,7 +247,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 149.12 ms
+    [ INFO ] Compile model took 183.81 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -213,15 +269,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.30 ms
+    [ INFO ] First inference took 7.41 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17514 iterations
-    [ INFO ] Duration:         15008.85 ms
+    [ INFO ] Count:            17364 iterations
+    [ INFO ] Duration:         15009.20 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        4.99 ms
-    [ INFO ]    Average:       5.00 ms
-    [ INFO ]    Min:           3.71 ms
-    [ INFO ]    Max:           15.12 ms
-    [ INFO ] Throughput:   1166.91 FPS
+    [ INFO ]    Median:        5.04 ms
+    [ INFO ]    Average:       5.05 ms
+    [ INFO ]    Min:           3.22 ms
+    [ INFO ]    Max:           15.36 ms
+    [ INFO ] Throughput:   1156.89 FPS
 
