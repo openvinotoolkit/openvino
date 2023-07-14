@@ -18,7 +18,6 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-
 QuantizedNodeRemover::QuantizedNodeRemover() {
     auto quantized_pt_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::QuantizedPtNode>();
 
