@@ -2039,10 +2039,18 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
     };
 
-    for (size_t i = 0; i < inputPrecisions.size(); i++) {
-        inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
+    Precision forcedPrec;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+            if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                forcedPrec = getOriginalInputPrecisionAtPort(i);
+            }
+        }
     }
-    outputPrecision = filterPrecision(outputPrecision);
+    for (size_t i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = forcedPrec;
+    }
+    outputPrecision = forcedPrec;
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
