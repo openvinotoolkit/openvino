@@ -123,13 +123,9 @@ class TestPrimMax(PytorchLayerTest):
         {"first_input": 0, "second_input": 1, "dtype": "int"},
         {"first_input": 1, "second_input": 1, "dtype": "int"},
         {"first_input": 2, "second_input": 1, "dtype": "int"},
-        # is not supported by OV
-        pytest.param({"first_input": 0, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 1, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 2, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
+        {"first_input": 0, "second_input": 1, "dtype": "bool"},
+        {"first_input": 1, "second_input": 1, "dtype": "bool"},
+        {"first_input": 2, "second_input": 1, "dtype": "bool"},
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -187,13 +183,9 @@ class TestPrimMin(PytorchLayerTest):
         {"first_input": 0, "second_input": 1, "dtype": "int"},
         {"first_input": 1, "second_input": 1, "dtype": "int"},
         {"first_input": 2, "second_input": 1, "dtype": "int"},
-        # is not supported by OV
-        pytest.param({"first_input": 0, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 1, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 2, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
+        {"first_input": 0, "second_input": 1, "dtype": "bool"},
+        {"first_input": 1, "second_input": 1, "dtype": "bool"},
+        {"first_input": 2, "second_input": 1, "dtype": "bool"},
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
