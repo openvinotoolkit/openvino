@@ -13,7 +13,6 @@ from unittest.mock import patch
 import numpy as np
 
 from openvino.tools.ovc.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
-    get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
@@ -1159,48 +1158,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_partial_shapes_freeze_dynamic_negative_case4_comma_separator(self):
         argv_input = "inp1:1[1, 2, -1]->[1.0 2.0 3.0]"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
-
-
-class TestModelNameParsing(unittest.TestCase):
-    def test_model_name_ideal(self):
-        model_name = '/home/models/mymodel.caffemodel'
-        res = get_model_name(model_name)
-        exp_res = 'mymodel'
-        self.assertEqual(exp_res, res)
-
-    def test_model_name_no_name(self):
-        model_name = '/home/models/.caffemodel'
-        res = get_model_name(model_name)
-        exp_res = 'model'
-        self.assertEqual(exp_res, res)
-
-    def test_model_name_no_ext(self):
-        model_name = '/home/models/caffemodel'
-        res = get_model_name(model_name)
-        exp_res = 'caffemodel'
-        self.assertEqual(exp_res, res)
-
-    def test_model_name_no_name_no_path(self):
-        model_name = '.caffemodel'
-        res = get_model_name(model_name)
-        exp_res = 'model'
-        self.assertEqual(exp_res, res)
-
-    @patch("openvino.tools.ovc.cli_parser.os")
-    def test_model_name_win(self, old_os):
-        old_os.path.basename.return_value = "caffemodel"
-        old_os.path.splitext.return_value = ("caffemodel", "")
-        model_name = r'\home\models\caffemodel'
-        res = get_model_name(model_name)
-
-        exp_res = 'caffemodel'
-        self.assertEqual(exp_res, res)
-
-    def test_model_name_dots(self):
-        model_name = r'/home/models/squeezenet_v1.1.caffemodel'
-        res = get_model_name(model_name)
-        exp_res = 'squeezenet_v1.1'
-        self.assertEqual(exp_res, res)
 
 
 class PositiveChecker(unittest.TestCase):
