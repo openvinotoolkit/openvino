@@ -7,6 +7,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 #include "utils/dft.hpp"
 
@@ -24,7 +25,7 @@ OutputVector stft(const Node& node) {
 
     const auto& frame_step_node = ng_inputs.at(1);
     CHECK_VALID_NODE(node,
-                     ngraph::op::is_constant(frame_step_node.get_node_shared_ptr()) &&
+                     ov::op::util::is_constant(frame_step_node.get_node_shared_ptr()) &&
                          ov::shape_size(frame_step_node.get_shape()) <= 1,
                      "frame_step input must be a scalar or Shape{1} constant.");
     const auto frame_step =
@@ -38,7 +39,7 @@ OutputVector stft(const Node& node) {
     if (dft_length_provided) {
         const auto& frame_length_node = ng_inputs[3];
         CHECK_VALID_NODE(node,
-                         ngraph::op::is_constant(frame_length_node.get_node_shared_ptr()) &&
+                         ov::op::util::is_constant(frame_length_node.get_node_shared_ptr()) &&
                              ov::shape_size(frame_length_node.get_shape()) <= 1,
                          "frame_length input must be a scalar or Shape{1} constant.");
         frame_length = ov::as_type_ptr<default_opset::Constant>(frame_length_node.get_node_shared_ptr())

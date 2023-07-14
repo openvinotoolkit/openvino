@@ -57,7 +57,9 @@ public:
         if (!mvnAttrs.normalizeVariance_) {
             return false;
         }
-        if (!mvnAttrs.initAcrossChannels_ && getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
+        // "initAcrossChannels = false" is not supported by ACL for NHWC layout
+        if (!mvnAttrs.initAcrossChannels_ &&
+            getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
             return false;
         }
 
