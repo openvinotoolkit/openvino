@@ -54,7 +54,7 @@ using MatMulDecompressConvertParams = std::tuple<
 >;
 
 class MatMulDecompressConvertTest : public testing::WithParamInterface<MatMulDecompressConvertParams>,
-                                    virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                                    virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
         std::vector<InputShape> inputShapes;
@@ -88,29 +88,6 @@ protected:
     void transposeShape(T& shape) {
         IE_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
-    }
-
-    void CheckGraph() const {
-        const auto execFunction = compiledModel.get_runtime_model();
-        ASSERT_NE(nullptr, execFunction);
-        bool fcNodeFound = false;
-        bool convertNodeFound = false;
-        for (const auto &node : execFunction->get_ops()) {
-            const auto & rtInfo = node->get_rt_info();
-            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
-                return it->second.as<std::string>();
-            };
-            const auto layerType = getExecValue(ExecGraphInfoSerialization::LAYER_TYPE);
-            if (layerType == "FullyConnected") {
-                fcNodeFound = true;
-            } else if (layerType == "Convert") {
-                convertNodeFound = true;
-            }
-        }
-        // ASSERT_EQ(fcNodeFound, true);
-        // ASSERT_EQ(convertNodeFound, false);
     }
 
     void SetUp() override {
@@ -159,7 +136,8 @@ protected:
 
 TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     run();
-    CheckGraph();
+    CheckNumberOfNodesWithType(compiledModel, "FullyConnected", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
 }
 
 namespace {
