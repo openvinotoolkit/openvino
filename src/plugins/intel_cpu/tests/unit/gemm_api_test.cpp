@@ -4,11 +4,11 @@
 
 #include <utility>
 #include <gtest/gtest.h>
-#include "gemm/ov_cpu_gemm.h"
+#include "mlas/sgemm.hpp"
 
-// This test is used to test whether gemm lib compiles successfully
+// This test is used to test whether mlas gemm lib compiles successfully
 TEST(GemmTests, getPackedSize) {
     int N = 51864;
     int K = 384;
-    ASSERT_NO_THROW(ov_sgemm_pack_get_size(N, K));
+    ASSERT_NO_THROW(mlas_sgemm_pack_get_size(N, K));
 }
