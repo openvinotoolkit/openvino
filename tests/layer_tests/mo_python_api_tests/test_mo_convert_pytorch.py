@@ -731,18 +731,21 @@ def create_pytorch_module_with_nested_inputs(tmp_dir):
         
         def forward(self, z:Tuple[torch.Tensor, torch.Tensor]):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
-            return torch.cat([z1, zeros], 1), torch.cat([z2, zeros], 1) 
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1), torch.cat([z2, zeros2], 2) 
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
-    ref_model = Model([concat1, concat2], [param1, param2], "test")
-    return net, ref_model, {"example_input": {"z": (torch.zeros((1, 10)), torch.ones((1, 10)))}}
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
+    ref_model = Model([concat2, concat1], [param1, param2], "test")
+    return net, ref_model, {"example_input": {"z": (torch.zeros((1, 10)), torch.ones((1, 5, 2)))}}
 
 
 def create_pytorch_module_with_nested_inputs2(tmp_dir):
@@ -750,40 +753,46 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
         
         def forward(self, x:torch.Tensor, z:Tuple[torch.Tensor, torch.Tensor]):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
-            return torch.cat([z1, zeros], 1) + x, torch.cat([z2, zeros], 1) 
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2) 
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param0)
     ref_model = Model([concat2, add], [param0, param1, param2], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 10)))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 5)))}}
 
 def create_pytorch_module_with_nested_inputs3(tmp_dir):
     class PTModel(torch.nn.Module):
         
         def forward(self, z:Tuple[torch.Tensor, torch.Tensor], x:torch.Tensor):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
-            return torch.cat([z1, zeros], 1) + x, torch.cat([z2, zeros], 1) 
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2) 
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
     param3 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param3)
     ref_model = Model([concat2, add], [param1, param2, param3], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 10)))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 3)))}}
 
 
 def create_pytorch_module_with_nested_inputs4(tmp_dir):
@@ -791,67 +800,75 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
         
         def forward(self, x:torch.Tensor, z:Tuple[torch.Tensor, torch.Tensor], y:torch.Tensor):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
-            return torch.cat([z1, zeros], 1) + x, torch.cat([z2, zeros], 1)  * y
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2)  * y
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
     param3 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    param4 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
+    param4 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param3)
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param3, param1, param2, param4], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 10))), "y": torch.ones((1, 10))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10))), "y": torch.ones((1,))}}
 
 def create_pytorch_module_with_nested_inputs5(tmp_dir):
     class PTModel(torch.nn.Module):
         
         def forward(self, x:torch.Tensor, z:Tuple[torch.Tensor, torch.Tensor], y:torch.Tensor):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
-            return torch.cat([z1, zeros], 1) + x, torch.cat([z2, zeros], 1)  * y
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2)  * y
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
-    param4 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
+    param4 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param0)
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param0, param1, param2, param4], "test")
-    return net, ref_model, {"example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 10))), torch.ones((1, 10))]}
+    return net, ref_model, {"example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 5, 10))), torch.ones((1,))]}
 
 def create_pytorch_module_with_nested_inputs6(tmp_dir):
     class PTModel(torch.nn.Module):
         
         def forward(self, x:torch.Tensor, y:torch.Tensor=None, z:Tuple[torch.Tensor, torch.Tensor]=None):
             z1, z2 = z
-            zeros = torch.zeros((1, 1))
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
             if y is not None:
-                return torch.cat([z1, zeros], 1) * y, torch.cat([z2, zeros], 1)  * y
-            return torch.cat([z1, zeros], 1) + x, torch.cat([z2, zeros], 1)  + x
+                return torch.cat([z1, zeros1], 1) * y, torch.cat([z2, zeros2], 2)  * y
+            return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2)
 
     net = PTModel()
-    constant_zeros = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    shape = PartialShape([1, -1])
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
-    param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    param2 = ov.opset10.parameter(shape, dtype=np.float32)
-    concat1 = ov.opset10.concat([param1, constant_zeros], 1)
-    concat2 = ov.opset10.concat([param2, constant_zeros], 1)
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
+    concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add1 = ov.opset10.add(concat1, param0)
-    add2 = ov.opset10.add(concat2, param0)
-    ref_model = Model([add1, add2], [param0, param1, param2], "test")
-    return net, ref_model, {"example_input": {"x": torch.ones((1, 11)), "z": (torch.zeros((1, 10)), torch.ones((1, 10)))}}
+    ref_model = Model([concat2, add1], [param0, param1, param2], "test")
+    return net, ref_model, {"example_input": {"x": torch.ones((1, 11)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10)))}}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):

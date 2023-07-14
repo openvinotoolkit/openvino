@@ -152,19 +152,24 @@ class TorchScriptPythonDecoder (Decoder):
         import torch
         import inspect
 
-        def process_dict_inputs(inputs, input_signature, model):
+        def process_dict_inputs(inputs, input_params, model):
             ordered_inputs = []
-            for input_name in input_signature:
+            for input_name in input_params:
                 if input_name in inputs:
                     ordered_inputs.append(input_name)
-            
+
+            input_signature = list(input_params)
             if ordered_inputs == input_signature[:len(ordered_inputs)]:
                 example_inputs = [inputs[input_name] for input_name in ordered_inputs]
                 if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
                     return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
                 return {"example_inputs": example_inputs}, ordered_inputs, model
 
-            input_params = inspect.signature(model.forward if hasattr(model, "forward") else model.__call__).parameters
+            # PyTorch has some difficulties to trace models with named unordered parameters:
+            # torch < 2.0.0 supports only positional arguments for tracing
+            # pytorch == 2.0.0 supports input kwargs tracing, 
+            # but does not support complex nested objects (e. g. tuple of tuples of tensors)
+            # We will use wrapper for making them positional as workaround.
 
             input_sign_str = []
             input_params_str = []
@@ -175,18 +180,23 @@ class TorchScriptPythonDecoder (Decoder):
 
             wrapper_class = wrapper_template.format(input_sign=', '.join(input_sign_str), example_input=', '.join(input_params_str))
             result = {}
-            exec(wrapper_class, result)
+            try:
+                exec(wrapper_class, result)
 
-            wrapped_model = result["ModelWrapper"](model)
-            wrapped_model.eval()
+                wrapped_model = result["ModelWrapper"](model)
+                wrapped_model.eval()
+            # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
+            except Exception:
+                wrapped_model = model
 
             return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
 
-        def prepare_example_inputs_and_model(inputs, input_signature, model):
+        def prepare_example_inputs_and_model(inputs, input_params, model):
             if isinstance(inputs, dict):
-                return process_dict_inputs(inputs, input_signature, model)
+                return process_dict_inputs(inputs, input_params, model)
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
+            input_signature = list(input_params)
             input_signature = input_signature[:len(inputs)]
             return {"example_inputs": inputs}, input_signature, model
 
@@ -194,11 +204,13 @@ class TorchScriptPythonDecoder (Decoder):
             pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
-            input_signature = list(inspect.signature(pt_module.forward if hasattr(pt_module, "forward") else pt_module.__call__).parameters.keys())
+            # input params is dictionary contains input names and their signature values (type hints and default values if any)
+            input_params = inspect.signature(pt_module.forward if hasattr(pt_module, "forward") else pt_module.__call__).parameters
+            input_signature = list(input_params)
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                input_parameters, input_signature, pt_module = prepare_example_inputs_and_model(example_inputs, input_signature, pt_module)
+                input_parameters, input_signature, pt_module = prepare_example_inputs_and_model(example_inputs, input_params, pt_module)
                 try:
                     scripted = torch.jit.trace(pt_module, **input_parameters)
                 except Exception:
