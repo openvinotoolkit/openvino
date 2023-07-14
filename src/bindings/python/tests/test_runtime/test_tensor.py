@@ -199,10 +199,11 @@ def test_init_with_output_port_different_shapes():
 
 
 def test_init_with_output_port_different_types():
-    param1 = ops.parameter(ov.Shape([2, 2]), dtype=np.int8)
-    data = np.random.rand(2, 2).astype(np.float32)
+    param1 = ops.parameter(ov.Shape([2]), dtype=np.int16)
+    ones_arr = np.ones(shape=(2, 2), dtype=np.int8)
     with pytest.warns(RuntimeWarning):
-        Tensor(param1.output(0), data)
+        tensor = Tensor(param1.output(0), ones_arr)
+    assert not np.array_equal(tensor.data, ones_arr)
 
 
 def test_init_with_roi_tensor():

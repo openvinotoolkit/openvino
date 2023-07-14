@@ -233,17 +233,18 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node
     auto port_element_type = port.get_element_type();
     auto port_shape_size = ov::shape_size(port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape());
 
-    if (array_type != port_element_type) {
-        PyErr_WarnEx(PyExc_RuntimeWarning, "Type of the array and the port are mismatched.", 1);
-    }
-
     if (array_helpers::is_contiguous(array)) {
+        if (array_type != port_element_type) {
+            PyErr_WarnEx(PyExc_RuntimeWarning,
+                         "Type of the array and the port are different. Data is going to be casted.",
+                         1);
+        }
         if (port_shape_size > array_shape_size) {
             OPENVINO_THROW("Shape of the port exceeds shape of the array.");
         }
         if (port_shape_size < array_shape_size) {
             PyErr_WarnEx(PyExc_RuntimeWarning,
-                         "Shape of the port less that shape of the array. Passing data will be cropped.",
+                         "Shape of the port is smaller than shape of the array. Passed data will be cropped.",
                          1);
         }
         return ov::Tensor(port, const_cast<void*>(array.data(0)));
