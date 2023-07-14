@@ -34,38 +34,6 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                               ov::element::Type dtype,
                               QuantizedPtNodeType quantization_type) {
     if (quantization_type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
-        // const auto scale_convert = context.mark_node(std::make_shared<v1::ConvertLike>(scale, input));
-        // const auto zero_point_convert = context.mark_node(std::make_shared<v1::ConvertLike>(zero_point, input));
-        // const auto scaled_input = context.mark_node(std::make_shared<v1::Divide>(input, scale_convert));
-        // const auto scaled_input_with_zero_pt =
-        //     context.mark_node(std::make_shared<v1::Add>(scaled_input, zero_point_convert));
-        // const auto quantized_input =
-        //     context.mark_node(std::make_shared<v5::Round>(scaled_input_with_zero_pt,
-        //     v5::Round::RoundMode::HALF_TO_EVEN));
-
-        // ov::Output<ov::Node> output;
-        // if (dtype == element::u8) {
-        //     const auto clamp = context.mark_node(std::make_shared<v0::Clamp>(quantized_input,
-        //                                                                     std::numeric_limits<unsigned
-        //                                                                     char>::lowest(),
-        //                                                                     std::numeric_limits<unsigned
-        //                                                                     char>::max()));
-        //     output = context.mark_node(std::make_shared<v0::Convert>(clamp, element::u8));
-        // } else if (dtype == element::i8) {
-        //     const auto clamp = context.mark_node(std::make_shared<v0::Clamp>(quantized_input,
-        //                                                                     std::numeric_limits<char>::lowest(),
-        //                                                                     std::numeric_limits<char>::max()));
-        //     output = context.mark_node(std::make_shared<v0::Convert>(clamp, element::i8));
-        // } else {
-        //     output = context.mark_node(std::make_shared<v0::Convert>(quantized_input, element::i32));
-        // }
-
-        // return context.mark_node(std::make_shared<QuantizedPtNode>(quantization_type,
-        //                                                            context,
-        //                                                            output,
-        //                                                            scale_convert,
-        //                                                            zero_point_convert));
-
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         const auto scale_convert = context.mark_node(std::make_shared<v0::Convert>(scale, element::f32));
         const auto zero_point_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::f32));
@@ -98,7 +66,8 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                                                                    context,
                                                                    quantized_input,
                                                                    scale_convert,
-                                                                   zero_point_convert));
+                                                                   zero_point_convert,
+                                                                   dtype));
     } else if (quantization_type == QuantizedPtNodeType::QUANTIZE_PER_CHANNEL) {
         FRONT_END_OP_CONVERSION_CHECK(axis, "Axis cannot be null for quantize_per_channel.");
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
@@ -138,21 +107,18 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
         const auto out_low_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_low, zero_point_bc));
         const auto out_high_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_bc));
 
-        const auto bound_a = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized));
-        const auto bound_b = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized));
-        const auto bound_low = context.mark_node(std::make_shared<v1::Minimum>(bound_a, bound_b));
-        const auto bound_high = context.mark_node(std::make_shared<v1::Maximum>(bound_a, bound_b));
+        const auto bound_low = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized));
+        const auto bound_high = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, out_low, out_high, bound_low, bound_high, levels));
-        const auto quantized_input_with_dtype =
-            context.mark_node(std::make_shared<v0::Convert>(quantized_input, dtype));
 
         return context.mark_node(std::make_shared<QuantizedPtNode>(quantization_type,
                                                                    context,
-                                                                   quantized_input_with_dtype,
+                                                                   quantized_input,
                                                                    scale_bc,
-                                                                   zero_point_bc));
+                                                                   zero_point_bc,
+                                                                   dtype));
     }
     FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in quantize.");
 }

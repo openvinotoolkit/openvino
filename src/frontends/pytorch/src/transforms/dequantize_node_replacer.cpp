@@ -26,6 +26,12 @@ namespace pass {
 
 using namespace ov::op;
 
+/**
+ * Dequantize Node Replacer
+ * Replacer finds the unconverted dequantize ops and converts them 
+ * using scale/zero_point from the matching quantized input nodes.
+ * To obtain them, a BFS search is performed on the graph structure.
+ */
 DequantizeNodeReplacer::DequantizeNodeReplacer() {
     auto dequantize_node = ov::pass::pattern::wrap_type<ov::frontend::pytorch::PtFrameworkNode>();
 

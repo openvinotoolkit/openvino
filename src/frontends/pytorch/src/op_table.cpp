@@ -40,7 +40,6 @@ OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
-OP_CONVERTER(translate_dequantize);
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
@@ -232,7 +231,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::detach", op::skip_node},
-        {"aten::dequantize", op::translate_dequantize},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
