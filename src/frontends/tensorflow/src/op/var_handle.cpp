@@ -8,6 +8,7 @@
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "tensor_bundle.pb.h"
 
 using namespace std;
@@ -26,22 +27,30 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
                                                const ov::Shape shape,
                                                const ::tensorflow::BundleEntryProto& entry,
                                                const NodeContext& node) {
-    std::vector<T> var_data;
     google::protobuf::int64 size = 1;
     for (uint64_t i = 0; i < shape.size(); ++i) {
         size *= static_cast<google::protobuf::int64>(shape[i]);
     }
-    var_data.resize(size);
     TENSORFLOW_OP_VALIDATION(node,
                              size == static_cast<google::protobuf::int64>(entry.size() / sizeof(T)),
                              "[TensorFlow Frontend] Internal error: Available data size isn't equal to calculated.");
-    auto fs = var_index->get_data_file(entry.shard_id());
-    if (!fs.get()) {
-        TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
+    if (var_index->is_mmap_enabled()) {
+        auto fs = var_index->get_data_file<ngraph::runtime::AlignedBuffer>(entry.shard_id());
+        if (!fs.get()) {
+            TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
+        }
+        return get_mmap_constant(ov_type, shape, fs, entry.offset(), entry.size());
+    } else {
+        std::vector<T> var_data;
+        var_data.resize(size);
+        auto fs = var_index->get_data_file<std::ifstream>(entry.shard_id());
+        if (!fs.get()) {
+            TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
+        }
+        fs->seekg(entry.offset(), std::ios::beg);
+        fs->read(reinterpret_cast<char*>(var_data.data()), entry.size());
+        return std::make_shared<Constant>(ov_type, shape, var_data);
     }
-    fs->seekg(entry.offset(), std::ios::beg);
-    fs->read(reinterpret_cast<char*>(var_data.data()), entry.size());
-    return std::make_shared<Constant>(ov_type, shape, var_data);
 }
 
 OutputVector translate_varhandle_op(const NodeContext& node) {

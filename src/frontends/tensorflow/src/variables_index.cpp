@@ -10,6 +10,7 @@
 #include "checkpoint_utils.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "tensor_bundle.pb.h"
 #include "trackable_object_graph.pb.h"
 
@@ -160,8 +161,12 @@ void VariablesIndex::read_checkpointable_object_graph() {
     // It looks like reinterpret_cast artifact
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L70
     int chg = 6;
-    shard->second->seekg(entry.offset() + chg);
-    shard->second->read(data.data(), entry.size() - chg);
+    if (m_mmap_enabled) {
+        auto srcPtr = static_cast<unsigned char*>(shard->second.mmap->get_ptr(entry.offset() + chg));
+    } else {
+        shard->second.stream->seekg(entry.offset() + chg);
+        shard->second.stream->read(data.data(), entry.size() - chg);
+    }
 
     // Might be need to remove this verification:
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L73
@@ -191,9 +196,13 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
         } else {
             fullPath = path + "." + suffix.data();
         }
-        m_data_files[shard] = std::shared_ptr<std::ifstream>(
-            new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
+        if (m_mmap_enabled) {
+            m_data_files[shard].mmap = load_mmap_object(fullPath);
+        } else {
+            m_data_files[shard].stream = std::shared_ptr<std::ifstream>(
+                new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
+            FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
+        }
     }
 
     read_checkpointable_object_graph();
@@ -215,9 +224,13 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
         } else {
             fullPath = path + L"." + suffix.data();
         }
-        m_data_files[shard] = std::shared_ptr<std::ifstream>(
-            new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Variable index data file does not exist");
+        if (m_mmap_enabled) {
+            m_data_files[shard].mmap = load_mmap_object(fullPath);
+        } else {
+            m_data_files[shard].stream = std::shared_ptr<std::ifstream>(
+                new std::ifstream(fullPath.c_str(), std::ifstream::in | std::ifstream::binary));
+            FRONT_END_GENERAL_CHECK(m_data_files[shard].stream->is_open(), "Variable index data file does not exist");
+        }
     }
 
     read_checkpointable_object_graph();

@@ -7,8 +7,8 @@
 #include <map>
 
 #include "graph_iterator_proto.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "saved_model.pb.h"
 
 namespace ov {
@@ -16,6 +16,11 @@ namespace frontend {
 namespace tensorflow {
 
 struct VIBlock;
+
+struct VariableStorage {
+    std::shared_ptr<std::ifstream> stream;
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> mmap;
+};
 
 // Stores information about variables index
 class VariablesIndex {
@@ -26,11 +31,19 @@ class VariablesIndex {
     // Contains BundleEntryProto variables list, readed from .index file
     std::map<std::string, std::vector<char>> m_variables_index;
     // List of opened data files for using with BundleEntryProto
-    std::map<int32_t, std::shared_ptr<std::ifstream>> m_data_files;
+    std::map<int32_t, VariableStorage> m_data_files;
     // List of mapped variables which could be read using TrackableObjectGraph
     std::map<std::string, std::string> m_variables_map;
+    // Flag shows which file storage is using
+    bool m_mmap_enabled;
 
 public:
+    VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
+    /// \brief Returns mmap_enabled state.
+    /// \returns True if mmap is enabled, false otherwise
+    bool is_mmap_enabled(void) const {
+        return m_mmap_enabled;
+    }
     /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
     /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
     /// \param path A path to file with variables data
@@ -88,10 +101,24 @@ public:
 
     /// \brief Returns shared pointer to a requested shard_id, or nullptr in case of shard_id isn't found
     /// \param shard_id Requested shard_id
-    /// \returns Valid shared_ptr with ifstream or with nullptr if shard isn't found
+    /// \returns Valid shared_ptr with ifstream/AlignedBuffer or with nullptr if shard isn't found
+    template <typename T>
+    std::shared_ptr<T> get_data_file(const int32_t shard_id) const;
+
+    template <>
     std::shared_ptr<std::ifstream> get_data_file(const int32_t shard_id) const {
+        FRONT_END_GENERAL_CHECK(m_mmap_enabled == false,
+                                "[TensorFlow Frontend] Requested ifstream, but mmap is enabled");
         auto result = m_data_files.find(shard_id);
-        return result != m_data_files.end() ? result->second : nullptr;
+        return result != m_data_files.end() ? result->second.stream : nullptr;
+    }
+
+    template <>
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> get_data_file(const int32_t shard_id) const {
+        FRONT_END_GENERAL_CHECK(m_mmap_enabled == true,
+                                "[TensorFlow Frontend] Requested AlignedBuffer, but mmap is disabled");
+        auto result = m_data_files.find(shard_id);
+        return result != m_data_files.end() ? result->second.mmap : nullptr;
     }
 
     /// \brief Adds variable mapping to the variables map
