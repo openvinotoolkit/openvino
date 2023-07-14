@@ -14,8 +14,8 @@ namespace pass {
 
 class DequantizeNodeRemover : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DequantizeNodeReplacer");
-    DequantizeNodeReplacer();
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DequantizeNodeRemover");
+    DequantizeNodeRemover();
 };
 
 }  // namespace pass
