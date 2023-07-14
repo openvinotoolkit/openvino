@@ -6,14 +6,17 @@
 
 #include <utility>
 #include "matchers/subgraph/subgraph.hpp"
+#include "matchers/single_op/single_op.hpp"
+#include "matchers/single_op/convolutions.hpp"
+#include "matchers/single_op/manager.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class RepeatPatternMatcher : public SubgraphMatcher {
+class RepeatPatternExtractor : public SubgraphExtractor {
 public:
-    RepeatPatternMatcher() {
+    RepeatPatternExtractor() {
         MatchersManager::MatchersMap matchers = {
             { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
             { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
@@ -21,7 +24,8 @@ public:
         manager.set_matchers(matchers);
     }
 
-    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
+    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
+                                        bool is_extract_body = true) override;
 
 private:
     MatchersManager manager;

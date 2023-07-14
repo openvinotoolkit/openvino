@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "matchers/base_matcher.hpp"
+#include "matchers/single_op/single_op.hpp"
 #include "cache/meta/input_info.hpp"
 
 namespace ov {
@@ -13,16 +13,11 @@ namespace subgraph_dumper {
 
 class MatchersManager {
 public:
-    using MatchersMap = std::map<std::string, BaseMatcher::Ptr>;
-
+    using MatchersMap = std::map<std::string, SingleOpMatcher::Ptr>;
     explicit MatchersManager(const MatchersMap& matchers = {}) : m_matchers(matchers) {}
 
     bool match(const std::shared_ptr<ov::Node> &node,
                const std::shared_ptr<ov::Node> &ref);
-    bool match(const std::shared_ptr<ov::Model> &model,
-               const std::shared_ptr<ov::Model> &ref_model);
-
-    std::list<ExtractedPattern> run_extractors(const std::shared_ptr<ov::Model> &model);
 
     void set_matchers(const MatchersMap& matchers = {}) { m_matchers = matchers; }
     const MatchersMap& get_matchers() { return m_matchers; }

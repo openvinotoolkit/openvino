@@ -9,7 +9,7 @@
 #include "openvino/openvino.hpp"
 
 #include "cache/meta/meta_info.hpp"
-#include "matchers/manager.hpp"
+#include "matchers/single_op/manager.hpp"
 
 namespace ov {
 namespace tools {
@@ -28,7 +28,6 @@ public:
 protected:
     size_t m_serialization_timeout = 60;
     std::string m_serialization_dir = ".";
-    MatchersManager m_manager = MatchersManager();
 
     ICache() = default;
 

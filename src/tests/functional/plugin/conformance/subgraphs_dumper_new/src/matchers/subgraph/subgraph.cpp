@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include "matchers/single_op/single_op.hpp"
+#include "matchers/single_op/convolutions.hpp"
+#include "matchers/single_op/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
 bool
-SubgraphMatcher::match(const std::shared_ptr<ov::Model> &model,
-                       const std::shared_ptr<ov::Model> &ref_model) const {
+SubgraphExtractor::match(const std::shared_ptr<ov::Model> &model,
+                         const std::shared_ptr<ov::Model> &ref_model) const {
     bool res = comparator.compare(model, ref_model).valid;
     if (res) {
         return res;

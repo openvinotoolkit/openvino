@@ -12,9 +12,10 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class FusedNamesMatcher : public SubgraphMatcher {
+class FusedNamesExtractor : public SubgraphExtractor {
 public:
-    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
+    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
+                                        bool is_extract_body = true) override;
 
 private:
     std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);

@@ -11,7 +11,8 @@
 using namespace ov::tools::subgraph_dumper;
 
 std::list<ExtractedPattern>
-RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
+RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
+                                bool is_extract_body) {
     std::unordered_set<std::string> checked_ops;
     std::list<ExtractedPattern> to_cache;
 

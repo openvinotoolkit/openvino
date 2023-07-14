@@ -7,23 +7,22 @@
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
-
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "matchers/base_matcher.hpp"
-#include "matchers/manager.hpp"
-#include "matchers/single_op/single_op.hpp"
-#include "matchers/single_op/convolutions.hpp"
+#include "cache/meta/input_info.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class SubgraphMatcher : public BaseMatcher {
+class  SubgraphExtractor {
 public:
+    using Ptr = std::shared_ptr<SubgraphExtractor>;
 
     bool match(const std::shared_ptr<ov::Model> &model,
-               const std::shared_ptr<ov::Model> &ref_model) const override;
+               const std::shared_ptr<ov::Model> &ref_model) const;
+
+    virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
+                                                bool is_extract_body = true) {};
 
 protected:
     FunctionsComparator comparator = FunctionsComparator::no_default()

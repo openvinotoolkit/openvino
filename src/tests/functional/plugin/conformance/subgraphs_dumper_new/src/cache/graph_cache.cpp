@@ -16,9 +16,11 @@ namespace subgraph_dumper {
 
 std::shared_ptr<GraphCache> GraphCache::m_cache_instance = nullptr;
 
-void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data, bool extract_body) {
+void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
+                              const std::string& model_meta_data,
+                              bool extract_body) {
     auto model_total_op = model->get_ops().size() - model->get_output_size() - model->inputs().size();
-    auto extracted_patterns = m_manager.run_extractors(model);
+    auto extracted_patterns = m_manager.extract(model);
     if (extracted_patterns.empty()) {
         return;
     }

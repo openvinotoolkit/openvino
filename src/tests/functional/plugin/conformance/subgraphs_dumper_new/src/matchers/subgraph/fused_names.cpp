@@ -9,7 +9,8 @@
 
 using namespace ov::tools::subgraph_dumper;
 
-std::unordered_set<std::string> FusedNamesMatcher::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
+std::unordered_set<std::string>
+FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(model);
     std::unordered_set<std::string> compiled_op_name;
@@ -23,7 +24,8 @@ std::unordered_set<std::string> FusedNamesMatcher::extract_compiled_model_names(
 }
 
 std::list<ExtractedPattern>
-FusedNamesMatcher::extract(const std::shared_ptr<ov::Model> &model) {
+FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
+                             bool is_extract_body) {
     auto compiled_op_name = extract_compiled_model_names(model);
     std::list<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;

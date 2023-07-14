@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "matchers/manager.hpp"
+#include "matchers/single_op/manager.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
@@ -25,24 +25,4 @@ bool MatchersManager::match(const std::shared_ptr<ov::Node> &node,
         }
     }
     return false;
-}
-
-bool MatchersManager::match(const std::shared_ptr<ov::Model> &model,
-                            const std::shared_ptr<ov::Model> &ref_model) {
-    for (const auto &it : m_matchers) {
-        if (it.second->match(model, ref_model)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-std::list<ExtractedPattern>
-MatchersManager::run_extractors(const std::shared_ptr<ov::Model> &model) {
-    std::list<ExtractedPattern> result;
-    for (const auto &it : m_matchers) {
-        auto extracted_patterns = it.second->extract(model);
-        result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
-    }
-    return result;
 }

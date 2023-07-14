@@ -7,6 +7,7 @@
 #include "cache/cache.hpp"
 
 #include "cache/meta/input_info.hpp"
+#include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
 #include "matchers/subgraph/repeat_pattern.hpp"
@@ -17,7 +18,8 @@ namespace subgraph_dumper {
 
 class GraphCache final : public virtual ICache {
 public:
-    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data,
+    void update_cache(const std::shared_ptr<ov::Model>& model,
+                      const std::string& model_meta_data,
                       bool extract_body = true) override;
     void serialize_cache() override;
 
@@ -35,14 +37,15 @@ public:
 
 private:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
+    ExtractorsManager m_manager = ExtractorsManager();
     static std::shared_ptr<GraphCache> m_cache_instance;
 
     GraphCache() {
-        MatchersManager::MatchersMap matchers = {
-            { "fused_names", FusedNamesMatcher::Ptr(new FusedNamesMatcher) },
-            { "repeat_patter", RepeatPatternMatcher::Ptr(new RepeatPatternMatcher) },
+        ExtractorsManager::ExtractorsMap matchers = {
+            { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
+            { "repeat_patter", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
-        m_manager.set_matchers(matchers);
+        m_manager.set_extractors(matchers);
     }
 
     void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,

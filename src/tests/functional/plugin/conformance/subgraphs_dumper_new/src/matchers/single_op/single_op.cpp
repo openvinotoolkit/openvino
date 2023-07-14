@@ -11,6 +11,20 @@
 
 using namespace ov::tools::subgraph_dumper;
 
+iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node> &node) const {
+    for (const auto &cfg : default_configs) {
+        if (cfg->op_in_config(node)) {
+            return cfg;
+        }
+    }
+    for (const auto &cfg : default_configs) {
+        if (cfg->is_fallback_config) {
+            return cfg;
+        }
+    }
+    return std::make_shared<MatcherConfig<>>();
+}
+
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
