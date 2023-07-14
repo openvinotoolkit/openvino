@@ -362,7 +362,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     m_inputs_to_submodels_inputs[j] = {id, i};
         }
         for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
-            for (size_t j = 0; j < ICompiledModel::outputs().size(); j++)
+            for (size_t j = 0; j < orig_results.size(); j++)
                 if (orderedSubgraphs[id]._results[i] == orig_results[j])
                     m_outputs_to_submodels_outputs[j] = {id, i};
         }
