@@ -311,8 +311,8 @@ void regclass_Tensor(py::module m) {
     )");
 
     cls.def("is_continuous",
-        &ov::Tensor::is_continuous,
-        R"(
+            &ov::Tensor::is_continuous,
+            R"(
         Reports whether the tensor is continuous or not.
         :return: True if the tensor is continuous, otherwise False. 
         :rtype: bool
