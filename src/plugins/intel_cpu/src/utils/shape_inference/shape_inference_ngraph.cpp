@@ -3,6 +3,7 @@
 //
 
 #include "shape_inference_ngraph.hpp"
+#include <memory>
 #include "memory_accessor.hpp"
 
 using namespace ov::intel_cpu;
@@ -18,23 +19,21 @@ NgraphShapeInfer::infer(
 
     input_static_shapes.reserve(input_shapes.size());
     IShapeInferCommon::Result shape_infer_result;
-    if (auto static_shape_infer = dynamic_cast<IStaticShapeInfer*>(m_shape_infer.get())) {
-        for (size_t port = 0; port < iranks.size(); port++) {
-            if (iranks[port] == 0) {
-                input_static_shapes.emplace_back();
-            } else {
-                input_static_shapes.emplace_back(input_shapes[port].get());
-            }
+
+    for (size_t port = 0; port < iranks.size(); port++) {
+        if (iranks[port] == 0) {
+            input_static_shapes.emplace_back();
+        } else {
+            input_static_shapes.emplace_back(input_shapes[port].get());
         }
+    }
+
+    if (m_has_implemented_accessor) {
+        auto static_shape_infer = std::static_pointer_cast<IStaticShapeInfer>(m_shape_infer);
         // call shape inference API
         shape_infer_result = static_shape_infer->infer(input_static_shapes, MemoryAccessor(data_dependency, iranks));
     } else {
         for (size_t port = 0; port < iranks.size(); port++) {
-            if (iranks[port] == 0) {
-                input_static_shapes.emplace_back();
-            } else {
-                input_static_shapes.emplace_back(input_shapes[port].get());
-            }
             auto itr = data_dependency.find(port);
             if (itr != data_dependency.end()) {
                 const auto& memPtr = itr->second;

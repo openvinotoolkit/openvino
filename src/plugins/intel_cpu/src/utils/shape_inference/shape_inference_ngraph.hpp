@@ -13,12 +13,13 @@ namespace intel_cpu {
 
 /**
  * This class wraps ngraph specific shape inference class to implement CPU plugin specific interface.
- * 
+ *
  */
 class NgraphShapeInfer : public IShapeInfer {
 public:
     NgraphShapeInfer(std::shared_ptr<IShapeInferCommon> shape_infer, IShapeInfer::port_mask_t port_mask) :
-        m_shape_infer(shape_infer), m_port_mask(port_mask) {}
+        m_shape_infer(shape_infer), m_port_mask(port_mask),
+        m_has_implemented_accessor(std::dynamic_pointer_cast<IStaticShapeInfer>(shape_infer) != nullptr) {}
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -37,6 +38,7 @@ public:
 private:
     std::shared_ptr<IShapeInferCommon> m_shape_infer;
     IShapeInfer::port_mask_t m_port_mask;
+    bool m_has_implemented_accessor;
 };
 
 } // namespace intel_cpu
