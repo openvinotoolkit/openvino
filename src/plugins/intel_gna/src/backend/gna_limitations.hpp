@@ -263,11 +263,11 @@ public:
     void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
                                  const InferenceEngine::Precision gna_precision);
 
-    bool use_only_16bit_convolution_weights() const;
     bool is_crop_affined_offset(size_t numberOfElements) const;
     bool is_aligned(size_t addr) const;
-    bool has_internal_memory_buffers() const;
+    bool use_scratch_for_fusable_layers() const;
     size_t get_memory_alignment() const;
+    bool use_only_16bit_convolution_weights() const;
     std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const;
 
     constexpr static uint32_t kBufferMaxSize = 65528;
@@ -301,15 +301,17 @@ public:
     constexpr static uint32_t kMemoryPageSize = 4096;
 
 private:
-    struct LimitationsWrapper {
-        LimitationsWrapper() = default;
+    struct TargetLimitations {
+        TargetLimitations() = default;
 
-        LimitationsWrapper(bool buffers_memory, bool use_only_16bit_conv_weights, size_t mem_alignment)
-            : internal_memory_buffers(buffers_memory),
+        TargetLimitations(bool use_scratch_for_fusable_layers, bool use_only_16bit_conv_weights, size_t mem_alignment)
+            : use_scratch_for_fusable_layers(use_scratch_for_fusable_layers),
               use_only_16bit_conv_weights(use_only_16bit_conv_weights),
               mem_alignment(mem_alignment) {}
-
-        bool internal_memory_buffers;
+        // Starting from MTL intermediate convolution results are stored in internal buffers, eliminating the need to
+        // allocate scratch memory by the plugin. For fully connected or element-wise operations, scratch
+        // memory is allocated by the GNA library.
+        bool use_scratch_for_fusable_layers;
         bool use_only_16bit_conv_weights;
         size_t mem_alignment;
     };
@@ -318,9 +320,9 @@ private:
     Limitations(const Limitations&) = delete;
     Limitations& operator=(const Limitations&) = delete;
 
-    LimitationsWrapper get_limitations_for_target(const target::DeviceVersion& target) const;
+    TargetLimitations get_limitations_for_target(const target::DeviceVersion& target) const;
 
-    LimitationsWrapper m_limitations;
+    TargetLimitations m_target_limitations;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
     static thread_local std::shared_ptr<Limitations> k_instance;
 };
@@ -341,12 +343,16 @@ inline bool Limitations::is_aligned(size_t addr) const {
     return (addr == ALIGN(addr, get_memory_alignment()));
 }
 
-inline bool Limitations::has_internal_memory_buffers() const {
-    return m_limitations.internal_memory_buffers;
+inline bool Limitations::use_scratch_for_fusable_layers() const {
+    return m_target_limitations.use_scratch_for_fusable_layers;
 }
 
 inline size_t Limitations::get_memory_alignment() const {
-    return m_limitations.mem_alignment;
+    return m_target_limitations.mem_alignment;
+}
+
+inline bool Limitations::use_only_16bit_convolution_weights() const {
+    return m_target_limitations.use_only_16bit_conv_weights;
 }
 
 inline std::shared_ptr<cnn2d::AbstractValidator> Limitations::get_cnn_validator() const {

@@ -61,7 +61,7 @@ private:
     size_t m_scratch_region_size;
 };
 
-struct ConvParams {
+struct ConvolutionTestParams {
     DeviceVersion target;
     size_t scratch_region_requests_cnt;
     size_t scratch_region_size;
@@ -72,7 +72,7 @@ struct ConvParams {
     ActivationTypes activation;
 };
 
-class ConvolutionScratchAreaSizeTest : public ScratchAreaSizeTestBase<ConvParams> {
+class ConvolutionScratchAreaSizeTest : public ScratchAreaSizeTestBase<ConvolutionTestParams> {
 public:
     ConvolutionScratchAreaSizeTest()
         : ScratchAreaSizeTestBase(GetParam().target,
@@ -81,7 +81,7 @@ public:
 
 private:
     std::shared_ptr<ngraph::Function> create_model() override {
-        ConvParams param = GetParam();
+        ConvolutionTestParams param = GetParam();
         const ov::element::Type ng_prec = ngraph::element::f32;
         const auto input_shape = std::make_shared<ngraph::opset9::Parameter>(ng_prec, param.input_shape);
         std::shared_ptr<ngraph::Node> maxpool;
@@ -128,7 +128,7 @@ private:
     }
 };
 
-struct FullyConnectedParams {
+struct FullyConnectedTestParams {
     DeviceVersion target;
     size_t scratch_region_requests_cnt;
     size_t scratch_region_size;
@@ -137,7 +137,7 @@ struct FullyConnectedParams {
     ActivationTypes activation;
 };
 
-class FullyConnectedScratchAreaSizeTest : public ScratchAreaSizeTestBase<FullyConnectedParams> {
+class FullyConnectedScratchAreaSizeTest : public ScratchAreaSizeTestBase<FullyConnectedTestParams> {
 public:
     FullyConnectedScratchAreaSizeTest()
         : ScratchAreaSizeTestBase(GetParam().target,
@@ -146,7 +146,7 @@ public:
 
 private:
     std::shared_ptr<ngraph::Function> create_model() override {
-        FullyConnectedParams param = GetParam();
+        FullyConnectedTestParams param = GetParam();
         const ov::element::Type ng_prec = ngraph::element::f32;
         const auto input_shape = std::make_shared<ngraph::opset9::Parameter>(ng_prec, param.input_shape);
         std::shared_ptr<ngraph::Node> activation;
@@ -167,7 +167,7 @@ private:
     }
 };
 
-struct EltwiseParams {
+struct EltwiseTestParams {
     DeviceVersion target;
     size_t scratch_region_requests_cnt;
     size_t scratch_region_size;
@@ -175,7 +175,7 @@ struct EltwiseParams {
     ActivationTypes activation;
 };
 
-class EltwiseScratchAreaSizeTest : public ScratchAreaSizeTestBase<EltwiseParams> {
+class EltwiseScratchAreaSizeTest : public ScratchAreaSizeTestBase<EltwiseTestParams> {
 public:
     EltwiseScratchAreaSizeTest()
         : ScratchAreaSizeTestBase(GetParam().target,
@@ -184,7 +184,7 @@ public:
 
 private:
     std::shared_ptr<ngraph::Function> create_model() override {
-        EltwiseParams param = GetParam();
+        EltwiseTestParams param = GetParam();
         const ov::element::Type ng_prec = ngraph::element::f32;
         const auto input_shape = std::make_shared<ngraph::opset9::Parameter>(ng_prec, param.input_shape);
         std::shared_ptr<ngraph::Node> activation;
@@ -207,21 +207,21 @@ private:
 };
 
 // Memory regions assignment for model with convolution:
-//           |   inp/out   | precision | GNA3.0  |  GNA3.5+   |
-//  input    |------------------------------------------------|
-//    |      | conv inp    |    I16    | Input   | Input      |
-//  conv     |             |           |         |            |
-//    |      | conv out    |    I32    | Scratch | Int buffer |
-//  maxPool  |             |           |         |            |
-//    |      | maxPool out |    I16    | Scratch | Int buffer |
-//  relu     |             |           |         |            |
-//    |      | relu out    |    I16    | Output  | Output     |
-//  output   |             |           |         |            |
+//           |   inp/out   | precision | GNA3.0  |      GNA3.5+     |
+//  input    |------------------------------------------------------|
+//    |      | conv inp    |    I16    | Input   | Input            |
+//  conv     |             |           |         |                  |
+//    |      | conv out    |    I32    | Scratch | Internal buffer  |
+//  maxPool  |             |           |         |                  |
+//    |      | maxPool out |    I16    | Scratch | Iternal buffer   |
+//  relu     |             |           |         |                  |
+//    |      | relu out    |    I16    | Output  | Output           |
+//  output   |             |           |         |                  |
 //
 // conv scrach size = H/2 * W/2 * outC * prec (4) maxpool scratch size = H/2 * W/2 * C * prec (2)
 // params: target | scratch reuquest cnt | scratch size | inp shape | conv kernel shape | conv out count |
 // maxPool kernel shape | activation
-std::vector<ConvParams> vectors_for_conv_test{
+std::vector<ConvolutionTestParams> vectors_for_conv_test{
     // only convolution
     {DeviceVersion::GNA3_0, 0, 0, {1, 8, 16, 32}, {2, 2}, 8, {}},
     {DeviceVersion::GNA3_5, 0, 0, {1, 8, 16, 32}, {2, 2}, 8, {}},
@@ -239,18 +239,19 @@ TEST_P(ConvolutionScratchAreaSizeTest, CheckScratchAreaSizeForConvolution) {
 INSTANTIATE_TEST_SUITE_P(ScratchMemoryTest, ConvolutionScratchAreaSizeTest, ::testing::ValuesIn(vectors_for_conv_test));
 
 // Memory regions assignment for model with fullyConnected layer:
-//                  |   inp/out   | precision | GNA3.0  |  GNA3.5+   |
-//     input        |------------------------------------------------|
-//       |          | conv inp    |    I16    | Input   | Input      |
-// fullyConnected   |             |           |         |            |
-//       |          | conv out    |    I32    | Scratch | Int buffer |
-//     relu         |             |           |         |            |
-//       |          | relu out    |    I16    | Output  | Output     |
-//     output       |             |           |         |            |
+//                  |   inp/out   | precision | GNA3.0  |     GNA3.5+       |
+//     input        |-------------------------------------------------------|
+//       |          | conv inp    |    I16    | Input   | Input             |
+// fullyConnected   |             |           |         |                   |
+//       |          | conv out    |    I32    | Scratch | Scratch reserved  |
+//       |          |             |           |         | by GNA library    |
+//     relu         |             |           |         |                   |
+//       |          | relu out    |    I16    | Output  | Output            |
+//     output       |             |           |         |                   |
 //
 // fullyConnected scratch size = H * out * prec (4)
 // params: target | scratch reuquest cnt |scratch size | inp shape | out size | activation
-std::vector<FullyConnectedParams> vectors_for_fullyconnected_test{
+std::vector<FullyConnectedTestParams> vectors_for_fullyconnected_test{
     // only fullyConnected
     {DeviceVersion::GNA3_0, 0, 0, {6, 7}, 8, {}},
     {DeviceVersion::GNA3_5, 0, 0, {6, 7}, 8, {}},
@@ -267,18 +268,19 @@ INSTANTIATE_TEST_SUITE_P(ScratchMemoryTest,
                          ::testing::ValuesIn(vectors_for_fullyconnected_test));
 
 // Memory regions assignment for model with eltwise layer:
-//                  |   inp/out   | precision | GNA3.0  |  GNA3.5+   |
-//     input        |------------------------------------------------|
-//       |          | conv inp    |    I16    | Input   | Input      |
-//    eltwise       |             |           |         |            |
-//       |          | conv out    |    I32    | Scratch | Int buffer |
-//     relu         |             |           |         |            |
-//       |          | relu out    |    I16    | Output  | Output     |
-//     output       |             |           |         |            |
+//                  |   inp/out   | precision | GNA3.0  |      GNA3.5+      |
+//     input        |-------------------------------------------------------|
+//       |          | conv inp    |    I16    | Input   | Input             |
+//    eltwise       |             |           |         |                   |
+//       |          | conv out    |    I32    | Scratch | Scratch reserved  |
+//       |          |             |           |         | by GNA library    |
+//     relu         |             |           |         |                   |
+//       |          | relu out    |    I16    | Output  | Output            |
+//     output       |             |           |         |                   |
 //
 // eltwise scratch size = H * (W + padding) * prec (4)
 // params: target | scratch reuquest cnt | scratch size | inp shape | activation
-std::vector<EltwiseParams> vectors_for_eltwise_test{
+std::vector<EltwiseTestParams> vectors_for_eltwise_test{
     // only eltwise
     {DeviceVersion::GNA3_0, 0, 0, {8, 8}, {}},
     {DeviceVersion::GNA3_5, 0, 0, {8, 8}, {}},
