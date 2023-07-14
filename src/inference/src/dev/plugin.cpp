@@ -70,7 +70,7 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::RemoteContext& context,
+                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                         const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
 }
@@ -85,22 +85,26 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, cons
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
-                                                       const ov::RemoteContext& context,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
 }
 
-ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);
-        return {remote, {m_so}};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 
-ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::Plugin::get_default_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->get_default_context(params);
-        return {remote, {m_so}};
+        if (!remote._so)
+            remote._so = m_so;
+        return remote;
     });
 }
 

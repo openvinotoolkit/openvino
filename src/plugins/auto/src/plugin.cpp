@@ -17,6 +17,7 @@
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -78,13 +79,11 @@ namespace auto_plugin {
 std::mutex Plugin::m_mtx;
 std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
 
-std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    if (m_hw_compiledmodel)
-        return m_hw_compiledmodel->get_context();
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -94,7 +93,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -363,7 +362,7 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const {
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -546,7 +545,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     } else {
         impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
-    m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
     return impl;
 }
 
