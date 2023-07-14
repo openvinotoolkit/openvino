@@ -73,7 +73,7 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
         const auto input_convert = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
         const auto scales_convert = context.mark_node(std::make_shared<v0::Convert>(scale, element::f32));
         const auto zero_points_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::f32));
-        const auto axis_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::i64));
+        const auto axis_convert = context.mark_node(std::make_shared<v0::Convert>(zero_point, element::i32));
 
         const auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
         const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
