@@ -328,8 +328,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
 
     auto device_model = get_core()->compile_model(model, dev_name, device_config);
     auto remote_context = create_proxy_context(device_model, properties);
-    auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
-    return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
+    return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
