@@ -26,8 +26,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "proxy_mem_mgr.h"
-
-#include "../../inference/src/dev/make_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -824,7 +823,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                         dims = InferenceEngine::SizeVector(shape.rank().get_length(), 0);
                         auto mem_ptr = create_memory(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)), Shape(dims));
                         const auto &tensor_ptr = std::make_shared<Tensor>(mem_ptr);
-                        data = tensor_to_blob(tensor_ptr);
+                        data = tensor_to_blob({tensor_ptr, nullptr});
 
                         auto a = std::make_pair(tensor_ptr, data); // as no method to get Tensor from Blob
                         outputsTensor2BlobMap[name] = a;
