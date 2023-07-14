@@ -119,6 +119,7 @@ class NbProcessor:
             with open(list_of_buttons[0]) as file:
                 list_of_buttons = file.read().splitlines()
             return list_of_buttons
+        return []
 
     def fetch_colab_list(self, file) -> list:
         """Function that fetches list of notebooks with colab buttons
