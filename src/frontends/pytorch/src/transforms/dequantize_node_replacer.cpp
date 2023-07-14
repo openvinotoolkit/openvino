@@ -4,21 +4,16 @@
 
 #include "dequantize_node_replacer.hpp"
 
+#include <list>
 #include <memory>
 #include <utility>
-#include <list>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
@@ -42,29 +37,29 @@ DequantizeNodeReplacer::DequantizeNodeReplacer() {
         std::list<std::shared_ptr<ov::Node>> inputs = {dequantize_node->get_input_node_shared_ptr(0)};
         std::shared_ptr<ov::frontend::pytorch::QuantizedPtNode> quantized_pt_node;
         size_t iter = 0;
-        while(inputs.size() && iter ++ < MAX_SEARCH_NODES) {
+        while (inputs.size() && iter++ < MAX_SEARCH_NODES) {
             auto node = inputs.front();
             inputs.pop_front();
-            if ((quantized_pt_node = cast_quantized_fw_node(node))) break;
-            for(size_t i = 0; i < node->get_input_size(); ++i) {
+            if ((quantized_pt_node = cast_quantized_fw_node(node)))
+                break;
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
                 inputs.push_back(node->get_input_node_shared_ptr(i));
             }
         }
         if (quantized_pt_node) {
             ov::pass::NodeRegistry rg;
-            const auto input = quantized_pt_node->input_value(0).get_node_shared_ptr();
+            const auto input = rg.make<v0::Convert>(quantized_pt_node->input_value(0).get_node_shared_ptr(), element::f32);
             const auto scale = quantized_pt_node->get_scale();
             const auto zero_point = quantized_pt_node->get_zero_point();
-            const auto input_sub_zero_pt =
-                rg.make<v1::Subtract>(input, zero_point);
-            const auto dequantized_input =  rg.make<v1::Multiply>(input_sub_zero_pt, scale);
-
+            const auto scale_convert = rg.make<v0::Convert>(scale, element::f32);
+            const auto zero_point_convert = rg.make<v0::Convert>(zero_point, element::f32);
+            const auto input_sub_zero_pt = rg.make<v1::Subtract>(input, zero_point_convert);
+            const auto dequantized_input = rg.make<v1::Multiply>(input_sub_zero_pt, scale_convert);
             copy_runtime_info_and_name(dequantize_node, rg.get(), {input});
             replace_node(dequantize_node, dequantized_input);
-
             return true;
         }
-        FRONT_END_OP_CONVERSION_CHECK(false, "aten::dequantize could not find a matching quantized input.");
+        add_exception_to_fw_node(dequantize_node, "aten::dequantize could not find a matching quantized input.");
         return false;
     };
 

@@ -28,7 +28,7 @@ OutputVector translate_quantize_per_channel(const NodeContext& context) {
     const auto zero_points = context.get_input(2);
     const auto axis = context.get_input(3);
     const auto dtype = convert_dtype(context.const_input<int64_t>(4));
-    return {quantize(context, input, scales, zero_points, dtype, QuantizedPtNodeType::QUANTIZE_PER_CHANNEL, axis)};
+    return {quantize(context, input, scales, zero_points, axis, dtype, QuantizedPtNodeType::QUANTIZE_PER_CHANNEL)};
 }
 
 }  // namespace op

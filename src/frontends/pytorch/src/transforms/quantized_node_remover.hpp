@@ -12,10 +12,10 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class QuantizedNodeReplacer : public ov::pass::MatcherPass {
+class QuantizedNodeRemover : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::QuantizedNodeReplacer");
-    QuantizedNodeReplacer();
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");
+    QuantizedNodeRemover();
 };
 
 }  // namespace pass
