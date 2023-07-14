@@ -128,20 +128,20 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
         const auto out_high = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_high_i64}));
 
         const auto rank = std::get<1>(get_shape_rank(context, input_convert));
-        const auto ones = std::make_shared<v3::Broadcast>(one, rank);
+        const auto ones = context.mark_node(std::make_shared<v3::Broadcast>(one, rank));
         const auto normalized_axis = normalize_axis(context, axis_convert, input_convert);
-        const auto new_shape = std::make_shared<v3::ScatterElementsUpdate>(ones, normalized_axis, neg_one, zero);
+        const auto new_shape = context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(ones, normalized_axis, neg_one, zero));
 
-        const auto scale_bc = std::make_shared<v1::Reshape>(scales_convert, new_shape, false);
-        const auto zero_point_bc = std::make_shared<v1::Reshape>(zero_points_convert, new_shape, false);
+        const auto scale_bc = context.mark_node(std::make_shared<v1::Reshape>(scales_convert, new_shape, false));
+        const auto zero_point_bc = context.mark_node(std::make_shared<v1::Reshape>(zero_points_convert, new_shape, false));
 
-        const auto out_low_normalized = std::make_shared<v1::Subtract>(out_low, zero_point_bc);
-        const auto out_high_normalized = std::make_shared<v1::Subtract>(out_high, zero_point_bc);
+        const auto out_low_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_low, zero_point_bc));
+        const auto out_high_normalized = context.mark_node(std::make_shared<v1::Subtract>(out_high, zero_point_bc));
 
-        const auto bound_a = std::make_shared<v1::Multiply>(scale_bc, out_low_normalized);
-        const auto bound_b = std::make_shared<v1::Multiply>(scale_bc, out_high_normalized);
-        const auto bound_low = std::make_shared<v1::Minimum>(bound_a, bound_b);
-        const auto bound_high = std::make_shared<v1::Maximum>(bound_a, bound_b);
+        const auto bound_a = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_low_normalized));
+        const auto bound_b = context.mark_node(std::make_shared<v1::Multiply>(scale_bc, out_high_normalized));
+        const auto bound_low = context.mark_node(std::make_shared<v1::Minimum>(bound_a, bound_b));
+        const auto bound_high = context.mark_node(std::make_shared<v1::Maximum>(bound_a, bound_b));
 
         const auto quantized_input = context.mark_node(
             std::make_shared<v0::FakeQuantize>(input_convert, out_low, out_high, bound_low, bound_high, levels));
