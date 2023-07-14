@@ -15,7 +15,7 @@ namespace op {
 
 OutputVector translate_quantized_linear(const NodeContext& context) {
     // "quantized::linear(Tensor X, __torch__.torch.classes.quantized.LinearPackedParamsBase W_prepack, float Y_scale_i,
-    // int Y_zero_point_i) -> Tensor Y" num_inputs_check(context, 4, 4);
+    // int Y_zero_point_i) -> Tensor Y"
     num_inputs_check(context, 4, 4);
     auto x = context.get_input(0);
     auto packed_params_input = context.get_input(1).get_node();
