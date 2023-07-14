@@ -25,6 +25,8 @@ function(add_common_utils ADD_TARGET_NAME)
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
+            INCLUDES
+                "${CMAKE_CURRENT_SOURCE_DIR}/src"
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -39,7 +41,6 @@ function(add_common_utils ADD_TARGET_NAME)
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-
     )
 
     if(ENABLE_CONFORMANCE_PGQL)

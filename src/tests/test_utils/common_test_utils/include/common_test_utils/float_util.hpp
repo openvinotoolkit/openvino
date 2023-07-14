@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <bitset>
-#include <cmath>
-#include <limits>
-#include <sstream>
 
-#include "ngraph/ngraph.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov {
 namespace test {
@@ -43,9 +39,9 @@ union DoubleUnion {
     uint64_t i;
 };
 
-std::string bfloat16_to_bits(bfloat16 f);
+std::string bfloat16_to_bits(ov::bfloat16 f);
 
-std::string float16_to_bits(float16 f);
+std::string float16_to_bits(ov::float16 f);
 
 std::string float_to_bits(float f);
 

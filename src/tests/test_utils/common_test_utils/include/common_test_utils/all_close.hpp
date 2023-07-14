@@ -4,15 +4,10 @@
 
 #pragma once
 
-#include <cmath>
-#include <memory>
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/pass/manager.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
-
 
 namespace ov {
 namespace test {

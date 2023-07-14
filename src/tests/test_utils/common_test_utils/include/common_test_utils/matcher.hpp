@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/log.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
 // this is for more nuanced testing
-class TestMatcher : public ngraph::pattern::Matcher {
+class TestMatcher : public ov::pass::pattern::Matcher {
     using ngraph::pattern::Matcher::Matcher;
 
 public:

@@ -4,17 +4,10 @@
 
 #pragma once
 
-#include <exception>
 #include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <random>
-#include <vector>
+#include <numeric>
 
 #include "gtest/gtest.h"
-#include "ngraph/function.hpp"
 
 /// \brief      Reads a binary file to a vector.
 ///

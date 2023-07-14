@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/runtime/tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 static constexpr int BFLOAT_MANTISSA_BITS = 8;
@@ -46,8 +45,9 @@ static_assert((DEFAULT_FLOAT_TOLERANCE_BITS >= 0) && (DEFAULT_FLOAT_TOLERANCE_BI
 static_assert((DEFAULT_DOUBLE_TOLERANCE_BITS >= 0) && (DEFAULT_DOUBLE_TOLERANCE_BITS < DOUBLE_MANTISSA_BITS),
               "DEFAULT_DOUBLE_TOLERANCE_BITS must be in range [0, 53)");
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
 
 // clang-format off
 /// \brief Check if the two f32 numbers are close
@@ -124,27 +124,6 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
 /// \param tolerance_bits Bit tolerance error
 /// \param min_signal Minimum value for comparisons
 /// Returns true iff the two TensorViews are all close in float
-::testing::AssertionResult all_close_f(const std::shared_ptr<runtime::Tensor>& a,
-                                       const std::shared_ptr<runtime::Tensor>& b,
-                                       int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
-                                       float min_signal = 0.0f);
-
-/// \brief Check if the two vectors of TensorViews are all close in float
-/// \param as First vector of Tensor to compare
-/// \param bs Second vector of Tensor to compare
-/// \param tolerance_bits Bit tolerance error
-/// \param min_signal Minimum value for comparisons
-/// Returns true iff the two TensorViews are all close in float
-::testing::AssertionResult all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
-                                       const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
-                                       int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
-                                       float min_signal = 0.0f);
-/// \brief Check if the two TensorViews are all close in float
-/// \param a First Tensor to compare
-/// \param b Second Tensor to compare
-/// \param tolerance_bits Bit tolerance error
-/// \param min_signal Minimum value for comparisons
-/// Returns true iff the two TensorViews are all close in float
 ::testing::AssertionResult all_close_f(const ov::Tensor& a,
                                        const ov::Tensor& b,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
@@ -160,5 +139,6 @@ bool close_f(double a, double b, int tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_B
                                        const std::vector<ov::Tensor>& bs,
                                        int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                                        float min_signal = 0.0f);
+}  // namespace utils
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

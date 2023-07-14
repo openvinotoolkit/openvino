@@ -7,11 +7,13 @@
 #include <climits>
 #include <cmath>
 
-#include "ngraph/env_util.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 using namespace std;
-using namespace ngraph;
+
+namespace ov {
+namespace test {
+namespace utils {
 
 union FloatUnion {
     float f;
@@ -116,7 +118,7 @@ uint64_t float_distance(double a, double b, double min_signal) {
     return distance;
 }
 
-bool test::close_f(float a, float b, int tolerance_bits, float min_signal) {
+bool close_f(float a, float b, int tolerance_bits, float min_signal) {
     if (std::isnan(a) && std::isnan(b)) {
         return true;
     } else if (std::isinf(a) && std::isinf(b)) {
@@ -139,7 +141,7 @@ bool test::close_f(float a, float b, int tolerance_bits, float min_signal) {
     return (distance <= tolerance) || (distance == FLOAT_BELOW_MIN_SIGNAL);
 }
 
-bool test::close_f(double a, double b, int tolerance_bits, double min_signal) {
+bool close_f(double a, double b, int tolerance_bits, double min_signal) {
     if (std::isnan(a) && std::isnan(b)) {
         return true;
     } else if (std::isinf(a) && std::isinf(b)) {
@@ -254,7 +256,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return matching_matissa_bits;
 }
 
-::testing::AssertionResult test::all_close_f(const vector<float>& a,
+::testing::AssertionResult all_close_f(const vector<float>& a,
                                              const vector<float>& b,
                                              int tolerance_bits,
                                              float min_signal) {
@@ -363,7 +365,7 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return res;
 }
 
-::testing::AssertionResult test::all_close_f(const vector<double>& a,
+::testing::AssertionResult all_close_f(const vector<double>& a,
                                              const vector<double>& b,
                                              int tolerance_bits,
                                              double min_signal) {
@@ -471,45 +473,56 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return res;
 }
 
-::testing::AssertionResult test::all_close_f(const std::shared_ptr<runtime::Tensor>& a,
-                                             const std::shared_ptr<runtime::Tensor>& b,
-                                             int tolerance_bits,
-                                             float min_signal) {
-    // Check that the layouts are compatible
-    if (a->get_shape() != b->get_shape()) {
-        return ::testing::AssertionFailure() << "Cannot compare tensors with different shapes";
-    }
-
-    return test::all_close_f(read_float_vector(a), read_float_vector(b), tolerance_bits, min_signal);
-}
-
-::testing::AssertionResult test::all_close_f(const std::vector<std::shared_ptr<runtime::Tensor>>& as,
-                                             const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
-                                             int tolerance_bits,
-                                             float min_signal) {
-    if (as.size() != bs.size()) {
-        return ::testing::AssertionFailure() << "Cannot compare tensors with different sizes";
-    }
-    for (size_t i = 0; i < as.size(); ++i) {
-        auto ar = test::all_close_f(as[i], bs[i], tolerance_bits, min_signal);
-        if (!ar) {
-            return ar;
-        }
-    }
-    return ::testing::AssertionSuccess();
-}
-
-::testing::AssertionResult test::all_close_f(const ov::Tensor& a,
+template<typename T>
+::testing::AssertionResult all_close_f(const ov::Tensor& a,
                                              const ov::Tensor& b,
                                              int tolerance_bits,
                                              float min_signal) {
-    return test::all_close_f(std::make_shared<runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data()),
-                             std::make_shared<runtime::HostTensor>(b.get_element_type(), b.get_shape(), b.data()),
-                             tolerance_bits,
-                             min_signal);
+    std::vector<T> a_vector(a.get_size());
+    ov::Tensor a_vector_view(a.get_element_type(), a.get_shape(), a_vector.data());
+    a.copy_to(a_vector_view);
+
+    std::vector<T> b_vector(b.get_size());
+    ov::Tensor b_vector_view(b.get_element_type(), b.get_shape(), b_vector.data());
+    b.copy_to(b_vector_view);
+
+    return all_close_f(a_vector, b_vector, tolerance_bits, min_signal);
 }
 
-::testing::AssertionResult test::all_close_f(const std::vector<ov::Tensor>& as,
+::testing::AssertionResult all_close_f(const ov::Tensor& a,
+                                             const ov::Tensor& b,
+                                             int tolerance_bits,
+                                             float min_signal) {
+        if (a.get_element_type() != b.get_element_type()) {
+        return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
+    }
+
+#define all_close_f_ov_type(type)\
+    case ov::element::type:\
+         return all_close_f<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
+             static_cast<ov::element_type_traits<ov::element::type>::value_type>(tolerance_bits), \
+             static_cast<ov::element_type_traits<ov::element::type>::value_type>(min_signal));\
+
+    switch (a.get_element_type()) {
+    // all_close_f_ov_type(u8)
+    // all_close_f_ov_type(u16)
+    // all_close_f_ov_type(u32)
+    // all_close_f_ov_type(u64)
+    // all_close_f_ov_type(i8)
+    // all_close_f_ov_type(i16)
+    // all_close_f_ov_type(i32)
+    // all_close_f_ov_type(i64)
+    // all_close_f_ov_type(bf16)
+    // all_close_f_ov_type(f16)
+    all_close_f_ov_type(f32)
+    all_close_f_ov_type(f64)
+    default:
+        return ::testing::AssertionFailure()
+               << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
+    }
+}
+
+::testing::AssertionResult all_close_f(const std::vector<ov::Tensor>& as,
                                              const std::vector<ov::Tensor>& bs,
                                              int tolerance_bits,
                                              float min_signal) {
@@ -517,10 +530,14 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different sizes";
     }
     for (size_t i = 0; i < as.size(); ++i) {
-        auto ar = test::all_close_f(as[i], bs[i], tolerance_bits, min_signal);
+        auto ar = all_close_f(as[i], bs[i], tolerance_bits, min_signal);
         if (!ar) {
             return ar;
         }
     }
     return ::testing::AssertionSuccess();
 }
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

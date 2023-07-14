@@ -4,15 +4,10 @@
 
 #include "common_test_utils/test_control.hpp"
 
-#include <fstream>
-#include <unordered_map>
-#include <unordered_set>
-
-#include "ngraph/log.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
+#include "precomp.hpp"
 
 using namespace std;
-using namespace ngraph;
 
 static unordered_set<string>& get_blacklist(const string& backend) {
     static unordered_map<string, unordered_set<string>> s_blacklists;
@@ -28,7 +23,7 @@ string ngraph::prepend_disabled(const string& backend_name, const string& test_n
         while (getline(f, line)) {
             size_t pound_pos = line.find('#');
             line = (pound_pos > line.size()) ? line : line.substr(0, pound_pos);
-            line = trim(line);
+            line = ov::util::trim(line);
             if (line.size() > 1) {
                 blacklist.insert(line);
             }

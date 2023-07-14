@@ -4,15 +4,12 @@
 
 #pragma once
 
-#include <cmath>
-#include <utility>
-
 #include <gtest/gtest.h>
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/float16.hpp>
-#include <ngraph/type/element_type_traits.hpp>
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #include <ie_blob.h>
 #include <random>
@@ -253,10 +250,10 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
     while (elems.size() != size) {
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
-        if (std::is_same<ngraph::float16, T>::value) {
-            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
-        } else if (std::is_same<ngraph::bfloat16, T>::value) {
-            elems.insert(static_cast<T>(ngraph::bfloat16(value).to_bits()));
+        if (std::is_same<ov::float16, T>::value) {
+            elems.insert(static_cast<T>(ov::float16(value).to_bits()));
+        } else if (std::is_same<ov::bfloat16, T>::value) {
+            elems.insert(static_cast<T>(ov::bfloat16(value).to_bits()));
         } else {
             elems.insert(static_cast<T>(value));
         }
@@ -301,9 +298,9 @@ fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
         if (DT == ov::element::Type_t::f16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ov::float16(value).to_bits());
         } else if (DT == ov::element::Type_t::bf16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ov::bfloat16(value).to_bits());
         } else {
             rawBlobDataPtr[i] = static_cast<T>(value);
         }
@@ -371,7 +368,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr &blob,
         auto value = static_cast<float>(dist(generator));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
+            elems.insert(static_cast<T>(ov::float16(value).to_bits()));
         } else {
             elems.insert(static_cast<T>(value));
         }
@@ -418,9 +415,9 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
         if (PRC == InferenceEngine::Precision::FP16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ov::float16(value).to_bits());
         } else if (PRC == InferenceEngine::Precision::BF16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<T>(ov::bfloat16(value).to_bits());
         } else {
             rawBlobDataPtr[i] = static_cast<T>(value);
         }
@@ -464,7 +461,7 @@ void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T valu
         auto value = values[i];
         if (typeid(Type) ==
             typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
-            rawBlobDataPtr[i] = static_cast<Type>(ngraph::float16(value).to_bits());
+            rawBlobDataPtr[i] = static_cast<Type>(ov::float16(value).to_bits());
 
         } else {
             rawBlobDataPtr[i] = static_cast<Type>(value);
@@ -509,12 +506,12 @@ inline ie_abs(const T &val) {
     return val;
 }
 
-inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16 &val) {
-    return ngraph::bfloat16::from_bits(val.to_bits() & 0x7FFF);
+inline ov::bfloat16 ie_abs(const ov::bfloat16 &val) {
+    return ov::bfloat16::from_bits(val.to_bits() & 0x7FFF);
 }
 
-inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
-    return ngraph::float16::from_bits(val.to_bits() & 0x7FFF);
+inline ov::float16 ie_abs(const ov::float16 &val) {
+    return ov::float16::from_bits(val.to_bits() & 0x7FFF);
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_END
