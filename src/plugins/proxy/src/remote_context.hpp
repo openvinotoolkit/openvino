@@ -37,6 +37,7 @@ public:
                   size_t dev_index,
                   bool has_index,
                   bool is_new_api);
+
     RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
                   const std::string& dev_name,
                   size_t dev_index,
@@ -56,14 +57,12 @@ public:
 
     static const ov::SoPtr<ov::IRemoteContext>& get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context);
 
-    static ov::RemoteContext make_context(const ov::SoPtr<ov::IRemoteContext>& ctx);
-
 private:
     ov::SoPtr<ov::IRemoteContext> m_context;
     std::string m_name;
     std::string m_tensor_name;
 
-    std::string get_tensor_name() const;
+    void init_context(const std::string& dev_name, size_t dev_index, bool has_index, bool is_new_api);
 };
 
 }  // namespace proxy
