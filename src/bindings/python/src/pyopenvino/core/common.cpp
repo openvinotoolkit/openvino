@@ -239,6 +239,9 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node
                          "Type of the array and the port are different. Data is going to be casted.",
                          1);
         }
+        if (port.get_partial_shape().is_dynamic()) {
+            return ov::Tensor(port, const_cast<void*>(array.data(0)));
+        }
         if (port_shape_size > array_shape_size) {
             OPENVINO_THROW("Shape of the port exceeds shape of the array.");
         }

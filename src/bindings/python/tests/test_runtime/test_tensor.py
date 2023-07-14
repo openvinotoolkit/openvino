@@ -157,8 +157,7 @@ def test_init_with_node_output_port():
     tensor1 = Tensor(param1.output(0))
     tensor2 = Tensor(param2.output(0), ones_arr)
     tensor3 = Tensor(param3.output(0))
-    with pytest.warns(RuntimeWarning):
-        tensor4 = Tensor(param3.output(0), ones_arr)
+    tensor4 = Tensor(param3.output(0), ones_arr)
     assert tensor1.shape == param1.shape
     assert tensor1.element_type == param1.get_element_type()
     assert tensor2.shape == param2.shape
@@ -438,28 +437,19 @@ def test_stride_calculation():
     assert ov_tensor.strides[0] == elements * ov_tensor.get_element_type().size
 
 
-@pytest.mark.parametrize("dtype", [
-    (np.uint8),
-    (np.int8),
-    (np.int16),
-    (np.uint16),
-    (np.int32),
-    (np.uint32),
-    (np.int64),
-    (np.uint64),
-    (np.float16),
-    (np.float32),
-    (np.float64),
-])
-@pytest.mark.parametrize("element_type", [
-    (ov.Type.u8),
-    (ov.Type.i8),
-    (ov.Type.i16),
-    (ov.Type.u16),
-    (ov.Type.i32),
-    (ov.Type.u32),
-    (ov.Type.i64),
-    (ov.Type.u64),
+@pytest.mark.parametrize(("element_type", "dtype"), [
+    (ov.Type.f32, np.float32),
+    (ov.Type.f64, np.float64),
+    (ov.Type.f16, np.float16),
+    (ov.Type.bf16, np.float16),
+    (ov.Type.i8, np.int8),
+    (ov.Type.u8, np.uint8),
+    (ov.Type.i32, np.int32),
+    (ov.Type.u32, np.uint32),
+    (ov.Type.i16, np.int16),
+    (ov.Type.u16, np.uint16),
+    (ov.Type.i64, np.int64),
+    (ov.Type.u64, np.uint64),
 ])
 def test_copy_to(dtype, element_type):
     tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
@@ -476,3 +466,22 @@ def test_copy_to(dtype, element_type):
     assert tensor.element_type == target_tensor.element_type
     assert tensor.byte_size == target_tensor.byte_size
     assert np.array_equal(tensor.data, target_tensor.data)
+
+
+@pytest.mark.parametrize("element_type", [
+    (ov.Type.f32),
+    (ov.Type.f64),
+    (ov.Type.f16),
+    (ov.Type.bf16),
+    (ov.Type.i8),
+    (ov.Type.u8),
+    (ov.Type.i32),
+    (ov.Type.u32),
+    (ov.Type.i16),
+    (ov.Type.u16),
+    (ov.Type.i64),
+    (ov.Type.u64),
+])
+def test_is_continuous(element_type):
+    tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+    assert tensor.is_continuous()

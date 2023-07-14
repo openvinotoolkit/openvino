@@ -310,6 +310,14 @@ void regclass_Tensor(py::module m) {
         Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
     )");
 
+    cls.def("is_continuous",
+        &ov::Tensor::is_continuous,
+        R"(
+        Reports whether the tensor is continuous or not.
+        :return: True if the tensor is continuous, otherwise False. 
+        :rtype: bool
+    )");
+
     cls.def_property("shape",
                      &ov::Tensor::get_shape,
                      &ov::Tensor::set_shape,
