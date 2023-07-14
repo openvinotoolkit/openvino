@@ -26,12 +26,8 @@ QuantizedNodeReplacer::QuantizedNodeReplacer() {
         if (!quantized_pt_node)
             return false;
 
-        ov::pass::NodeRegistry rg;
         auto quantized_input = quantized_pt_node->get_input_node_shared_ptr(0);
-
-        copy_runtime_info_and_name(quantized_pt_node, rg.get(), {quantized_input});
-        replace_node(quantized_pt_node, quantized_input);
-
+        replace_output_update_name(quantized_pt_node, quantized_input);
         return true;
     };
 

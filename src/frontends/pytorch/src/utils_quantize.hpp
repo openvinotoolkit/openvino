@@ -94,7 +94,13 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
                                    std::shared_ptr<ov::Node> zero_point,
                                    ov::element::Type dtype,
                                    QuantizedPtNodeType quantization_type,
-                                   std::shared_ptr<ov::Node> axis = nullptr);
+                                   std::shared_ptr<ov::Node> axis);
+std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+                                   std::shared_ptr<ov::Node> input,
+                                   std::shared_ptr<ov::Node> scale,
+                                   std::shared_ptr<ov::Node> zero_point,
+                                   ov::element::Type dtype,
+                                   QuantizedPtNodeType quantization_type);
 std::shared_ptr<ov::Node> quantize(const NodeContext& context,
                                    ov::Output<ov::Node> input,
                                    ov::Output<ov::Node> scale,
@@ -136,8 +142,8 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
 /**
  * Dequantizes QuantizedPtNode, returns dequantized input. 
 */
-std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node> quantized_node);
-std::shared_ptr<ov::Node> dequantize(const NodeContext& context, ov::Output<ov::Node> quantized_node);
+std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node> input);
+std::shared_ptr<ov::Node> dequantize(const NodeContext& context, ov::Output<ov::Node> input);
 
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
