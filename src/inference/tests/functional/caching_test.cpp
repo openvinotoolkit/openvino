@@ -125,6 +125,8 @@ public:
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
+    MOCK_CONST_METHOD0(getInputs, const std::vector<std::shared_ptr<const ov::Node>>&());
+    MOCK_CONST_METHOD0(getOutputs, const std::vector<std::shared_ptr<const ov::Node>>&());
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
     MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
@@ -197,6 +199,8 @@ public:
     CNNCallback m_cnnCallback = nullptr;
     std::map<std::string, InputsDataMap> m_inputs_map;
     std::map<std::string, OutputsDataMap> m_outputs_map;
+    std::map<std::string, std::vector<std::shared_ptr<const ov::Node>>> m_inputs;
+    std::map<std::string, std::vector<std::shared_ptr<const ov::Node>>> m_outputs;
     using CheckConfigCb = std::function<void(const std::map<std::string, std::string>&)>;
     CheckConfigCb m_checkConfigCb = nullptr;
 
@@ -219,9 +223,12 @@ public:
         m_dirCreator = std::unique_ptr<MkDirGuard>(new MkDirGuard(m_cacheDir));
     }
 
-    static std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet(const std::string& name,
-                                                                           const InputsDataMap& inputs_map,
-                                                                           const OutputsDataMap& outputs_map) {
+    static std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet(
+        const std::string& name,
+        const InputsDataMap& inputs_map,
+        const OutputsDataMap& outputs_map,
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
         auto mock = std::make_shared<MockExecutableNetwork>();
         ConstInputsDataMap inputMap;
         for (const auto& input_item : inputs_map) {
@@ -233,6 +240,8 @@ public:
         }
         EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(inputMap));
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(outputMap));
+        EXPECT_CALL(*mock, getInputs()).Times(AnyNumber()).WillRepeatedly(ReturnRef(inputs));
+        EXPECT_CALL(*mock, getOutputs()).Times(AnyNumber()).WillRepeatedly(ReturnRef(outputs));
         EXPECT_CALL(*mock, GetConfig(ov::enable_profiling.name()))
             .Times(AnyNumber())
             .WillRepeatedly(Return(Parameter{PluginConfigParams::NO}));
@@ -290,6 +299,8 @@ public:
     void TearDown() override {
         m_inputs_map = {};
         m_outputs_map = {};
+        m_inputs = {};
+        m_outputs = {};
         for (const auto& net : networks) {
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(net.get()));
         }
@@ -370,7 +381,7 @@ private:
             .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
                 std::vector<std::string> res;
                 res.emplace_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-                res.emplace_back(ov::caching_properties.name());
+                res.emplace_back(ov::internal::caching_properties.name());
                 res.emplace_back(METRIC_KEY(DEVICE_ARCHITECTURE));
                 return res;
             }));
@@ -379,10 +390,12 @@ private:
                 return std::vector<ov::PropertyName>{ov::supported_properties.name(),
                                                      METRIC_KEY(IMPORT_EXPORT_SUPPORT),
                                                      ov::device::capabilities.name(),
-                                                     ov::caching_properties.name(),
                                                      ov::device::architecture.name()};
             }));
-
+        ON_CALL(plugin, GetMetric(ov::internal::supported_properties.name(), _))
+            .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+                return std::vector<ov::PropertyName>{ov::internal::caching_properties.name()};
+            }));
         ON_CALL(plugin, GetMetric(METRIC_KEY(OPTIMIZATION_CAPABILITIES), _))
             .WillByDefault(Return(std::vector<std::string>()));
 
@@ -405,10 +418,10 @@ private:
                 return "mock";
             }));
 
-        ON_CALL(plugin, GetMetric(ov::caching_properties.name(), _))
+        ON_CALL(plugin, GetMetric(ov::internal::caching_properties.name(), _))
             .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
                 std::vector<ov::PropertyName> cachingProperties = {ov::device::architecture.name()};
-                return decltype(ov::caching_properties)::value_type(cachingProperties);
+                return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
             }));
 
         ON_CALL(plugin, ImportNetwork(_, _, _))
@@ -422,7 +435,11 @@ private:
                     char space;
                     istr.read(&space, 1);
                     std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                    return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                    return createMockIExecutableNet({},
+                                                    m_inputs_map[name],
+                                                    m_outputs_map[name],
+                                                    m_inputs[name],
+                                                    m_outputs[name]);
                 }));
 
         ON_CALL(plugin, ImportNetwork(_, _))
@@ -435,7 +452,11 @@ private:
                 char space;
                 istr.read(&space, 1);
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({},
+                                                m_inputs_map[name],
+                                                m_outputs_map[name],
+                                                m_inputs[name],
+                                                m_outputs[name]);
             }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _))
@@ -449,9 +470,18 @@ private:
                 std::string name = cnn.getFunction()->get_friendly_name();
                 m_inputs_map[name] = cnn.getInputsInfo();
                 m_outputs_map[name] = cnn.getOutputsInfo();
+                std::vector<std::shared_ptr<const ov::Node>> inputs_, outputs_;
+                for (const auto& input : cnn.getFunction()->inputs())
+                    inputs_.emplace_back(input.get_node_shared_ptr());
+                for (const auto& output : cnn.getFunction()->outputs())
+                    outputs_.emplace_back(output.get_node_shared_ptr());
+                m_inputs[name] = inputs_;
+                m_outputs[name] = outputs_;
                 auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                         m_inputs_map[name],
-                                                        m_outputs_map[name]);
+                                                        m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
                 exe_net->set_model(cnn.getFunction());
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*exe_net);
@@ -469,9 +499,19 @@ private:
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
                 m_inputs_map[name] = cnn.getInputsInfo();
                 m_outputs_map[name] = cnn.getOutputsInfo();
+                cnn.getFunction()->inputs();
+                std::vector<std::shared_ptr<const ov::Node>> inputs_, outputs_;
+                for (const auto& input : cnn.getFunction()->inputs())
+                    inputs_.emplace_back(input.get_node_shared_ptr());
+                for (const auto& output : cnn.getFunction()->outputs())
+                    outputs_.emplace_back(output.get_node_shared_ptr());
+                m_inputs[name] = inputs_;
+                m_outputs[name] = outputs_;
                 auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                         m_inputs_map[name],
-                                                        m_outputs_map[name]);
+                                                        m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
                 exe_net->set_model(cnn.getFunction());
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*exe_net);
@@ -510,7 +550,8 @@ TEST_P(CachingTest, TestLoad) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -549,7 +590,8 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -588,7 +630,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     ON_CALL(*mockPlugin, ImportNetwork(_, _, _))
         .WillByDefault(
             Invoke([&](std::istream& s, const RemoteContext::Ptr&, const std::map<std::string, std::string>&) {
@@ -598,7 +641,11 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
                 std::string name;
                 s >> name;
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({},
+                                                m_inputs_map[name],
+                                                m_outputs_map[name],
+                                                m_inputs[name],
+                                                m_outputs[name]);
             }));
 
     ON_CALL(*mockPlugin, ImportNetwork(_, _))
@@ -609,7 +656,11 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
             std::string name;
             s >> name;
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+            return createMockIExecutableNet({},
+                                            m_inputs_map[name],
+                                            m_outputs_map[name],
+                                            m_inputs[name],
+                                            m_outputs[name]);
         }));
 
     m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -656,25 +707,29 @@ TEST_P(CachingTest, TestChangeLoadConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     ON_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             return std::vector<ov::PropertyName>{ov::supported_properties.name(),
                                                  METRIC_KEY(IMPORT_EXPORT_SUPPORT),
                                                  ov::device::capabilities.name(),
-                                                 ov::device::architecture.name(),
-                                                 ov::caching_properties.name()};
+                                                 ov::device::architecture.name()};
         }));
-    ON_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _))
+    ON_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name()};
+        }));
+    ON_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             std::vector<ov::PropertyName> res;
             res.push_back(ov::PropertyName(CUSTOM_KEY, ov::PropertyMutability::RO));
-            return decltype(ov::caching_properties)::value_type(res);
+            return decltype(ov::internal::caching_properties)::value_type(res);
         }));
     ON_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             std::vector<std::string> res;
-            res.push_back(ov::caching_properties.name());
+            res.push_back(ov::internal::caching_properties.name());
             return res;
         }));
     {
@@ -713,7 +768,8 @@ TEST_P(CachingTest, TestChangeLoadConfig_With_Cache_Dir_inline) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     ON_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .WillByDefault(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             return std::vector<std::string>{};
@@ -752,7 +808,8 @@ TEST_P(CachingTest, TestNoCacheEnabled) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -775,7 +832,8 @@ TEST_P(CachingTest, TestNoCacheSupported) {
         .Times(AnyNumber())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
@@ -806,7 +864,10 @@ TEST_P(CachingTest, TestNoCacheMetricSupported) {
         .WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(0);
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(0);
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
@@ -835,7 +896,10 @@ TEST_P(CachingTest, TestNoCacheMetricSupported_by_device_name) {
         .WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(0);
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _)).Times(0);
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
@@ -857,12 +921,12 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -888,13 +952,12 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
-
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -914,12 +977,12 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -941,12 +1004,12 @@ TEST_P(CachingTest, TestCacheEnabled_noConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name()}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -971,12 +1034,12 @@ TEST_P(CachingTest, TestNoCacheMetric_configThrow) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(1))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -994,12 +1057,12 @@ TEST_P(CachingTest, TestNoCacheEnabled_cacheDirConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{METRIC_KEY(SUPPORTED_CONFIG_KEYS)}));
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -1023,7 +1086,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDir) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1062,7 +1126,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -1099,7 +1164,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_overwrite_device_dir) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -1134,9 +1200,6 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExpor
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
         EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
@@ -1148,7 +1211,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExpor
         .Times(AnyNumber())
         .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     std::string set_cache_dir = {};
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(2))
@@ -1186,7 +1250,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -1218,9 +1283,6 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name) {
 /// \brief Change CACHE_DIR per device during working with same 'Core' object - device supports CACHE_DIR
 /// Verifies that no 'export' is called and cache_dir is propagated to set_config
 TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_dir) {
-    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::cache_dir.name()}));
@@ -1232,7 +1294,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_
         .Times(AnyNumber())
         .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AtLeast(2))
         .WillRepeatedly(Invoke([](const std::map<std::string, std::string>& config) {
@@ -1268,7 +1331,8 @@ TEST_P(CachingTest, TestClearCacheDir) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1292,7 +1356,8 @@ TEST_P(CachingTest, TestChangeOtherConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1317,7 +1382,8 @@ TEST_P(CachingTest, TestChangeCacheDirFailure) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1359,7 +1425,8 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1383,7 +1450,8 @@ TEST_P(CachingTest, TestDeviceArchitecture) {
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>& options) {
@@ -1459,9 +1527,14 @@ TEST_P(CachingTest, TestNoDeviceArchitecture) {
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
-            return std::vector<ov::PropertyName>{ov::device::capabilities.name(), ov::caching_properties.name()};
+            return std::vector<ov::PropertyName>{ov::device::capabilities.name()};
         }));
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _))
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             return std::vector<ov::PropertyName>{ov::supported_properties};
@@ -1514,7 +1587,12 @@ TEST_P(CachingTest, TestNoCachingProperties) {
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
             return std::vector<ov::PropertyName>{ov::device::capabilities.name()};
         }));
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
+            return std::vector<ov::PropertyName>{};
+        }));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>&) {
@@ -1548,7 +1626,8 @@ TEST_P(CachingTest, TestThrowOnExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1572,7 +1651,8 @@ TEST_P(CachingTest, TestThrowOnImport) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1626,7 +1706,8 @@ TEST_P(CachingTest, TestNetworkModified) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(!m_remoteContext ? 1 : 0);
@@ -1686,7 +1767,8 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
@@ -1743,7 +1825,8 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(m_remoteContext ? 1 : 0);
@@ -1820,6 +1903,9 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
+        .Times(AnyNumber())
+        .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::supported_properties.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     // Hetero supports Import/Export, but mock plugin does not
@@ -1925,7 +2011,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
 
 TEST_P(CachingTest, LoadHetero_MultiArchs) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _))
         .Times(AnyNumber())
@@ -2010,7 +2096,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
 TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>& options) {
@@ -2079,7 +2165,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     const auto TEST_COUNT = 2;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
@@ -2107,7 +2193,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
     const auto TEST_COUNT = 2;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
@@ -2139,7 +2225,7 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(ov::device::capabilities.name(), _))
         .Times(AnyNumber())
         .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
@@ -2173,7 +2259,7 @@ TEST_P(CachingTest, LoadMulti_race) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Multi plugin
     }
@@ -2214,7 +2300,7 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Multi plugin
     }
@@ -2252,7 +2338,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
     const auto TEST_DEVICE_MAX_COUNT = 30;  // Shall be >= 2
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke([&](const std::string&, const std::map<std::string, Parameter>& options) {
@@ -2283,7 +2369,11 @@ TEST_P(CachingTest, LoadMulti_Archs) {
                 std::string name;
                 s >> name;
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({},
+                                                m_inputs_map[name],
+                                                m_outputs_map[name],
+                                                m_inputs[name],
+                                                m_outputs[name]);
             }));
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
             EXPECT_CALL(net, Export(_)).Times(1);  // each net will be exported once
@@ -2309,7 +2399,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
         .WillRepeatedly(Return(decltype(ov::device::capabilities)::value_type{}));
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
     DataPtr inData = std::make_shared<Data>("Param_1", Precision::FP32);
     InputInfo inpInfo;
@@ -2364,7 +2454,7 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Auto plugin
     }
@@ -2394,7 +2484,7 @@ TEST_P(CachingTest, Load_threads) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
-    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     if (m_remoteContext) {
         return;  // skip the remote Context test for Multi plugin
     }
