@@ -135,10 +135,10 @@ public:
 
     template<typename OpType>
     static void RegisterFactory(factory_t func) {
-        static std::mutex m;
-        std::lock_guard<std::mutex> lock(m);
-        if (Program::factories_map.find(OpType::get_type_info_static()) == Program::factories_map.end())
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (Program::factories_map.find(OpType::get_type_info_static()) == Program::factories_map.end()) {
             Program::factories_map.insert({OpType::get_type_info_static(), func});
+        }
     }
 
     template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
@@ -166,6 +166,7 @@ private:
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
     ExecutionConfig m_config;
     cldnn::engine& m_engine;
+    static std::mutex m_mutex;
 
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;
