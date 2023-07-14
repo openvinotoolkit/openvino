@@ -60,7 +60,7 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     auto format = input_layout.format;
     auto sizes = input_layout.get_dims();
     if (desc->axis >= static_cast<int64_t>(sizes.size()) || desc->axis < 0) {
-        IE_THROW() << "Incorrect arg_max_min axis.";
+        OPENVINO_THROW("Incorrect arg_max_min axis.");
     }
     sizes[desc->axis] = desc->top_k;
     return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};

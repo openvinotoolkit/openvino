@@ -19,9 +19,7 @@ static void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::
     std::string layerName = layer_type_name_ID(op);
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(3));
-    if (!axes_constant) {
-        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     int64_t axis = axes_constant->cast_vector<int64_t>()[0];
     auto primitive = cldnn::scatter_update(layerName,
                                            inputs[0],

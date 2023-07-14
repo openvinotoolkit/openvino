@@ -7,11 +7,13 @@
 #define RUN_ALL_MODEL_CACHING_TESTS
 
 #include <unordered_map>
+#include "openvino/core/deprecated.hpp"
 #include "ie/ie_common.h"
 
 namespace cldnn {
 class serial_util {
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static InferenceEngine::Layout layout_from_string(const std::string& name) {
         static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
             { "ANY", InferenceEngine::Layout::ANY },
@@ -36,8 +38,9 @@ public:
         if (it != layouts.end()) {
             return it->second;
         }
-        IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
+        OPENVINO_THROW("Unknown layout with name '", name, "'");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 class membuf : public std::streambuf {

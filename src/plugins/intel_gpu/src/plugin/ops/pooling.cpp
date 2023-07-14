@@ -79,7 +79,7 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
 static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v8::MaxPool>& op) {
     validate_inputs_count(op, {1});
     if (op->get_output_size() != 2) {
-        IE_THROW() << "MaxPool opset 8 requires 2 outputs";
+        OPENVINO_THROW("[GPU] MaxPool opset 8 requires 2 outputs");
     }
     auto inputs = p.GetInputInfo(op);
     const auto layer_type_name = layer_type_name_ID(op);

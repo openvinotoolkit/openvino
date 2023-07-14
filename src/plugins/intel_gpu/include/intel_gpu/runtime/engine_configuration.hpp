@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include "utils.hpp"
-
 #include <string>
-#include <stdexcept>
-#include <thread>
-#include <threading/ie_cpu_streams_executor.hpp>
 
 namespace cldnn {
 

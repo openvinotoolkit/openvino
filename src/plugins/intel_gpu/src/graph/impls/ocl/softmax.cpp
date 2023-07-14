@@ -29,7 +29,7 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
             else
                 return kernel_selector::softmax_dim::X;
         case 4: return kernel_selector::softmax_dim::X;
-        default: IE_THROW() << "Invalid softmax axis " << axis;
+        default: OPENVINO_THROW("Invalid softmax axis ", axis);
     }
 }
 

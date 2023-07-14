@@ -94,9 +94,9 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
 TEST(kernels_cache, sub_kernel_ordering_test) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config("sub_kernel_ordering_test", 1);
+    ov::threading::IStreamsExecutor::Config task_executor_config("sub_kernel_ordering_test", 1);
     task_executor_config._streams = 2;
-    auto executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+    auto executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
     const size_t num_kernels = 9;
     auto _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(engine, config, 0, executor));
     std::vector<std::string> entry_point_list;

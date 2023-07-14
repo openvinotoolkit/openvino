@@ -353,13 +353,13 @@ network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
-                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
     : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
-                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
     : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
@@ -674,7 +674,7 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
@@ -682,7 +682,7 @@ network::ptr network::build_network(engine& engine,
 network::ptr network::build_network(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, nodes, config, task_executor, is_internal);
 }

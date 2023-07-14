@@ -18,7 +18,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
         const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 2) {
-        IE_THROW() << "ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs";
+        OPENVINO_THROW("ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);

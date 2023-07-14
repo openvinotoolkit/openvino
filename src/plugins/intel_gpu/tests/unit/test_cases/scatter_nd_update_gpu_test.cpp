@@ -254,7 +254,7 @@ TEST_P(scatter_nd_update_random_test, random)
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, false);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_1,
@@ -4588,7 +4588,7 @@ TEST_P(scatter_nd_update_random_test, random_cached)
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, true);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 #endif
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111_cached) {

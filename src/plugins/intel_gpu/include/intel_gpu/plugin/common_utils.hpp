@@ -7,6 +7,7 @@
 #include <ie_layouts.h>
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/deprecated.hpp"
 
 #include "ngraph/type/element_type.hpp"
 
@@ -15,7 +16,7 @@ namespace intel_gpu {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
-inline cldnn::tensor tensor_from_dims(const InferenceEngine::SizeVector& dims, int def = 1) {
+inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
     switch (dims.size()) {
     case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
     case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
@@ -24,10 +25,11 @@ inline cldnn::tensor tensor_from_dims(const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for gpu tensor";
+    default: OPENVINO_THROW("Invalid dimensions size(", dims.size(), ") for gpu tensor");
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     switch (p) {
     case InferenceEngine::Precision::I16:
@@ -74,7 +76,7 @@ inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
     case cldnn::data_types::i64:
         return InferenceEngine::Precision::ePrecision::I64;
     default:
-        IE_THROW(ParameterMismatch) << "The plugin does not support " << cldnn::data_type_traits::name(dt) << " data type";
+        OPENVINO_THROW("The plugin does not support ", cldnn::data_type_traits::name(dt), " data type");
     }
 }
 
@@ -140,21 +142,7 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
             << "The plugin does not support " << l << " image layout";
     }
 }
-
-inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
-    if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
-    if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;
-    if (l == ov::Layout("HW")) return InferenceEngine::Layout::HW;
-    if (l == ov::Layout("NC")) return InferenceEngine::Layout::NC;
-    if (l == ov::Layout("CHW")) return InferenceEngine::Layout::CHW;
-    if (l == ov::Layout("HWC")) return InferenceEngine::Layout::HWC;
-    if (l == ov::Layout("NCHW")) return InferenceEngine::Layout::NCHW;
-    if (l == ov::Layout("NC??")) return InferenceEngine::Layout::NCHW;
-    if (l == ov::Layout("NHWC")) return InferenceEngine::Layout::NHWC;
-    if (l == ov::Layout("NCDHW")) return InferenceEngine::Layout::NCDHW;
-    if (l == ov::Layout("NDHWC")) return InferenceEngine::Layout::NDHWC;
-    IE_THROW() << "The plugin does not support " << l.to_string() << " layout";
-}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
 inline void ForceExit() {

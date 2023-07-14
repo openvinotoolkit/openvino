@@ -31,16 +31,15 @@ enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
-#define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
-void __register ## _ ## op_name ## _ ## op_version();                                             \
-void __register ## _ ## op_name ## _ ## op_version() {                                            \
-    Program::RegisterFactory<ov::op::op_version::op_name>(                                        \
-    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                         \
-        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);              \
-        if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ov Node type passed into " << __PRETTY_FUNCTION__;             \
-        Create##op_name##Op(p, op_casted);                                                        \
-       });                                                                                        \
+#define REGISTER_FACTORY_IMPL(op_version, op_name)                                                  \
+void __register ## _ ## op_name ## _ ## op_version();                                               \
+void __register ## _ ## op_name ## _ ## op_version() {                                              \
+    Program::RegisterFactory<ov::op::op_version::op_name>(                                          \
+    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                           \
+        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);                \
+        OPENVINO_ASSERT(op_casted, "[GPU] Invalid ov Node type passed into ", __PRETTY_FUNCTION__); \
+        Create##op_name##Op(p, op_casted);                                                          \
+       });                                                                                          \
 }
 
 namespace ov {
@@ -84,7 +83,7 @@ public:
     Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false,
             InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr,
-            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr, bool innerProgram = false);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr, bool innerProgram = false);
     Program(cldnn::engine& engine, const ExecutionConfig& config,
             InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
 
@@ -159,7 +158,7 @@ public:
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
     bool requires_new_shape_infer(const ngraph::Node& op) const;
 
-    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() { return m_task_executor; }
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() { return m_task_executor; }
 
 private:
     static factories_map_t factories_map;
@@ -177,7 +176,7 @@ private:
 
     bool queryMode;
 
-    InferenceEngine::CPUStreamsExecutor::Ptr m_task_executor;
+    std::shared_ptr<ov::threading::IStreamsExecutor> m_task_executor;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

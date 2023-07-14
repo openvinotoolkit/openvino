@@ -108,7 +108,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
 
             p.add_primitive(*op, argmaxPrim);
         } else {
-            IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
+            OPENVINO_THROW(op->get_friendly_name(), " Incorrect TopK outputs number");
         }
     }
 }

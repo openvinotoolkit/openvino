@@ -17,7 +17,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
         case ngraph::op::PadType::SAME_UPPER: return "same_upper";
         case ngraph::op::PadType::SAME_LOWER: return "same_lower";
         case ngraph::op::PadType::VALID: return "valid";
-        default: IE_THROW() << "Unsupported pad type in ExtractImagePatches primitive " << pad;
+        default: OPENVINO_THROW("Unsupported pad type in ExtractImagePatches primitive ", pad);
     }
 
     return "";

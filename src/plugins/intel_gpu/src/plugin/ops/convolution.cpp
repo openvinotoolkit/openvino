@@ -106,7 +106,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            IE_THROW() << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
+            OPENVINO_THROW("Unsupported dilation in ConvolutionBackpropData ", op->get_friendly_name());
         }
     }
 
@@ -194,7 +194,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            IE_THROW() << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
+            OPENVINO_THROW("Unsupported dilation in GroupConvolutionBackpropData ", op->get_friendly_name());
         }
     }
 

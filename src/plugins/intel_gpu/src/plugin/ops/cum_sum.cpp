@@ -24,9 +24,7 @@ static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cum
     int64_t axis = 0;
     if (op->get_input_size() == 2) {
         auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        if (!axes_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axes_constant->cast_vector<int64_t>()[0];
     }
     OPENVINO_SUPPRESS_DEPRECATED_START

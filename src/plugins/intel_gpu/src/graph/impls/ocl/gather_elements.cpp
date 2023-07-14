@@ -38,7 +38,7 @@ static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, s
             else
                 return kernel_selector::gather_elements_axis::X;
         case 5: return kernel_selector::gather_elements_axis::X;
-        default: IE_THROW() << "Incorrect gather_elements axis.";
+        default: OPENVINO_THROW("Incorrect gather_elements axis.");
     }
 }
 

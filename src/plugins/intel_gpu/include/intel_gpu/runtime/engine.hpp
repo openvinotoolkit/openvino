@@ -11,7 +11,6 @@
 #include "layout.hpp"
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
-#include <threading/ie_cpu_streams_executor.hpp>
 
 #include <memory>
 #include <set>
@@ -147,7 +146,6 @@ public:
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
-    /// @param task_executor GPU plugin internal task executor
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
@@ -156,7 +154,6 @@ public:
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
-    /// @param task_executor GPU plugin internal task executor
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);

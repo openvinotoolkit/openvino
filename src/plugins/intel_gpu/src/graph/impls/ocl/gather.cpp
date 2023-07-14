@@ -24,7 +24,7 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -1: return kernel_selector::gather_axis::Y;
             case -2: return kernel_selector::gather_axis::FEATURE;
             case -3: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else if (rank == 5) {
         switch (axis) {
@@ -35,7 +35,7 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -2: return kernel_selector::gather_axis::Z;
             case -3: return kernel_selector::gather_axis::FEATURE;
             case -4: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else if (rank == 6) {
         switch (axis) {
@@ -48,10 +48,10 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -3: return kernel_selector::gather_axis::W;
             case -4: return kernel_selector::gather_axis::FEATURE;
             case -5: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else {
-        IE_THROW() << "Unsupported gather axis: " << axis;
+        OPENVINO_THROW("Unsupported gather axis: ", axis);
     }
 }
 

@@ -83,7 +83,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             case 4: prim.iou_threshold = reordered_inputs[3].pid;
             case 3: prim.num_select_per_class = reordered_inputs[2].pid;
             case 2: break;
-            default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
         }
 
         p.add_primitive(*op, prim);
@@ -128,7 +128,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 inputs.push_back(cldnn::input_info(non_max_suppression_mutable_id_w_first));
             }
             case 1: break;
-            default: IE_THROW() << "Incorrect number of output for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of output for layer: ", op->get_friendly_name());
         }
 
         auto nonMaxSuppressionLayerName = num_outputs > 1 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
@@ -150,7 +150,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             case 4: prim.iou_threshold = reordered_inputs[3].pid;
             case 3: prim.num_select_per_class = reordered_inputs[2].pid;
             case 2: break;
-            default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
         }
 
         switch (num_outputs) {

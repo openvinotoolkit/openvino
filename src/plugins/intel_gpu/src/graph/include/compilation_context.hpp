@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <threading/ie_cpu_streams_executor.hpp>
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include <functional>
 #include <memory>
 
@@ -19,7 +19,7 @@ public:
     virtual bool is_stopped() = 0;
     virtual void cancel() = 0;
 
-    static std::unique_ptr<ICompilationContext> create(InferenceEngine::CPUStreamsExecutor::Config task_executor_config);
+    static std::unique_ptr<ICompilationContext> create(ov::threading::IStreamsExecutor::Config task_executor_config);
 };
 
 }  // namespace cldnn

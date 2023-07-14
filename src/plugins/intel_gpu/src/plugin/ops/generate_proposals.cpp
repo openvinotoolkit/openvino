@@ -18,7 +18,7 @@ static void CreateGenerateProposalsIEInternalOp(
     const std::shared_ptr<ov::op::internal::GenerateProposalsIEInternal>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 3) {
-        IE_THROW() << "GenerateProposals requires 3 outputs";
+        OPENVINO_THROW("GenerateProposals requires 3 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);

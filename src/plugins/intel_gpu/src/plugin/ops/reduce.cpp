@@ -31,9 +31,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
     int64_t rank = input_pshape.size();
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!axes_constant) {
-        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::vector<int64_t> axes = axes_constant->cast_vector<int64_t>();
     for (size_t i = 0; i < axes.size(); i++) {
@@ -41,7 +39,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
             axes[i] += rank;
 
         if (axes[i] >= static_cast<int64_t>(rank) || axes[i] < 0)
-            IE_THROW() << "Unsupported axis value in " << op->get_friendly_name() << " (" << axes[i] << ")";
+            OPENVINO_THROW("[GPU] Unsupported axis value in ", op->get_friendly_name(), " (", axes[i], ")");
     }
 
     auto reducePrim = cldnn::reduce(layerName,

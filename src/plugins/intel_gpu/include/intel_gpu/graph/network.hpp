@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -81,12 +83,12 @@ public:
             const topology& topo,
             const ExecutionConfig& config = {},
             bool is_internal = false,
-            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
 
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
-            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
@@ -103,13 +105,13 @@ public:
     static ptr build_network(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config = {},
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor = nullptr,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
 
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,

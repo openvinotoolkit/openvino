@@ -53,7 +53,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<op
 
     constexpr auto expected_inputs_count = 3 + 2;  // 3 operation inputs plus 2 additional outputs
     if (inputs.size() != expected_inputs_count) {
-        IE_THROW() << "multiclass_nms primitive requires 5 inputs";
+        OPENVINO_THROW("multiclass_nms primitive requires 5 inputs");
     }
 
     const cldnn::multiclass_nms prim{layer_name,

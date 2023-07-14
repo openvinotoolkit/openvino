@@ -18,7 +18,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     validate_inputs_count(op, {4});
 
     if (op->get_output_size() != 3) {
-        IE_THROW() << "ExperimentalDetectronDetectionOutput requires 3 outputs";
+        OPENVINO_THROW("ExperimentalDetectronDetectionOutput requires 3 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);
@@ -54,7 +54,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
     const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
     if (inputs.size() != expectedPrimInputCount) {
-        IE_THROW() << "experimental_detectron_detection_output primitive requires 6 inputs";
+        OPENVINO_THROW("experimental_detectron_detection_output primitive requires 6 inputs");
     }
 
     const cldnn::experimental_detectron_detection_output prim{layer_name,

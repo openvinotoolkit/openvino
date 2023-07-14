@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -125,7 +127,7 @@ public:
     program(engine& engine_ref,
             topology const& topology,
             const ExecutionConfig& config,
-            InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -133,14 +135,14 @@ public:
     program(engine& engine_ref,
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
-            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
     explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
-    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() const { return _task_executor; }
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return _task_executor; }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
@@ -240,14 +242,14 @@ public:
     static ptr build_program(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config,
-                             InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal = false,
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
@@ -261,7 +263,7 @@ public:
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
 
-    static std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config);
+    static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
 
 private:
     uint32_t prog_id = 0;
@@ -270,7 +272,7 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     ExecutionConfig _config;
-    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> _task_executor = nullptr;
+    std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;

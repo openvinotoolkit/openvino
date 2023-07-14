@@ -35,7 +35,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<loop>());
+        OPENVINO_ASSERT(arg.is_type<loop>());
         const auto& node = arg.as<loop>();
         _max_iteration = node.get_max_iteration();
         _back_edges = node.get_back_edges();
