@@ -136,7 +136,8 @@ def prepare_ir(argv: argparse.Namespace):
 
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     if moc_front_end:
-        if argv.framework == 'tf':
+        # TODO: Should be moved to the same place where paddle and pytorch handle their objects
+        if argv.framework == 'tf' and argv.is_python_object:
             argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                         argv.placeholder_shapes,
                                                         argv.placeholder_data_types,
@@ -468,6 +469,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         argv = pack_params_to_args_namespace(args, cli_parser)
         argv.framework = model_framework
+        argv.is_python_object = inp_model_is_object
 
         argv.feManager = FrontEndManager()
         frameworks = list(set(get_available_front_ends(argv.feManager)))
