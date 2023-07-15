@@ -286,7 +286,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
                 LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
             }
         } else {
-            LOG_DEBUG_TAG("Device %s didn't support max thread number of compilation", device);
+            LOG_DEBUG_TAG("Device %s didn't support max thread number of compilation", device.c_str());
         }
     }
     try {
