@@ -74,7 +74,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                               ov::element::Type_t::i32,
                                                               ov::element::Type_t::f16,
                                                               ov::element::Type_t::f32,
-                                                              ov::element::Type_t::f64,
                                                               ov::element::Type_t::boolean};
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             supported_precisions.insert(ov::element::Type_t::bf16);
