@@ -23,7 +23,7 @@ public:
     const MatchersMap& get_matchers() { return m_matchers; }
     iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
 
-private:
+protected:
     MatchersMap m_matchers = {};
 };
 

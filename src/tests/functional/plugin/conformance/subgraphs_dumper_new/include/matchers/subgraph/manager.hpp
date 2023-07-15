@@ -21,8 +21,9 @@ public:
                                         bool is_extract_body = true);
 
     void set_extractors(const ExtractorsMap& extractors = {}) { m_extractors = extractors; }
+    ExtractorsMap get_extractors() { return m_extractors; }
 
-private:
+protected:
     ExtractorsMap m_extractors = {};
 };
 
