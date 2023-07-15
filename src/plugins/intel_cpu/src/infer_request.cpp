@@ -164,7 +164,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
         if (inputNode == cpuInputNodes.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name.c_str());
         if (inputNode->second->isDynamicNode()) {
-            auto tensor = get_tensor(port);
+            auto tensor = get_port_tensor(port);
             inputNode->second->redefineOutputMemory({tensor->get_shape()});
         }
     }
@@ -181,7 +181,7 @@ void SyncInferRequest::update_external_inputs() {
                            input_name);
         }
         if (external_ptr.find(input_name) != external_ptr.end()) {
-            auto tensor = get_tensor(input);
+            auto tensor = get_port_tensor(input);
             external_ptr[input_name] = tensor;
         }
     }
