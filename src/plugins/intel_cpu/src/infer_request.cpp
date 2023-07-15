@@ -406,7 +406,6 @@ InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::SoPtr
 }
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_port_tensor(const ov::Output<const ov::Node>& in_port) const {
-    check_compiled_model_port(in_port);
     auto port = get_internal_port(in_port);
     auto tensor = ov::ISyncInferRequest::get_tensor(port);
     auto name = get_port_name(in_port, m_is_legacy_api);
@@ -738,7 +737,6 @@ void SyncInferRequest::push_input_data() {
         auto tensor = get_port_tensor(input);
         if (m_aux_tensors.find(input_name) != m_aux_tensors.end()) {
             auto& aux_tensor = m_aux_tensors[input_name];
-
             if (aux_tensor->get_shape() != tensor->get_shape()) {
                 tensor->set_shape(aux_tensor->get_shape());
             }
