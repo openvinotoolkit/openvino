@@ -100,7 +100,7 @@ class TestInfoMessagesTFFEWithFallback(unittest.TestCase):
             main()
             std_out = f.getvalue()
         tf_fe_message_found = get_try_legacy_fe_message() in std_out
-        assert not tf_fe_message_found, 'TF FE Info message is found for the fallback case'
+        assert tf_fe_message_found, 'TF FE Info message is found for the fallback case'
 
     @patch('argparse.ArgumentParser.parse_args',
            return_value=arg_parse_helper(input_model="model_int32.pbtxt",

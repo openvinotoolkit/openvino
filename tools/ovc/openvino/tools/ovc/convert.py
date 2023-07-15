@@ -30,6 +30,7 @@ def convert_model(
         transform: [str, list, tuple] = "",  #TODO: Consider removing
         silent: bool = True,    #TODO: Consider removing
         log_level: str = 'ERROR',
+        share_weights: bool = True,
 
         # PaddlePaddle-specific parameters:
         example_output: Any = None,  # TODO: Consider removing
@@ -148,6 +149,11 @@ def convert_model(
         :param log_level:
             Logger level of logging massages from MO.
             Expected one of ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'].
+        :param share_weights:
+            Reuse weights allocated in the original model. If input model is in file,
+            then mmap is used to allocate weights directly from file. If input model is
+            runtime object, then original memory regions allocated in the original model
+            are reused for weights in the converted model.
 
     PaddlePaddle-specific parameters:
         :param example_output:
