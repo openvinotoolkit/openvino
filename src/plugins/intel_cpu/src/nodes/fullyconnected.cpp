@@ -284,7 +284,16 @@ void FullyConnected::getSupportedDescriptors() {
     // MLAS doesn't support post-ops fusing and BF16. INT8 is not enabled yet
     // Disable MLAS when FC could fuse post-ops
     useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8 && fusedWith.empty();
-    if (withBiases) {
+    auto wgtDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
+    // MLAS cannot find weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
+    if (useMlas && wgtDims.size() > 2) {
+        bool allOnes = true;
+        for (size_t i = 2; i < wgtDims.size(); i++) {
+            allOnes = allOnes && wgtDims[i] == 1;
+        }
+        useMlas = useMlas && allOnes;
+    }
+    if (useMlas && withBiases) {
         const auto& biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();
         bool isByChannel = biasDims.back() == outDims.back();
         for (size_t i = 0; i < biasDims.size() - 1; i++) {
