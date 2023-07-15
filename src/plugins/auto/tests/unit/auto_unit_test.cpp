@@ -63,8 +63,10 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
         .WillByDefault(Return(ov::Any(supportConfigs)));
-    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _))
-        .WillByDefault(Return(12));
+    std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
+    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(12));
     std::vector<std::string> cpuCability =  {"FP32", "FP16", "INT8", "BIN"};
     std::vector<std::string> gpuCability =  {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
     std::vector<std::string> vpuxCability =  {"INT8"};

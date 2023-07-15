@@ -210,7 +210,6 @@ TEST_P(AutoLimitCompilationThreadsForAcceleratorTest, checkPropertyCompileThread
     }
     ov::AnyMap deviceConfigs = {ov::compilation_num_threads(max_num_threads)};
 
-    std::vector<ov::PropertyName> supported_props = {ov::compilation_num_threads};
     ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
         // auto item = fullConfigs.find(device);
         ov::AnyMap deviceConfigs;
@@ -224,8 +223,6 @@ TEST_P(AutoLimitCompilationThreadsForAcceleratorTest, checkPropertyCompileThread
         }
         return deviceConfigs;
     });
-    ON_CALL(*core, get_property(StrEq(actualSelectedDevice), StrEq(ov::supported_properties.name()), _))
-        .WillByDefault(RETURN_MOCK_VALUE(supported_props));
 
     // set default value of ov::compilation_num_threads for actual selected device
     // set std::thread::hardware_concurrency() to GPU as default value
