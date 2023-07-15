@@ -446,18 +446,18 @@ else()
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     if(CMAKE_COMPILER_IS_GNUCXX)
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "8")
-            # Enable __FILE__ trim
-            ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
-            ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
+            # Enable __FILE__ trim only for release mode
+            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
         endif()
         # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
     endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
-            # Enable __FILE__ trim
-            ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
-            ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
+            # Enable __FILE__ trim only for release mode
+            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
         endif()
     endif()
 
