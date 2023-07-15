@@ -89,6 +89,8 @@ static inline bool isFloatCompatible(Precision prc) {
     return one_of(prc, Precision::FP32, Precision::BF16, Precision::FP16);
 }
 
+static const int kTileNum = 3;
+
 // normalize_variance = false : src->mean
 // normalize_variance = true : src+mean->variance:sqr(x-mean)
 template <cpu_isa_t isa>
@@ -143,7 +145,11 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         if (jcp_.layout == MVNLayoutType::mvn_planar) {
             worker_vector_unroll();
             // for tails. [0-15] for avx512, [0-7] for avx2, [0-3] for sse
-            worker_tails(reg_rt_shape, true);
+            auto tails_func = [&](int tile_size) {
+                worker_block(tile_size, true);
+                add(reg_src, tile_size * jcp_.src_data_size);
+            };
+            worker_tails(reg_rt_shape, tails_func);
             // hsum+store
             if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
                 uni_vcvtdq2ps(vmm_sum, vmm_sum);
@@ -205,6 +211,11 @@ private:
     std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
+    // used for tails process(except nspc&&per_channel)
+    Label tail_start[kTileNum];
+    Label tail_exit[kTileNum];
+    const int tile_size[kTileNum] = {8, 4, 1};
+
     // nspc across channel
     inline void nspc_ac_ker() {
         Xbyak::Label loop_label;
@@ -222,7 +233,11 @@ private:
         }
         L(loop_end_label);
 
-        worker_tails(reg_work_amount, true);
+        auto tails_func = [&](int tile_size) {
+            worker_block(tile_size, true);
+            add(reg_src, tile_size * jcp_.src_data_size);
+        };
+        worker_tails(reg_work_amount, tails_func);
 
         if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
             uni_vcvtdq2ps(vmm_sum, vmm_sum);
@@ -592,53 +607,12 @@ private:
                 }
                 L(loop_end_label);
             };
-            Label tail_blk8_label;
-            Label tail_blk8_exit_label;
-            Label tail_blk4_label;
-            Label tail_blk4_exit_label;
-            Label tail_blk1_label;
-            Label tail_blk1_exit_label;
-            L(tail_blk8_label);
-            {
-                cmp(reg_rt_shape, 8);
-                jl(tail_blk8_exit_label, T_NEAR);
-
-                unroll_w(8);
+            auto tails_func = [&](int tile_size) {
+                unroll_w(tile_size);
                 save_result();
-                reset_with_offset(8);
-
-                sub(reg_rt_shape, 8);
-                jmp(tail_blk8_label, T_NEAR);
-            }
-            L(tail_blk8_exit_label);
-
-            L(tail_blk4_label);
-            {
-                cmp(reg_rt_shape, 4);
-                jl(tail_blk4_exit_label, T_NEAR);
-
-                unroll_w(4);
-                save_result();
-                reset_with_offset(4);
-
-                sub(reg_rt_shape, 4);
-                jmp(tail_blk4_label, T_NEAR);
-            }
-            L(tail_blk4_exit_label);
-
-            L(tail_blk1_label);
-            {
-                cmp(reg_rt_shape, 1);
-                jl(tail_blk1_exit_label, T_NEAR);
-
-                unroll_w(1);
-                save_result();
-                reset_with_offset(1);
-
-                sub(reg_rt_shape, 1);
-                jmp(tail_blk1_label, T_NEAR);
-            }
-            L(tail_blk1_exit_label);
+                reset_with_offset(tile_size);
+            };
+            worker_tails(reg_rt_shape, tails_func);
         };
 
         // cover vector and tails on avx512, avx2
@@ -772,51 +746,20 @@ private:
         }
     }
 
-    inline void worker_tails(Xbyak::Reg64& reg_tail_num, bool is_zero_pad) {
-        Label tail_blk8_label;
-        Label tail_blk8_exit_label;
-        Label tail_blk4_label;
-        Label tail_blk4_exit_label;
-        Label tail_blk1_label;
-        Label tail_blk1_exit_label;
-        L(tail_blk8_label);
-        {
-            cmp(reg_tail_num, 8);
-            jl(tail_blk8_exit_label, T_NEAR);
+    inline void worker_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+        for (int i = 0; i < kTileNum; i++) {
+            L(tail_start[i]);
+            {
+                cmp(reg_tail_num, tile_size[i]);
+                jl(tail_exit[i], T_NEAR);
 
-            worker_block(8, is_zero_pad);
-            add(reg_src, 8 * jcp_.src_data_size);
+                func(tile_size[i]);
 
-            sub(reg_tail_num, 8);
-            jmp(tail_blk8_label, T_NEAR);
+                sub(reg_tail_num, tile_size[i]);
+                jmp(tail_start[i], T_NEAR);
+            }
+            L(tail_exit[i]);
         }
-        L(tail_blk8_exit_label);
-
-        L(tail_blk4_label);
-        {
-            cmp(reg_tail_num, 4);
-            jl(tail_blk4_exit_label, T_NEAR);
-
-            worker_block(4, is_zero_pad);
-            add(reg_src, 4 * jcp_.src_data_size);
-
-            sub(reg_tail_num, 4);
-            jmp(tail_blk4_label, T_NEAR);
-        }
-        L(tail_blk4_exit_label);
-
-        L(tail_blk1_label);
-        {
-            cmp(reg_tail_num, 1);
-            jl(tail_blk1_exit_label, T_NEAR);
-
-            worker_block(1, is_zero_pad);
-            add(reg_src, 1 * jcp_.src_data_size);
-
-            sub(reg_tail_num, 1);
-            jmp(tail_blk1_label, T_NEAR);
-        }
-        L(tail_blk1_exit_label);
     }
 
     // needed and supported case: 1. scalar with zero pad. 2. tails w/ or w/o zero pad
@@ -1034,7 +977,13 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         if (jcp_.layout == MVNLayoutType::mvn_planar) {
             worker_mvn_vector_unroll(reg_work_amount);
-            worker_mvn_tails(reg_rt_shape);
+            // tails
+            auto tails_func = [&](int tile_size) {
+                worker_mvn_block(tile_size);
+                add(reg_src, tile_size * jcp_.src_data_size);
+                add(reg_dst, tile_size * jcp_.dst_data_size);
+            };
+            worker_mvn_tails(reg_rt_shape, tails_func);
         } else if (jcp_.layout == MVNLayoutType::mvn_by_channel) {
             if (jcp_.across_channels)
                 norm_nspc_ac_ker();
@@ -1096,6 +1045,11 @@ private:
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
+    // used for tails process(except nspc&&per_channel)
+    Label tail_start[kTileNum];
+    Label tail_exit[kTileNum];
+    const int tile_size[kTileNum] = {8, 4, 1};
+
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
@@ -1145,50 +1099,11 @@ private:
                 }
                 L(loop_end_label);
             };
-            Label tail_blk8_label;
-            Label tail_blk8_exit_label;
-            Label tail_blk4_label;
-            Label tail_blk4_exit_label;
-            Label tail_blk1_label;
-            Label tail_blk1_exit_label;
-            L(tail_blk8_label);
-            {
-                cmp(reg_rt_shape, 8);
-                jl(tail_blk8_exit_label, T_NEAR);
-
-                unroll_w(8);
-                reset_with_offset(8);
-
-                sub(reg_rt_shape, 8);
-                jmp(tail_blk8_label, T_NEAR);
-            }
-            L(tail_blk8_exit_label);
-
-            L(tail_blk4_label);
-            {
-                cmp(reg_rt_shape, 4);
-                jl(tail_blk4_exit_label, T_NEAR);
-
-                unroll_w(4);
-                reset_with_offset(4);
-
-                sub(reg_rt_shape, 4);
-                jmp(tail_blk4_label, T_NEAR);
-            }
-            L(tail_blk4_exit_label);
-
-            L(tail_blk1_label);
-            {
-                cmp(reg_rt_shape, 1);
-                jl(tail_blk1_exit_label, T_NEAR);
-
-                unroll_w(1);
-                reset_with_offset(1);
-
-                sub(reg_rt_shape, 1);
-                jmp(tail_blk1_label, T_NEAR);
-            }
-            L(tail_blk1_exit_label);
+            auto tails_func = [&](int tile_size) {
+                unroll_w(tile_size);
+                reset_with_offset(tile_size);
+            };
+            worker_mvn_tails(reg_rt_shape, tails_func);
         };
 
         // cover vector and tails on avx512, avx2
@@ -1640,7 +1555,14 @@ private:
             }
 
             worker_mvn_vector_unroll(reg_rt_shape);
-            worker_mvn_tails(reg_rt_shape);
+            auto tails_func = [&](int tile_size) {
+                worker_mvn_block(tile_size);
+                add(reg_src, tile_size * jcp_.src_data_size);
+                add(reg_dst, tile_size * jcp_.dst_data_size);
+                if (attr_.post_ops_.len() != 0)
+                    add(reg_oc_off, tile_size * sizeof(float));
+            };
+            worker_mvn_tails(reg_rt_shape, tails_func);
 
             sub(reg_work_amount, 1);
             jmp(loop_label, T_NEAR);
@@ -1688,60 +1610,20 @@ private:
             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
-    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num) {
-        Label tail_blk8_label;
-        Label tail_blk8_exit_label;
-        Label tail_blk4_label;
-        Label tail_blk4_exit_label;
-        Label tail_blk1_label;
-        Label tail_blk1_exit_label;
-        L(tail_blk8_label);
-        {
-            cmp(reg_tail_num, 8);
-            jl(tail_blk8_exit_label, T_NEAR);
+    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+        for (int i = 0; i < kTileNum; i++) {
+            L(tail_start[i]);
+            {
+                cmp(reg_tail_num, tile_size[i]);
+                jl(tail_exit[i], T_NEAR);
 
-            worker_mvn_block(8);
-            add(reg_src, 8 * jcp_.src_data_size);
-            add(reg_dst, 8 * jcp_.dst_data_size);
-            if (jcp_.layout == MVNLayoutType::mvn_by_channel && attr_.post_ops_.len() != 0)
-                add(reg_oc_off, 8 * sizeof(float));
+                func(tile_size[i]);
 
-            sub(reg_tail_num, 8);
-            jmp(tail_blk8_label, T_NEAR);
+                sub(reg_tail_num, tile_size[i]);
+                jmp(tail_start[i], T_NEAR);
+            }
+            L(tail_exit[i]);
         }
-        L(tail_blk8_exit_label);
-
-        L(tail_blk4_label);
-        {
-            cmp(reg_tail_num, 4);
-            jl(tail_blk4_exit_label, T_NEAR);
-
-            worker_mvn_block(4);
-            add(reg_src, 4 * jcp_.src_data_size);
-            add(reg_dst, 4 * jcp_.dst_data_size);
-            if (jcp_.layout == MVNLayoutType::mvn_by_channel && attr_.post_ops_.len() != 0)
-                add(reg_oc_off, 4 * sizeof(float));
-
-            sub(reg_tail_num, 4);
-            jmp(tail_blk4_label, T_NEAR);
-        }
-        L(tail_blk4_exit_label);
-
-        L(tail_blk1_label);
-        {
-            cmp(reg_tail_num, 1);
-            jl(tail_blk1_exit_label, T_NEAR);
-
-            worker_mvn_block(1);
-            add(reg_src, 1 * jcp_.src_data_size);
-            add(reg_dst, 1 * jcp_.dst_data_size);
-            if (jcp_.layout == MVNLayoutType::mvn_by_channel && attr_.post_ops_.len() != 0)
-                add(reg_oc_off, 1 * sizeof(float));
-
-            sub(reg_tail_num, 1);
-            jmp(tail_blk1_label, T_NEAR);
-        }
-        L(tail_blk1_exit_label);
     }
 
     inline void worker_mvn_block(int block_num) {
