@@ -867,99 +867,61 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-#if 0
-        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor,
-                                   InferenceEngine::Precision& precision) -> CpuBlockedMemoryDesc {
+        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
             InferenceEngine::TensorDesc tensorDesc(
-                precision,
+                ie::details::convertPrecision(tensor->get_element_type()),
                 tensor->get_shape(),
                 InferenceEngine::TensorDesc::getLayoutByRank(tensor->get_shape().size()));
             return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
         };
-#else
-        auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
-            auto element_type = tensor->get_element_type();
-            auto shape = tensor->get_shape();
-            std::vector<size_t> blk_order(shape.size());
-            std::iota(blk_order.begin(), blk_order.end(), 0);
-            std::vector<size_t> dim_offset(shape.size(), 0);
-            std::vector<size_t> blk_strides;
-            auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
-            Shape mem_shape(shape);
-            if (mem_shape.hasZeroDims()) {
-                blk_strides = std::vector<size_t>(shape.size(), 0);
-            } else if (byte_strides.empty()) {
-                blk_strides = ov::row_major_strides(shape);
-            } else {
-                blk_strides.resize(byte_strides.size());
-                std::transform(byte_strides.begin(),
-                               byte_strides.end(),
-                               blk_strides.begin(),
-                               [&element_type](size_t byte_stride) {
-                                   OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                                   "Limitation: Stride in bytes ",
-                                                   byte_stride,
-                                                   " should be divisible by size of element ",
-                                                   element_type.size());
-                                   return byte_stride / element_type.size();
-                               });
+
+        auto node = input->second;
+        auto childEdge = node->getChildEdgeAt(0);
+        const auto& outDims = node->getOutputShapeAtPort(0);
+
+        const void* ext_data_ptr = in->data();
+        void* inter_data_ptr = childEdge->getMemory().getData();
+
+        // Convert data if precision mismatch
+        auto& inter_mem_desc = childEdge->getMemory().getDesc();
+        auto inter_precision = inter_mem_desc.getPrecision();
+        auto ext_precision = ie::details::convertPrecision(in->get_element_type());
+        auto ext_tensor_desc = create_mem_desc(in);
+        if (ext_precision != inter_precision) {
+            if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
+                OPENVINO_THROW("Get tensor has no allocated memory");
             }
-            return CpuBlockedMemoryDesc(ie::details::convertPrecision(element_type),
-                                        mem_shape,
-                                        shape,
-                                        blk_order,
-                                        0,
-                                        dim_offset,
-                                        blk_strides);
-        };
-#endif
-            auto node = input->second;
-            auto childEdge = node->getChildEdgeAt(0);
-            const auto& outDims = node->getOutputShapeAtPort(0);
+            cpu_convert(ext_data_ptr, inter_data_ptr, ext_precision, inter_precision, in->get_size());
+            std::cout << "push_input: convert data " << ext_precision << " to " << inter_precision << std::endl;
 
-            const void* ext_data_ptr = in->data();
-            void* inter_data_ptr = childEdge->getMemory().getData();
-
-            // Convert data if precision mismatch
-            auto& inter_mem_desc = childEdge->getMemory().getDesc();
-            auto inter_precision = inter_mem_desc.getPrecision();
-            auto ext_precision = ie::details::convertPrecision(in->get_element_type());
-            auto ext_tensor_desc = create_mem_desc(in);
-            if (ext_precision != inter_precision) {
-                if ((inter_data_ptr == nullptr) || (ext_data_ptr == nullptr)) {
-                    OPENVINO_THROW("Get tensor has no allocated memory");
-                }
-                cpu_convert(ext_data_ptr, inter_data_ptr, ext_precision, inter_precision, in->get_size());
-                std::cout << "push_input: convert data " << ext_precision << " to " << inter_precision << std::endl;
-
-                std::cout << "input data: " << std::endl;
-                float* p = static_cast<float*>(inter_data_ptr);
-                for (size_t i = 0; i < in->get_size(); i++) {
-                    std::cout << " " << p[i];
-                }
-                std::cout << std::endl;
-
-                Memory mem(getEngine(), inter_mem_desc, inter_data_ptr, false);
-                childEdge->getMemory().load(mem, false);
-            } else if (ext_data_ptr != inter_data_ptr) {
-                Memory ext_mem(getEngine(), inter_mem_desc, ext_data_ptr, false);
-                childEdge->getMemory().load(ext_mem, false);
-                std::cout << "push_input: update data " << ext_precision << " to " << inter_precision << std::endl;
+            std::cout << "input data: " << std::endl;
+            float* p = static_cast<float*>(inter_data_ptr);
+            for (size_t i = 0; i < in->get_size() && i < 10; i++) {
+                std::cout << " " << p[i];
             }
+            std::cout << std::endl;
 
-            // todo: make sure 'name' exists in this map...
-            if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-                if (ext_tensor_desc.getPrecision() == InferenceEngine::Precision::FP32) {
-                    _normalizePreprocMap[name].NormalizeImage(outDims,
-                                                              reinterpret_cast<float*>(inter_data_ptr),
-                                                              TensorDesc::getLayoutByDims(in->get_shape()));
-                } else {
-                    OPENVINO_THROW("Mean image of type ", ext_tensor_desc.getPrecision().name(), " is unsupported");
-                }
-            }
-        } else {
-        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+            Memory mem(getEngine(), inter_mem_desc, inter_data_ptr, false);
+            childEdge->getMemory().load(mem, false);
+        } else if (ext_data_ptr != inter_data_ptr) {
+            Memory ext_mem(getEngine(), inter_mem_desc, ext_data_ptr, false);
+            childEdge->getMemory().load(ext_mem, false);
+            std::cout << "push_input: update data " << ext_precision << " to " << inter_precision << std::endl;
         }
+
+        // todo: make sure 'name' exists in this map...
+        if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
+            if (ext_tensor_desc.getPrecision() == InferenceEngine::Precision::FP32) {
+                _normalizePreprocMap[name].NormalizeImage(outDims,
+                                                          reinterpret_cast<float*>(inter_data_ptr),
+                                                          TensorDesc::getLayoutByDims(in->get_shape()));
+            } else {
+                OPENVINO_THROW("Mean image of type ", ext_tensor_desc.getPrecision().name(), " is unsupported");
+            }
+        }
+    } else {
+        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+    }
 }
 
 void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out) {
@@ -1029,7 +991,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         std::cout << "pull_output: " << srcPrec << " to " << dstPrec << ", same_ptr "<< (ext_blob_ptr == intr_blob_ptr) << std::endl;
         std::cout << "output data: " << std::endl;
         float* p = static_cast<float*>(intr_blob_ptr);
-        for (size_t i = 0; i < ext_blob->get_size(); i++) {
+        for (size_t i = 0; i < ext_blob->get_size() && i < 10; i++) {
             std::cout << " " << p[i];
         }
         std::cout << std::endl;

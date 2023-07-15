@@ -68,7 +68,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_cfg.isLegacyApi = !core->is_new_api();
 
     bool support_all_precision = true;
-#if 0
     auto get_graph_supported_precisions = [&]() -> std::set<ov::element::Type_t> {
         std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
                                                               ov::element::Type_t::i8,
@@ -93,7 +92,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             support_all_precision = false;
     }
 
-
     if (!support_all_precision) {
         m_graph_model = m_model->clone();
         Transformations graph_transformations(m_graph_model,
@@ -106,55 +104,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         m_graph_model = m_model;
     }
-#else
-    auto get_convert_precisions = []() {
-        precisions_map map = {{ov::element::i64, ov::element::i32},
-                              {ov::element::u64, ov::element::i32},
-                              {ov::element::i16, ov::element::i32},
-                              {ov::element::u16, ov::element::i32},
-                              {ov::element::u32, ov::element::i32},
-                              {ov::element::f64, ov::element::f32},
-                              {ov::element::f16, ov::element::f32},
-                              {ov::element::boolean, ov::element::u8},
-                              {ov::element::i4, ov::element::i8},
-                              {ov::element::u4, ov::element::u8}};
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            map.insert({ov::element::bf16, ov::element::f32});
-
-        return map;
-    };
-    static const auto convert_precisions = get_convert_precisions();
-
-    m_graph_model = m_model->clone();
-    ov::preprocess::PrePostProcessor preproc(m_graph_model);
-    for (size_t i = 0; i < m_graph_model->inputs().size(); i++) {
-        auto port = m_graph_model->input(i);
-        auto prec = port.get_element_type();
-        std::cout << "input " << i << ", prec = " << prec << std::endl;
-        auto it = convert_precisions.find(prec);
-        if (it != convert_precisions.end()) {
-            preproc.input(i).tensor().set_element_type(it->second);
-            support_all_precision = false;
-            std::cout << "preproc: input precision convert " << it->first << " to " << it->second << std::endl;
-        }
-    }
-    for (size_t i = 0; i < m_graph_model->outputs().size(); i++) {
-        auto port = m_graph_model->output(i);
-        auto prec = port.get_element_type();
-        std::cout << "input " << i << ", prec = " << prec << std::endl;
-        auto it = convert_precisions.find(prec);
-        if (it != convert_precisions.end()) {
-            preproc.output(i).tensor().set_element_type(it->second);
-            support_all_precision = false;
-            std::cout << "preproc: output precision covert " << it->first << " to " << it->second << std::endl;
-        }
-    }
-    if (!support_all_precision)
-        preproc.build();
-    else
-        m_graph_model = m_model;
-#endif
     std::cout << std::endl << "support_all_precision = " << support_all_precision << std::endl;
     for (const auto& in : m_graph_model->inputs()) {
         auto port_name = get_port_name(in, false);
