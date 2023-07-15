@@ -123,6 +123,7 @@ public:
     void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
 
+    bool isHwAvailable();
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
     }
