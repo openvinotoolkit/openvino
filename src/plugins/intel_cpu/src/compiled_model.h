@@ -50,6 +50,7 @@ private:
     friend class SyncInferRequest;
 
     const std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<ov::Model> m_graph_model;
     std::vector<std::shared_ptr<ov::IVariableState>> m_memory_states;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor

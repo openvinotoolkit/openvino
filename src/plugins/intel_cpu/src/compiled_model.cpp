@@ -20,13 +20,17 @@
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
+
 #include "ie_ngraph_utils.hpp"
 #include "ie_system_conf.h"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
+
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstring>
 #include <utility>
 
@@ -62,6 +66,106 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
     m_cfg.isLegacyApi = !core->is_new_api();
+
+    bool support_all_precision = true;
+#if 0
+    auto get_graph_supported_precisions = [&]() -> std::set<ov::element::Type_t> {
+        std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
+                                                              ov::element::Type_t::i8,
+                                                              ov::element::Type_t::i32,
+                                                              ov::element::Type_t::f16,
+                                                              ov::element::Type_t::f32,
+                                                              ov::element::Type_t::f64,
+                                                              ov::element::Type_t::boolean};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+            supported_precisions.insert(ov::element::Type_t::bf16);
+        return supported_precisions;
+    };
+    static auto graph_supported_precisions = get_graph_supported_precisions();
+    for (const auto& it : m_model->inputs()) {
+        auto input_precision = it.get_element_type();
+        if (!graph_supported_precisions.count(input_precision))
+            support_all_precision = false;
+    }
+    for (const auto& it : m_model->outputs()) {
+        auto output_precision = it.get_element_type();
+        if (!graph_supported_precisions.count(output_precision))
+            support_all_precision = false;
+    }
+
+
+    if (!support_all_precision) {
+        m_graph_model = m_model->clone();
+        Transformations graph_transformations(m_graph_model,
+                                              false,
+                                              ov::element::i32,
+                                              false,
+                                              Config::SnippetsMode::Disable,
+                                              {});
+        graph_transformations.RunPrecisionConvert();
+    } else {
+        m_graph_model = m_model;
+    }
+#else
+    auto get_convert_precisions = []() {
+        precisions_map map = {{ov::element::i64, ov::element::i32},
+                              {ov::element::u64, ov::element::i32},
+                              {ov::element::i16, ov::element::i32},
+                              {ov::element::u16, ov::element::i32},
+                              {ov::element::u32, ov::element::i32},
+                              {ov::element::f64, ov::element::f32},
+                              {ov::element::f16, ov::element::f32},
+                              {ov::element::boolean, ov::element::u8},
+                              {ov::element::i4, ov::element::i8},
+                              {ov::element::u4, ov::element::u8}};
+
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+            map.insert({ov::element::bf16, ov::element::f32});
+
+        return map;
+    };
+    static const auto convert_precisions = get_convert_precisions();
+
+    m_graph_model = m_model->clone();
+    ov::preprocess::PrePostProcessor preproc(m_graph_model);
+    for (size_t i = 0; i < m_graph_model->inputs().size(); i++) {
+        auto port = m_graph_model->input(i);
+        auto prec = port.get_element_type();
+        std::cout << "input " << i << ", prec = " << prec << std::endl;
+        auto it = convert_precisions.find(prec);
+        if (it != convert_precisions.end()) {
+            preproc.input(i).tensor().set_element_type(it->second);
+            support_all_precision = false;
+            std::cout << "preproc: input precision convert " << it->first << " to " << it->second << std::endl;
+        }
+    }
+    for (size_t i = 0; i < m_graph_model->outputs().size(); i++) {
+        auto port = m_graph_model->output(i);
+        auto prec = port.get_element_type();
+        std::cout << "input " << i << ", prec = " << prec << std::endl;
+        auto it = convert_precisions.find(prec);
+        if (it != convert_precisions.end()) {
+            preproc.output(i).tensor().set_element_type(it->second);
+            support_all_precision = false;
+            std::cout << "preproc: output precision covert " << it->first << " to " << it->second << std::endl;
+        }
+    }
+    if (!support_all_precision)
+        preproc.build();
+    else
+        m_graph_model = m_model;
+#endif
+    std::cout << std::endl << "support_all_precision = " << support_all_precision << std::endl;
+    for (const auto& in : m_graph_model->inputs()) {
+        auto port_name = get_port_name(in, false);
+        std::cout << "graph input port: name = " << port_name << ", precision = " << in.get_element_type()
+                  << ", shape =" << in.get_partial_shape().to_string() << std::endl;
+    }
+    for (const auto& out : m_graph_model->outputs()) {
+        auto port_name = get_port_name(out, false);
+        std::cout << "graph output port: name = " << port_name << ", precision = " << out.get_element_type()
+                  << ", shape =" << out.get_partial_shape().to_string() << std::endl;
+    }
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
@@ -167,15 +271,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
 
                     ctx = std::make_shared<GraphContext>(m_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
-                auto graph_model = m_model->clone();
-                Transformations graph_transformations(graph_model,
-                                                      false,
-                                                      ov::element::i32,
-                                                      false,
-                                                      Config::SnippetsMode::Disable,
-                                                      {});
-                graph_transformations.RunPrecisionConvert();
-                const std::shared_ptr<const ov::Model> model = graph_model;
+                const std::shared_ptr<const ov::Model> model = m_graph_model;
                 graphLock._graph.CreateGraph(model, ctx);
             } catch (...) {
                 exception = std::current_exception();
