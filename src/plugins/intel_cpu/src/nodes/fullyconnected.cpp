@@ -280,10 +280,11 @@ void FullyConnected::getSupportedDescriptors() {
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 #ifdef OV_CPU_WITH_MLAS
-    bool isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
-    // MLAS doesn't support post-ops fusing and BF16. INT8 is not enabled yet
+    // MLAS doesn't support post-ops fusing and only supports FP32. INT8 is not enabled yet
     // Disable MLAS when FC could fuse post-ops
-    useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8 && fusedWith.empty();
+    useMlas = !useSparseWeights &&
+              (inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32) &&
+              fusedWith.empty();
     auto wgtDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
     // MLAS cannot find weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
     if (useMlas && wgtDims.size() > 2) {
