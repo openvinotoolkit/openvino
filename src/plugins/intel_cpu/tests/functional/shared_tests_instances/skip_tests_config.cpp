@@ -234,6 +234,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    // ACL convert doesn't support dimension > 6, this test shape_size = 10
+    retVector.emplace_back(R"(smoke_TestNumpyBroadcastNgraphEvaluate/BroadcastLayerTest.CompareWithRefs.*_inNPrec=(U8|I8)_trgDev=CPU.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)

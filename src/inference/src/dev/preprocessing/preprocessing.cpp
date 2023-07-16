@@ -30,11 +30,9 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
 
         auto& legacy_preproc = input_info->getPreProcess();
 
-#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
-        // ACLConvertExecutor cannot support dimension > 6, don't change precision to avoid adding Convert
         preproc.input(i).tensor().set_element_type(
             InferenceEngine::details::convertPrecision(input_info->getPrecision()));
-#endif
+
         if (input_info->getLayout() != InferenceEngine::Layout::BLOCKED &&
             input_info->getLayout() != InferenceEngine::Layout::SCALAR) {
             std::stringstream stream;
@@ -120,14 +118,11 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         // ExecutableNetwork
         ov::legacy_convert::fill_output_info(const_output, output_info);
         OPENVINO_ASSERT(output_info);
-
-#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
-        // ACLConvertExecutor cannot support dimension > 6, don't change precision to avoid adding Convert
         auto element_type = InferenceEngine::details::convertPrecision(output_info->getPrecision());
         if (element_type != model->output(i).get_element_type()) {
             preproc.output(i).tensor().set_element_type(element_type);
         }
-#endif
+
         if (output_info->getLayout() != InferenceEngine::Layout::BLOCKED &&
             output_info->getLayout() != InferenceEngine::Layout::SCALAR) {
             std::stringstream stream;
