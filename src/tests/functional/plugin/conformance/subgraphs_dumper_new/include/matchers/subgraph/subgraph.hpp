@@ -14,7 +14,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class  SubgraphExtractor {
+class SubgraphExtractor {
 public:
     using Ptr = std::shared_ptr<SubgraphExtractor>;
 
@@ -22,7 +22,9 @@ public:
                const std::shared_ptr<ov::Model> &ref_model) const;
 
     virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
-                                                bool is_extract_body = true) {};
+                                                bool is_extract_body = true) {
+        return std::list<ExtractedPattern>{};
+    };
 
 protected:
     FunctionsComparator comparator = FunctionsComparator::no_default()

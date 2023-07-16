@@ -19,7 +19,7 @@ class RepeatPatternExtractorTest : public RepeatPatternExtractor,
                                    public ::testing::Test {};
 
 TEST_F(RepeatPatternExtractorTest, extract) {
-    auto models = this->extract(generate_abs_relu_add());
+    auto models = this->extract(generate_abs_relu_abs_clamp_add());
     auto a = 0;
 }
 

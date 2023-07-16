@@ -37,7 +37,7 @@ TEST(ModelUtilsTest, generate_model_abs_relu_add) {
         auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_output(op)) {
+            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
                 ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
             }
         }
@@ -56,7 +56,7 @@ TEST(ModelUtilsTest, generate_model_abs_relu_abs_clamp_add) {
         auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_output(op)) {
+            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
                 ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
             }
         }
@@ -75,7 +75,7 @@ TEST(ModelUtilsTest, generate_model_abs_clamp_relu_abs_add) {
         auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_output(op)) {
+            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
                 ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
             }
         }

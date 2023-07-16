@@ -67,7 +67,7 @@ inline std::shared_ptr<ov::Model> generate_abs_relu_abs_clamp_add() {
         std::make_shared<ov::op::v0::Relu>(test_abs_0);
 
     std::shared_ptr<ov::op::v0::Parameter> test_parameter_1 =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
     std::shared_ptr<ov::op::v0::Abs> test_abs_1 =
         std::make_shared<ov::op::v0::Abs>(test_parameter_1);
     std::shared_ptr<ov::op::v0::Clamp> test_clamp_1 =
@@ -84,7 +84,7 @@ inline std::shared_ptr<ov::Model> generate_abs_relu_abs_clamp_add() {
         std::make_shared<ov::op::v0::Relu>(test_abs_0_1);
 
     std::shared_ptr<ov::op::v0::Parameter> test_parameter_1_1 =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
     std::shared_ptr<ov::op::v0::Abs> test_abs_1_1 =
         std::make_shared<ov::op::v0::Abs>(test_parameter_1_1);
     std::shared_ptr<ov::op::v0::Clamp> test_clamp_1_1 =
