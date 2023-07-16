@@ -48,17 +48,14 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     unsigned int pad_b = deconvAttrs.paddingR.at(0);
     unsigned int stride_x = deconvAttrs.stride.at(1);
     unsigned int stride_y = deconvAttrs.stride.at(0);
-    unsigned int dilation_x = deconvAttrs.dilation.at(1) + 1;
-    unsigned int dilation_y = deconvAttrs.dilation.at(0) + 1;
 
     arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
-    arm_compute::Size2D dilation(dilation_x, dilation_y);
 
     arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
-                                                                           &weiTensorInfo,
-                                                                           deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
-                                                                           &dstTensorInfo,
-                                                                           deconv_info);
+                                                                             &weiTensorInfo,
+                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                             &dstTensorInfo,
+                                                                             deconv_info);
     if (!status) {
         DEBUG_LOG("NEDeconvolutionLayer validation failed: ", status.error_description());
         return false;
@@ -114,7 +111,7 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
     weiTensor.allocator()->import_memory(weiBuffer.data());
     if (deconvAttrs.withBiases)
         biasTensor.allocator()->import_memory(src[2]->getData());
-
+    std::cout << "arm-acl-cpu" << std::endl;
     deconv->run();
 
     srcTensor.allocator()->free();

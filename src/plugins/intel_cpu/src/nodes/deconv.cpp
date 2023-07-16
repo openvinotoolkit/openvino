@@ -55,6 +55,107 @@ private:
 };
 } // namespace
 
+namespace {
+DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
+                                                   const dnnl::memory::desc& wgh_candidate,
+                                                   const dnnl::memory::desc& out_candidate,
+                                                   const dnnl::algorithm alg,
+                                                   const std::vector<ptrdiff_t>& stride,
+                                                   const std::vector<ptrdiff_t>& dilation,
+                                                   const ov::CoordinateDiff& paddingL,
+                                                   const ov::CoordinateDiff& paddingR,
+                                                   const dnnl::primitive_attr& attr,
+                                                   const dnnl::engine& engine) {
+    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+        return dnnl::memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+
+    const dnnl::primitive_attr emptyAttr;
+
+    auto conv_desc = dnnl::convolution_forward::primitive_desc(
+            engine,
+            dnnl::prop_kind::forward_inference,
+            alg,
+            out_candidate, wgh_candidate, in_candidate,
+            convertDims(stride),
+            convertDims(dilation),
+            convertDims(paddingL),
+            convertDims(paddingR),
+            emptyAttr,
+            true);
+
+    if (!conv_desc.get(true)) {
+        return {nullptr, nullptr};
+    }
+
+    auto deconv_desc = dnnl::convolution_backward_data::primitive_desc(
+            engine,
+            alg,
+            out_candidate, wgh_candidate, in_candidate,
+            convertDims(stride),
+            convertDims(dilation),
+            convertDims(paddingL),
+            convertDims(paddingR),
+            conv_desc,
+            attr,
+            true);
+
+    return {deconv_desc, conv_desc};
+}
+
+dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
+                                                  const dnnl::memory::desc& wgh_candidate,
+                                                  const dnnl::memory::desc& bias_candidate,
+                                                  const dnnl::memory::desc& out_candidate,
+                                                  const bool with_bias,
+                                                  const std::vector<ptrdiff_t>& stride,
+                                                  const std::vector<ptrdiff_t>& dilation,
+                                                  const ov::CoordinateDiff& paddingL,
+                                                  const ov::CoordinateDiff& paddingR,
+                                                  const dnnl::primitive_attr& attr,
+                                                  const dnnl::engine& engine) {
+    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+        return dnnl::memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+
+    if (with_bias) {
+        return dnnl::deconvolution_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                dnnl::algorithm::deconvolution_direct,
+                in_candidate, wgh_candidate, bias_candidate, out_candidate,
+                convertDims(stride), convertDims(dilation),
+                convertDims(paddingL), convertDims(paddingR),
+                attr);
+    } else {
+        return dnnl::deconvolution_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                dnnl::algorithm::deconvolution_direct,
+                in_candidate, wgh_candidate, out_candidate,
+                convertDims(stride), convertDims(dilation),
+                convertDims(paddingL), convertDims(paddingR),
+                attr);
+    }
+}
+
+dnnl::primitive_desc createInt8MkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                const dnnl::memory::desc& wghDesc,
+                                                const dnnl::memory::desc& biasDesc,
+                                                const dnnl::memory::desc& dstDesc,
+                                                const bool withBias,
+                                                const std::vector<ptrdiff_t>& stride,
+                                                const std::vector<ptrdiff_t>& dilation,
+                                                const ov::CoordinateDiff& paddingL,
+                                                const ov::CoordinateDiff& paddingR,
+                                                const dnnl::primitive_attr& attr,
+                                                const dnnl::engine& engine) {
+    return createDescriptorInternalInt8(
+            srcDesc, wghDesc, biasDesc, dstDesc, withBias, stride, dilation, paddingL, paddingR, attr, engine);
+}
+} // namespace
+
+
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op) == nullptr &&

@@ -53,12 +53,9 @@ public:
                       " dst[0]=", dstDescs[0]->getPrecision());
             return false;
         }
-        if ((srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP32 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP32) &&
-            (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP16 &&
-             srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP16 &&
-             dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP16)) {
+        if (!(one_of(srcDescs[0]->getPrecision(), InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32) &&
+              srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
+              srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
             DEBUG_LOG("AclDeconvExecutor does not support precisions:",
                       " src[0]=", srcDescs[0]->getPrecision(),
                       " src[1]=", srcDescs[1]->getPrecision(),
