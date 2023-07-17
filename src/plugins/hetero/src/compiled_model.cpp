@@ -409,9 +409,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         auto device_config = metaDevices[m_compiled_submodels[id].device];
         device_config[ov::cache_dir.name()] = "";
 
-        m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(subFunctions[id]->clone(),
-                                                                                    m_compiled_submodels[id].device,
-                                                                                    device_config);
+        m_compiled_submodels[id].compiled_model =
+            plugin->get_core()->compile_model(subFunctions[id], m_compiled_submodels[id].device, device_config);
         ++id;
     }
 
