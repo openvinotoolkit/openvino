@@ -10,23 +10,6 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-inline VectorDims reshape_sizes(VectorDims dims) {
-    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
-    VectorDims result_dims(MAX_NUM_SHAPE - 1);
-    if (dims.size() >= MAX_NUM_SHAPE) {
-        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
-            result_dims[i] = dims[i];
-        }
-        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
-            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
-        }
-    } else {
-        result_dims = dims;
-    }
-    return result_dims;
-}
-
-
 bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
