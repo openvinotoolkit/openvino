@@ -26,6 +26,8 @@ public:
         //         add
         //          |
         //        result
+        size_t op_idx = 0;
+
         std::shared_ptr<ov::op::v0::Parameter> test_parameter_0 =
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
         std::shared_ptr<ov::op::v0::Abs> test_abs_0 =
@@ -46,15 +48,10 @@ public:
             std::make_shared<ov::op::v0::Result>(test_add_0);
         model = std::make_shared<ov::Model>(ov::ResultVector{test_res},
                                             ov::ParameterVector{test_parameter_0, test_parameter_1});
-        start_node = test_abs_0;
     }
 
     std::shared_ptr<ov::Model> get() {
         return model;
-    }
-
-    std::shared_ptr<ov::Node> get_start_node() {
-        return start_node;
     }
 
     std::vector<std::shared_ptr<ov::Model>> get_repeat_pattern_ref() {
@@ -77,5 +74,4 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::Node> start_node;
 };
