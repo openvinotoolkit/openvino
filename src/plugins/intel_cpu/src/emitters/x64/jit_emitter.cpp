@@ -52,7 +52,7 @@ emitter_in_out_map jit_emitter::get_in_out_type() const {
 
 size_t jit_emitter::aux_gprs_count() const {
     // We need one gpr to load table address
-    return entry_map_.empty() ? 0 : 1;
+    return entry_map_.empty() && entry_map_64.empty() ? 0 : 1;
 }
 
 std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ngraph::Node>& node) {
@@ -133,7 +133,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     if (aux_gpr_idxs.size() < aux_gprs_count())
         IE_THROW() << "Failed to allocate required number of general-purpose registers";
 
-    if (!entry_map_.empty()) {
+    if (!entry_map_.empty() || !entry_map_64.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
         p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
@@ -149,8 +149,9 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         push_vec(h->ptr[h->rsp + i * get_vec_length()], preserved_vec_idxs[i]);
     }
 
-    if (!entry_map_.empty())
+    if (!entry_map_.empty() || !entry_map_64.empty()) {
         load_table_addr();
+    }
 }
 
 
@@ -187,6 +188,13 @@ void jit_emitter::emit_data() const {
         for (size_t d = 0; d < len; d += sizeof(table_entry_val_t))
             h->dd(te.val);
     }
+    for (auto it = entry_map_64.begin(); it != entry_map_64.end(); it++) {
+        const auto &te = (*it).second; // get map entry for a given key
+        const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t_64);
+        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t_64)) {
+            h->dq(te.val);
+        }
+    }
 }
 
 void jit_emitter::prepare_table() {
@@ -201,6 +209,11 @@ void jit_emitter::prepare_table() {
         auto &te = (*it).second;
         te.off = off;
         off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
+    }
+    for (auto it = entry_map_64.begin(); it != entry_map_64.end(); it++) {
+        auto &te = (*it).second;
+        te.off = off;
+        off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t_64);
     }
 }
 
