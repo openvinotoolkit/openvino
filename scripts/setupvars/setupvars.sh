@@ -8,6 +8,7 @@ INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
 # parse command line options
+unset python_version
 while [ $# -gt 0 ]
 do
 key="$1"
@@ -29,7 +30,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     export ngraph_DIR=$INSTALLDIR/runtime/cmake
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
-    system_type=$(ls "$INSTALLDIR/runtime/lib/")
+    system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
     IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
@@ -57,7 +58,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
             fi
         fi
 
-        if ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
+        if /bin/ls "$tbb_lib_path"/libtbb* >/dev/null 2>&1; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 export DYLD_LIBRARY_PATH=$tbb_lib_path:${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
             fi
