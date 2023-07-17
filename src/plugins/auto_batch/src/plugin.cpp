@@ -113,7 +113,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
             try {
                 auto t = val.as<uint32_t>();
                 if (t < 0)
-                    OPENVINO_THROW("Parameter Mismatch!!!");
+                    OPENVINO_THROW("The value for ", ov::auto_batch_timeout.name(), " should > 0, which is  ", t);
             } catch (const std::exception&) {
                 OPENVINO_THROW(" Expecting unsigned int value for ",
                                ov::auto_batch_timeout.name(),
@@ -236,8 +236,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (!meta_device.device_batch_size) {
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
-        auto cloned_model = model->clone();
-        ov::AnyMap options = {ov::hint::model(cloned_model)};
+        // auto cloned_model = model->clone();
+        ov::AnyMap options = {ov::hint::model(std::const_pointer_cast<ov::Model>(model))};
         unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
         auto requests = core->get_property(device_name, ov::hint::num_requests);
         const auto& reqs = properties.find(ov::hint::num_requests.name());

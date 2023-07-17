@@ -21,7 +21,7 @@ public:
                      const std::set<std::string>& batched_outputs);
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
-    void set_tensors_to_another_request(std::shared_ptr<ov::IAsyncInferRequest>& req);
+    void set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferRequest>& req);
 
     void copy_inputs_if_needed();
 

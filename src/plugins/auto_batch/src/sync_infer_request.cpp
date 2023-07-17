@@ -68,13 +68,13 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
     }
 }
 
-void SyncInferRequest::set_tensors_to_another_request(std::shared_ptr<ov::IAsyncInferRequest>& req) {
+void SyncInferRequest::set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferRequest>& req) {
     for (const auto& it : get_inputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
         auto type = tensor->get_element_type();
         if (req->get_tensor(it)->data(type) != tensor->data(type)) {
-            req->set_tensor(it, get_tensor_impl(ov::Tensor(it, tensor->data())));
+            req->set_tensor(it, tensor);
         }
     }
     for (const auto& it : get_outputs()) {
@@ -82,7 +82,7 @@ void SyncInferRequest::set_tensors_to_another_request(std::shared_ptr<ov::IAsync
         auto tensor = get_tensor(it);
         auto type = tensor->get_element_type();
         if (req->get_tensor(it)->data(type) != tensor->data(type)) {
-            req->set_tensor(it, get_tensor_impl(ov::Tensor(it, tensor->data())));
+            req->set_tensor(it, tensor);
         }
     }
 }
@@ -130,7 +130,7 @@ void SyncInferRequest::infer() {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return m_batched_request_wrapper->_infer_request_batched->query_state();
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
