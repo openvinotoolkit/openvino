@@ -20,6 +20,8 @@
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
 
+#include "common_test_utils/postgres_link.hpp"
+
 #include <setjmp.h>
 
 namespace ov {
@@ -227,6 +229,74 @@ void ReadIRTest::SetUp() {
             }
         }
     }
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+    // Updating data in runtime. Should be set before possible call of a first GTEST status
+    auto pgLink = this->GetPGLink();
+    if (pgLink) {
+        auto devNameProperty = core->get_property(this->targetDevice, "FULL_DEVICE_NAME");
+        auto devName = devNameProperty.is<std::string>() ?  devNameProperty.as<std::string>() : "";
+        pgLink->set_custom_field("targetDeviceName", devName, true);
+        if (this->targetDevice == "CPU") {
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+            pgLink->set_custom_field("targetDeviceArch", devName.find("ARM") != std::string::npos ? "arm" : "", true);
+        } else if (this->targetDevice == "GPU") {
+            if (devName.find("dGPU") != std::string::npos) {
+                pgLink->set_custom_field("targetDevice", "DGPU", true);
+            } else {
+                pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+            }
+        } else {
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+        }
+        pgLink->set_custom_field("caseType", hasDynamic ? "dynamic" : "static");
+        pgLink->set_custom_field("irWeight", std::to_string(rel_influence_coef), true);
+
+        // Do not store waste results
+        if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
+            pgLink->set_refuse_result();
+        } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
+            pgLink->set_refuse_result();
+        }
+
+        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        std::reverse(splittedFilename.begin(), splittedFilename.end());
+
+        // Try to resolve missing info
+        if (splittedFilename.size() > 2) {
+            auto pos = splittedFilename[2].find('-');
+            std::string op_name = "", op_version = "opset";
+            if (pos != std::string::npos) {
+                op_name = splittedFilename[2].substr(0, pos);
+                op_version += splittedFilename[2].substr(pos + 1);
+                if (ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end() &&
+                    std::find(ov::test::conformance::unique_ops[op_name].begin(),
+                              ov::test::conformance::unique_ops[op_name].end(),
+                              op_version) != ov::test::conformance::unique_ops[op_name].end()) {
+                    pgLink->set_custom_field("opName", op_name, true);
+                    pgLink->set_custom_field("opSet", op_version, true);
+                }
+            } else {
+                for (const auto& path_part : splittedFilename) {
+                    if (ov::test::conformance::unique_ops.find(path_part) != ov::test::conformance::unique_ops.end()) {
+                        op_name = path_part;
+                        break;
+                    }
+                }
+                if (op_name.length() > 0) {
+                    for (const auto& node : function->get_ordered_ops()) {
+                        if (node->get_type_name() == op_name) {
+                            op_version = node->get_type_info().version_id;
+                            pgLink->set_custom_field("opSet", op_version, true);
+                        }
+                    }
+                }
+            }
+        }
+        pgLink->manual_start();
+    }
+#endif
+
     if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
         GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
     } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {

@@ -23,6 +23,10 @@
 #include "psapi.h"
 #endif
 
+#ifdef ENABLE_CONFORMANCE_PGQL
+#    include "common_test_utils/postgres_link.hpp"
+#endif
+
 namespace CommonTestUtils {
 
 inline size_t getVmSizeInKB() {
@@ -61,9 +65,18 @@ inline size_t getVmSizeInKB() {
 
 TestsCommon::~TestsCommon() {
     InferenceEngine::executorManager()->clear();
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+    delete PGLink;
+    PGLink = nullptr;
+#endif
 }
 
-TestsCommon::TestsCommon() {
+TestsCommon::TestsCommon()
+#ifdef ENABLE_CONFORMANCE_PGQL
+    : PGLink(new PostgreSQLLink(this))
+#endif
+{
     auto memsize = getVmSizeInKB();
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
