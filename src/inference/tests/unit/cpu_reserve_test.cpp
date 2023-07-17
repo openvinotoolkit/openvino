@@ -47,7 +47,7 @@ public:
 };
 
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
-    72,  // param[in]: the number of processors
+    72,  // param[in]: the number of logical processors
     2,   // param[in]: the number of numa nodes
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}

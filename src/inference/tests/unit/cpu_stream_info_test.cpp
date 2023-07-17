@@ -18,6 +18,8 @@ namespace {
 
 #if defined(__linux__) || defined(_WIN32)
 
+#define NUMA_ALL -1
+
 struct LinuxCpuStreamTypeCase {
     bool _cpu_reservation;
     int _numa_nodes;

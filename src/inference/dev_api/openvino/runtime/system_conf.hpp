@@ -199,8 +199,6 @@ enum ColumnOfProcessorTypeTable {
     PROC_TYPE_TABLE_SIZE = 6   //!< Size of processor type table
 };
 
-#define NUMA_ALL -1
-
 /**
  * @enum       ProcessorUseStatus
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
@@ -214,13 +212,11 @@ enum ProcessorUseStatus {
  * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
- * @param[in]  stream_processors processors grouped in stream
- * @param[in]  stream_numa_node_ids numa_node_ids sorted in stream
+ * @param[in]  stream_processors processors grouped in stream which is used in core binding in cpu streams executor
  * @param[in]  cpu_status set cpu status
  */
 OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                                                  std::vector<std::vector<int>>& stream_processors,
-                                                 std::vector<int>& stream_numa_node_ids,
                                                  const int cpu_status = NOT_USED);
 
 /**

@@ -178,7 +178,6 @@ using ov::get_org_proc_type_table;
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
  * @param[in]  stream_processors processors grouped in stream
- * @param[in]  stream_numa_node_ids numa_node_ids sorted in stream
  * @param[in]  cpu_status set cpu status
  */
 using ov::reserve_available_cpus;

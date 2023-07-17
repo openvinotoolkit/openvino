@@ -115,7 +115,6 @@ public:
 
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
-        std::vector<int> _stream_numa_node_ids;
         bool _cpu_reservation = false;
         bool _streams_changed = false;
 
@@ -186,7 +185,7 @@ public:
 enum StreamCreateType {
     STREAM_WITHOUT_PARAM = 0,  // new task_arena with no parameters, no threads binding
     STREAM_WITH_CORE_TYPE,     // new task_arena with core type, threads binding with core type
-    STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads bingding with numa node id
+    STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads binding with numa node id
     STREAM_WITH_OBSERVE        // new task_arena with no parameters, threads binding with observe
 };
 
@@ -196,8 +195,6 @@ enum StreamCreateType {
  * @param[in]  cpu_reservation cpu reservation
  * @param[in]  org_proc_type_table available processors in the platform
  * @param[in]  streams_info_table streams information table
- * @param[in]  stream_numa_node_ids numa_node_ids sorted by stream id
- * @param[in,out]  stream_nums the list of number of streams which is used to access streams_info_table
  * @param[out]  stream_type stream create type
  * @param[out]  concurrency the number of threads created at the same time
  * @param[out]  core_type core type
