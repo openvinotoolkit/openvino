@@ -5,11 +5,11 @@
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace testing;
