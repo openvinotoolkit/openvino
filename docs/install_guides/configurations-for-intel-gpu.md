@@ -12,7 +12,8 @@ Linux
 
 To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-- If you use a discrete GPU (for example Arc 770), you must also use a supported Linux kernel as per the `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
+If you use a discrete GPU (for example Arc 770), you must also use a supported Linux kernel as per the `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
+
 - For Arc GPU, kernel 6.2 or higher is recommended. 
 - For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
