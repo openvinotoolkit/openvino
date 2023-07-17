@@ -61,15 +61,43 @@ Download model weights
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    ie = Core()
+    device = widgets.Dropdown(
+        options=ie.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 Load the Model
 --------------
 
 .. code:: ipython3
 
-    ie = Core()
+    core = Core()
     
-    model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    model = core.read_model(model=model_xml_path)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
@@ -106,12 +134,12 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f40900e8ac0>
+    <matplotlib.image.AxesImage at 0x7f021436e0a0>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_8_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
 Do Inference
@@ -131,12 +159,12 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4090039a30>
+    <matplotlib.image.AxesImage at 0x7f02142bce50>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
 Prepare Data for Visualization
@@ -179,5 +207,5 @@ Visualize data
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_14_0.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_16_0.png
 
