@@ -508,9 +508,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
         return config;
     }
 
-    reserve_available_cpus(config._streams_info_table,
-                           config._stream_processor_ids,
-                           status);
+    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, status);
 
     config._streams = 0;
     config._threads = 0;
