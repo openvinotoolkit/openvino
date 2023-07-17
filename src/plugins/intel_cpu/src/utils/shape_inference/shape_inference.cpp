@@ -149,7 +149,7 @@ public:
             std::transform(out_shapes->begin(),
                            out_shapes->end(),
                            std::back_inserter(result.shapes),
-                           [](StaticShapeCon& s) {
+                           [](StaticShape& s) {
                                return std::move(reinterpret_cast<StaticShape&&>(*s));
                            });
         }
@@ -157,10 +157,10 @@ public:
         return result;
     }
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor&) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
         NODE_VALIDATION_CHECK(m_node.get(), input_shapes.size() > 0, "Incorrect number of input shapes");
-        return {std::vector<StaticShapeCon>{input_shapes[0]}};
+        return {std::vector<StaticShape>{input_shapes[0]}};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
@@ -191,8 +191,8 @@ class ShapeInferCopy : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor&) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
         return {op::copy_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -204,8 +204,8 @@ class ShapeInferEltwise : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor&) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
         return {op::eltwise_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -217,10 +217,10 @@ class ShapeInferFallback : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor& tensor_accessor) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor& tensor_accessor) override {
         auto op = m_node.get();
-        std::vector<StaticShapeCon> output_shapes;
+        std::vector<StaticShape> output_shapes;
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
@@ -259,8 +259,8 @@ class ShapeInferTA : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor& tensor_accessor) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor& tensor_accessor) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor)};
     }
 
@@ -281,8 +281,8 @@ class ShapeInferTA<TOp, 0> : public ShapeInferBase {
 public:
     using ShapeInferBase::ShapeInferBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor&) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes)};
     }
 };
@@ -315,8 +315,8 @@ class ShapeInferPaddingTA : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor& tensor_accessor) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor& tensor_accessor) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end, tensor_accessor)};
     }
 
@@ -336,8 +336,8 @@ class ShapeInferPaddingTA<TOp, 0> : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                    const ov::ITensorAccessor&) override {
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
     }
 };

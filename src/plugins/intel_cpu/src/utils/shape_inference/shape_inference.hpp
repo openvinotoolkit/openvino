@@ -48,8 +48,8 @@ public:
      * @param tensor_accessor  Accessor to CPU constant data specific for operator.
      * @return Optionally return vector of static shape adapters holding CPU dimensions.
      */
-    virtual ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                            const ov::ITensorAccessor& tensor_accessor) = 0;
+    virtual ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                         const ov::ITensorAccessor& tensor_accessor) = 0;
 
     /**
      * @brief Some shape inference implementation may require input data stored inside the input tensors. To define

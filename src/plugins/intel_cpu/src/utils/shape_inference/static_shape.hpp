@@ -21,54 +21,6 @@ namespace op {
 }   // namespace op
 
 namespace intel_cpu {
-/// \brief Class representing a shape that must be totally static.
-class StaticShape : public std::vector<StaticDimension> {
-public:
-    using ShapeContainer = StaticShape;
-
-    StaticShape() = default;
-    StaticShape(std::initializer_list<StaticDimension> init);
-    StaticShape(const std::vector<StaticDimension::value_type>& dimensions);
-    StaticShape(std::vector<StaticDimension> dimensions);
-
-    StaticShape(const PartialShape&);
-
-    static bool is_static() {
-        return true;
-    }
-    static bool is_dynamic() {
-        return false;
-    }
-
-    Rank rank() const {
-        return Rank(size());
-    }
-
-    bool compatible(const StaticShape& s) const;
-    bool same_scheme(const StaticShape& s) const;
-    bool refines(const StaticShape& s) const;
-    bool merge_rank(const Rank& r);
-
-    ov::Shape to_shape() const;
-    PartialShape to_partial_shape() const;
-
-    friend std::ostream& operator<<(std::ostream& str, const StaticShape& shape);
-    friend StaticShape operator+(const StaticShape& s1, const StaticShape& s2);
-    bool operator==(const StaticShape& shape) const;
-    bool operator!=(const StaticShape& shape) const;
-    /// Get the max bounding shape
-    Shape get_max_shape() const;
-    /// Get the min bounding shape
-    Shape get_min_shape() const;
-    /// Get the unique shape
-    Shape get_shape() const;
-    static bool merge_into(StaticShape& dst, const StaticShape& src);
-    static bool broadcast_merge_into(StaticShape& dst, const StaticShape& src, const ov::op::AutoBroadcastSpec& autob);
-};
-
-StaticShape operator+(const StaticShape& s1, const StaticShape& s2);
-std::ostream& operator<<(std::ostream& str, const StaticShape& shape);
-
 /**
  * @brief Main template for conditional static shape adapter which holds reference or container with CPU dimensions.
  */
@@ -76,12 +28,12 @@ template <class TDims>
 class StaticShapeAdapter {};
 
 using StaticShapeRef = StaticShapeAdapter<const VectorDims>;
-using StaticShapeCon = StaticShapeAdapter<VectorDims>;  // Rename when when StaticShape class will be removed.
+using StaticShape = StaticShapeAdapter<VectorDims>;
 
 template <class T>
 constexpr bool is_static_shape_adapter() {
     using U = typename std::decay<T>::type;
-    return std::is_same<U, StaticShapeRef>::value || std::is_same<U, StaticShapeCon>::value;
+    return std::is_same<U, StaticShapeRef>::value || std::is_same<U, StaticShape>::value;
 }
 
 /**
@@ -95,7 +47,7 @@ class StaticShapeAdapter<VectorDims> {
     using dim_type = typename TDims::value_type;
 
 public:
-    using ShapeContainer = StaticShapeCon;
+    using ShapeContainer = StaticShape;  // used for ov::result_shape_t shape infer trait
 
     using value_type = StaticDimension;
     using iterator = typename TDims::iterator;
@@ -114,7 +66,7 @@ public:
     StaticShapeAdapter(std::initializer_list<value_type> dims) noexcept : m_dims{dims.begin(), dims.end()} {};
     StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
 
-    StaticShapeAdapter(const StaticShapeCon& other);
+    StaticShapeAdapter(const StaticShape& other);
     StaticShapeAdapter(const ov::PartialShape&);
 
     const TDims& operator*() const& noexcept {
@@ -259,7 +211,7 @@ class StaticShapeAdapter<const VectorDims> {
     using dim_type = typename VectorDims::value_type;
 
 public:
-    using ShapeContainer = StaticShapeCon;
+    using ShapeContainer = StaticShape;  // used for ov::result_shape_t shape infer trait
 
     using value_type = StaticDimension;
     using iterator = typename TDims::const_iterator;
@@ -276,11 +228,11 @@ public:
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) : m_dims{other.m_dims} {}
 
-    StaticShapeAdapter(const StaticShapeCon& shape);
+    StaticShapeAdapter(const StaticShape& shape);
     StaticShapeAdapter(const ov::PartialShape&);
 
-    operator StaticShapeCon() const {
-        return m_dims ? StaticShapeCon(*m_dims) : StaticShapeCon();
+    operator StaticShape() const {
+        return m_dims ? StaticShape(*m_dims) : StaticShape();
     }
 
     const TDims& operator*() const& noexcept {

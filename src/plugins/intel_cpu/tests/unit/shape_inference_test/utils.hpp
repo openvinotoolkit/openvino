@@ -46,7 +46,7 @@ struct TestTensor {
 
         ov::Shape s;
         for (auto dim : shape)
-            s.push_back(dim.get_length());
+            s.push_back(dim);
 
         if (values.size() > 0) {
             tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::from<T>(), s);

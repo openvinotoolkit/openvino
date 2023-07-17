@@ -76,7 +76,7 @@ TEST(StaticShapeInferenceTest, TileStaticShapeRepeatsAsConst) {
 
     ASSERT_TRUE(outputs);
     EXPECT_EQ(outputs->size(), 1);
-    EXPECT_EQ(outputs->front(), StaticShapeCon({6, 32, 10}));
+    EXPECT_EQ(outputs->front(), StaticShape({6, 32, 10}));
     EXPECT_EQ(*outputs->front(), VectorDims({6, 32, 10}));
 }
 
@@ -97,6 +97,6 @@ TEST(StaticShapeInferenceTest, TileNewApiInputsStaticRank) {
 
     ASSERT_TRUE(outputs);
     EXPECT_EQ(outputs->size(), 1);
-    EXPECT_EQ(outputs->front(), StaticShapeCon({3, 4, 8, 20}));
+    EXPECT_EQ(outputs->front(), StaticShape({3, 4, 8, 20}));
     EXPECT_EQ(*outputs->front(), VectorDims({3, 4, 8, 20}));
 }
