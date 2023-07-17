@@ -267,7 +267,6 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
-    int64_t dynamic_shape_proc_count;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

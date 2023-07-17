@@ -247,9 +247,6 @@ public:
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
 
-    int64_t last_barrier = 0;
-    int64_t dynamic_shape_proc_count = 0;
-
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;

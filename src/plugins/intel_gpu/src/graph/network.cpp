@@ -1155,8 +1155,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     // Wait for previous execution completion
     reset_execution(false);
-    dynamic_shape_proc_count = 0;
-    last_barrier = 0;
     GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE << "Start network execution" << std::endl;
 

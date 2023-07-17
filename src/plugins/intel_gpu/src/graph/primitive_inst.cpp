@@ -292,7 +292,6 @@ void primitive_inst::update_shape() {
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
-    int64_t max_dyn_proc_count = 0;
     for (auto& i : _node->get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
@@ -311,8 +310,6 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        max_dyn_proc_count =
-            std::max(max_dyn_proc_count, (get_network().get_primitive(dep_id)->dynamic_shape_proc_count));
         if (!get_node().is_in_shape_of_subgraph() && !dep.is_in_shape_of_subgraph())
             has_runtime_deps = true;
     }
@@ -321,13 +318,7 @@ void primitive_inst::update_shape() {
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
-            if (max_dyn_proc_count > get_network().last_barrier) {
-            //if (1) {
-                _network.get_stream().finish();
-               // get_network().last_barrier = get_network().dynamic_shape_proc_count++;
-            } else {
-               // std::cout << "skipped clfinish" << std::endl;
-            }
+            _network.get_stream().finish();
         }
     }
 
@@ -696,7 +687,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    // init
     bool need_args_update = false;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
@@ -757,7 +747,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
     update_shape_done_by_other = false; // reset
-    this->dynamic_shape_proc_count = get_network().dynamic_shape_proc_count++;
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
