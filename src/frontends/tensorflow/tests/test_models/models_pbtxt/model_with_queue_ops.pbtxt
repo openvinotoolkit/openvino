@@ -1,0 +1,111 @@
+node {
+  name: "batch_size"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        unknown_rank: true
+      }
+    }
+  }
+}
+node {
+  name: "batch_join/fifo_queue"
+  op: "FIFOQueueV2"
+  attr {
+    key: "capacity"
+    value {
+      i: 1440
+    }
+  }
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "container"
+    value {
+      s: ""
+    }
+  }
+  attr {
+    key: "shapes"
+    value {
+      list {
+        shape {
+          dim {
+            size: 160
+          }
+          dim {
+            size: 160
+          }
+          dim {
+            size: 3
+          }
+        }
+        shape {
+          dim {
+            size: 160
+          }
+          dim {
+            size: 160
+          }
+          dim {
+            size: 3
+          }
+        }
+      }
+    }
+  }
+  attr {
+    key: "shared_name"
+    value {
+      s: ""
+    }
+  }
+}
+node {
+  name: "batch_join"
+  op: "QueueDequeueUpToV2"
+  input: "batch_join/fifo_queue"
+  input: "batch_size"
+  attr {
+    key: "component_types"
+    value {
+      list {
+        type: DT_FLOAT
+        type: DT_FLOAT
+      }
+    }
+  }
+  attr {
+    key: "timeout_ms"
+    value {
+      i: -1
+    }
+  }
+}
+node {
+  name: "sub"
+  op: "Sub"
+  input: "batch_join:0"
+  input: "batch_join:1"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}

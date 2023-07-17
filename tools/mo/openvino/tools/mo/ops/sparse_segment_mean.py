@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -81,7 +81,7 @@ class SparseSegmentMean(Op):
             "Some value in indices tensor is out of range"
 
         # infer
-        num_adds = np.zeros(num_segments, dtype=np.int)
+        num_adds = np.zeros(num_segments, dtype=int)
         output_value = np.zeros([num_segments] + data_shape[1:].tolist(), dtype=np.float32)
         output_shape = output_value.shape
         for i in range(len(segment_ids_value)):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace op {
 class OPENVINO_API Capture : public Pattern {
 public:
     OPENVINO_RTTI("patternCapture");
-    BWDCMP_RTTI_DECLARATION;
     Capture(const Output<Node>& arg) : Pattern({arg}) {
         set_output_type(0, arg.get_element_type(), arg.get_partial_shape());
     }

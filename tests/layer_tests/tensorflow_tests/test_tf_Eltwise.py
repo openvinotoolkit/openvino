@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -72,6 +72,7 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_new_frontend, use_old_api):
         if ie_device == 'GPU':

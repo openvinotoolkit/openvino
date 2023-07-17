@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 namespace SubgraphTestsDefinitions {
     std::vector<ngraph::helpers::MemoryTransformation> transformation {
             ngraph::helpers::MemoryTransformation::NONE,
-            ngraph::helpers::MemoryTransformation::LOW_LATENCY,
-            ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
             ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
             ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
     };

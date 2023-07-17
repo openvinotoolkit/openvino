@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "itt.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::internal::AUGRUCell);
 
 ov::op::internal::AUGRUCell::AUGRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
@@ -65,7 +63,9 @@ void ov::op::internal::AUGRUCell::validate_and_infer_types() {
                           "Element types for inputs do not match.");
 
     // Get input partial shape for all inputs
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(2)};
     shape_infer(this, input_shapes, output_shapes);
 

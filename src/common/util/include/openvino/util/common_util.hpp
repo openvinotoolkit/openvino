@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ inline std::string rtrim(const std::string& s) {
 
 /**
  * @brief Trims std::string from both ends (in place)
- * @ingroup ie_dev_api_error_debug
+ * @ingroup ov_dev_api_error_debug
  * @param s A reference to a std::tring to trim
  * @return A reference to a trimmed std::string
  */

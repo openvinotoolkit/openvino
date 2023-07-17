@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <experimental_detectron_topk_rois_inst.h>
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <impls/implementation_map.hpp>
-#include <ed_topkroi/topk_rois_ref.h>
-#include <ed_topkroi/topk_rois_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "experimental_detectron_topk_rois_inst.h"
+#include "ed_topkroi/topk_rois_ref.h"
+#include "ed_topkroi/topk_rois_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -59,3 +57,4 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
 } // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_topk_rois)

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import subprocess
 import sys
@@ -23,14 +23,14 @@ class BaseInfer:
         self.name = name
         self.res = None
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         raise RuntimeError("This is base class, please implement infer function for the specific framework")
 
     def get_inputs_info(self, precision) -> dict:
         raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
 
-    def infer(self, input_data, infer_timeout=10):
-        self.res = multiprocessing_run(self.fw_infer, [input_data], self.name, infer_timeout)
+    def infer(self, input_data, config=None, infer_timeout=10):
+        self.res = multiprocessing_run(self.fw_infer, [input_data, config], self.name, infer_timeout)
         return self.res
 
 
@@ -41,7 +41,7 @@ class IEInfer(BaseInfer):
         self.model = model
         self.weights = weights
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
 
         print("Inference Engine version: {}".format(ie_get_version()))
         print("Creating IE Core Engine...")
@@ -49,7 +49,7 @@ class IEInfer(BaseInfer):
         print("Reading network files")
         net = ie.read_network(self.model, self.weights)
         print("Loading network")
-        exec_net = ie.load_network(net, self.device)
+        exec_net = ie.load_network(net, self.device, config)
         print("Starting inference")
         result = exec_net.infer(input_data)
 
@@ -78,14 +78,14 @@ class InferAPI20(BaseInfer):
         self.weights = weights
         self.use_new_frontend = use_new_frontend
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         print("Inference Engine version: {}".format(ie2_get_version()))
         print("Creating IE Core Engine...")
         ie = Core()
         print("Reading network files")
         net = ie.read_model(self.model, self.weights)
         print("Loading network")
-        exec_net = ie.compile_model(net, self.device)
+        exec_net = ie.compile_model(net, self.device, config)
         print("Starting inference")
         request = exec_net.create_infer_request()
         request_result = request.infer(input_data)
@@ -102,11 +102,10 @@ class InferAPI20(BaseInfer):
                 for tensor_name in out_obj.get_names():
                     result[tensor_name] = out_tensor
             else:
-                # do not change behaviour for mapping tensor names
-                # between the original framework and OpenVINO
-                # because it leads to fixing this functionality in the legacy frontend
-                tensor_name = out_obj.get_any_name().split(':')[0]
-                result[tensor_name] = out_tensor
+                for tensor_name in out_obj.get_names():
+                    result[tensor_name] = out_tensor
+                    tensor_name = tensor_name.split(':')[0]
+                    result[tensor_name] = out_tensor
 
         if "exec_net" in locals():
             del exec_net
@@ -120,6 +119,9 @@ class InferAPI20(BaseInfer):
         net = core.read_model(self.model, self.weights)
         inputs_info = {}
         for item in net.inputs:
-            inputs_info[item.get_any_name()] = list(item.shape)
+            if item.partial_shape.is_dynamic:
+                inputs_info[item.get_any_name()] = item.partial_shape
+            else:
+                inputs_info[item.get_any_name()] = item.partial_shape.to_shape()
 
         return inputs_info

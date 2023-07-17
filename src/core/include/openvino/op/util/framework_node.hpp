@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/strides.hpp"
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov {
 namespace op {
@@ -58,6 +58,10 @@ public:
         return m_attrs.at(key);
     }
 
+    attrs_t::const_iterator find(const std::string& key) const {
+        return m_attrs.find(key);
+    }
+
     bool operator==(const FrameworkNodeAttrs& other) const {
         return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
     }
@@ -69,21 +73,17 @@ private:
     std::unordered_map<std::string, std::string> m_attrs;
 };
 
-class OPENVINO_API FrameworkNode : public Op {
+class OPENVINO_API FrameworkNode : public MultiSubGraphOp {
 public:
     OPENVINO_OP("FrameworkNode", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     FrameworkNode() = default;
 
-    explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
+    explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1, size_t num_subgraphs = 0);
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(AttributeVisitor& visitor) override {
-        visitor.on_attribute("framework_node_attrs", m_attrs);
-        return true;
-    }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     const FrameworkNodeAttrs& get_attrs() const {
         return m_attrs;
@@ -97,11 +97,17 @@ public:
 
     void cache_output_descriptor();
 
+protected:
+    FrameworkNode(const FrameworkNode&);
+
 private:
+    void clone_to(FrameworkNode& dst) const;
+
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
+    size_t m_num_bodies;
 };
 }  // namespace util
 }  // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,7 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetSupportedKey() const {
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
     k.EnableDifferentTypes();
-    k.DisableTuning();
     k.EnableGroupedConvolution();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDifferentInputWeightsTypes();
     return k;
 }

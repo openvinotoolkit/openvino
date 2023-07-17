@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,9 +69,9 @@ const auto MvnReductionAxes = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
 
 
 std::vector<InferenceEngine::Precision> idxPrecisions = {
@@ -85,7 +85,7 @@ const std::vector<std::string> epsMode = {
 };
 
 const std::vector<float> epsilonF = {
-    0.0001
+    0.0001f
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,

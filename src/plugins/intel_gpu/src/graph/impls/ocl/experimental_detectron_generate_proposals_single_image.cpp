@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "ed_gpsi/generate_proposals_single_image_kernel_selector.h"
 #include "ed_gpsi/generate_proposals_single_image_kernel_ref.h"
-
 
 namespace cldnn {
 namespace ocl {
@@ -27,7 +25,7 @@ struct experimental_detectron_generate_proposals_single_image_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -84,3 +82,4 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_generate_proposals_single_image)

@@ -1,5 +1,11 @@
 # Log  {#openvino_docs_ops_arithmetic_Log_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Log-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Log-1*
 
 **Category**: *Arithmetic unary*
@@ -8,13 +14,14 @@
 
 **Detailed description**: *Log* does the following with the input tensor *a*:
 
-\f[
-a_{i} = log(a_{i})
-\f]
+.. math::
+
+   a_{i} = log(a_{i})
+
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 
@@ -32,19 +39,23 @@ a_{i} = log(a_{i})
 
 *Example 1*
 
-```xml
-<layer ... type="Log">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+   <layer ... type="Log">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+
+@endsphinxdirective

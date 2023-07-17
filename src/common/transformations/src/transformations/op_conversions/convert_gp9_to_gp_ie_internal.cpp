@@ -6,17 +6,16 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/generate_proposals.hpp"
 #include "ov_ops/generate_proposals_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
-    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         const auto root = m.get_match_root();
-        const auto old_node = std::dynamic_pointer_cast<ov::opset9::GenerateProposals>(root);
+        const auto old_node = std::dynamic_pointer_cast<ov::op::v9::GenerateProposals>(root);
         if (!old_node) {
             return false;
         }
@@ -50,7 +49,7 @@ ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
         return true;
     };
 
-    const auto generate_proposals = ngraph::pattern::wrap_type<ov::opset9::GenerateProposals>();
+    const auto generate_proposals = ngraph::pattern::wrap_type<ov::op::v9::GenerateProposals>();
     const auto matcher = std::make_shared<ngraph::pattern::Matcher>(generate_proposals, "ConvertGP9ToGPIEInternal");
     register_matcher(matcher, callback);
 }

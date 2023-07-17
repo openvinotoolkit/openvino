@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto unsqueeze_range_1nplus1 = make_shared<Unsqueeze>(range_1nplus1, zero_const);
     // 2. compute a mask with indices counting from one
     auto unique_vs_x_ind = make_shared<Multiply>(unique_vs_x_01, unsqueeze_range_1nplus1);
-    // 3. compute positions of the first occurence for each unique element
+    // 3. compute positions of the first occurrence for each unique element
     // or these are positions of unique elements in the original order
     auto minimum_indices_plus1 = make_shared<ReduceMin>(unique_vs_x_ind, one_const);
     auto minimum_indices = make_shared<Subtract>(minimum_indices_plus1, one_const);

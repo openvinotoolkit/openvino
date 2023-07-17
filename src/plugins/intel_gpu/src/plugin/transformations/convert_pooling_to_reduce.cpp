@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,12 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
         auto pads_begin = pool->get_pads_begin();
         auto pads_end = pool->get_pads_end();
 
-        int64_t rank = pool->get_input_partial_shape(0).size();
-        auto input_shape = pool->get_input_shape(0);
+        auto input = pool->input_value(0);
+        const auto input_shape = input.get_partial_shape();
+        if (input_shape.is_dynamic() || input_shape.rank().is_dynamic()) {
+            return false;
+        }
+        const auto rank = input_shape.rank().get_length();
         // Check if input spatial size is same with kernel size.
         bool has_same_spatial_size = rank > 2 && std::equal(input_shape.end() - (rank - 2), input_shape.end(), kernel.end() - (rank - 2));
         // Check if pads are zeros.

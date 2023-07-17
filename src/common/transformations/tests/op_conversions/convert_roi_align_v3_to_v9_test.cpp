@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign3To9) {
                                                             "avg");
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign3To9>();
+        manager.register_pass<ov::pass::ConvertROIAlign3To9>();
     }
 
     {

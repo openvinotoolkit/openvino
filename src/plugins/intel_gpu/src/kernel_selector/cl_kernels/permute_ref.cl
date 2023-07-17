@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL (permute_ref)(
@@ -15,7 +14,7 @@ KERNEL (permute_ref)(
     )
 {
 #ifdef F_FIRST
-    //gws(f, x * y, z * w * b)
+    //gws(f, x * y, z * w * u * v * b)
     const uint gid_0 = get_global_id(0);
     const uint gid_1 = get_global_id(1);
     const uint gid_2 = get_global_id(2);
@@ -27,10 +26,21 @@ KERNEL (permute_ref)(
     #elif INPUT0_DIMS == 5
         const uint b = gid_2 / INPUT0_SIZE_Z;
         const uint z = gid_2 % INPUT0_SIZE_Z;
-    #else
+    #elif INPUT0_DIMS == 6
         const uint b = gid_2 / (INPUT0_SIZE_W * INPUT0_SIZE_Z) % INPUT0_BATCH_NUM;
         const uint z = gid_2 / INPUT0_SIZE_W % INPUT0_SIZE_Z;
         const uint w = gid_2 % INPUT0_SIZE_W;
+    #elif INPUT0_DIMS == 7
+        const uint b = gid_2 / (INPUT0_SIZE_U * INPUT0_SIZE_W * INPUT0_SIZE_Z) % INPUT0_BATCH_NUM;
+        const uint z = gid_2 / (INPUT0_SIZE_U * INPUT0_SIZE_W) % INPUT0_SIZE_Z;
+        const uint w = gid_2 / INPUT0_SIZE_U % INPUT0_SIZE_W;
+        const uint u = gid_2 % INPUT0_SIZE_U;
+    #elif INPUT0_DIMS == 8
+        const uint b = gid_2 / (INPUT0_SIZE_V * INPUT0_SIZE_U * INPUT0_SIZE_W * INPUT0_SIZE_Z) % INPUT0_BATCH_NUM;
+        const uint z = gid_2 / (INPUT0_SIZE_V * INPUT0_SIZE_U * INPUT0_SIZE_W) % INPUT0_SIZE_Z;
+        const uint w = gid_2 / (INPUT0_SIZE_V * INPUT0_SIZE_U) % INPUT0_SIZE_W;
+        const uint u = gid_2 / INPUT0_SIZE_V % INPUT0_SIZE_U;
+        const uint v = gid_2 % INPUT0_SIZE_V;
     #endif
 #else
     //gws(x, y * z * w, b*f)
@@ -40,7 +50,18 @@ KERNEL (permute_ref)(
     #elif INPUT0_DIMS == 5
         const uint z = gid_0 / INPUT0_SIZE_Y;
         const uint y = gid_0 % INPUT0_SIZE_Y;
-    #else
+    #elif INPUT0_DIMS == 6
+        const uint w = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z) % INPUT0_SIZE_W;
+        const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
+        const uint y = gid_0 % INPUT0_SIZE_Y;
+    #elif INPUT0_DIMS == 7
+        const uint u = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_SIZE_W) % INPUT0_SIZE_U;
+        const uint w = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z) % INPUT0_SIZE_W;
+        const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
+        const uint y = gid_0 % INPUT0_SIZE_Y;
+    #elif INPUT0_DIMS == 8
+        const uint v = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_SIZE_W * INPUT0_SIZE_U) % INPUT0_SIZE_V;
+        const uint u = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_SIZE_W) % INPUT0_SIZE_U;
         const uint w = gid_0 / (INPUT0_SIZE_Y * INPUT0_SIZE_Z) % INPUT0_SIZE_W;
         const uint z = gid_0 / INPUT0_SIZE_Y % INPUT0_SIZE_Z;
         const uint y = gid_0 % INPUT0_SIZE_Y;

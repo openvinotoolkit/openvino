@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,8 @@ public:
     explicit half_impl(T data, int /*direct_creation_tag*/) : _data(data) {}
 
     operator uint16_t() const { return _data; }
+    operator int32_t() const { return static_cast<int32_t>(half_to_float(_data)); }
+    operator int64_t() const { return static_cast<int64_t>(half_to_float(_data)); }
     operator float() const {
         return half_to_float(_data);
     }

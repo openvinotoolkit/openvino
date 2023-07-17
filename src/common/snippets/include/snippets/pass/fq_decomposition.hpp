@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/fake_quantize.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -29,7 +28,7 @@ namespace pass {
  *
  * Expand brackets:
  *   round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
- * 
+ *
  * Marking:
  *   - isc := (levels-1) / (ih - il)
  *   - ish := -il * isc
@@ -37,7 +36,7 @@ namespace pass {
  *   - osh := ol
  * Final expression:
  *   round(x * isc + ish) * osc + osh
- * 
+ *
  * Some optimizations (example for scalars):
  * 1. If output element type of FQ is U8 and il = 0, ish = 0, osc = 1, osh = 0, there is enough expression: x * isc
  * 2. If output element type of FQ is I8 and ish ~= 128, osc = 1, osh ~= -128, il * isc ~= -128, ih * isc ~= 127 there is enough expression: x * isc
@@ -50,19 +49,18 @@ namespace pass {
  *
  */
 
-class FakeQuantizeDecomposition : public ngraph::pass::MatcherPass {
+class FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
     FakeQuantizeDecomposition();
 
-    static bool isAllScalarConstant(const std::shared_ptr<const ngraph::Node>& node);
-    static bool getScalesAndShifts(const std::shared_ptr<const ngraph::op::v0::FakeQuantize>& fq_node,
+    static bool getScalesAndShifts(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq_node,
                                    std::vector<float>& cl,
                                    std::vector<float>& ch,
                                    std::vector<float>& isc,
                                    std::vector<float>& ish,
                                    std::vector<float>& osc,
                                    std::vector<float>& osh);
-    static std::vector<float> calculateScales(const ngraph::element::Type& out_type,
+    static std::vector<float> calculateScales(const ov::element::Type& out_type,
                                               const std::vector<float>& cl,
                                               const std::vector<float>& ch,
                                               const std::vector<float>& isc,
@@ -81,11 +79,11 @@ public:
  *          2. ConstantFolding
  *          3. Validate
  */
-class CommonFakeQuantizeDecomposition: public ngraph::pass::FunctionPass {
+class CommonFakeQuantizeDecomposition: public ov::pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

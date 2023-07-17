@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common.cl"
-#include "data_types.cl"
+#include "batch_headers/common.cl"
+#include "batch_headers/sub_group_block_read.cl"
+#include "batch_headers/sub_group_block_write.cl"
 
 #ifndef UNIT_TYPE
 #error Unit type not defined.
@@ -12,13 +13,13 @@
 #if UNIT_TYPE_SIZE == 2
 // 2 byte data type case (ex. half)
 #define UNIT_BLOCK_RW_TYPE ushort
-#define UNIT_BLOCK_READ_FUNC intel_sub_group_block_read_us
-#define UNIT_BLOCK_WRITE_FUNC intel_sub_group_block_write_us
+#define UNIT_BLOCK_READ_FUNC _sub_group_block_read_us
+#define UNIT_BLOCK_WRITE_FUNC _sub_group_block_write_us
 #elif UNIT_TYPE_SIZE == 4
 // 4 byte data type case (ex. float)
 #define UNIT_BLOCK_RW_TYPE uint
-#define UNIT_BLOCK_READ_FUNC intel_sub_group_block_read
-#define UNIT_BLOCK_WRITE_FUNC intel_sub_group_block_write
+#define UNIT_BLOCK_READ_FUNC _sub_group_block_read
+#define UNIT_BLOCK_WRITE_FUNC _sub_group_block_write
 #else
 #error Unsupported unit type for block read/write.
 #endif

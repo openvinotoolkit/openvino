@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ ParamsKey GatherNDKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -45,7 +46,7 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-CommonDispatchData GatherNDKernelRef::SetDefault(const gather_nd_params& params, const optional_params&) const {
+CommonDispatchData GatherNDKernelRef::SetDefault(const gather_nd_params& params) const {
     CommonDispatchData dispatchData;
 
     auto indices_dims = params.inputs[1].LogicalDims();
@@ -118,7 +119,7 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
     jit.AddConstant(MakeJitConstant("INDICES_RANK", params.indices_rank));
     jit.AddConstant(MakeJitConstant("BATCH_DIMS", params.batch_dims));
     jit.AddConstant(MakeJitConstant("BATCH_MERGED_OUTPUT", params.batch_merged_output));
-    jit.AddConstant(MakeJitConstant("WI_SLICE_SIZE", GetSliceSize(params)));
+    jit.AddConstant(MakeJitConstant("WI_SLICE_SIZE_STATIC", GetSliceSize(params)));
     jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", GetIndicesLastDim(params)));
 
     if (!params.fused_ops.empty()) {
@@ -155,9 +156,11 @@ bool GatherNDKernelRef::Validate(const Params& p, const optional_params& o) cons
         return false;
     }
 
-    for (uint8_t i = 0; i < batch_dims; i++) {
-        if (input_dims[i] != indices_dims[i]) {
-            return false;
+    if (!params.inputs[0].is_dynamic()) {
+        for (uint8_t i = 0; i < batch_dims; i++) {
+            if (input_dims[i] != indices_dims[i]) {
+                return false;
+            }
         }
     }
 
@@ -177,13 +180,35 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     KernelData kd = KernelData::Default<gather_nd_params>(params);
     gather_nd_params& newParams = *static_cast<gather_nd_params*>(kd.params.get());
 
-    auto dispatchData = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const gather_nd_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     2,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.has_dynamic_tensors());
 
     return { kd };
 }

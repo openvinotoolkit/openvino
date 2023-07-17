@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             const auto& inputPrecision = funcInput.get_element_type();
             const auto& targetShape = targetInputStaticShapes[i];
@@ -115,7 +115,6 @@ protected:
 };
 
 TEST_P(ScatterNDUpdateLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "ScatterUpdate");
 }
@@ -152,6 +151,14 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
         IndicesValues{ 0, 1, 1, 2, 2, 2 }
+    },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
+        IndicesValues{ -1, -1, -1, -2, -2, -2 }
     },
 };
 

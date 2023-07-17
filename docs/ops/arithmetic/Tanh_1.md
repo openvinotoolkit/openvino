@@ -1,5 +1,11 @@
 # Tanh {#openvino_docs_ops_arithmetic_Tanh_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Tanh-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Tanh-1*
 
 **Category**: *Arithmetic unary*
@@ -9,9 +15,11 @@
 **Detailed description**
 
 For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
-\f[
-tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
-\f]
+
+.. math::
+
+   tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
+
 
 * For integer element type the result is rounded (half up) to the nearest integer value.
 
@@ -33,19 +41,23 @@ tanh ( x ) = \frac{2}{1+e^{-2x}} - 1 = 2sigmoid(2x) - 1
 
 *Example 1*
 
-```xml
-<layer ... type="Tanh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force: 
+
+    <layer ... type="Tanh">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+
+@endsphinxdirective

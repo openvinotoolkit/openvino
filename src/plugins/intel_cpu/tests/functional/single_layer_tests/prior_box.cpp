@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ protected:
                  inPrc, outPrc, inLayout, outLayout,
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
-        selectedType = makeSelectedTypeStr("ref", inPrc);
+        selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
@@ -152,7 +152,6 @@ protected:
 };
 
 TEST_P(PriorBoxLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "PriorBox");
 }

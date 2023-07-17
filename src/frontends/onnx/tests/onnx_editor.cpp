@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "default_opset.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
@@ -15,7 +16,6 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_test_util.hpp"
-#include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -1862,6 +1862,42 @@ NGRAPH_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_m
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_custom_edges_from_different_sources_and_merge_all_new_inputs.onnx");
 
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__duplicated_output) {
+    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx")};
+
+    const auto y_out_edge = editor.find_output_edge("Y");
+    editor.extract_subgraph({}, {{y_out_edge}});
+
+    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab.onnx");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__duplicated_output_2) {
+    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx")};
+
+    const auto y_out_edge_1 = editor.find_output_edge("Y");
+    const auto y_out_edge_2 = editor.find_output_edge("Y");
+    editor.extract_subgraph({}, {{y_out_edge_1, y_out_edge_2}});
+
+    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/model_editor/add_ab_duplicated_output.onnx");
+
+    // Model not changed
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;

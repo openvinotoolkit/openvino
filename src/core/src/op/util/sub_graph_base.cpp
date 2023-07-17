@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,6 @@
 
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::SubGraphOp);
 
 ov::op::util::SubGraphOp::SubGraphOp() : MultiSubGraphOp(1) {}
 

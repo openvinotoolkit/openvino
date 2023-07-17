@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,10 @@ namespace InferenceEngine {
 
 /**
  * @brief This class provides optimal thread safe default implementation.
- * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
+ * The class is recommended to be used as a base class for Executable Network implementation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeDefault : public IExecutableNetworkInternal {
+class INFERENCE_ENGINE_1_0_DEPRECATED ExecutableNetworkThreadSafeDefault : public IExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeDefault object
@@ -62,6 +62,7 @@ protected:
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
         try {
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
+        } catch (const ::ov::NotImplemented&) {
         } catch (const InferenceEngine::NotImplemented&) {
         }
         if (!syncRequestImpl) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_INTEL_CPU, StridedSliceLayerTest,
+        smoke, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases),
             ::testing::Values(InferenceEngine::Precision::FP32),

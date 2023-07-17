@@ -42,13 +42,6 @@ auto compiled_model_thrp = core.compile_model(model, "CPU",
 }
 
 {
-//! [device_thermal]
-auto compiled_model = core.compile_model(model, "MYRIAD");
-float temperature = compiled_model.get_property(ov::device::thermal);
-//! [device_thermal]
-}
-
-{
 //! [inference_num_threads]
 auto compiled_model = core.compile_model(model, "CPU");
 auto nthreads = compiled_model.get_property(ov::inference_num_threads);

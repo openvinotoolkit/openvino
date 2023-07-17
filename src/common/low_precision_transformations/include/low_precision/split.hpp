@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ class LP_TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("SplitTransformation", "0");
     SplitTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     void updateOutputs(

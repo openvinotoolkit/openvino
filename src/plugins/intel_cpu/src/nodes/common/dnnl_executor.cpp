@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,14 @@ using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
+
+DnnlExecutor::DnnlExecutor(const dnnl::primitive_desc& pd) {
+    execPrim = dnnl::primitive(pd);
+    src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
+    dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
+    wghts_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc());
+    scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
+}
 
 DnnlExecutor::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
                                            const dnnl::memory::desc& descDst,
@@ -20,7 +28,15 @@ void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDs
     m_reorder.execute(strm, memSrc, memDst);
 }
 
-void DnnlExecutor::exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
+void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm) {
+    if (inputReorders.empty() && outputReorders.empty()) {
+        execPrim.execute(strm, primArgs);
+    } else {
+        reorder_exec(primArgs, strm);
+    }
+}
+
+void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
     for (auto &inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
@@ -40,7 +56,7 @@ void DnnlExecutor::exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::st
             IE_THROW() << "DnnlExecutor has reorder for output " << outReorder.first << ", but doesn't have destination memory";
         }
     }
-    (*execPrim).execute(strm, primArgs);
+    execPrim.execute(strm, primArgs);
     for (auto &outReorder : outputReorders) {
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
@@ -50,33 +66,12 @@ bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-Primitive DnnlExecutor::getExecPrim() const {
+dnnl::primitive DnnlExecutor::getExecPrim() const {
     return execPrim;
 }
 
 const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
-    return (*execPrim).get_primitive_desc();
-}
-
-dnnl::memory::desc DnnlExecutor::getSrcDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::src_md);
-
-    return md->getDnnlDesc();
-}
-
-dnnl::memory::desc DnnlExecutor::getWeightDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md);
-
-    return md->getDnnlDesc();
-}
-
-dnnl::memory::desc DnnlExecutor::getDstDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::dst_md);
-
-    return md->getDnnlDesc();
+    return execPrim.get_primitive_desc();
 }
 
 impl_desc_type DnnlExecutor::getImplementationType() const {

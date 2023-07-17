@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,8 +134,8 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getOriginalWithN
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
         result2 = std::make_shared<ngraph::opset1::Convolution>(
-            ngraph::op::TemporaryReplaceOutputType(result2, precision).get(),
-            ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+            ov::op::TemporaryReplaceOutputType(result2, precision).get(),
+            ov::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
@@ -238,11 +238,11 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
                 shape,
                 std::vector<float>(ngraph::shape_size(shape), 128.f));
 
-            auto subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+            auto subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ element::f32 },
-                ngraph::op::TemporaryReplaceOutputType(result2, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
+                ov::op::TemporaryReplaceOutputType(result2, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
             result2 = subtract;
         }
 
@@ -251,8 +251,8 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
         result2 = std::make_shared<ngraph::opset1::Convolution>(
-            ngraph::op::TemporaryReplaceOutputType(result2, precision).get(),
-            ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
+            ov::op::TemporaryReplaceOutputType(result2, precision).get(),
+            ov::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },

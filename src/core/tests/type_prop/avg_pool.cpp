@@ -1,13 +1,40 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
+
+TEST(type_prop, avg_pool_default_ctor) {
+    PartialShape arg_shape{1, 3, 32};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+
+    auto mp = make_shared<op::v1::AvgPool>();
+    mp->set_argument(0, arg);
+    mp->set_pads_begin({2});
+    mp->set_pads_end({2});
+    mp->set_kernel({2});
+    mp->set_strides({1});
+    mp->set_rounding_type(op::RoundingType::CEIL);
+    mp->set_auto_pad(op::PadType::SAME_LOWER);
+    mp->validate_and_infer_types();
+
+    EXPECT_TRUE(mp->get_exclude_pad());
+    EXPECT_EQ(mp->get_input_size(), 1);
+    EXPECT_EQ(mp->get_output_size(), 1);
+    EXPECT_EQ(mp->get_output_element_type(0), element::f32);
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({1, 3, 32}));
+    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{1}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{0}));
+}
 
 TEST(type_prop, avg_pool_auto_padding) {
     const PartialShape arg_shape{1, 3, 32};
@@ -29,20 +56,20 @@ TEST(type_prop, avg_pool_auto_padding) {
                                            rounding_mode,
                                            auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{1}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{0}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({1, 3, 32}));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{1}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{0}));
 }
 
-TEST(type_prop, avg_pool_auto_padding_3D_nc_dims_dynamic_same_lower) {
-    const PartialShape arg_shape{Dimension::dynamic(), 32, 32};
-    const Strides strides{1};
-    const Shape pads_begin{0};
-    const Shape pads_end{0};
-    const Shape kernel_shape{2};
+TEST(type_prop, avg_pool_explicit_padding_round_ceil_dynamic_dimensions) {
+    const PartialShape arg_shape{-1, -1, -1};
+    const Strides strides{4};
+    const Shape pads_begin{2};
+    const Shape pads_end{2};
+    const Shape kernel_shape{4};
     const bool exclude_pad = true;
-    const auto rounding_mode = op::RoundingType::FLOOR;
-    const auto auto_pad = op::PadType::SAME_LOWER;
+    const auto rounding_mode = op::RoundingType::CEIL;
+    const auto auto_pad = op::PadType::EXPLICIT;
 
     auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
     auto mp = make_shared<op::v1::AvgPool>(arg,
@@ -54,9 +81,9 @@ TEST(type_prop, avg_pool_auto_padding_3D_nc_dims_dynamic_same_lower) {
                                            rounding_mode,
                                            auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 32, 32}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{1}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{0}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({-1, -1, {1, -1}}));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{2}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{2}));
 }
 
 TEST(type_prop, avg_pool_auto_padding_4D_nc_dims_dynamic_same_lower) {
@@ -79,9 +106,9 @@ TEST(type_prop, avg_pool_auto_padding_4D_nc_dims_dynamic_same_lower) {
                                            rounding_mode,
                                            auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{1, 1}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{0, 0}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{1, 1}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{0, 0}));
 }
 
 TEST(type_prop, avg_pool_auto_padding_nc_dims_dynamic_same_upper) {
@@ -104,9 +131,9 @@ TEST(type_prop, avg_pool_auto_padding_nc_dims_dynamic_same_upper) {
                                            rounding_mode,
                                            auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{0, 0}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{1, 1}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{0, 0}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{1, 1}));
 }
 
 TEST(type_prop, avg_pool_auto_padding_spatial_dims_dynamic) {
@@ -129,9 +156,9 @@ TEST(type_prop, avg_pool_auto_padding_spatial_dims_dynamic) {
                                            rounding_mode,
                                            auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32, Dimension::dynamic()}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{1, 0}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{0, 0}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({1, 3, 32, Dimension::dynamic()}));
+    EXPECT_EQ(mp->get_pads_begin(), (Shape{1, 0}));
+    EXPECT_EQ(mp->get_pads_end(), (Shape{0, 0}));
 }
 
 TEST(type_prop, avg_pool_1d_deduce) {
@@ -429,8 +456,8 @@ TEST(type_prop, avg_pool_partial_rank_dynamic_ok) {
                                            false,
                                            op::RoundingType::FLOOR);
 
-    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+    EXPECT_EQ(ap->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ap->get_output_partial_shape(0), PartialShape(PartialShape::dynamic(6)));
 }
 
 TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch) {
@@ -468,8 +495,8 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_ok) {
                                            false,
                                            op::RoundingType::FLOOR);
 
-    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(5)));
+    EXPECT_EQ(ap->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ap->get_output_partial_shape(0), PartialShape({-1, -1, {1, -1}, {1, -1}, {1, -1}}));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok) {
@@ -488,9 +515,8 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok) {
                                            false,
                                            op::RoundingType::FLOOR);
 
-    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(
-        ap->get_output_partial_shape(0).same_scheme(PartialShape{5, Dimension::dynamic(), 7, Dimension::dynamic(), 1}));
+    EXPECT_EQ(ap->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ap->get_output_partial_shape(0), PartialShape(PartialShape{5, -1, 7, {1, -1}, 1}));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch) {
@@ -547,9 +573,8 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_padded_window_not_too_big) 
                                            true,
                                            op::RoundingType::FLOOR);
 
-    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(
-        ap->get_output_partial_shape(0).same_scheme(PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1}));
+    EXPECT_EQ(ap->get_output_element_type(0), element::f32);
+    EXPECT_EQ(ap->get_output_partial_shape(0), PartialShape(PartialShape{5, Dimension::dynamic(), 1, {1, -1}, 1}));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding) {
@@ -569,4 +594,44 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding) {
                                                                   true,
                                                                   op::RoundingType::FLOOR),
                  NodeValidationFailure);
+}
+
+TEST(type_prop, avg_pool_kernel_dilation_not_compatible_with_padding_begin) {
+    const PartialShape arg_shape{5, -1, 8};
+    const Shape kernel{9};
+    const Strides window_movement_strides{1};
+    const Shape pads_begin{10};
+    const Shape pads_end{0};
+
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+
+    OV_EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                     window_movement_strides,
+                                                                     pads_begin,
+                                                                     pads_end,
+                                                                     kernel,
+                                                                     true,
+                                                                     op::RoundingType::FLOOR),
+                    NodeValidationFailure,
+                    HasSubstr("Kernel after dilation is sometimes entirely in the padding area for axis 0"));
+}
+
+TEST(type_prop, avg_pool_kernel_dilation_not_compatible_with_padding_end) {
+    const PartialShape arg_shape{5, -1, 8};
+    const Shape kernel{9};
+    const Strides window_movement_strides{1};
+    const Shape pads_begin{0};
+    const Shape pads_end{10};
+
+    const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
+
+    OV_EXPECT_THROW(const auto unused = make_shared<op::v1::AvgPool>(param,
+                                                                     window_movement_strides,
+                                                                     pads_begin,
+                                                                     pads_end,
+                                                                     kernel,
+                                                                     true,
+                                                                     op::RoundingType::FLOOR),
+                    NodeValidationFailure,
+                    HasSubstr("Kernel after dilation is sometimes entirely in the padding area for axis 0"));
 }

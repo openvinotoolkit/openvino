@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,6 @@ public:
         return false;
     }
 };
-} // namespace rt_info
-} // namespace intel_gna
-} // namespace ov
+}  // namespace rt_info
+}  // namespace intel_gna
+}  // namespace ov

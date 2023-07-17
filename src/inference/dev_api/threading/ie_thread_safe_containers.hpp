@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ public:
         return false;
     }
     bool try_pop(T& value) {
-        return _pqueue.try_pop(value);
+        return _capacity ? _pqueue.try_pop(value) : false;
     }
     void set_capacity(std::size_t newCapacity) {
         _capacity = newCapacity;

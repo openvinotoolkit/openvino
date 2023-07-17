@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
         const auto& dataShape = targetInputStaticShapes[0];
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -144,7 +144,7 @@ protected:
                 std::uniform_int_distribution<unsigned long> dist(1, seqLen);
 
                 std::vector<int32_t> sequenceLenData(B, 0);
-                for (int b = 0; b < B; b++) {
+                for (size_t b = 0; b < B; b++) {
                     const int len = dist(gen);
                     sequenceLenData[b] = len;
                 }
@@ -170,7 +170,6 @@ protected:
 };
 
 TEST_P(CTCGreedyDecoderSeqLenLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     CheckPluginRelatedResults(compiledModel, "CTCGreedyDecoderSeqLen");
 }

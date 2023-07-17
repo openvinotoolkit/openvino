@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
     T minval = std::numeric_limits<T>::lowest();
 
     constexpr bool dont_keep_dims_in_output = false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
     std::fill(out, out + shape_size(out_shape), minval);
 
@@ -40,6 +41,7 @@ void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
             out[out_idx] = x;
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime

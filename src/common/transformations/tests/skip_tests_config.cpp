@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     return {

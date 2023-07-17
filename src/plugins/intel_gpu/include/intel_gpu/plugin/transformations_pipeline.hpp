@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,19 +8,20 @@
 
 #include <ngraph/function.hpp>
 
-#include "intel_gpu/plugin/device_config.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/device.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 class TransformationsPipeline {
 public:
-    explicit TransformationsPipeline(const Config &conf, const cldnn::device_info &device_info)
+    explicit TransformationsPipeline(const ExecutionConfig &conf, const cldnn::device_info &device_info)
         : config(conf), device_info(device_info) {}
     void apply(std::shared_ptr<ov::Model> func);
 
 private:
-    Config config;
+    const ExecutionConfig& config;
     cldnn::device_info device_info;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float
     case element::Type_t::u64:
         return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
     default:
-        throw ov::Exception("Unsupported precision for const operation: " + const_node->get_friendly_name());
+        OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
 }
 
@@ -125,7 +125,7 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
     } else if (activation_name == "tanh") {
         return std::make_shared<opset4::Tanh>(apply_to);
     } else {
-        throw ov::Exception("Unsupported activation function");
+        OPENVINO_THROW("Unsupported activation function");
     }
 }
 
@@ -271,6 +271,9 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     case element::f32:
         actual_const = reinterpret_cast<const float*>(data_ptr)[0];
         break;
+    case element::f16:
+        actual_const = reinterpret_cast<const ov::float16*>(data_ptr)[0];
+        break;
     case element::i32:
         actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
         break;
@@ -337,6 +340,19 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+float cast_eps_to_float(double eps_d) {
+    auto eps_f = static_cast<float>(eps_d);
+    if (eps_d > 0.) {  // zero is fine; negative values have no sense
+        if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
+            eps_f = std::numeric_limits<float>::min();
+        else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                 static_cast<double>(std::numeric_limits<float>::max()))
+            eps_f = std::numeric_limits<float>::max();
+    }
+    return eps_f;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

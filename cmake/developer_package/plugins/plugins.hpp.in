@@ -1,13 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <map>
+#include <string>
+
+#ifdef OPENVINO_STATIC_LIBRARY
+
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
-namespace {
-@IE_PLUGINS_DECLARATIONS@
+@OV_PLUGINS_DECLARATIONS@
 
 struct Value {
     InferenceEngine::CreatePluginEngineFunc * m_create_plugin_func;
@@ -15,12 +19,20 @@ struct Value {
     std::map<std::string, std::string> m_default_config;
 };
 
+#else
+
+struct Value {
+    std::string m_plugin_path;
+    std::map<std::string, std::string> m_default_config;
+};
+
+#endif
+
 using Key = std::string;
 using PluginsStaticRegistry = std::map<Key, Value>;
 
-const std::map<Key, Value> getStaticPluginsRegistry() {
-@IE_PLUGINS_MAP_DEFINITION@
+
+inline const std::map<Key, Value> getCompiledPluginsRegistry() {
+@OV_PLUGINS_MAP_DEFINITION@
     return plugins_hpp;
 }
-
-} // namespace

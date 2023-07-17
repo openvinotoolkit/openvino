@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,11 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-
 /**
  * @brief Decompose MVN operation
  * See official OpenVINO documentation for the MVN formula
  * implemented partially by this decomposition:
- * https://docs.openvino.ai/latest/openvino_docs_ops_normalization_MVN_6.html
+ * https://docs.openvino.ai/2023.0/openvino_docs_ops_normalization_MVN_6.html
  *
  */
 class DecomposeMVN : public ngraph::pass::MatcherPass {
@@ -24,6 +23,6 @@ public:
     DecomposeMVN();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

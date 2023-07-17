@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,13 @@ public:
     virtual InferenceEngine::Precision getPrecision() const = 0;
 
     virtual MemoryDescPtr clone() const = 0;
+
+    /**
+     * @brief Returns the offset to the current memory block
+     *
+     * @return offset
+     */
+    virtual size_t getOffsetPadding() const = 0;
 
     /**
      * @brief Clone descriptor with new dims.
@@ -144,10 +151,10 @@ public:
 protected:
     MemoryDesc() : type(MemoryDescType::Undef) {}
     MemoryDesc(Shape shape, MemoryDescType type)
-            : shape(std::move(shape)), type(type) {}
+            : type(type), shape(std::move(shape)) {}
 
     MemoryDesc(const VectorDims& dims, MemoryDescType type)
-            : shape(dims), type(type) {}
+            : type(type), shape(dims) {}
 
     virtual void setPrecision(InferenceEngine::Precision prc) = 0;
 

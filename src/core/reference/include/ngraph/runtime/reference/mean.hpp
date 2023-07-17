@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ namespace reference {
 template <typename T>
 void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     constexpr bool dont_keep_dims_in_output = false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
     std::vector<T> cs(shape_size(out_shape), 0);
     std::fill(out, out + shape_size(out_shape), T(0));
@@ -47,6 +48,7 @@ void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_
             index_to_count_map[out_idx]++;
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     for (size_t i = 0; i < shape_size(out_shape); ++i) {
         auto count = index_to_count_map[i];

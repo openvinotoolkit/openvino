@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ namespace SubgraphTestsDefinitions {
         results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName << "_";
+        for (auto const& configItem : additional_config) {
+            results << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
         return results.str();
     }
 

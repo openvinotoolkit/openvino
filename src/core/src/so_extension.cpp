@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "so_extension.hpp"
+#include "openvino/core/so_extension.hpp"
 
 const ov::Extension::Ptr& ov::detail::SOExtension::extension() const {
     return m_ext;

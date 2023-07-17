@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ void rnn_cell(const T* X,
     } else if (activation_f == "tanh") {
         reference::tanh(i_t.data(), dst_data, i_t.size());
     } else {
-        throw ngraph_error("Activation function " + activation_f + " is not supported.");
+        OPENVINO_THROW("Activation function " + activation_f + " is not supported.");
     }
 }
 }  // namespace reference

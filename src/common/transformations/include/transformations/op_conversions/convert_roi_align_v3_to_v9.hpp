@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertROIAlign3To9", "0");
     ConvertROIAlign3To9();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertROIAlign3To9;
-}  // namespace pass
-}  // namespace ngraph

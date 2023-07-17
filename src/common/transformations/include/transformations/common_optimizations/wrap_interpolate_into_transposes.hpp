@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,3 @@ public:
     OPENVINO_RTTI("WrapInterpolateIntoTransposes", "0");
     WrapInterpolateIntoTransposes();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::WrapInterpolateIntoTransposes;
-}  // namespace pass
-}  // namespace ngraph

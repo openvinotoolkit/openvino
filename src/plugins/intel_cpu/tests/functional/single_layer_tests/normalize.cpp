@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real()) {
@@ -97,8 +97,6 @@ protected:
 };
 
 TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "NormalizeL2");
@@ -109,21 +107,27 @@ namespace {
 /* ============= Common params ============= */
 std::vector<fusingSpecificParams> fusingParamsSet {
         emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86_64)
         fusingMultiplyPerTensor,
         fusingRelu,
         fusingPReluPerChannel
+#endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSetDynamic {
     emptyFusingSpec,
+#if defined(OPENVINO_ARCH_X86_64)
     fusingMultiplyPerTensor,
     fusingRelu,
     fusingFakeQuantizePerTensor
+#endif
 };
 
 std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
+#if defined(OPENVINO_ARCH_X86_64)
     fusingPReluPerChannel,
     fusingFakeQuantizePerChannel
+#endif
 };
 
 const float epsilon = 1e-4f;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("SoftPlusDecomposition", "0");
     SoftPlusDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SoftPlusDecomposition;
-}  // namespace pass
-}  // namespace ngraph

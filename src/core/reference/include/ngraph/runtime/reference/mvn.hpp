@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 void mvn(const T* arg,
          T* out,
@@ -86,6 +87,7 @@ void mvn_6(const T* arg,
         divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename T>
 AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
@@ -94,9 +96,7 @@ AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
     std::vector<size_t> axes(v.size(), 0);
     for (size_t i = 0; i < v.size(); i++) {
         if (v[i] < 0) {
-            if (rank + v[i] < 0) {
-                throw ov::Exception("Unexpected axis");
-            }
+            OPENVINO_ASSERT(rank + v[i] >= 0, "Unexpected axis");
             axes[i] = (size_t)(rank + v[i]);
         } else {
             axes[i] = (size_t)(v[i]);

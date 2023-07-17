@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <openvino/op/convert.hpp>
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -23,7 +23,6 @@ namespace op {
 class ConvertTruncation : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("ConvertTruncation", "SnippetsOpset", ov::op::v0::Convert);
-    BWDCMP_RTTI_DECLARATION;
 
     ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type);
     ConvertTruncation() = default;
@@ -35,4 +34,4 @@ public:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 
 #define OPENVINO_OP(...)                                                                                \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                               \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT,  \
                                                              _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,   \
                                                              _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,       \
                                                              _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
@@ -40,7 +39,7 @@ protected:
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::Node::type_info_t& get_type_info_static() {
-        static ::ov::Node::type_info_t info{"Op", 0, "util"};
+        static ::ov::Node::type_info_t info{"Op", "util"};
         info.hash();
         return info;
     }

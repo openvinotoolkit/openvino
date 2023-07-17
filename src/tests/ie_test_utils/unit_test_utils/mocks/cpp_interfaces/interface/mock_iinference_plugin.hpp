@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@
 
 class MockIInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
-    MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr));
+    MOCK_METHOD1(AddExtension, void(const std::shared_ptr<InferenceEngine::IExtension>&));
     MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const InferenceEngine::CNNNetwork&, const std::map<std::string, std::string>&));
-    MOCK_METHOD2(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
+    MOCK_METHOD2(LoadNetwork, ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(
                 const std::string&, const std::map<std::string, std::string>&));
     MOCK_METHOD2(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const std::string&, const std::map<std::string, std::string>&));
@@ -36,7 +36,7 @@ public:
     MOCK_METHOD1(GetDefaultContext, std::shared_ptr<InferenceEngine::RemoteContext>(const InferenceEngine::ParamMap&));
     MOCK_METHOD3(LoadNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 const InferenceEngine::CNNNetwork&, const std::map<std::string, std::string>&,
-                std::shared_ptr<InferenceEngine::RemoteContext>));
+                const std::shared_ptr<InferenceEngine::RemoteContext>&));
     MOCK_METHOD2(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(
                 std::istream&, const std::map<std::string, std::string>&));
     MOCK_METHOD3(ImportNetwork, std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>(

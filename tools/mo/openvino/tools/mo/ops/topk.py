@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -34,7 +34,10 @@ class TopK(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version == 'opset3':
+        if version in 'opset11':
+            return ['axis', 'mode', 'sort', 'stable',
+                    ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))]
+        elif version in 'opset3':
             return ['axis', 'mode', 'sort',
                     ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))]
         elif version == 'opset1':
@@ -73,7 +76,7 @@ class TopK(Op):
     @staticmethod
     def type_infer(node):
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
-        if node.get_opset() == 'opset3':
+        if node.get_opset() in ['opset3', 'opset11']:
             node.out_port(1).set_data_type(node.index_element_type)
         else:
             node.out_port(1).set_data_type(np.int32)

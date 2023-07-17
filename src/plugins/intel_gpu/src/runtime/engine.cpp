@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,11 @@
 #include <stdexcept>
 #include <algorithm>
 
-#if defined(_WIN32) && !defined(__GNUC__)
-#include <windows.h>
+#if defined(_WIN32)
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <windows.h>
 
 static size_t get_cpu_ram_size() {
     MEMORYSTATUSEX s {};
@@ -28,15 +31,15 @@ static size_t get_cpu_ram_size() {
     return s.ullTotalPhys;
 }
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
-#include <unistd.h>
-#include <sys/sysctl.h>
+# include <unistd.h>
+# include <sys/sysctl.h>
 
 static size_t get_cpu_ram_size() {
-#ifdef __APPLE__
+# ifdef __APPLE__
     int query_ram[] = {CTL_HW, HW_MEMSIZE};
-#else
+# else
     int query_ram[] = {CTL_HW, HW_PHYSMEM};
-#endif
+# endif
     int query_ram_len = sizeof(query_ram) / sizeof(*query_ram);
     size_t totalram = 0;
     size_t length = sizeof(totalram);
@@ -45,7 +48,7 @@ static size_t get_cpu_ram_size() {
     return totalram;
 }
 #else
-#include <sys/sysinfo.h>
+# include <sys/sysinfo.h>
 
 static size_t get_cpu_ram_size() {
     struct sysinfo s {};
@@ -56,10 +59,8 @@ static size_t get_cpu_ram_size() {
 
 namespace cldnn {
 
-engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-: _task_executor(task_executor)
-, _device(device)
-, _configuration(configuration) {}
+engine::engine(const device::ptr device)
+    : _device(device) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -74,7 +75,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(debug_config->disable_usm) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm() && _configuration.use_unified_shared_memory) {
+    if (_device->get_mem_caps().supports_usm()) {
         return true;
     }
     return false;
@@ -217,6 +218,7 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 }
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::lock_guard<std::mutex> guard(_mutex);
     std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;
@@ -248,42 +250,31 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     }
 }
 
-const InferenceEngine::ITaskExecutor::Ptr engine::get_task_executor() {
-    return _task_executor;
-}
-
-std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
-                                              runtime_types runtime_type,
-                                              const device::ptr device,
-                                              const engine_configuration& configuration,
-                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
     case engine_types::ocl:
-        ret = ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        ret = ocl::create_ocl_engine(device, runtime_type);
         break;
     default:
         throw std::runtime_error("Invalid engine type");
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-        const auto& info = device->get_info();
-        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
-    }
+    const auto& info = device->get_info();
+    GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
 }
 
-std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
-                                              runtime_types runtime_type,
-                                              const engine_configuration& configuration,
-                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
+
+    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
+                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
-    return engine::create(engine_type, runtime_type, device, configuration, task_executor);
+    return engine::create(engine_type, runtime_type, device);
 }
 
 }  // namespace cldnn

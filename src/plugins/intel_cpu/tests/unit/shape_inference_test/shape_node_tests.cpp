@@ -1,18 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/unsqueeze.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -29,6 +21,20 @@ TEST(StaticShapeInferenceTest, ReshapeTest) {
     shape_inference(reduce.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 150}));
+}
+
+TEST(StaticShapeInferenceTest, ReshapeEmptyTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, 2, 2});
+    auto pattern = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{0, 4});
+
+    auto reduce =
+            std::make_shared<op::v1::Reshape>(data, pattern, false);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{0, 2, 2}, StaticShape{2}},
+            static_output_shapes = {StaticShape{}};
+    shape_inference(reduce.get(), static_input_shapes, static_output_shapes);
+
+    ASSERT_EQ(static_output_shapes[0], StaticShape({0, 4}));
 }
 
 TEST(StaticShapeInferenceTest, ShapeOf5DTest) {

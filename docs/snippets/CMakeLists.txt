@@ -10,52 +10,19 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
-    endif()
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-                  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
-                  "${CMAKE_CURRENT_SOURCE_DIR}/vpu/*.cpp"
-                  "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
+                  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+file(GLOB GPU_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
 
-find_package(OpenCL)
-find_path(OpenCL_HPP_INCLUDE_DIR
-    NAMES
-      CL/opencl.hpp OpenCL/opencl.hpp
-    HINTS
-      ${opencl_root_hints}
-      ENV "PROGRAMFILES(X86)"
-      ENV AMDAPPSDKROOT
-      ENV INTELOCLSDKROOT
-      ENV NVSDKCOMPUTE_ROOT
-      ENV CUDA_PATH
-      ENV ATISTREAMSDKROOT
-      ENV OCL_ROOT
-    PATH_SUFFIXES
-      include
-      OpenCL/common/inc
-      "AMD APP/include")
-
-if(TARGET OpenCL)
-    # Use OpenCL CPP headers from sources if present
-    set(OpenCL_HEADERS ${OPENCL_HEADERS_DIR})
-    set(OpenCL_LIB "OpenCL")
-elseif(OpenCL_HPP_INCLUDE_DIR)
-    # Append OpenCL CPP headers to C headers and use both
-    set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
-    set(OpenCL_LIB "OpenCL::OpenCL")
-endif()
-
-# remove GPU remote snippets if OCL hasn't been found
-if (NOT (OpenCL_FOUND AND OpenCL_HEADERS))
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing_va.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/queue_sharing.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/remote_objects_creation.cpp")
+# add GPU snippets if OpenCL has been found
+if(TARGET OpenCL::OpenCL)
+    list(APPEND SOURCES ${GPU_SOURCES})
 endif()
 
 # try to find VA libraries
@@ -89,15 +56,19 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/core/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/bindings/c/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/transformations/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing"
+                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing/src"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/util/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new/")
+                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include")
 
-if(OpenCL_FOUND AND OpenCL_HEADERS)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
-    target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
+ov_mark_target_as_cc(${TARGET_NAME})
+
+if(TARGET OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
 
     if(libva_FOUND)
         target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
@@ -116,7 +87,7 @@ if(OpenCV_FOUND)
 endif()
 
 # ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
-#                     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+#                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
 #                     ADDITIONAL_INCLUDE_DIRECTORIES
 #                         $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 

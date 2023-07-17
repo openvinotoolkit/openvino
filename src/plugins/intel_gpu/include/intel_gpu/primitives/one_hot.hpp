@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Creates a one-hot encoding of the input.
 /// @details Creates a one-hot encoding of the input, putting the new one-hot axis in the position
@@ -40,6 +33,10 @@ namespace cldnn {
 struct one_hot : public primitive_base<one_hot> {
     CLDNN_DECLARE_PRIMITIVE(one_hot)
 
+    one_hot() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
     /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.
@@ -47,14 +44,14 @@ struct one_hot : public primitive_base<one_hot> {
     /// @param one_hot_axis    One-hot axis position (0-based, from left to right) in shape.
     /// @param output_padding  Optional padding for output from primitive.
     one_hot(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             const tensor& shape,
             const int64_t& one_hot_axis,
             const int64_t& depth,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
@@ -69,7 +66,7 @@ struct one_hot : public primitive_base<one_hot> {
     /// @param one_hot_axis    One-hot axis position (0-based, from left to right) in shape.
     /// @param output_padding  Optional padding for output from primitive.
     one_hot(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             const tensor& shape,
             const data_types output_dt,
             const int64_t& one_hot_axis,
@@ -77,7 +74,7 @@ struct one_hot : public primitive_base<one_hot> {
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt})
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
@@ -94,8 +91,43 @@ struct one_hot : public primitive_base<one_hot> {
     float on_value;
     /// @brief all other locations take value this value.
     float off_value;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, one_hot_axis);
+        seed = hash_combine(seed, on_value);
+        seed = hash_combine(seed, off_value);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const one_hot>(rhs);
+
+        return one_hot_axis == rhs_casted.one_hot_axis &&
+               depth == rhs_casted.depth &&
+               on_value == rhs_casted.on_value &&
+               off_value == rhs_casted.off_value;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<one_hot>::save(ob);
+        ob << shape;
+        ob << one_hot_axis;
+        ob << depth;
+        ob << on_value;
+        ob << off_value;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<one_hot>::load(ib);
+        ib >> shape;
+        ib >> one_hot_axis;
+        ib >> depth;
+        ib >> on_value;
+        ib >> off_value;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

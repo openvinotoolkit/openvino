@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,8 @@
 
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 class ModelWrapper;
@@ -55,7 +56,7 @@ public:
     /**
      * @see Worker::enqueueRequest()
      */
-    void enqueueRequest() override;
+    bool enqueueRequest() override;
 
     /**
      * @see Worker::wait()
@@ -93,7 +94,7 @@ public:
     void setResult(InferenceEngine::BlobMap&& result) override;
 
 private:
-    void check_if_free();
+    void cleanup_subrequests();
 
     uint32_t representingIndex_{0};
     std::shared_ptr<ModelWrapper> fullModel_;
@@ -102,4 +103,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

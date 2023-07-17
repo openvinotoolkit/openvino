@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,47 +114,56 @@ void convolve_2D_channels(const ConvolutionParams& p,
                           const T* mask,
                           const Shape& mask_shape,
                           T* out,
-                          size_t group_idx,
-                          int64_t groups,
-                          int64_t deformable_groups,
-                          bool bilinear_interpolation_pad) {
+                          const size_t group_idx,
+                          const int64_t groups,
+                          const int64_t deformable_groups,
+                          const bool bilinear_interpolation_pad) {
     const int input_size_y = static_cast<int>(batch_shape[1]);
     const int input_size_x = static_cast<int>(batch_shape[2]);
     const int filter_size_y = static_cast<int>(filter_shape[1]);
     const int filter_size_x = static_cast<int>(filter_shape[2]);
-    const int dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (static_cast<int>(p.dilation[0]) - 1);
-    const int dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (static_cast<int>(p.dilation[1]) - 1);
+    const int dilation_y = static_cast<int>(p.dilation[0]);
+    const int dilation_x = static_cast<int>(p.dilation[1]);
+    const int dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (dilation_y - 1);
+    const int dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (dilation_x - 1);
+
+    const int i_y_lim = static_cast<int>(p.pads_end[0] + input_size_y - dilated_filter_size_y);
+    const int i_x_lim = static_cast<int>(p.pads_end[1] + input_size_x - dilated_filter_size_x);
 
     const int input_channel_size = static_cast<int>(shape_size(shape_reduce(batch_shape)));
-    const int filter_channel_size = static_cast<int>(shape_size(shape_reduce(filter_shape)));
     const int offsets_size = static_cast<int>(shape_size(offset_shape));
     const int offsets_spatial_size = static_cast<int>(shape_size(shape_reduce(offset_shape)));
     const int filter_channels_count = static_cast<int>(filter_shape[0]);
     const int mask_size = static_cast<int>(shape_size(mask_shape));
     const int mask_spatial_size = static_cast<int>(shape_size(shape_reduce(mask_shape)));
 
+    const int group_idx_m = filter_channels_count * static_cast<int>(group_idx);
+    const int group_idx_d = filter_channels_count * groups / deformable_groups;
+
+    const int f_shift_inc = 2 * offsets_spatial_size;
+
     int out_idx = 0;
-    for (int i_y = static_cast<int>(-p.pads_begin[0]);
-         i_y <= static_cast<int>(p.pads_end[0] + input_size_y - dilated_filter_size_y);
-         i_y += static_cast<int>(p.strides[0])) {
-        for (int i_x = static_cast<int>(-p.pads_begin[1]);
-             i_x <= static_cast<int>(p.pads_end[1] + input_size_x - dilated_filter_size_x);
-             i_x += static_cast<int>(p.strides[1])) {
+    for (int i_y = static_cast<int>(-p.pads_begin[0]); i_y <= i_y_lim; i_y += static_cast<int>(p.strides[0])) {
+        for (int i_x = static_cast<int>(-p.pads_begin[1]); i_x <= i_x_lim; i_x += static_cast<int>(p.strides[1])) {
             auto input_channel = batch;
             auto filter_channel = filter;
             T sum = 0;
             for (int fc = 0; fc < filter_channels_count; fc++) {
-                auto deformable_group_idx =
-                    (filter_channels_count * group_idx + fc) / (filter_channels_count * groups / deformable_groups);
-                for (int f_y = 0; f_y < filter_size_y; ++f_y) {
-                    for (int f_x = 0; f_x < filter_size_x; ++f_x) {
-                        int f_buf_idx = (f_y * filter_size_x) + f_x;
-                        T y_offset = offsets[deformable_group_idx * offsets_size +
-                                             f_buf_idx * 2 * offsets_spatial_size + out_idx];
-                        T x_offset = offsets[deformable_group_idx * offsets_size +
-                                             (f_buf_idx * 2 + 1) * offsets_spatial_size + out_idx];
-                        T rel_i_y = static_cast<T>(i_y + (f_y * p.dilation[0]) + y_offset);
-                        T rel_i_x = static_cast<T>(i_x + (f_x * p.dilation[1]) + x_offset);
+                const int deformable_group_idx = (group_idx_m + fc) / group_idx_d;
+                int f_y_shift = deformable_group_idx * offsets_size + out_idx;
+                int f_x_shift = f_y_shift + offsets_spatial_size;
+                int f_mask_shift = deformable_group_idx * mask_size + out_idx;
+                int i_y_dil = i_y;
+                for (int f_y = 0; f_y < filter_size_y; ++f_y, i_y_dil += dilation_y) {
+                    int i_x_dil = i_x;
+                    for (int f_x = 0; f_x < filter_size_x; ++f_x,
+                             f_y_shift += f_shift_inc,
+                             f_x_shift += f_shift_inc,
+                             f_mask_shift += mask_spatial_size,
+                             i_x_dil += dilation_x,
+                             filter_channel++) {
+                        T rel_i_y = static_cast<T>(i_y_dil + offsets[f_y_shift]);
+                        T rel_i_x = static_cast<T>(i_x_dil + offsets[f_x_shift]);
 
                         bool padding;
                         if (bilinear_interpolation_pad) {
@@ -168,19 +177,17 @@ void convolve_2D_channels(const ConvolutionParams& p,
                         if (padding)
                             continue;
 
-                        T mask_scalar =
-                            mask[deformable_group_idx * mask_size + f_buf_idx * mask_spatial_size + out_idx];
+                        T mask_scalar = mask[f_mask_shift];
                         sum += static_cast<T>(bilinear_interpolation(input_channel,
                                                                      static_cast<float>(rel_i_x),
                                                                      static_cast<float>(rel_i_y),
                                                                      input_size_x,
                                                                      input_size_y,
                                                                      bilinear_interpolation_pad)) *
-                               filter_channel[f_buf_idx] * mask_scalar;
+                               filter_channel[0] * mask_scalar;
                     }
                 }
                 input_channel += input_channel_size;
-                filter_channel += filter_channel_size;
             }
             out[out_idx++] = sum;
         }
@@ -206,9 +213,7 @@ void deformable_convolution(const T* in,
                             const CoordinateDiff& pads_end,
                             const int64_t groups,
                             const int64_t deformable_groups,
-                            const bool bilinear_interpolation_pad)
-
-{
+                            const bool bilinear_interpolation_pad) {
     using namespace def_conv_impl;
 
     validate_deformable_convolution_params(in_shape,

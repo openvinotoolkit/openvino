@@ -17,6 +17,8 @@ class TRANSFORMATIONS_API PReluFusionNegativeAdd;
 class TRANSFORMATIONS_API PReluFusionNegativeSub;
 class TRANSFORMATIONS_API PReluFusionMultiplyAdd;
 class TRANSFORMATIONS_API PReluFusionMultiplySub;
+class TRANSFORMATIONS_API PReluFusionAbsSubMulMulAdd;
+class TRANSFORMATIONS_API PReluFusionNegReluMulAdd;
 
 }  // namespace pass
 }  // namespace ov
@@ -101,6 +103,46 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
+ * @brief PReluFusionAbsSubMulMulAdd transformation replaces a sub-graph
+ *             Op
+ *          /  |  \
+ *        Relu |  Abs
+ *         |    \  |
+ *         |    Subtract
+ *         |       |
+ *         |    Multiply
+ *         |       |
+ *         |    Multiply (0.5)
+ *          \     /
+ *            Add
+ */
+class ov::pass::PReluFusionAbsSubMulMulAdd : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("PReluFusionAbsSubMulMulAdd", "0");
+    PReluFusionAbsSubMulMulAdd();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PReluFusionNegReluMulAdd transformation replaces a sub-graph
+ *             Op
+ *          /     \
+ *        Relu  Negative
+ *         |       |
+ *         |      Relu
+ *         |       |
+ *         |    Multiply
+ *          \     /
+ *            Add
+ */
+class ov::pass::PReluFusionNegReluMulAdd : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("PReluFusionNegReluMulAdd", "0");
+    PReluFusionNegReluMulAdd();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief PReluFusion transformation replaces various sub-graphs with a PRelu op.
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
@@ -111,15 +153,7 @@ public:
         add_matcher<ov::pass::PReluFusionNegativeSub>();
         add_matcher<ov::pass::PReluFusionMultiplyAdd>();
         add_matcher<ov::pass::PReluFusionMultiplySub>();
+        add_matcher<ov::pass::PReluFusionAbsSubMulMulAdd>();
+        add_matcher<ov::pass::PReluFusionNegReluMulAdd>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::PReluFusion;
-using ov::pass::PReluFusionMultiplyAdd;
-using ov::pass::PReluFusionMultiplySub;
-using ov::pass::PReluFusionNegativeAdd;
-using ov::pass::PReluFusionNegativeSub;
-}  // namespace pass
-}  // namespace ngraph

@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
-#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "ed_rfe/roi_feature_extractor_kernel_selector.h"
 #include "ed_rfe/roi_feature_extractor_kernel_ref.h"
 
@@ -26,7 +24,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
     }
 
 protected:
-    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance) const override {
         kernel_arguments_data args;
 
         for (std::size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -83,3 +81,4 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_roi_feature_extractor)

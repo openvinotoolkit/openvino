@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::RNNCellBase);
 
 std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
@@ -71,7 +69,9 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Outp
 static vector<string> to_lower_case(const vector<string>& vs) {
     vector<string> res(vs);
     transform(begin(res), end(res), begin(res), [](string& s) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return ngraph::to_lower(s);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     });
     return res;
 }

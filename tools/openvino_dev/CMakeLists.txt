@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,9 +33,9 @@ set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this r
 
 # outbound requirements.txt files for openvino-dev package
 
-ie_cpack_add_component(${OV_CPACK_COMP_DEV_REQ_FILES} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
 
-set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.in")
+set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
 set(EXTRAS_LIST _ caffe kaldi mxnet onnx pytorch tensorflow tensorflow2)
 
 foreach(EXTRAS IN LISTS EXTRAS_LIST)
@@ -50,8 +50,8 @@ foreach(EXTRAS IN LISTS EXTRAS_LIST)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
             DESTINATION ${OV_CPACK_DEVREQDIR}
-            COMPONENT ${OV_CPACK_COMP_DEV_REQ_FILES}
-            EXCLUDE_FROM_ALL)
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 endforeach()
 
 # openvino_dev build
@@ -67,12 +67,18 @@ set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/thirdparty/open_model_zoo/licensing/omz-third-party-programs.txt" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/licensing/dev-third-party-programs.txt" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${OpenVINO_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/readme.txt" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/setup.cfg" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
-        ${PYTHON_EXECUTABLE} ${SETUP_PY} bdist_wheel
+        ${PYTHON_EXECUTABLE} ${SETUP_PY}
+            --quiet
+            --no-user-cfg
+             bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build=${WHEEL_BUILD}
-            --quiet
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
         ${PYTHON_EXECUTABLE} ${SETUP_PY} clean
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
@@ -87,8 +93,9 @@ endif()
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
 
 install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS})
+        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
+        ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})

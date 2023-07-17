@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #ifndef DIRECTION
@@ -17,10 +17,10 @@
 #define SUM_ACROSS_SUB_GROUP(val) \
  \
 { \
-    val += intel_sub_group_shuffle(val, x+1); \
-    val += intel_sub_group_shuffle(val, x+2); \
-    val += intel_sub_group_shuffle(val, x+4); \
-    val += intel_sub_group_shuffle(val, x+8); \
+    val += _sub_group_shuffle(val, x+1); \
+    val += _sub_group_shuffle(val, x+2); \
+    val += _sub_group_shuffle(val, x+4); \
+    val += _sub_group_shuffle(val, x+8); \
 }
 
 // input     = [    batch,  sequence,               1,      input_size ]

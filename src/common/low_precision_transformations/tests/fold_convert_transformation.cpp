@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,19 +49,19 @@ public:
             const ngraph::element::Type precision,
             const ngraph::PartialShape& inputShape,
             const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ngraph::Function> {
-            auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+            auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             std::shared_ptr<ngraph::Node> output = makeDequantization(input, dequantization);
             output->set_friendly_name("output");
 
             return std::make_shared<ngraph::Function>(
-                ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(output) },
+                ngraph::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
                 ngraph::ParameterVector{ input },
                 "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FoldConvertTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FoldConvertTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationExpected);

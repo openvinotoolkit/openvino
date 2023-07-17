@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,22 @@ JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_par
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;
+}
+
+bool FullyConnected_fb_io_ref::Validate(const Params& p, const optional_params& o) const {
+    if (!FullyConnectedKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const auto& params = static_cast<const fully_connected_params&>(p);
+
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 KernelsData FullyConnected_fb_io_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {

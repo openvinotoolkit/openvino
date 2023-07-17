@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 // Convert the results using the inverse F(2,3) Winograd transform.
 // --------------------------------------------------------------------------------------------------------------------------------
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(reorder_from_winograd_2x3_s1)(global const UNIT_TYPE* input_winograd, global float* output)

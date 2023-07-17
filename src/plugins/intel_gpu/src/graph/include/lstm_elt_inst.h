@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/lstm.hpp"
 #include "primitive_inst.h"
@@ -46,16 +45,16 @@ public:
     typed_primitive_inst(network& network, lstm_elt_node const& node);
 
     memory::ptr cell_memory() const { return dep_memory_ptr(1); }
-    bool cell_term() const { return !argument->cell.empty(); }
-    lstm_weights_order offset_order() const { return argument->offset_order; }
+    bool cell_term() const { return !get_typed_desc<lstm_elt>()->cell.empty(); }
+    lstm_weights_order offset_order() const { return get_typed_desc<lstm_elt>()->offset_order; }
     float clip() const {
-        float clip_val = argument->clip;
+        float clip_val = get_typed_desc<lstm_elt>()->clip;
         if (clip_val < 0)
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    bool input_forget() const { return argument->input_forget; }
-    uint32_t direction() const { return argument->direction; }
+    bool input_forget() const { return get_typed_desc<lstm_elt>()->input_forget; }
+    uint32_t direction() const { return get_typed_desc<lstm_elt>()->direction; }
 };
 
 using lstm_elt_inst = typed_primitive_inst<lstm_elt>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -59,7 +59,7 @@ void shape_infer(const ov::opset1::Reshape* op,
     }
     size_t input_product(1);
     for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (i < output_pattern.size() && output_pattern[i] == 0)
+        if (i < output_pattern.size() && output_pattern[i] == 0 && special_zero)
             continue;
         input_product = input_shape[i].get_length() * input_product;
     }
@@ -98,7 +98,7 @@ void shape_infer(const ov::opset1::Reshape* op,
 
 template <class T>
 inline void dynamic_shape(T& output_shape) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
+    OPENVINO_THROW("This code should be executed only for PartialShape class");
 }
 
 template <>

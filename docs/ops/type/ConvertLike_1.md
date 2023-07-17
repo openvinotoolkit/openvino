@@ -1,10 +1,16 @@
 # ConvertLike {#openvino_docs_ops_type_ConvertLike_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about ConvertLike-1 - an element-wise, type conversion 
+                operation, which can be performed two required input tensors.
+
 **Versioned name**: *ConvertLike-1*
 
 **Category**: *Type conversion*
 
-**Short description**: *ConvertLike* operation performs element-wise conversion on a given input tensor `data` to the element type of an additional input tensor `like`.
+**Short description**: *ConvertLike* operation performs element-wise conversion on a given input tensor ``data`` to the element type of an additional input tensor ``like``.
 
 **Detailed description**
 
@@ -12,20 +18,22 @@ Conversion from one supported type to another supported type is always allowed. 
 
 Output elements are represented as follows:
 
+.. code-block:: cpp
+
     o[i] = Convert[destination_type=type(b)](a[i])
 
-where `a` and `b` correspond to `data` and `like` input tensors, respectively.
+where ``a`` and ``b`` correspond to ``data`` and ``like`` input tensors, respectively.
 
 **Attributes**: *ConvertLike* operation has no attributes.
 
 **Inputs**
 
-* **1**: `data` - A tensor of type *T1* and arbitrary shape. **Required.**
-* **2**: `like` - A tensor of type *T2* and arbitrary shape. **Required.**
+* **1**: ``data`` - A tensor of type *T1* and arbitrary shape. **Required.**
+* **2**: ``like`` - A tensor of type *T2* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *ConvertLike* operation applied to input tensor `data`. A tensor of type *T2* and the same shape as `data` input tensor.
+* **1**: The result of element-wise *ConvertLike* operation applied to input tensor ``data``. A tensor of type *T2* and the same shape as ``data`` input tensor.
 
 **Types**
 
@@ -34,22 +42,25 @@ where `a` and `b` correspond to `data` and `like` input tensors, respectively.
 
 **Example**
 
-```xml
-<layer ... type="ConvertLike">
-    <input>
-        <port id="0">        <!-- type: int32 -->
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-        <port id="1">        <!-- type: float32 -->
-            <dim>3</dim>     <!-- any data -->
-        </port>
-    </input>
-    <output>
-        <port id="2">        <!-- result type: float32 -->
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp
+   
+   <layer ... type="ConvertLike">
+       <input>
+           <port id="0">        < !-- type: int32 -->
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+           <port id="1">        < !-- type: float32 -->
+               <dim>3</dim>     < !-- any data -->
+           </port>
+       </input>
+       <output>
+           <port id="2">        < !-- result type: float32 -->
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 #include <list>
 #include <memory>
 
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "engines_util/random.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -20,27 +23,21 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/util.hpp"
-#include "util/all_close.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-class ControlDependencyOp : public ngraph::op::Op {
+class ControlDependencyOp : public ov::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ControlDependencyOp", static_cast<uint64_t>(0)};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("ControlDependencyOp");
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         auto clone = make_shared<ControlDependencyOp>(new_args, std::set<std::shared_ptr<Node>>{});
-        return move(clone);
+        return std::move(clone);
     }
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
         if (args.size() == 0 && deps.size() == 0) {
-            throw ngraph_error("Expected some arguments or dependencies");
+            OPENVINO_THROW("Expected some arguments or dependencies");
         }
 
         for (auto& node : deps) {
@@ -55,7 +52,6 @@ public:
         }
     }
 };
-constexpr NodeTypeInfo ControlDependencyOp::type_info;
 
 TEST(control_dependencies, cdep_ops) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{});
@@ -98,7 +94,7 @@ TEST(control_dependencies, clone_function_cdop) {
 
     auto f = make_shared<Function>(cdop, ParameterVector{A});
     test_ordered_ops(f, NodeVector{absn});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
@@ -117,7 +113,7 @@ TEST(control_dependencies, clone_function_cdop_abs) {
     auto absn_cdop = make_shared<op::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone =
         clone->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();

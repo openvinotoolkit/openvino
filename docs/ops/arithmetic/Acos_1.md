@@ -1,5 +1,11 @@
 # Acos {#openvino_docs_ops_arithmetic_Acos_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Acos-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Acos-1*
 
 **Category**: *Arithmetic unary*
@@ -8,7 +14,7 @@
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 
@@ -24,27 +30,31 @@
 
 *Acos* does the following with the input tensor *a*:
 
-\f[
-a_{i} = acos(a_{i})
-\f]
+.. math::
+   
+   a_{i} = acos(a_{i})
 
 **Examples**
 
 *Example 1*
 
-```xml
-<layer ... type="Acos">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="Acos">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

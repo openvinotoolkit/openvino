@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,12 +37,12 @@ public:
     class PerTensorQuantization {
     public:
         explicit PerTensorQuantization(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const std::vector<PortQuantizationGranularityRestriction>& restrictions) {
-            portsByVersion.emplace(version, restrictions);
+        void add(const std::string version_id, const std::vector<PortQuantizationGranularityRestriction>& restrictions) {
+            portsByVersion.emplace(version_id, restrictions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, std::vector<PortQuantizationGranularityRestriction>> portsByVersion;
+        std::unordered_map<std::string, std::vector<PortQuantizationGranularityRestriction>> portsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPerTensorQuantization", "0");

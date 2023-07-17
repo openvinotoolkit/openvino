@@ -1,16 +1,18 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-import warnings
 
 import openvino.tools.pot.api
 import openvino.tools.pot.engines
 import openvino.tools.pot.graph
 import openvino.tools.pot.pipeline
+from openvino.tools.pot.utils.logger import get_logger
 
 
-warnings.warn('Import compression is deprecated. Please use openvino.tools.pot instead', DeprecationWarning)
+logger = get_logger(__name__)
+logger.warning('Import compression is deprecated. Please use openvino.tools.pot instead')
+
 
 sys.modules["compression.api"] = openvino.tools.pot.api
 sys.modules["compression.engines"] = openvino.tools.pot.engines

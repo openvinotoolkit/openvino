@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,13 +16,13 @@ namespace runtime {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     auto temp_shape = reduce(shape, axes, true);
     auto temp_elements = shape_size(temp_shape);
     auto temp_ptr = new T[temp_elements];
 
     max(arg, temp_ptr, shape, axes);
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform transform(shape);
     CoordinateTransform temp_transform(temp_shape);
     for (const Coordinate& coord : transform) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,10 @@ namespace pass {
  */
 class SubstituteSoftsign : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("SubstituteSoftsign", "0");
-  SubstituteSoftsign();
+    OPENVINO_RTTI("SubstituteSoftsign", "0");
+    SubstituteSoftsign();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
-
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

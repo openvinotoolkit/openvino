@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
+#include "op/adaptive_avg_pooling2d.hpp"
 #include "op/add.hpp"
 #include "op/affine.hpp"
 #include "op/and.hpp"
@@ -52,6 +53,7 @@
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
+#include "op/dft.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
 #include "op/dynamic_quantize_linear.hpp"
@@ -159,6 +161,7 @@
 #include "op/split.hpp"
 #include "op/sqrt.hpp"
 #include "op/squeeze.hpp"
+#include "op/stft.hpp"
 #include "op/sub.hpp"
 #include "op/sum.hpp"
 #include "op/tan.hpp"
@@ -168,13 +171,20 @@
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
 #include "op/trilu.hpp"
+#include "op/unique.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
 #include "op/xor.hpp"
+#include "openvino/util/log.hpp"
+
+using namespace ov::frontend::onnx;
 
 namespace ngraph {
 namespace onnx_import {
+
+const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+
 namespace {
 template <typename Container = std::map<int64_t, Operator>>
 typename Container::const_iterator find(int64_t version, const Container& map) {
@@ -192,6 +202,24 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
 }
 }  // namespace
 
+void OperatorsBridge::register_operator_in_custom_domain(std::string name,
+                                                         VersionRange range,
+                                                         Operator fn,
+                                                         std::string domain,
+                                                         std::string warning_mes) {
+    for (int version = range.m_since; version <= range.m_until; ++version) {
+        register_operator(name, version, domain, fn);
+    }
+    if (!warning_mes.empty()) {
+        OPENVINO_WARN << "Operator: " << name << " since version: " << range.m_since
+                      << " until version: " << range.m_until << " registered with warning: " << warning_mes;
+    }
+}
+
+void OperatorsBridge::register_operator(std::string name, VersionRange range, Operator fn, std::string warning_mes) {
+    register_operator_in_custom_domain(name, range, std::move(fn), "", warning_mes);
+}
+
 void OperatorsBridge::register_operator(const std::string& name,
                                         int64_t version,
                                         const std::string& domain,
@@ -201,26 +229,26 @@ void OperatorsBridge::register_operator(const std::string& name,
         m_map[domain][name].emplace(version, std::move(fn));
     } else {
         it->second = std::move(fn);
-        NGRAPH_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
-                    << "." + name + ":" + std::to_string(version);
+        OPENVINO_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
+                      << "." + name + ":" + std::to_string(version);
     }
 }
 
 void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
-        NGRAPH_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
+        OPENVINO_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
         return;
     }
     auto name_it = domain_it->second.find(name);
     if (name_it == domain_it->second.end()) {
-        NGRAPH_ERR << "unregister_operator: operator '" + name + "' was not registered before";
+        OPENVINO_ERR << "unregister_operator: operator '" + name + "' was not registered before";
         return;
     }
     auto version_it = name_it->second.find(version);
     if (version_it == name_it->second.end()) {
-        NGRAPH_ERR << "unregister_operator: operator '" + name + "' with version " + std::to_string(version) +
-                          " was not registered before";
+        OPENVINO_ERR << "unregister_operator: operator '" + name + "' with version " + std::to_string(version) +
+                            " was not registered before";
         return;
     }
     m_map[domain][name].erase(version_it);
@@ -237,12 +265,12 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
         return result;
     }
-    if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
-        NGRAPH_WARN << "Currently ONNX operator set version: " << version
-                    << " is unsupported. Falling back to: " << OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION;
+    if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
+        OPENVINO_WARN << "Currently ONNX operator set version: " << version
+                      << " is unsupported. Falling back to: " << LATEST_SUPPORTED_ONNX_OPSET_VERSION;
     }
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
@@ -281,6 +309,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -289,12 +318,18 @@ static const char* const MICROSOFT_DOMAIN = "com.microsoft";
     m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
 
 OperatorsBridge::OperatorsBridge() {
-    REGISTER_OPERATOR("Abs", 1, abs);
-    REGISTER_OPERATOR("Acos", 1, acos);
-    REGISTER_OPERATOR("Acosh", 1, acosh);
-    REGISTER_OPERATOR("Add", 1, add);
-    REGISTER_OPERATOR("Add", 7, add);
-    REGISTER_OPERATOR("And", 1, logical_and);
+    register_operator("Abs", VersionRange{1, 5}, op::set_1::abs, "Legacy consumed_inputs is not supported");
+    register_operator("Abs", VersionRange::since(6), op::set_6::abs);
+    register_operator("Acos", VersionRange::single_version_for_all_opsets(), op::set_7::acos);
+    register_operator("Acosh", VersionRange::single_version_for_all_opsets(), op::set_9::acosh);
+    register_operator("Add", VersionRange{1, 5}, op::set_1::add, "Legacy consumed_inputs is not supported");
+    register_operator("Add", VersionRange::in(6), op::set_6::add);
+    register_operator("Add", VersionRange{7, 12}, op::set_7::add);
+    register_operator("Add", VersionRange::in(13), op::set_13::add);
+    register_operator("Add", VersionRange::since(14), op::set_14::add);
+    register_operator("And", VersionRange{1, 6}, op::set_1::logical_and);
+    register_operator("And", VersionRange::since(6), op::set_7::logical_and);
+    // 101468 - Use the VersionRange-based approach for all operators
     REGISTER_OPERATOR("ArgMin", 1, argmin);
     REGISTER_OPERATOR("ArgMin", 12, argmin);
     REGISTER_OPERATOR("ArgMax", 1, argmax);
@@ -330,6 +365,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
     REGISTER_OPERATOR("Div", 1, div);
     REGISTER_OPERATOR("Div", 7, div);
+    REGISTER_OPERATOR("DFT", 1, dft);
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
     REGISTER_OPERATOR("Dropout", 12, dropout);
@@ -450,6 +486,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
     REGISTER_OPERATOR("Split", 1, split);
     REGISTER_OPERATOR("Split", 13, split);
+    register_operator("STFT",
+                      VersionRange::single_version_for_all_opsets(),
+                      op::set_17::stft,
+                      "frame_step and frame_length inputs must be constants; signal shape must be static;");
     REGISTER_OPERATOR("Sqrt", 1, sqrt);
     REGISTER_OPERATOR("Squeeze", 1, squeeze);
     REGISTER_OPERATOR("Squeeze", 13, squeeze);
@@ -466,6 +506,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
     REGISTER_OPERATOR("Trilu", 1, trilu);
+    REGISTER_OPERATOR("Unique", 1, unique);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);
@@ -518,6 +559,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
 }
 
 #undef REGISTER_OPERATOR

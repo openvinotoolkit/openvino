@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <string>
 #include <unordered_set>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/quantization_details.hpp"
 
 namespace ngraph {

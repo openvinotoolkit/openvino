@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,26 +11,31 @@ set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
 # find python3
 
-find_host_package(PythonInterp 3 QUIET)
-if(NOT PYTHONINTERP_FOUND)
-    message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
-    set(ENABLE_NCC_STYLE OFF)
+if(ENABLE_NCC_STYLE)
+    find_host_package(PythonInterp 3 QUIET)
+    if(NOT PYTHONINTERP_FOUND)
+        message(WARNING "Python3 interpreter was not found (required for ncc naming style check)")
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
 endif()
 
-if(PYTHON_VERSION_MINOR EQUAL 6)
-    set(clang_version 10)
-elseif(PYTHON_VERSION_MINOR EQUAL 7)
-    set(clang_version 11)
-elseif(PYTHON_VERSION_MINOR EQUAL 8)
-    set(clang_version 12)
-elseif(PYTHON_VERSION_MINOR EQUAL 9)
-    set(clang_version 12)
-elseif(PYTHON_VERSION_MINOR EQUAL 10)
-    set(clang_version 14)
-else()
-    message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+if(ENABLE_NCC_STYLE)
+    if(PYTHON_VERSION_MINOR EQUAL 6)
+        set(clang_version 10)
+    elseif(PYTHON_VERSION_MINOR EQUAL 7)
+        set(clang_version 11)
+    elseif(PYTHON_VERSION_MINOR EQUAL 8)
+        set(clang_version 12)
+    elseif(PYTHON_VERSION_MINOR EQUAL 9)
+        set(clang_version 12)
+    elseif(PYTHON_VERSION_MINOR EQUAL 10)
+        set(clang_version 14)
+    elseif(PYTHON_VERSION_MINOR EQUAL 11)
+        set(clang_version 14)
+    else()
+        message(WARNING "Cannot suggest clang package for python ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+    endif()
 endif()
-
 
 if(ENABLE_NCC_STYLE)
     # try to find_package(Clang QUIET)
@@ -56,10 +61,22 @@ endif()
 # Since we were able to find_package(Clang) in a separate process
 # let's try to find in current process
 if(ENABLE_NCC_STYLE)
-    if(APPLE)
+    if(CMAKE_HOST_WIN32)
+        find_host_program(libclang_location NAMES libclang.dll
+                          PATHS $ENV{PATH}
+                          NO_CMAKE_FIND_ROOT_PATH)
+    elseif(CMAKE_HOST_APPLE)
+        set(_old_CMAKE_FIND_LIBRARY_PREFIXES ${CMAKE_FIND_LIBRARY_PREFIXES})
+        set(_old_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+        set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
-                          DOC "Path to clang library")
+                          DOC "Path to clang library"
+                          NO_DEFAULT_PATH
+                          NO_CMAKE_FIND_ROOT_PATH)
+        set(CMAKE_FIND_LIBRARY_PREFIXES ${_old_CMAKE_FIND_LIBRARY_PREFIXES})
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ${_old_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
         find_host_package(Clang QUIET)
     endif()
@@ -106,12 +123,14 @@ endif()
 
 #
 # ov_ncc_naming_style(FOR_TARGET target_name
-#                     SOURCE_DIRECTORY dir
+#                     [SOURCE_DIRECTORIES dir1 dir2 ...]
+#                     [STYLE_FILE style_file.style]
 #                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..]
 #                     [DEFINITIONS def1 def2 ..])
 #
 # FOR_TARGET - name of the target
-# SOURCE_DIRECTORY - directory to check sources from
+# SOURCE_DIRECTORIES - directory to check sources from
+# STYLE_FILE - path to the specific style file
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
 # DEFINITIONS - additional definitions passed to preprocessor stage
 #
@@ -121,26 +140,30 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE "FAIL"
-        "FOR_TARGET;SOURCE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
+        "FOR_TARGET;STYLE_FILE" "SOURCE_DIRECTORIES;ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
 
-    foreach(var FOR_TARGET SOURCE_DIRECTORY)
+    foreach(var FOR_TARGET SOURCE_DIRECTORIES)
         if(NOT DEFINED NCC_STYLE_${var})
             message(FATAL_ERROR "${var} is not defined in ov_ncc_naming_style function")
         endif()
     endforeach()
 
-    file(GLOB_RECURSE sources
-         RELATIVE "${NCC_STYLE_SOURCE_DIRECTORY}"
-         "${NCC_STYLE_SOURCE_DIRECTORY}/*.hpp"
-         "${NCC_STYLE_SOURCE_DIRECTORY}/*.cpp")
+    if(NOT DEFINED NCC_STYLE_STYLE_FILE)
+        set(NCC_STYLE_STYLE_FILE ${ncc_style_dir}/openvino.style)
+    endif()
 
-    list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_SOURCE_DIRECTORY}")
-    # without it sources with same name from different directories will map to same .ncc_style target
-    file(RELATIVE_PATH source_dir_rel ${CMAKE_SOURCE_DIR} ${NCC_STYLE_SOURCE_DIRECTORY})
+    foreach(source_dir IN LISTS NCC_STYLE_SOURCE_DIRECTORIES)
+        file(GLOB_RECURSE local_sources "${source_dir}/*.hpp" "${source_dir}/*.cpp")
+        list(APPEND sources ${local_sources})
+    endforeach()
 
-    foreach(source IN LISTS sources)
-        set(output_file "${ncc_style_bin_dir}/${source_dir_rel}/${source}.ncc_style")
-        set(full_source_path "${NCC_STYLE_SOURCE_DIRECTORY}/${source}")
+    list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES ${NCC_STYLE_SOURCE_DIRECTORIES})
+
+    foreach(source_file IN LISTS sources)
+        get_filename_component(source_dir "${source_file}" DIRECTORY)
+        file(RELATIVE_PATH source_dir_rel "${CMAKE_SOURCE_DIR}" "${source_dir}")
+        get_filename_component(source_name "${source_file}" NAME)
+        set(output_file "${ncc_style_bin_dir}/${source_dir_rel}/${source_name}.ncc_style")
 
         add_custom_command(
             OUTPUT
@@ -149,21 +172,21 @@ function(ov_ncc_naming_style)
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "NCC_PY_SCRIPT=${ncc_script_py}"
-                -D "INPUT_FILE=${full_source_path}"
+                -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
                 -D "CLANG_LIB_PATH=${libclang_location}"
-                -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
+                -D "STYLE_FILE=${NCC_STYLE_STYLE_FILE}"
                 -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
                 -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
-                "${full_source_path}"
+                "${source_file}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
-                "[ncc naming style] ${source}"
+                "[ncc naming style] ${source_dir_rel}/${source_name}"
             VERBATIM)
         list(APPEND output_files ${output_file})
     endforeach()
@@ -179,6 +202,6 @@ endfunction()
 
 if(TARGET ncc_all)
     ov_ncc_naming_style(FOR_TARGET ncc_all
-                        SOURCE_DIRECTORY "${ncc_style_dir}/self_check"
+                        SOURCE_DIRECTORIES "${ncc_style_dir}/self_check"
                         FAIL)
 endif()

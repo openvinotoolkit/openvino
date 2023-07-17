@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 
 #if INPUT0_TYPE_SIZE == 2 //f16
     #define HALF_ONE 0.5h

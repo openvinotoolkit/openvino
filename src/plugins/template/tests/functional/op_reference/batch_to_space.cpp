@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,10 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.dataTensor.data};
+        inputData = {params.dataTensor.data,
+                     params.blockShapeTensor.data,
+                     params.cropsBeginTensor.data,
+                     params.cropsEndTensor.data};
         refOutData = {params.expectedTensor.data};
     }
 
@@ -61,11 +64,12 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const BatchToSpaceParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<opset1::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
-        const auto cropsBegin = std::make_shared<opset1::Constant>(element::i64, params.cropsBeginTensor.shape, params.cropsBeginTensor.data.data());
-        const auto cropsEnd = std::make_shared<opset1::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsEndTensor.data.data());
+        const auto blockShape = std::make_shared<opset1::Parameter>(element::i64, params.blockShapeTensor.shape);
+        const auto cropsBegin = std::make_shared<opset1::Parameter>(element::i64, params.cropsBeginTensor.shape);
+        const auto cropsEnd = std::make_shared<opset1::Parameter>(element::i64, params.cropsEndTensor.shape);
         const auto batchToSpace = std::make_shared<opset2::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
-        return std::make_shared<Model>(NodeVector {batchToSpace}, ParameterVector {data});
+        return std::make_shared<Model>(NodeVector{batchToSpace},
+                                       ParameterVector{data, blockShape, cropsBegin, cropsEnd});
     }
 };
 
@@ -85,6 +89,15 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
             reference_tests::Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             reference_tests::Tensor({2, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
             "input_with_shape_4x3"),
+
+        // input_with_shape_4x1x3
+        BatchToSpaceParams(
+            reference_tests::Tensor({4, 1, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{1, 1, 2}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({2, 1, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
+            "input_with_shape_4x1x3"),
 
         // input_with_shape_4x1x1x3
         BatchToSpaceParams(

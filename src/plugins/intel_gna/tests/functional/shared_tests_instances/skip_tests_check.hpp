@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gna/gna_config.hpp>
 
+#include "common_test_utils/test_constants.hpp"
+#include "ie_core.hpp"
 
 class GnaLayerTestCheck {
     bool verRead = false;
@@ -14,7 +16,7 @@ class GnaLayerTestCheck {
 public:
     void SetUp(const std::string deviceName) {
         InferenceEngine::Core ieCore;
-        std::vector<std::string> metrics = ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        auto metrics = ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
 
         if (deviceName == CommonTestUtils::DEVICE_GNA) {
             if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {

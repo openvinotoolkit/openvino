@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,7 +39,7 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
         # connect "execution condition" input if it is not connected with default value True
         if not loop_node.is_in_port_connected(1):
             loop_node.add_input_port(1, skip_if_exist=True)
-            Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': mo_array(True, dtype=np.bool)}).\
+            Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': mo_array(True, dtype=bool)}).\
                 create_node().out_port(0).connect(loop_node.in_port(1))
 
         # scan output need Unsqueeze over axis 0

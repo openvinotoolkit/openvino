@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
                 const auto& interval = input_shape[i].get_interval();
                 if (interval.has_upper_bound()) {
                     output_shape.push_back(
-                        ov::Dimension(interval.get_max_val() / strides[0], interval.get_min_val() / strides[0]));
+                        ov::Dimension(interval.get_min_val() / strides[0], interval.get_max_val() / strides[0]));
                 } else {
                     output_shape.push_back(ov::Dimension::dynamic());
                 }

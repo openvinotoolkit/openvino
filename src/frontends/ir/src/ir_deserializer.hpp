@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ struct GenericLayerParams {
     std::vector<LayerPortData> inputPorts;
     std::vector<LayerPortData> outputPorts;
 
-    size_t getRealInputPortId(size_t id) const {
+    size_t get_real_input_port_id(size_t id) const {
         size_t real_id = 0;
         for (auto& it : inputPorts) {
             if (it.portId == id) {
@@ -46,7 +46,7 @@ struct GenericLayerParams {
         IE_THROW() << "Can not find input port with id " << id << " in layer " << name;
     }
 
-    size_t getRealOutputPortId(size_t id) const {
+    size_t get_real_output_port_id(size_t id) const {
         size_t real_id = 0;
         for (auto& it : outputPorts) {
             if (it.portId == id) {
@@ -152,12 +152,14 @@ private:
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
     std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>
-    parseInputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
+    parse_input_description(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>
-    parseOutputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
+    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>> parse_output_description(
+        const pugi::xml_node& node,
+        const std::string& body_name,
+        const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
@@ -171,14 +173,14 @@ private:
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
-    ov::op::v5::Loop::SpecialBodyPorts parsePurposeAttribute(const pugi::xml_node& node);
+    ov::op::v5::Loop::SpecialBodyPorts parse_purpose_attribute(const pugi::xml_node& node);
 
-    GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+    GenericLayerParams parse_generic_params(const pugi::xml_node& node);
 
-    std::shared_ptr<ov::Node> createNode(const ov::OutputVector& inputs,
-                                         const pugi::xml_node& node,
-                                         const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                                         const GenericLayerParams& params);
+    std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
+                                          const pugi::xml_node& node,
+                                          const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                                          const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
 

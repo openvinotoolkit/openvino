@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@ using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Coordinate& coordinate) {
     s << "Coordinate{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(coordinate);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }
@@ -36,8 +38,6 @@ ov::Coordinate& ov::Coordinate::operator=(const Coordinate& v) {
 }
 
 ov::Coordinate& ov::Coordinate::operator=(Coordinate&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Coordinate>);

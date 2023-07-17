@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <utility>
 
 #include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -29,7 +29,7 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  * [ConvertSubtractConstant](@ref openvino_docs_OV_UG_lpt_ConvertSubtractConstant) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::ConvertSubtractConstant : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertSubtractConstant", "0");
     ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions = {});

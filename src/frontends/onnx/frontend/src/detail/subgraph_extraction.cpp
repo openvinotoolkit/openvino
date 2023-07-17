@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,8 +95,8 @@ int find_source_node_idx(const ONNX_NAMESPACE::GraphProto& graph,
         }
     }
 
-    throw ngraph::ngraph_error{"Source node not found in the graph for node: " + std::to_string(current_node_idx) +
-                               " and input name: " + input_name};
+    OPENVINO_THROW("Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+                   " and input name: " + input_name);
 }
 
 /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
@@ -222,9 +222,6 @@ std::pair<bool, std::string> append_new_graph_input(ONNX_NAMESPACE::GraphProto& 
 /// original model.
 void append_new_graph_output(ONNX_NAMESPACE::GraphProto& graph, const OutputEdge& edge) {
     const auto tensor_name = get_output_tensor_name(graph, edge);
-    if (already_exists(graph.output(), tensor_name)) {
-        return;
-    }
     auto& new_output = *(graph.add_output());
     // copy the intermediate tensor's properties to the newly created
     new_output.MergeFrom(find_tensor_descriptor(graph, tensor_name));

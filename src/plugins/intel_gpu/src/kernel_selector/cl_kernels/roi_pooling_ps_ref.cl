@@ -1,19 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 // Each RoI is described by 5 elements [batch_id xmin ymin xmax ymax]
 #define ROI_NUM_ELEMENTS 5
 
 #define COORD_T float
 #define ACCUM_T float
-
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define CLAMP(v,l,u) MAX((l),MIN((v),(u)))
 
 ACCUM_T FUNC(bilinear_interp)(
       const __global INPUT0_TYPE * data

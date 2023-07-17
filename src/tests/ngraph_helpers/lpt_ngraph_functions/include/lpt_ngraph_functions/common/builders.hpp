@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         }
     }
 
-    const auto operationConst = std::make_shared<ngraph::opset1::Constant>(
+    const auto operationConst = std::make_shared<ov::opset1::Constant>(
         description.outPrecision,
         shape,
         description.values);
@@ -48,17 +48,17 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
     if ((description.outPrecision == element::undefined) || (description.outPrecision == data->get_output_element_type(0))) {
         operation = std::make_shared<Operation>(data, operationConst);
     } else {
-        operation = std::make_shared<op::TypeRelaxed<Operation>>(
+        operation = std::make_shared<ov::op::TypeRelaxed<Operation>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(data, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(data, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
-    if (ov::is_type<ngraph::opset1::Subtract>(operation) || ov::is_type<ngraph::opset1::Add>(operation)) {
+    if (ov::is_type<ov::opset1::Subtract>(operation) || ov::is_type<ov::opset1::Add>(operation)) {
         replace_node(
             operationConst,
-            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(operationConst, data->get_output_element_type(0)));
+            ngraph::pass::low_precision::fold<ov::opset1::Convert>(operationConst, data->get_output_element_type(0)));
     }
 
     return operation;
@@ -74,25 +74,25 @@ std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& resha
 
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
-std::shared_ptr<ngraph::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
+std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
+std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const bool subgraphOnConstantPath = false);
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData);

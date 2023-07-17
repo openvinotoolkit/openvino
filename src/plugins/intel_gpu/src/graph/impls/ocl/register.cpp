@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "register.hpp"
 
 namespace cldnn {
@@ -14,7 +12,6 @@ void register_implementations() {
     REGISTER_OCL(activation);
     REGISTER_OCL(adaptive_pooling);
     REGISTER_OCL(arg_max_min);
-    REGISTER_OCL(average_unpooling);
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
@@ -97,6 +94,8 @@ void register_implementations() {
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
     REGISTER_OCL(eye);
+    REGISTER_OCL(unique_count);
+    REGISTER_OCL(unique_gather);
 }
 
 }  // namespace ocl

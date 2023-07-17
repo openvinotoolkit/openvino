@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,9 @@ public:
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
         return supported_impl({ov::Any(vars)...});
+    }
+    inline bool supported(const ov::AnyVector& vars) const {
+        return supported_impl(vars);
     }
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately

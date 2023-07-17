@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ TEST(pattern, matcher_pass) {
 
         pass::GraphRewrite pass;
         pass.add_matcher<TestMatcherPass>();
-        pass.run_on_function(f);
+        pass.run_on_model(f);
 
         // Parameter->Relu->Result
         ASSERT_TRUE(f->get_ops().size() == 3);

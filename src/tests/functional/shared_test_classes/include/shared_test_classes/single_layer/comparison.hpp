@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,10 +32,12 @@ typedef std::tuple<
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
+    ngraph::helpers::ComparisonTypes comparisonOpType;
 protected:
     void SetUp() override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const override;
 };
 } // namespace LayerTestsDefinitions

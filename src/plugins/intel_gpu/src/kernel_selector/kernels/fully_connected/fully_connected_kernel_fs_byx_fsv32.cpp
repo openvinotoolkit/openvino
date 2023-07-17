@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,13 @@ ParamsKey FullyConnected_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -63,6 +68,22 @@ JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_SIZE_B", blockSizeB));
 
     return jit;
+}
+
+bool FullyConnected_fs_byx_fsv32::Validate(const Params& p, const optional_params& o) const {
+    if (!FullyConnectedKernelBase::Validate(p, o)) {
+        return false;
+    }
+
+    const auto& params = static_cast<const fully_connected_params&>(p);
+
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {

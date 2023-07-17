@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,8 +54,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
         } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
             this->strides.resize(order.size(), Shape::UNDEFINED_DIM);
         } else {
-            this->strides.resize(order.size());
-            this->strides[order.size() - 1] = 1;
+            this->strides.resize(order.size(), 1);
             for (size_t i = 2; i <= order.size(); i++) {
                 this->strides[order.size() - i] = this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
             }
@@ -118,10 +117,10 @@ bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
 }
 
 size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
-    int64_t e_size = getOffsetPadding();  // size in bytes (from begin of data to last element)
+    auto e_size = getOffsetPadding();  // size in bytes (from begin of data to last element)
     if (!getShape().hasZeroDims()) {
         e_size += 1;
-        for (int j = 0; j < getBlockDims().size(); j++)
+        for (size_t j = 0; j < getBlockDims().size(); j++)
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
     }
 

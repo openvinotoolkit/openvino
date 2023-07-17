@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@
  *  Exec order is predefined.
  */
 
+IE_SUPPRESS_DEPRECATED_START
 class MemorySolver {
 public:
     /** @brief Representation of edge (size and live time)*/
@@ -224,3 +225,4 @@ private:
         }
     }
 };
+IE_SUPPRESS_DEPRECATED_END

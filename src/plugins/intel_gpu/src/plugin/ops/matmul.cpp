@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             }
         } else {
             if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+                OPENVINO_THROW("Shapes can't be aligned: ", shape_a_aligned, " ", shape_b_aligned);
             }
             auto max_value = std::max(a_dim.get_length(), b_dim.get_length());
             shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -73,7 +73,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
 
 static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto shape_a = op->get_input_partial_shape(0);
@@ -96,11 +96,11 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
     if (is_fc) {
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            OPENVINO_THROW("MatMul ", op->get_friendly_name(), " shapes are inconsistent.");
         }
 
-        auto inputName = inputPrimitives[0];
-        auto weightsName = inputPrimitives[1];
+        auto inputName = inputs[0].pid;
+        auto weightsName = inputs[1].pid;
 
         auto create_transpose = [&](const std::string& transposeName, const std::string& transposeInputName, size_t rank) {
             std::vector<uint16_t> transpose_order(rank);
@@ -108,7 +108,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
             auto permutePrim = cldnn::permute(transposeName,
-                                              transposeInputName,
+                                              cldnn::input_info(transposeInputName),
                                               transpose_order);
             p.add_primitive(*op, permutePrim);
         };
@@ -128,12 +128,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         }
 
         auto fcPrim = cldnn::fully_connected(layerName,
-                                             inputName,
+                                             cldnn::input_info(inputName),
                                              weightsName,
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size());
+                                             rank_a,
+                                             rank_b);
 
         p.add_primitive(*op, fcPrim);
 
@@ -155,13 +156,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
                 cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
                 cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
-                auto reorder_prim = cldnn::reorder(reorderId, layerName, outputLayout);
+                auto reorder_prim = cldnn::reorder(reorderId, cldnn::input_info(layerName), outputLayout);
                 p.add_primitive(*op, reorder_prim);
                 lastLayerName = reorderId;
             }
 
             // add reshape
-            auto outReshapePrim = cldnn::reshape(outReshapeName, lastLayerName, outTensor);
+            auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(lastLayerName), outTensor);
             p.add_primitive(*op, outReshapePrim);
         }
     } else {
@@ -176,11 +177,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             op->get_input_partial_shape(1)
         };
 
-        auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
+        auto canTransposeInputs = [&] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB, ov::element::Type type) -> bool {
             if (!transA && !transB)
                 return false;
-            if (shapes[0].rank().is_dynamic() ||
-                shapes[1].rank().is_dynamic())
+
+            // dynamic shapes and 1D tensors are not transposed
+            if (shapes[0].is_dynamic() || shapes[1].is_dynamic() ||
+                shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
             // don't transpose inputs if they're aligned to 16
@@ -191,45 +194,51 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             if (inputsAligned)
                 return false;
 
-            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
-                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Heuristic condition for permute and tiled_opt kernel perform better than ref kernel.
+            bool in0_large = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            bool in1_large = std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Optimized for clDNN
+            auto is_u8_i8 = (type == ov::element::Type_t::i8 || type == ov::element::Type_t::u8);
+            bool in0_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool in1_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool needs_to_transpose_inputs = (in0_very_large || in1_very_large) && !is_u8_i8 && !p.get_engine().get_device_info().supports_immad;
+
+            return (in0_large && in1_large) || needs_to_transpose_inputs;
         };
 
-        auto transposeInput = [&layerName] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
-                                            const std::string& suffix, const cldnn::primitive_id& primitiveId) -> std::string {
+        auto transposeInput = [] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
+                                  const std::string& suffix, const cldnn::primitive_id& primitiveId) -> cldnn::input_info {
             std::vector<uint16_t> transposeOrder(shape.size());
             std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
-            for (auto o = transposeOrder.size(); o < 4; o++)
-                transposeOrder.push_back((uint16_t)o);
             std::swap(*(transposeOrder.end() - 1), *(transposeOrder.end() - 2));
 
             auto permuteName = op->get_friendly_name() + suffix;
             auto permutePrim = cldnn::permute(permuteName,
-                                              primitiveId,
+                                              cldnn::input_info(primitiveId),
                                               transposeOrder);
             p.add_primitive(*op, permutePrim);
-            return permuteName;
+            return cldnn::input_info(permuteName);
         };
 
-        if (canTransposeInputs(inputShapes, transA, transB)) {
+        if (canTransposeInputs(inputShapes, transA, transB, op->get_input_element_type(0))) {
             if (transA) {
-                inputPrimitives[0] = transposeInput(p, op, inputShapes[0], "/transpose_a", inputPrimitives[0]);
+                inputs[0] = transposeInput(p, op, inputShapes[0], "/transpose_a", inputs[0].pid);
                 transA = false;
             }
 
             if (transB) {
-                inputPrimitives[1] = transposeInput(p, op, inputShapes[1], "/transpose_b", inputPrimitives[1]);
+                inputs[1] = transposeInput(p, op, inputShapes[1], "/transpose_b", inputs[1].pid);
                 transB = false;
             }
         }
 
         auto gemmPrim = cldnn::gemm(layerName,
-                                    inputPrimitives,
+                                    inputs,
                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                    op->get_transpose_a(),
-                                    op->get_transpose_b(),
+                                    transA,
+                                    transB,
                                     alpha,
                                     beta,
                                     rank_a,
@@ -244,7 +253,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             if (outDimsN < 4) {
                 auto outputShape = tensor_from_dims(outDims);
                 auto outReshapeName = layerName + "_cldnn_out_reshape";
-                auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
+                auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(layerName), outputShape);
                 p.add_primitive(*op, outReshapePrim);
             }
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,23 +21,7 @@
 
 namespace cldnn {
 
-inline std::string to_string_hex(int val) {
-    std::stringstream stream;
-    stream << "0x" << std::uppercase << std::hex << val;
-    return stream.str();
-}
-
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
-
-inline std::string get_extr_type(const std::string& str) {
-    auto begin = str.find('<');
-    auto end = str.find('>');
-
-    if (begin == std::string::npos || end == std::string::npos)
-        return {};
-
-    return str.substr(begin + 1, (end - begin) - 1);
-}
 
 inline std::string dt_to_str(data_types dt) {
     return data_type_traits::name(dt);
@@ -48,16 +32,6 @@ inline std::string fmt_to_str(format fmt) {
 }
 
 inline std::string type_to_str(std::shared_ptr<const primitive> primitive) { return primitive->type_string(); }
-
-inline std::string allocation_type_to_str(allocation_type type) {
-    switch (type) {
-    case allocation_type::cl_mem: return "cl_mem";
-    case allocation_type::usm_host: return "usm_host";
-    case allocation_type::usm_shared: return "usm_shared";
-    case allocation_type::usm_device: return "usm_device";
-    default: return "unknown";
-    }
-}
 
 inline std::string activation_type_to_str(activation_func activation) {
     switch (activation) {
@@ -118,8 +92,10 @@ inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     case onednn_post_op_type::eltwise_clip: return "eltwise_clip";
     case onednn_post_op_type::eltwise_linear: return "eltwise_linear";
     case onednn_post_op_type::eltwise_round: return "eltwise_round";
+    case onednn_post_op_type::eltwise_hardsigmoid: return "eltwise_hardsigmoid";
     case onednn_post_op_type::binary_mul: return "binary_mul";
     case onednn_post_op_type::binary_add: return "binary_add";
+    case onednn_post_op_type::binary_sub: return "binary_add";
     case onednn_post_op_type::binary_max: return "binary_max";
     case onednn_post_op_type::binary_min: return "binary_min";
     case onednn_post_op_type::binary_relu: return "binary_relu";

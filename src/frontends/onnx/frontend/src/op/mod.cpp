@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ OutputVector mod(const Node& node) {
                      "must be set to 1.");
         output = {std::make_shared<default_opset::FloorMod>(dividend, divisor)};
     } else {
-        throw ngraph_error("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
+        OPENVINO_THROW("Unsupported value of 'fmod' attribute (should be: 0 or 1)");
     }
     return output;
 }

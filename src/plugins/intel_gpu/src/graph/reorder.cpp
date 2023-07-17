@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "reorder_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -21,9 +19,9 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     auto ifmt = input_layout.format;
 
     auto desc = impl_param.typed_desc<reorder>();
-    auto odt = *desc->output_data_type;
+    auto odt = *desc->output_data_types[0];
     auto ofmt = desc->output_format;
-    auto op = desc->output_padding;
+    auto op = desc->output_paddings[0];
 
     if (ofmt == format::any) {
         ofmt = ifmt;
@@ -148,7 +146,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                             "Conversion of weights from winograd to standard domain is currently unsupported");
     }
 
-    if ((ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_x_bsv16 ||
+    if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::bs_f_bsv16 ||
         ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
@@ -171,7 +169,7 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
     auto ifmt = input_layout.format;
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
 
-    return { layout(input_layout.get<ShapeType>(), desc->output_data_type.value(), ofmt, desc->output_padding) };
+    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {

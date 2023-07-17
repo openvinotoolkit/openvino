@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -185,7 +183,7 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
     } else if (new_args.size() == 3) {
         return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
     } else {
-        throw ngraph_error("Not supported number of Broadcast:v3 args");
+        OPENVINO_THROW("Not supported number of Broadcast:v3 args");
     }
 }
 
@@ -225,8 +223,6 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
     return broadcast_mode;
 }
 }  // namespace
-
-BWDCMP_RTTI_DEFINITION(op::v1::Broadcast);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include <ngraph/node.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/network_helper.hpp"
@@ -63,7 +62,7 @@ public:
                 std::vector<ov::Any> toMerge = parentRestrictions;
                 // TODO: LPT: handle pointer on itself in IntervalsAlignmentAttribute::merge and remove erase, task #59498
                 toMerge.erase(toMerge.begin());
-                const_cast<AttributeType&>(resultAttribute).merge(toMerge);
+                const_cast<AttributeType&>(resultAttribute).merge_attributes(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
                     auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();
@@ -105,9 +104,9 @@ private:
         auto getInput = [&defaultPrecisions](const std::shared_ptr<ngraph::Node>& node, const size_t index) -> Input<Node> {
             const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, index);
             if (!dequantization.empty() &&
-                ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
+                ov::is_type<ov::opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&
-                ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 return dequantization.data.get_node()->input(0);
             }
 

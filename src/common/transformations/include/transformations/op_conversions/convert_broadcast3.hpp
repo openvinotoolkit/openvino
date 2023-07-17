@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertBroadcast3", "0");
     ConvertBroadcast3();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertBroadcast3;
-}  // namespace pass
-}  // namespace ngraph

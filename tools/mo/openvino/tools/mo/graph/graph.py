@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import collections
@@ -980,6 +980,18 @@ class Graph(nx.MultiDiGraph):
         for node_name in nodes_without_inputs:
             if node_name not in visited:
                 order.extend(self.dfs(node_name, visited))
+
+        order = [Node(self, node) for node in order]
+
+        if reverse:
+            return order
+        else:
+            return list(reversed(order))
+
+    def pseudo_topological_sort_with_start_node(self, start_node: Node, reverse: bool = False):
+        nodes_without_inputs = [start_node.soft_get('name')]
+        visited = set()
+        order = self.dfs(nodes_without_inputs[0], visited)
 
         order = [Node(self, node) for node in order]
 

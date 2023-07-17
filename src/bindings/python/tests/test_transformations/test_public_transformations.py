@@ -4,9 +4,9 @@
 import os
 import pytest
 import numpy as np
-import openvino.runtime as ov
 
-from openvino.runtime import Model, PartialShape, Shape, opset8, Core
+from openvino.runtime import Model, PartialShape, Shape, Core
+from openvino.runtime import opset10
 from openvino.runtime.passes import (
     Manager,
     ConstantFolding,
@@ -15,21 +15,40 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
-from tests.test_transformations.utils.utils import count_ops, get_test_model
-from tests.test_utils.test_utils import create_filename_for_test
+
+from tests.test_transformations.utils.utils import count_ops, get_relu_model
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 
 def get_model():
-    param = opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param = opset10.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     param.get_output_tensor(0).set_names({"parameter"})
-    relu = opset8.relu(param)
-    reshape = opset8.reshape(relu, opset8.shape_of(relu), False)
-    res = opset8.result(reshape, name="result")
+    relu = opset10.relu(param)
+    reshape = opset10.reshape(relu, opset10.shape_of(relu), False)
+    res = opset10.result(reshape, name="result")
     res.get_output_tensor(0).set_names({"result"})
     return Model([res], [param], "test")
 
 
 def test_make_stateful():
+    param = opset10.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    param.get_output_tensor(0).set_names({"parameter"})
+    relu = opset10.relu(param)
+    reshape = opset10.reshape(relu, opset10.shape_of(relu), False)
+    res = opset10.result(reshape, name="result")
+    res.get_output_tensor(0).set_names({"result"})
+    model = Model([res], [param], "test")
+
+    manager = Manager()
+    manager.register_pass(MakeStateful([(param, res)]))
+    manager.run_passes(model)
+
+    assert model is not None
+    assert len(model.get_parameters()) == 0
+    assert len(model.get_results()) == 0
+
+
+def test_make_stateful_with_dict():
     model = get_model()
 
     manager = Manager()
@@ -68,20 +87,20 @@ def test_convert_precision():
 
 
 def test_low_latency2():
-    param_x = opset8.parameter(Shape([32, 40, 10]), np.float32, "X")
-    param_y = opset8.parameter(Shape([32, 40, 10]), np.float32, "Y")
-    param_m = opset8.parameter(Shape([32, 2, 10]), np.float32, "M")
+    param_x = opset10.parameter(Shape([32, 40, 10]), np.float32, "X")
+    param_y = opset10.parameter(Shape([32, 40, 10]), np.float32, "Y")
+    param_m = opset10.parameter(Shape([32, 2, 10]), np.float32, "M")
 
-    x_i = opset8.parameter(Shape([32, 2, 10]), np.float32, "X_i")
-    y_i = opset8.parameter(Shape([32, 2, 10]), np.float32, "Y_i")
-    m_body = opset8.parameter(Shape([32, 2, 10]), np.float32, "M_body")
+    x_i = opset10.parameter(Shape([32, 2, 10]), np.float32, "X_i")
+    y_i = opset10.parameter(Shape([32, 2, 10]), np.float32, "Y_i")
+    m_body = opset10.parameter(Shape([32, 2, 10]), np.float32, "M_body")
 
-    add = opset8.add(x_i, y_i)
-    zo = opset8.multiply(add, m_body)
+    add = opset10.add(x_i, y_i)
+    zo = opset10.multiply(add, m_body)
 
     body = Model([zo], [x_i, y_i, m_body], "body_function")
 
-    ti = opset8.tensor_iterator()
+    ti = opset10.tensor_iterator()
     ti.set_body(body)
     ti.set_sliced_input(x_i, param_x.output(0), 0, 2, 2, 39, 1)
     ti.set_sliced_input(y_i, param_y.output(0), 0, 2, 2, -1, 1)
@@ -90,8 +109,8 @@ def test_low_latency2():
     out0 = ti.get_iter_value(zo.output(0), -1)
     out1 = ti.get_concatenated_slices(zo.output(0), 0, 2, 2, 39, 1)
 
-    result0 = opset8.result(out0)
-    result1 = opset8.result(out1)
+    result0 = opset10.result(out0)
+    result1 = opset10.result(out1)
 
     model = Model([result0, result1], [param_x, param_y, param_m])
 
@@ -104,22 +123,33 @@ def test_low_latency2():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass(request):
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
+                                                  is_path_xml,
+                                                  is_path_bin)
 
-    func = get_test_model()
+    model = get_relu_model()
 
     manager = Manager()
     manager.register_pass(Serialize(xml_path, bin_path))
-    manager.run_passes(func)
+    manager.run_passes(model)
 
-    assert func is not None
+    assert model is not None
 
-    res_func = core.read_model(model=xml_path, weights=bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_func.get_parameters()
-    assert func.get_ordered_ops() == res_func.get_ordered_ops()
+    assert compare_models(model, res_model)
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)

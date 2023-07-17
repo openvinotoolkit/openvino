@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 namespace ov {
 class OPENVINO_API bfloat16 {
 public:
-    constexpr bfloat16() : m_value{0} {}
+    bfloat16() = default;
     bfloat16(float value) : m_value {
 #if defined ROUND_MODE_TO_NEAREST
         round_to_nearest(value)

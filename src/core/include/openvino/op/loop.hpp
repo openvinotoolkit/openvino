@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,7 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp);
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
@@ -86,7 +85,6 @@ public:
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

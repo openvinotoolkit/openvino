@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define BATCH_INDEX 0
@@ -89,7 +88,6 @@ KERNEL(reverse_ref)(
         }
 #if INPUT0_DIMS >= 5
         else if (axis[i] == Z_INDEX) {
-            printf("outputZ %d", OUTPUT_SIZE_Z);
             z = OUTPUT_SIZE_Z - z - 1;
         }
 #if INPUT0_DIMS == 6

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,15 +24,15 @@ namespace low_precision {
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ReshapeTransformation);
-    auto input = pattern::any_input();
-    auto mul_const_m = pattern::wrap_type<opset1::Constant>();
-    auto mul_m = pattern::wrap_type<opset1::Multiply>({ input, mul_const_m });
-    auto reshape_pattern_const = pattern::wrap_type<opset1::Constant>();
-    auto reshape_pattern_nonconst = pattern::any_input();
+    auto input = ov::pass::pattern::any_input();
+    auto mul_const_m = pattern::wrap_type<ov::opset1::Constant>();
+    auto mul_m = pattern::wrap_type<ov::opset1::Multiply>({ input, mul_const_m });
+    auto reshape_pattern_const = pattern::wrap_type<ov::opset1::Constant>();
+    auto reshape_pattern_nonconst = ov::pass::pattern::any_input();
     auto reshape_pattern = std::make_shared<pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
-    auto matcher = pattern::wrap_type<opset1::Reshape>({ mul_m, reshape_pattern });
+    auto matcher = pattern::wrap_type<ov::opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -41,7 +41,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
         // we can propagate only per-tensor dq through reshape with non-const reshape_pattern
         const auto& pattern_map = m.get_pattern_value_map();
         if (pattern_map.count(reshape_pattern_nonconst)) {
-            const auto mul_const = as_type_ptr<opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+            const auto mul_const = as_type_ptr<ov::opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
             if (!mul_const || ngraph::shape_size(mul_const->get_shape()) != 1) {
                 return false;
             }
@@ -56,14 +56,14 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
 
 namespace {
 
-void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape, const std::vector<ngraph::element::Type>& defaultPrecisions) {
+void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::vector<ngraph::element::Type>& defaultPrecisions) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
     //    where '4' calculated for temporary broadcast before reshape.
     //    2. Broadcast dequantization Constant, if channels are changed
     //    3. Reshape and replace
-    auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
+    auto replaceConstant = [](const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::shared_ptr<ov::opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
         if (NetworkHelper::isScalarLike(originalConstant)) {
@@ -94,7 +94,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             return;
         }
 
-        auto getBCastedConst = [](const std::shared_ptr<opset1::Constant>& constant, size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
+        auto getBCastedConst = [](const std::shared_ptr<ov::opset1::Constant>& constant, size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
             if (dimensionsToBroadcast == 1ul) {
                 return constant;
             }
@@ -107,24 +107,24 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
                 newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
             }
 
-            const auto targetShapeConstant = opset1::Constant::create(
+            const auto targetShapeConstant = ov::opset1::Constant::create(
                 element::i32,
                 Shape{ newOperationConstantBroadcastedShape.size() },
                 newOperationConstantBroadcastedShape);
 
-            return fold<opset1::Broadcast>(constant, targetShapeConstant);
+            return fold<ov::opset1::Broadcast>(constant, targetShapeConstant);
         };
 
         const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = static_cast<int>(reshapeOutputPShape[1].get_length());
-        const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+        const std::shared_ptr<ov::opset1::Constant> newReshapeConstant = std::make_shared<ov::opset1::Constant>(
             element::i32,
             Shape({ newReshapeConstValues.size() }),
             newReshapeConstValues);
 
-        const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+        const std::shared_ptr<Node> resultConstant = fold<ov::opset1::Reshape>(
             broadcastedConstant,
             newReshapeConstant,
             reshape->get_special_zero());
@@ -146,7 +146,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 } // namespace
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Reshape> reshape = ov::as_type_ptr<opset1::Reshape>(m.get_match_root());
+    std::shared_ptr<ov::opset1::Reshape> reshape = ov::as_type_ptr<ov::opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
     }
@@ -155,7 +155,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
+    reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
     return true;
@@ -200,7 +200,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         const auto inputs = op->get_output_target_inputs(0);
         if (inputs.size() == 1ul) {
             const auto consumer = inputs.begin()->get_node();
-            ignorePerTensorQuantizationCheck = ngraph::as_type<ngraph::opset1::MatMul>(consumer) != nullptr;
+            ignorePerTensorQuantizationCheck = ngraph::as_type<ov::opset1::MatMul>(consumer) != nullptr;
         }
     }
 
@@ -211,7 +211,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const PartialShape outputPShape = op->get_output_partial_shape(0);
-    if (outputPShape[1].is_dynamic()) {
+    if (outputPShape.size() < 2 || outputPShape[1].is_dynamic()) {
         return false;
     }
 

@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_TESTS)
-    add_subdirectory(common_test_utils)
     add_subdirectory(unit_test_utils)
 endif()
 

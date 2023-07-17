@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ov::test::behavior::APIBaseTest::SetUp();
         ie = PluginCache::get().ie(target_device);
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -211,6 +211,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    execNet.CreateInferRequest().Infer();
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     std::map<std::string, int> originalLayersMap;
     for (const auto &layer : function->get_ops()) {
@@ -267,9 +268,9 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
-    auto ts = CommonTestUtils::GetTimestamp();
-    std::string out_xml_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".xml";
-    std::string out_bin_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".bin";
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string out_xml_path = filePrefix + ".xml";
+    std::string out_bin_path = filePrefix + ".bin";
 
     InferenceEngine::CNNNetwork execGraph;
     // Load CNNNetwork to target plugins
@@ -280,13 +281,12 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, canExport) {
-    auto ts = CommonTestUtils::GetTimestamp();
-    std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string modelName = filePrefix;
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execNet.Export(modelName));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".xml"));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
-    CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
+    ASSERT_TRUE(CommonTestUtils::fileExists(modelName));
+    CommonTestUtils::removeFile(modelName);
 }
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
@@ -334,13 +334,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(10);
@@ -357,13 +357,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(11);

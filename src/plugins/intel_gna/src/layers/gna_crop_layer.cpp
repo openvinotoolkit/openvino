@@ -1,15 +1,15 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gna_crop_layer.hpp"
+
 #include <vector>
 
-#include "gna_crop_layer.hpp"
-#include "log/log.hpp"
 #include "log/debug.hpp"
+#include "log/log.hpp"
 
-using namespace ov::intel_gna;
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
                            const std::vector<int32_t>& offset_in,
@@ -21,15 +21,15 @@ SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
 
     auto crop_axis_detected = false;
     auto cropped_dim_size = total_size_to_crop;
-    for (int n = 0; n < axis_in.size(); n++) {
+    for (size_t n = 0; n < axis_in.size(); n++) {
         const auto axis = axis_in[n];
-        if (axis < 0 || axis >= input_dims.size()) {
+        if (axis < 0 || axis >= static_cast<int32_t>(input_dims.size())) {
             log::warning() << "Crop axis outside of input shape size detected.\n";
             continue;
         }
         const auto input_dim = input_dims[axis];
         // Skip axis that is untouched
-        if (offset_in[n] == 0 && dim_in[n] == input_dim) {
+        if (offset_in[n] == 0 && dim_in[n] == static_cast<int32_t>(input_dim)) {
             continue;
         }
         if (crop_axis_detected) {
@@ -57,4 +57,5 @@ SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer) {
     return out_val;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

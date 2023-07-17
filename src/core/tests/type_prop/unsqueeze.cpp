@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -92,9 +92,9 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
         auto out_rank = unique_axes.size() + p_shape.size();
@@ -106,7 +106,7 @@ protected:
 
         auto exp_labels = in_labels;
         for (const auto& axis : no_label_axes) {
-            if (axis < exp_labels.size()) {
+            if (axis < static_cast<int64_t>(exp_labels.size())) {
                 exp_labels.insert(exp_labels.begin() + axis, ov::no_label);
             } else {
                 exp_labels.push_back(ov::no_label);
@@ -238,7 +238,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;

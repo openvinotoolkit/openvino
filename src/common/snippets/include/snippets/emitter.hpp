@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,9 @@
 #include <vector>
 #include <cstdint>
 
-namespace ngraph {
+#include "openvino/core/node.hpp"
+
+namespace ov {
 namespace snippets {
 
 using code = const uint8_t *;
@@ -23,11 +25,9 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ngraph::Node>& n) {
-    }
+    Emitter(const std::shared_ptr<ov::Node>& n) {}
 
-    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {
-    }
+    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
@@ -46,12 +46,12 @@ public:
      * @brief called by generator to generate data section, if needed for a specific operation
      * @return void
      */
-    virtual void emit_data() const {
-    }
+    virtual void emit_data() const {}
+
     virtual ~Emitter() = default;
 };
 
-using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
+using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ov::snippets::RegInfo>;
 
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

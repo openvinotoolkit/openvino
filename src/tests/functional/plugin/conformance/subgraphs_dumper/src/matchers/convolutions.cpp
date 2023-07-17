@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "matchers/convolutions.hpp"
+
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace SubgraphsDumper;
 ConvolutionsMatcher::ConvolutionsMatcher() {

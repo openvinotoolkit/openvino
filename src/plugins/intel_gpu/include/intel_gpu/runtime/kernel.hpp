@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ public:
     using ptr = std::shared_ptr<kernel>;
     virtual std::shared_ptr<kernel> clone() const = 0;
     virtual ~kernel() = default;
+    virtual std::string get_id() const { return ""; }
 };
 
 }  // namespace cldnn

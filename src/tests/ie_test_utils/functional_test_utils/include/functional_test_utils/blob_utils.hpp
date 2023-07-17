@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -740,10 +740,11 @@ inline float reducePrecisionBitwise(const float in) {
     float f = in;
     int* i = reinterpret_cast<int*>(&f);
     int t2 = *i & 0xFFFF0000;
-    float ft1 = *(reinterpret_cast<float*>(&t2));
+    float ft1;
+    memcpy(&ft1, &t2, sizeof(float));
     if ((*i & 0x8000) && (*i & 0x007F0000) != 0x007F0000) {
         t2 += 0x10000;
-        ft1 = *(reinterpret_cast<float*>(&t2));
+        memcpy(&ft1, &t2, sizeof(float));
     }
     return ft1;
 }
@@ -767,8 +768,6 @@ enum class BlobType {
     Batched,
     Compound,
     Remote,
-    I420,
-    NV12,
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlobType type) {
@@ -781,10 +780,6 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
         return os << "Compound";
     case BlobType::Remote:
         return os << "Remote";
-    case BlobType::I420:
-        return os << "I40";
-    case BlobType::NV12:
-        return os << "NV12";
     default:
         IE_THROW() << "Not supported blob type";
     }
@@ -810,30 +805,6 @@ inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::Tensor
 // TODO: ocl + remote
 //    case BlobType::Remote:
 //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
-    case BlobType::I420: {
-        InferenceEngine::SizeVector dims = td.getDims();
-        dims[1] = 1;
-        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
-        dims[2] /= 2;
-        dims[3] /= 2;
-        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr u_blob = createAndFillBlob(td1);
-        InferenceEngine::Blob::Ptr v_blob = createAndFillBlob(td1);
-        return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
-    }
-    case BlobType::NV12: {
-        InferenceEngine::SizeVector dims = td.getDims();
-        dims[1] = 1;
-        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
-        dims[1] = 2;
-        dims[2] /= 2;
-        dims[3] /= 2;
-        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
-        InferenceEngine::Blob::Ptr uv_blob = createAndFillBlob(td1);
-        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
-    }
     default:
         IE_THROW() << "Test does not support the blob kind";
     }

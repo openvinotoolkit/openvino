@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include "openvino/opsets/opset12.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
@@ -30,10 +31,14 @@ ngraph::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
-            r.precisionsByVersion.emplace(restriction.operationType.version, restriction.precisionsByPorts);
+            r.precisionsByVersion.emplace(
+                restriction.operationType.version_id,
+                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(restriction.operationType.version, restriction.precisionsByPorts);
+            it->second.add(
+                restriction.operationType.version_id,
+                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
@@ -108,20 +113,18 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_model(const std::shar
         if (it != restrictionsByOperation.end()) {
             const Restriction& r = it->second;
             if (r.versionIsRequired) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                const auto it2 = r.precisionsByVersion.find(typeInfo.version);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                const auto it2 = r.precisionsByVersion.find(typeInfo.version_id);
                 if (it2 == r.precisionsByVersion.end()) {
                     continue;
                 }
 
-                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = it2->second;
-                setRestriction(node, precisionsByPorts);
+                const auto& precisionsByPorts = it2->second;
+                setRestriction(node, precisionsByPorts.get(node));
             } else {
                 assert(r.precisionsByVersion.size() == 1ul);
 
-                const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts = r.precisionsByVersion.begin()->second;
-                setRestriction(node, precisionsByPorts);
+                const auto& precisionsByPorts = r.precisionsByVersion.begin()->second;
+                setRestriction(node, precisionsByPorts.get(node));
             }
         }
     }
@@ -150,6 +153,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Pad>() },
+        { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
         { name<opset1::Split>() },
@@ -204,6 +208,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset6::MVN>() },
         { name<opset1::NormalizeL2>() },
         { name<opset1::Pad>() },
+        { name<ov::opset12::Pad>() },
         { name<opset1::PRelu>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMean>() },

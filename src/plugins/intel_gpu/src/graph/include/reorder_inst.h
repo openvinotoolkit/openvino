@@ -1,19 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>
 
 namespace cldnn {
+
+class ReorderFuseParams : public NodeFuseParams {
+public:
+    ReorderFuseParams(const layout& in, const layout& out) : NodeFuseParams(reorder::type_id()), _in(in), _out(out) {}
+
+    layout _in;
+    layout _out;
+};
 
 template <>
 struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
@@ -24,7 +29,6 @@ public:
         support_padding_all(true);
     }
 
-    size_t inputs_count() const { return get_primitive()->input.size(); }
     program_node& mean_nv12() const { return get_dependency(2); }
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     program_node& mean() const { return get_dependency(1); }
@@ -36,10 +40,21 @@ public:
 
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
-        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
-        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    bool is_type_conversion_only() const {
+        if (this->has_fused_primitives() || has_mean() || !typed_desc()->subtract_per_feature.empty())
+            return false;
+        auto in_layout = input().get_output_layout();
+        auto out_layout = this->get_output_layout();
+        auto check_common_layout = in_layout.data_type != out_layout.data_type &&
+                                   in_layout.format == out_layout.format &&
+                                   in_layout.data_padding == out_layout.data_padding;
+        return typed_desc()->truncate &&
+               ((this->is_dynamic() && check_common_layout && in_layout.get_partial_shape().rank() == out_layout.get_partial_shape().rank()) ||
+                (!this->is_dynamic() && check_common_layout && in_layout.get_partial_shape() == out_layout.get_partial_shape()));
+    }
+
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<ReorderFuseParams>(input_layout, get_output_layout());
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
@@ -66,7 +81,7 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument->mean.empty(); }
+    bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
 
     void update_output_memory() override;
     bool requires_reinterpret() const { return _req_reinterpr; }

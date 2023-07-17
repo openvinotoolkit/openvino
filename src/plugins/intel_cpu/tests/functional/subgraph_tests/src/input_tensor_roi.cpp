@@ -98,8 +98,6 @@ protected:
 };
 
 TEST_P(InputTensorROI, SetInputTensorROI) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     switch (GetParam().type) {
         case ov::element::Type_t::f32: {
             Run<float>();

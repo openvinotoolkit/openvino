@@ -96,7 +96,7 @@ class FastBiasCorrection(Algorithm):
             # Reshaped since bias are broadcasted
             after_biased_conv_node_name = get_quantized_input_key(after_biased_conv)
             add_out_shape = get_input_shape_for_bias(activations_statistics, after_biased_conv_node_name)
-            bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+            bias_shape = np.ones(len(add_out_shape), dtype=int)
             axis_channel = self.get_channel_axis(input_node_name)
             bias_shape[axis_channel] = add_out_shape[axis_channel]
 

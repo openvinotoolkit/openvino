@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cassert>
-#include <ngraph/variant.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {
@@ -20,7 +19,7 @@ inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, 
     }
 }
 
-inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
+inline std::string getImplPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
 
     auto it_info = rtInfo.find(ov::PrimitivesPriority::get_type_info_static());

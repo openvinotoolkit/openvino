@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,11 +79,3 @@ public:
     OPENVINO_RTTI("ConcatReduceFusion", "0");
     ConcatReduceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConcatReduceFusion;
-using ov::pass::PullSqueezeThroughEltwise;
-using ov::pass::ReplaceConcatReduceByMinOrMax;
-}  // namespace pass
-}  // namespace ngraph

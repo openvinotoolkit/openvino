@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,8 +51,6 @@ bool evaluate_greater(const HostTensorPtr& arg0,
 }  // namespace greaterop
 
 //-------------------------------------- v1 ------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::Greater);
 
 op::v1::Greater::Greater(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {

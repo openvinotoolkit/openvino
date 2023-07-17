@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 namespace ngraph {
 namespace onnx_import {
-namespace default_opset = ngraph::opset8;
+namespace default_opset = ov::opset12;
 }
 }  // namespace ngraph

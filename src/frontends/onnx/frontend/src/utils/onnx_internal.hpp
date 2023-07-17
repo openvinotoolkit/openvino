@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,12 +29,13 @@ namespace detail {
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.
 ///                         It is required if the imported model uses data saved in external files.
+/// \param      enable_mmap Enable mapping files with external weights instead of reading.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
-///
 /// \return     An nGraph function that represents a single output from the created
 /// graph.
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
+                                            const bool enable_mmap,
                                             ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
@@ -42,11 +43,12 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 /// \param      model_proto Reference to a GraphProto object.
 /// \param      model_path  The path to the imported onnx model.
 ///                         It is required if the imported model uses data saved in external files.
+/// \param      enable_mmap Enable mapping files with external weights instead of reading.
 /// \param      extensions An object containing a collection of frontend extensions to use during the import process
-///
 /// \return     A nGraph function with ONNXFrameworkNodes
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
+                                                    const bool enable_mmap,
                                                     ov::frontend::ExtensionHolder extensions = {});
 
 /// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))

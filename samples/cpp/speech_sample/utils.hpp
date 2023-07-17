@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -365,6 +365,15 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
         throw std::logic_error(ss.str());
     }
     return count;
+}
+
+/**
+ * @brief Strip the name of the input to exclude ":port"
+ * @param name input name
+ * @return striped input name
+ */
+std::string strip_name(const std::string& name) {
+    return {name, 0, name.rfind(':')};
 }
 
 /**

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #ifdef INDEX_DIM
@@ -22,11 +21,13 @@ inline uint FUNC(get_positive_index)(int in)
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 
-KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
-                   const __global INPUT1_TYPE* indices,
-                   __global OUTPUT_TYPE* output
+KERNEL(gather_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* dictionary,
+    const __global INPUT1_TYPE* indices,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-                   , FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {
@@ -53,7 +54,14 @@ KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
     const uint dictionary_idx = GET_DICTIONARY_INDEX(DICTIONARY_INDEX_ORDER);
     const uint output_idx = GET_INDEX(OUTPUT,,ORDER);
 
+
+#if GATHER_AXIS_SHAPE_INFO_INDEX
+    INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? dictionary[dictionary_idx] : 0;
+#elif AXIS_DIM
+    INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? dictionary[dictionary_idx] : 0;
+#else
     INPUT0_TYPE val = dictionary[dictionary_idx];
+#endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

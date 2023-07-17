@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -77,7 +77,7 @@ function(build_docs)
     if(ENABLE_OPENVINO_NOTEBOOKS)
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
         list(APPEND commands
-            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${RST_OUTPUT}/notebooks"
+            COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${RST_OUTPUT}/notebooks"
         )
     endif()
 
@@ -126,8 +126,8 @@ function(build_docs)
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
 
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/ovms)
+            --input_dir=${OVMS_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/ovms)
     endif()
 
     add_custom_target(preprocess_docs

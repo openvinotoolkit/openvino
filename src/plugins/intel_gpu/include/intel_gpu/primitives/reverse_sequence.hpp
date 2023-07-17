@@ -1,24 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
 struct reverse_sequence : public primitive_base<reverse_sequence> {
     CLDNN_DECLARE_PRIMITIVE(reverse_sequence)
+
+    reverse_sequence() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs reverse_sequence primitive.
     /// @param id This primitive id.
@@ -27,12 +24,12 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     /// @param seq_axis The axis which is partially reversed.
     /// @param batch_axis The axis along which reversal is performed.
     reverse_sequence(const primitive_id& id,
-                     const primitive_id& input,
-                     const primitive_id& seq_lengths,
+                     const input_info& input,
+                     const input_info& seq_lengths,
                      const int32_t seq_axis,
                      const int32_t batch_axis = 0,
                      const padding& output_padding = padding())
-        : primitive_base(id, {input, seq_lengths}, output_padding), seq_axis(seq_axis), batch_axis(batch_axis) {
+        : primitive_base(id, {input, seq_lengths}, {output_padding}), seq_axis(seq_axis), batch_axis(batch_axis) {
         const int32_t number_of_dims = 4;
 
         int32_t batch_a = batch_axis;
@@ -58,8 +55,34 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     int32_t seq_axis;
     /// @brief The axis along which reversal is performed.
     int32_t batch_axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, seq_axis);
+        seed = hash_combine(seed, batch_axis);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reverse_sequence>(rhs);
+
+        return seq_axis == rhs_casted.seq_axis &&
+               batch_axis == rhs_casted.batch_axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reverse_sequence>::save(ob);
+        ob << seq_axis;
+        ob << batch_axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reverse_sequence>::load(ib);
+        ib >> seq_axis;
+        ib >> batch_axis;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

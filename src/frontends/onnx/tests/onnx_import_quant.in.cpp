@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,18 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -269,6 +269,31 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d_dynamic) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dequantize_linear_4_dynamic.onnx"));
+
+    auto test_case = ngraph::test::TestCase(function, s_device);
+
+    // The `axis` sttribute is set to 1
+    // The data input shape in the onnx model is {-1, -1, -1, -1}
+    test_case.add_input(Shape{2, 3, 2, 4}, std::vector<int8_t>{7, 9, 10, 10, 5, 8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10, 8,
+                                                               2, 6, 0,  5,  9, 8, 1, 2, 7, 5, 3, 2, 4,  1, 3, 8,  7,
+                                                               4, 8, 10, 1,  5, 5, 7, 7, 0, 2, 4, 4, 0,  5});  // x
+    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                                                // scale
+    test_case.add_input(std::vector<int8_t>{10, 2, 1});  // zero_point
+
+    test_case.add_expected_output<float>(
+        {2, 3, 2, 4},
+        std::vector<float>{-3.0f, -1.0f,  0.0f,  0.0f,  -5.0f, -2.0f, -1.0f, -9.0f, 60.0f, 40.0f, 50.0f, 70.0f,
+                           80.0f, -20.0f, 50.0f, 80.0f, 49.0f, 7.0f,  35.0f, -7.0f, 28.0f, 56.0f, 49.0f, 0.0f,
+                           -8.0f, -3.0f,  -5.0f, -7.0f, -8.0f, -6.0f, -9.0f, -7.0f, 60.0f, 50.0f, 20.0f, 60.0f,
+                           80.0f, -10.0f, 30.0f, 30.0f, 42.0f, 42.0f, -7.0f, 7.0f,  21.0f, 21.0f, -7.0f, 28.0f});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -276,11 +301,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
 
     auto test_case = ngraph::test::TestCase(function, s_device);
 
-    test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5,  8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10,
-                                             8, 2, 6,  0,  5,  9, 8, 1, 2, 7, 5, 3, 2,  4, 1, 3,
-                                             8, 7, 4,  8,  10, 1, 5, 5, 7, 7, 0, 2, 4,  4, 0, 5});  // x
-    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                                     // scale
-    test_case.add_input(std::vector<uint8_t>{10, 2, 1});                                            // zero_point
+    test_case.add_input(std::vector<int8_t>{7, 9, 10, 10, 5,  8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10,
+                                            8, 2, 6,  0,  5,  9, 8, 1, 2, 7, 5, 3, 2,  4, 1, 3,
+                                            8, 7, 4,  8,  10, 1, 5, 5, 7, 7, 0, 2, 4,  4, 0, 5});  // x
+    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                                    // scale
+    test_case.add_input(std::vector<int8_t>{10, 2, 1});                                            // zero_point
 
     test_case.add_expected_output<float>(
         {2, 3, 2, 4},
@@ -1061,7 +1086,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
     const Shape data_shape{1, 2, 3, 4};
     const auto n_elements = shape_size(data_shape);
     std::vector<float> input_data(n_elements);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
+    std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);
@@ -1081,7 +1106,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer) {
     const Shape data_shape{1, 2, 3, 4};
     const size_t n_elements = shape_size(data_shape);
     std::vector<float> input_data(n_elements);
-    std::iota(std::begin(input_data), std::end(input_data), 0);
+    std::iota(std::begin(input_data), std::end(input_data), 0.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(input_data);

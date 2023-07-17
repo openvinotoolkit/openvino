@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ void RandomUniformLayerTest::SetUp() {
     std::string targetName;
     std::tie(output_shape, randomUniformParams, global_seed, op_seed, targetDevice) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(randomUniformParams.precision);
-    auto out_shape_ = std::make_shared<ov::opset8::Constant>(ov::element::i64,
+    auto out_shape_ = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                              ov::Shape{output_shape.size()},
                                                              output_shape);
 
@@ -82,7 +82,7 @@ void RandomUniformLayerTest::SetUp() {
 
 void RandomUniformLayerTest::ConvertRefsParams() {
     // we shouldn't use default conversion from f16 to f32
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(
             functionRefs);
 }
 

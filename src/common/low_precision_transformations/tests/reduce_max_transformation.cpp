@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-class ReduceMaxTransformation : public ReduceTransformation<opset1::ReduceMax> {
+class ReduceMaxTransformation : public ReduceTransformation<ov::op::v1::ReduceMax> {
     void SetUp() override {
         ReduceTransformation::SetUp();
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ngraph::opset1::ReduceMax>(transformationParams);
+        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ov::op::v1::ReduceMax>(transformationParams);
         transform.transform(actualFunction);
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,9 @@
 
 #include <openvino/core/partial_shape.hpp>
 #include <openvino/core/type/element_type.hpp>
+
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -288,21 +291,35 @@ struct padding {
     /// @return Tensor with padding for bottom/right/upper bounds of data.
     tensor upper_size() const { return _upper_size; }
 
+    void set_dynamic_pad(const tensor& dynamic_pad_dims) {
+        _dynamic_pad_dims = dynamic_pad_dims;
+    }
+
+    tensor get_dynamic_pad_dims() const {
+        return _dynamic_pad_dims;
+    }
     /// @brief
     /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
     /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
     /// @param filling_value Filling value for padding area.
-    padding(const std::vector<tensor::value_type>& lower_sizes, const std::vector<tensor::value_type>& upper_sizes, float filling_value = 0.0f)
-        : _lower_size(to_abs(lower_sizes), 0), _upper_size(to_abs(upper_sizes), 0), _filling_value(filling_value) {}
+    padding(const std::vector<tensor::value_type>& lower_sizes,
+            const std::vector<tensor::value_type>& upper_sizes,
+            float filling_value = 0.0f,
+            const tensor& dynamic_pad_dims = tensor(0))
+        : _lower_size(to_abs(lower_sizes), 0),
+          _upper_size(to_abs(upper_sizes), 0),
+          _filling_value(filling_value),
+          _dynamic_pad_dims(dynamic_pad_dims) {}
 
     /// @brief Constrcuts symmetric padding.
-    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
+    /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
+    /// value_type) for details.
     /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f)
-        : padding(sizes, sizes, filling_value) {}
+    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f, const tensor& dynamic_pad_dims = tensor(0))
+        : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
-    padding() : padding({0, 0, 0, 0}, 0) {}
+    padding() : padding({0, 0, 0, 0}, 0, tensor(0)) {}
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
@@ -311,7 +328,8 @@ struct padding {
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
-        return lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size && lhs._filling_value == rhs._filling_value;
+        return lhs._lower_size == rhs._lower_size && lhs._upper_size == rhs._upper_size &&
+               lhs._filling_value == rhs._filling_value && lhs._dynamic_pad_dims == rhs._dynamic_pad_dims;
     }
 
     friend bool operator!=(const padding& lhs, const padding& rhs) {
@@ -329,7 +347,35 @@ struct padding {
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
         auto lower = tensor::max(lhs.lower_size(), rhs.lower_size());
         auto upper = tensor::max(lhs.upper_size(), rhs.upper_size());
-        return padding{lower.sizes(), upper.sizes(), filling_value};
+        auto dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
+        return padding{lower.sizes(), upper.sizes(), filling_value, dynamic_pad_dims};
+    }
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, _filling_value);
+        seed = cldnn::hash_combine(seed, _lower_size.hash());
+        seed = cldnn::hash_combine(seed, _upper_size.hash());
+        seed = cldnn::hash_combine(seed, _dynamic_pad_dims.hash());
+        return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const {
+        ob << _lower_size.sizes();
+        ob << _upper_size.sizes();
+        ob << _filling_value;
+        ob << _dynamic_pad_dims.sizes();
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        std::vector<tensor::value_type> sizes;
+        ib >> sizes;
+        _lower_size = tensor(sizes);
+        ib >> sizes;
+        _upper_size = tensor(sizes);
+        ib >> _filling_value;
+        ib >> sizes;
+        _dynamic_pad_dims = tensor(sizes);
     }
 
 private:
@@ -339,6 +385,7 @@ private:
     float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than float it is converted
                            ///< to it using round-towards-nearest-even (for floating-point data types) or round-towards-zero (for integral
                            ///< data types).
+    tensor _dynamic_pad_dims = tensor(0);
 
     static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
         std::vector<tensor::value_type> result;
@@ -351,6 +398,12 @@ private:
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
 struct layout {
+    struct Hasher {
+        size_t operator()(const layout &l) const {
+            return l.hash();
+        }
+    };
+
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
         : data_type(data_type)
@@ -395,6 +448,10 @@ struct layout {
             }
             return l.size;
         };
+
+        if (lhs.get_partial_shape().rank() != rhs.get_partial_shape().rank())
+            return false;
+
         auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
     }
@@ -476,6 +533,14 @@ struct layout {
 
     bool is_dynamic() const;
 
+    bool has_upper_bound() const {
+        for (const auto& dim : size) {
+            if (dim.get_max_length() == -1)
+                return false;
+        }
+        return true;
+    }
+
     bool is_static() const;
 
     ov::PartialShape get_partial_shape() const;
@@ -501,7 +566,22 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    ov::PartialShape transform(cldnn::format new_fmt) const;
+    static size_t max_rank() { return 8; }
+    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_combine(seed, data_padding.hash());
+        seed = hash_combine(seed, format.value);
+        seed = hash_combine(seed, data_type);
+
+        auto pshape = get_partial_shape();
+        for (size_t idx = 0; idx < pshape.size(); idx++) {
+            auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
+            seed = hash_combine(seed, v);
+        }
+        return seed;
+    }
 
 private:
     /// The size of the @ref memory (excluding padding)

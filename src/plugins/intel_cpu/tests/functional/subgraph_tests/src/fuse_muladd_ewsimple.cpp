@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,8 +54,6 @@ void FuseMulAddAndEwSimpleTest1::CreateGraph() {
 }
 
 TEST_P(FuseMulAddAndEwSimpleTest1, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
 }
 
@@ -79,8 +77,6 @@ void FuseMulAddAndEwSimpleTest2::CreateGraph() {
 }
 
 TEST_P(FuseMulAddAndEwSimpleTest2, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
 }
 
@@ -103,8 +99,6 @@ void FuseMulAddAndEwSimpleTest3::CreateGraph() {
 }
 
 TEST_P(FuseMulAddAndEwSimpleTest3, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ struct TestTransformationParams {
     std::vector<element::Type> defaultPrecisions;
 };
 
-class LayerTransformation : public CommonTestUtils::TestsCommon {
+class LayerTransformation : public ov::test::TestsCommon {
 public:
     static TestTransformationParams createParamsU8U8();
     static TestTransformationParams createParamsU8I8();

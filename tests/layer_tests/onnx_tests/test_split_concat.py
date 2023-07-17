@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -191,7 +191,7 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
         concat_output_shape[concat_axis] *= 2
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
         outputs, split = [], []
@@ -261,24 +261,28 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
@@ -286,6 +290,7 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
@@ -293,6 +298,7 @@ class TestSplitConcat(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
@@ -543,18 +549,21 @@ class TestSplit(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

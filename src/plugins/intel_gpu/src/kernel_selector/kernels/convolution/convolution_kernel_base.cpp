@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,8 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         MakeJitConstant("STRIDE", params.stride),
         MakeJitConstant("PADDING", params.padding),
         MakeJitConstant("DILATION", params.dilation),
-        MakeJitConstant("FILTER_ARRAY_NUM", params.split * params.groups),
+        MakeJitConstant("FILTER_ARRAY_NUM", params.groups),
         MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-        MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", params.depthwise_separable_opt),
         MakeJitConstant("GROUPED", (params.groups > 1) ? 1 : 0),
     });
 
@@ -78,6 +77,12 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
             mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
     }
 
+    if (!params.is_shape_agnostic) {
+        if (params.outputs[0].Batch().v == 1) {
+            mem_consts.AddConstant(MakeJitConstant("SKIP_BATCH", 1));
+        }
+    }
+
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
                                            params.filterSize.y,
                                            (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
@@ -107,41 +112,6 @@ bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::Dispatc
     }
 
     return true;
-}
-
-namespace {
-bool CheckTensorForSplit(const DataTensor& t, uint32_t split) {
-    if (t.PitchesDifferFromLogicalDims()) {
-        auto feature = t.Feature();
-        auto featureIndex = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::FEATURE);
-        if (featureIndex >= 0 && featureIndex + 1 < static_cast<int>(DataTensor::ChannelsCount(t.GetLayout()))) {
-            if (feature.v * split <= t.GetDims()[featureIndex + 1].pitch) {
-                Tensor::NDims newDims = t.GetDims();
-                newDims[featureIndex].v = feature.v * split;
-
-                DataTensor newTensor{newDims,
-                                     t.GetDType(),
-                                     t.GetLayout(),
-                                     t.GetViewOffset(),
-                                     t.PhysicalSize(),
-                                     t.GetPaddedVal()};
-
-                if (newTensor.PitchesDifferFromLogicalDims() == false) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    return true;
-}
-}  // namespace
-
-bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& params) {
-    // TODO: it's better to add pitch+offset support than handle this case
-    return CheckTensorForSplit(params.inputs[0], params.split);
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
@@ -220,7 +190,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(dispatchData)) {
+    if (!params.is_shape_agnostic && !CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
@@ -229,6 +199,19 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -240,7 +223,8 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1);
+                     1, 0, 1,
+                     newParams.inputs[0].is_dynamic() || newParams.outputs[0].is_dynamic());
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -262,8 +246,6 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
             fused_deps_total++;
         }
     }
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
-
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};
@@ -353,7 +335,7 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,

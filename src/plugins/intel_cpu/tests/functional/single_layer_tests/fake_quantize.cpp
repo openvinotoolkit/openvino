@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,6 @@ private:
 };
 
 TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 
     CheckPluginRelatedResults(compiledModel, layerName);
@@ -200,7 +199,7 @@ std::vector<inputShapes> rangesShapes4D_jit = {
         {{1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}}
     },
 };
-
+#if defined(OPENVINO_ARCH_X86_64)
 const auto testParams4D_jit = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(rangesShapes4D_jit),
                                                  ::testing::Values(Precision::FP32),
@@ -208,7 +207,7 @@ const auto testParams4D_jit = ::testing::Combine(specificParams,
                                                  ::testing::Values(false),
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm4D_jit)));
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_jit, FakeQuantizeLayerCPUTest, testParams4D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
-
+#endif
 
 std::vector<CPUSpecificParams> memForm4D_ref = {
         CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
@@ -233,7 +232,7 @@ const auto testParams4D_ref = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(memForm4D_ref));
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_ref, FakeQuantizeLayerCPUTest, testParams4D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
 
-
+#if defined(OPENVINO_ARCH_X86_64)
 std::vector<CPUSpecificParams> memForm5D_jit = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
@@ -267,7 +266,7 @@ const auto testParams5D_jit = ::testing::Combine(specificParams,
                                                  ::testing::ValuesIn(filterCPUSpecificParams(memForm5D_jit)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_jit, FakeQuantizeLayerCPUTest, testParams5D_jit, FakeQuantizeLayerCPUTest::getTestCaseName);
-
+#endif
 
 std::vector<CPUSpecificParams> memForm5D_ref = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})
@@ -332,6 +331,14 @@ std::vector<inputShapes> decomposeShapes = {
     inputShapes{
         InputShape{{4, 5, 6, 7}, {{4, 5, 6, 7}}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
+    },
+    inputShapes{
+        InputShape{{4, 5, 6, 6}, {{4, 5, 6, 6}}},
+        {{1, 1, 6, 6}, {1, 1, 6, 6}, {1, 5, 6, 1}, {1, 5, 1, 6}}
+    },
+    inputShapes{
+        InputShape{{4, 5, 6, 6}, {{4, 5, 6, 6}}},
+        {{1, 5, 6, 1}, {1, 5, 6, 1}, {1, 5, 6, 1}, {1, 5, 1, 6}}
     },
     inputShapes{
         InputShape{{3, 4, 5, 6, 7}, {{3, 4, 5, 6, 7}}},

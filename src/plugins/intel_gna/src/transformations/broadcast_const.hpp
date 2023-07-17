@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,10 +48,10 @@ namespace pass {
  */
 class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
-  BroadcastAddMultiplyConst();
+    OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
+    BroadcastAddMultiplyConst();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

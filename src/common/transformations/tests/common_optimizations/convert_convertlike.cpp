@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <transformations/op_conversions/convert_convertlike.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_convertlike.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -29,8 +28,8 @@ TEST(TransformationTests, ConvertConvertLike) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -58,8 +57,8 @@ TEST(TransformationTests, ConvertConvertLike2) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -85,8 +84,8 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cvtlike}, ngraph::ParameterVector{data, like});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertConvertLike>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertConvertLike>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

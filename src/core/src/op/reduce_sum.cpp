@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,18 +18,10 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceSum);
-
 op::v1::ReduceSum::ReduceSum(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::ReduceSum::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_ReduceSum_clone_with_new_inputs);
@@ -41,7 +33,9 @@ namespace reduce_sum {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     runtime::reference::sum(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
@@ -66,11 +60,13 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceSum_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }

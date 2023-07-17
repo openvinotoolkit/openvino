@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -89,14 +89,6 @@ inputInfo.setLayout(ie.Layout.NHWC)
 # model input layout is always NCHW in Inference Engine
 # for shapes with 4 dimensions
 #! [conversions]
-
-#! [color_space]
-
-preProcess = network.getInputsInfo()[operation_name].getPreProcess()
-# Inference Engine supposes NV12 as two inputs which need to be passed
-# as InferenceEngine::NV12Blob composed of two Y and UV planes
-preProcess.setColorFormat(ie.NV12)
-#! [color_space]
 
 #! [image_scale]
 preProcess = network.getInputsInfo()[operation_name].getPreProcess()

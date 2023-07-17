@@ -2,23 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief generate proposals
 struct generate_proposals
         : public primitive_base<generate_proposals> {
     CLDNN_DECLARE_PRIMITIVE(generate_proposals)
+
+    generate_proposals() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs generate_proposals primitive
     /// @param id This primitive id
@@ -36,7 +33,7 @@ struct generate_proposals
     /// @param nms_eta eta parameter for adaptive NMS
     /// @param roi_num_type type of 3rd output elements
     generate_proposals(const primitive_id& id,
-                       const std::vector<primitive_id>& inputs,
+                       const std::vector<input_info>& inputs,
                        float min_size,
                        float nms_threshold,
                        int64_t pre_nms_count,
@@ -45,9 +42,9 @@ struct generate_proposals
                        float nms_eta,
                        const data_types roi_num_type,
                        const padding& output_padding = {}) :
-            primitive_base{id, inputs, output_padding},
-            output_rois_scores{inputs[4]},
-            output_rois_num{inputs[5]},
+            primitive_base{id, inputs, {output_padding}},
+            output_rois_scores{inputs[4].pid},
+            output_rois_num{inputs[5].pid},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},
@@ -66,6 +63,65 @@ struct generate_proposals
     float nms_eta;
     data_types roi_num_type;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, min_size);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, pre_nms_count);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, normalized);
+        seed = hash_combine(seed, nms_eta);
+        seed = hash_combine(seed, roi_num_type);
+        seed = hash_combine(seed, output_rois_scores.empty());
+        seed = hash_combine(seed, output_rois_num.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const generate_proposals>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(min_size) &&
+               cmp_fields(nms_threshold) &&
+               cmp_fields(pre_nms_count) &&
+               cmp_fields(post_nms_count) &&
+               cmp_fields(normalized) &&
+               cmp_fields(nms_eta) &&
+               cmp_fields(roi_num_type) &&
+               cmp_fields(output_rois_scores.empty()) &&
+               cmp_fields(output_rois_num.empty());
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<generate_proposals>::save(ob);
+        ob << output_rois_scores;
+        ob << output_rois_num;
+        ob << min_size;
+        ob << nms_threshold;
+        ob << pre_nms_count;
+        ob << post_nms_count;
+        ob << normalized;
+        ob << nms_eta;
+        ob << make_data(&roi_num_type, sizeof(data_types));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<generate_proposals>::load(ib);
+        ib >> output_rois_scores;
+        ib >> output_rois_num;
+        ib >> min_size;
+        ib >> nms_threshold;
+        ib >> pre_nms_count;
+        ib >> post_nms_count;
+        ib >> normalized;
+        ib >> nms_eta;
+        ib >> make_data(&roi_num_type, sizeof(data_types));
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -76,7 +132,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "primitive_inst.h"
@@ -24,7 +23,6 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 
-    size_t inputs_count() const { return desc->input.size(); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 

@@ -4,50 +4,51 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+using namespace std;
 using namespace testing;
 using namespace ov;
 using namespace opset9;
 
 namespace {
-    template<typename ReduceType>
-    std::shared_ptr<Model> generate_model(element::Type in_type,
-                                     PartialShape in_shape,
-                                     std::vector<int64_t> reshape_target_shape,
-                                     std::vector<int64_t> reduce_axes,
-                                     bool reduce_keep_dims,
-                                     bool reshape_special_zero) {
-        const auto input = std::make_shared<Parameter>(in_type, in_shape);
-        const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
-        const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, reduce_keep_dims);
-        const auto target_shape = Constant::create(element::i64, Shape{reshape_target_shape.size()}, reshape_target_shape);
-        const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, reshape_special_zero);
+template <typename ReduceType>
+std::shared_ptr<Model> generate_model(element::Type in_type,
+                                      PartialShape in_shape,
+                                      std::vector<int64_t> reshape_target_shape,
+                                      std::vector<int64_t> reduce_axes,
+                                      bool reduce_keep_dims,
+                                      bool reshape_special_zero) {
+    const auto input = std::make_shared<Parameter>(in_type, in_shape);
+    const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
+    const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, reduce_keep_dims);
+    const auto target_shape = Constant::create(element::i64, Shape{reshape_target_shape.size()}, reshape_target_shape);
+    const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, reshape_special_zero);
 
-        return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input});
-    }
+    return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input});
+}
 
-    template<typename ReduceType>
-    std::shared_ptr<Model> generate_ref_model(element::Type in_type,
-                                         PartialShape in_shape,
-                                         std::vector<int64_t> reduce_axes) {
-        const auto input = std::make_shared<Parameter>(in_type, in_shape);
-        const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
-        const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, true);
+template <typename ReduceType>
+std::shared_ptr<Model> generate_ref_model(element::Type in_type,
+                                          PartialShape in_shape,
+                                          std::vector<int64_t> reduce_axes) {
+    const auto input = std::make_shared<Parameter>(in_type, in_shape);
+    const auto reduce_axes_const = Constant::create(element::i64, Shape{reduce_axes.size()}, reduce_axes);
+    const auto reduce_mean = std::make_shared<ReduceType>(input, reduce_axes_const, true);
 
-        return std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input});
-    }
-} // namespace
+    return std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input});
+}
+}  // namespace
 
 struct ReduceReshapeFusionParams {
     element::Type in_type;
@@ -58,20 +59,20 @@ struct ReduceReshapeFusionParams {
     bool reshape_special_zero;
 };
 
-class ReduceReshapeFusion
-        : public WithParamInterface<ReduceReshapeFusionParams>,
-          public TransformationTestsF {
-};
+class ReduceReshapeFusion : public WithParamInterface<ReduceReshapeFusionParams>, public TransformationTestsF {};
 
 TEST_P(ReduceReshapeFusion, ReduceReshapeFusionPattern) {
     const auto& p = GetParam();
     {
-        model = generate_model<ReduceMean>(p.in_type, p.in_shape, p.reshape_target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model = generate_model<ReduceMean>(p.in_type,
+                                           p.in_shape,
+                                           p.reshape_target_shape,
+                                           p.reduce_axes,
+                                           p.keep_dims,
+                                           p.reshape_special_zero);
         manager.register_pass<pass::ReduceReshapeFusion>();
     }
-    {
-        model_ref = generate_ref_model<ReduceMean>(p.in_type, p.in_shape, p.reduce_axes);
-    }
+    { model_ref = generate_ref_model<ReduceMean>(p.in_type, p.in_shape, p.reduce_axes); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -94,12 +95,10 @@ INSTANTIATE_TEST_SUITE_P(ReduceReshapeFusion, ReduceReshapeFusion, ValuesIn(para
 
 TEST_F(TransformationTestsF, ReduceOrReshapeFusion) {
     {
-        model =  generate_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {5, 1, 1, 20}, {1, 2}, false, false);
+        model = generate_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {5, 1, 1, 20}, {1, 2}, false, false);
         manager.register_pass<pass::ReduceReshapeFusion>();
     }
-    {
-        model_ref =  generate_ref_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {1, 2});
-    }
+    { model_ref = generate_ref_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {1, 2}); }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -131,7 +130,7 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfNonConstReduceAxes) {
     const auto target_shape = Constant::create(element::i64, Shape{3}, {5, 1, 15});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model =  std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, reduce_axes});
+    model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, reduce_axes});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
@@ -142,7 +141,7 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfNonConstReshapeTargetS
     const auto target_shape = std::make_shared<Parameter>(element::i64, PartialShape{3});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model =  std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, target_shape});
+    model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, target_shape});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
@@ -154,6 +153,24 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfMoreThanOneReduceConsu
     const auto target_shape = Constant::create(element::i64, Shape{2}, {1, 1});
     const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
 
-    model =  std::make_shared<Model>(NodeVector{reshape, add}, ParameterVector{input});
+    model = std::make_shared<Model>(NodeVector{reshape, add}, ParameterVector{input});
     manager.register_pass<pass::ReduceReshapeFusion>();
+}
+
+TEST(TransformationTests, ReduceMeanReshapeFusionAssertValidOutputShape) {
+    const auto input = make_shared<Parameter>(element::f32, PartialShape{1, 16, 16, 24});
+    const auto reduce_axes = Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto reduce_mean = make_shared<ReduceMean>(input, reduce_axes, false);
+    const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 1, 1, 24});
+    const auto reshape = make_shared<Reshape>(reduce_mean, target_shape, false);
+    const auto order = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+    const auto transpose = make_shared<Transpose>(reshape, order);
+
+    auto model = make_shared<Model>(NodeVector{transpose}, ParameterVector{input});
+
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::ReduceReshapeFusion>();
+    manager.register_pass<pass::TransposeToReshape>();
+    ASSERT_NO_THROW(manager.run_passes(model));
 }

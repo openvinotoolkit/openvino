@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,11 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizePackedBinaryOutput();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, const optional_params&) const {
+CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
 
     auto output = params.outputs[0];
@@ -44,7 +45,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
     } else {
         dispatchData.gws[0] = output.Batch().v;
         dispatchData.gws[1] = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v * output.W().v, 16);
+        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v * output.W().v * output.U().v * output.V().v, 16);
 
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;

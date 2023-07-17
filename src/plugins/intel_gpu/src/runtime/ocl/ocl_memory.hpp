@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,11 +67,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override;
-    event::ptr copy_from(stream& /* stream */, const void* /* other */, bool /* blocking */) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* other, bool blocking) override;
 
-    event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override;
-    event::ptr copy_to(stream& /* stream */, void* /* other */, bool /* blocking */) override;
+    event::ptr copy_to(stream& stream, memory& other, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* other, bool blocking) override;
 
 protected:
     cl::Image2D _buffer;
@@ -142,7 +142,6 @@ struct ocl_surfaces_lock : public surfaces_lock {
     ~ocl_surfaces_lock() = default;
 private:
     std::vector<cl_mem> get_handles(std::vector<memory::ptr> mem) const;
-    const stream& _stream;
     std::vector<cl_mem> _handles;
     std::unique_ptr<cl::SharedSurfLock> _lock;
 };

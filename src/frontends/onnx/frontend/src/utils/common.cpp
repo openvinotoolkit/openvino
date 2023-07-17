@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return element::bf16;
     }
-    throw ngraph_error("unsupported element type");
+    OPENVINO_THROW("unsupported element type");
 }
 
 std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<ngraph::Node>& value,
@@ -114,6 +114,7 @@ template OutputVector handle_opset6_binary_op<default_opset::Add>(const Node& no
 template OutputVector handle_opset6_binary_op<default_opset::Divide>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Multiply>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
+template OutputVector handle_opset6_binary_op<default_opset::LogicalAnd>(const Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 

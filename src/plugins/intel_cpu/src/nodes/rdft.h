@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <node.h>
 #include <string>
 #include <map>
-#include "kernels/rdft_kernel.hpp"
+#include "kernels/x64/rdft_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,23 +75,33 @@ struct RDFTExecutor {
 
 class RDFT : public Node {
 public:
-    RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
+    void createPrimitive() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    bool axesChanged() const;
+    bool signalSizesChanged() const;
+
+    bool needShapeInfer() const override;
+    bool needPrepareParams() const override;
+
     std::string errorMsgPrefix;
     bool inverse;
     std::vector<int> axes;
     std::vector<int> signalSizes;
     std::vector<std::vector<float>> twiddles;
     std::shared_ptr<RDFTExecutor> executor;
+    bool isAxesConstant = false;
+    bool isSignalSizesConstant = false;
 };
 
 }   // namespace node

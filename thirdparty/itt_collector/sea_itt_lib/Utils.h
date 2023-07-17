@@ -42,7 +42,7 @@
 #    include <sys/types.h>
 #endif
 
-static std::string get_environ_value(const std::string& name) {
+inline std::string get_environ_value(const std::string& name) {
 #ifdef _WIN32
     size_t sz;
     char* v = NULL;

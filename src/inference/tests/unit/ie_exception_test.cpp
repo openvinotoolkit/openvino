@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <string>
 
 #include "ie_common.h"
+
+IE_SUPPRESS_DEPRECATED_START
 
 //  tests/unit/inference_engine/exception_test.cpp
 
@@ -25,7 +28,6 @@ TEST(ExceptionTests, CanDefineExceptionContent) {
     ASSERT_STREQ(exception.what(), "");
 }
 
-
 #ifndef NDEBUG
 TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
     std::string message = "exception";
@@ -33,9 +35,9 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
     try {
         lineNum = __LINE__ + 1;
         IE_THROW() << message;
-    }
-    catch (InferenceEngine::Exception &iex) {
-        std::string ref_message = std::string {"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " " + message;
+    } catch (InferenceEngine::Exception& iex) {
+        std::string ref_message =
+            std::string{"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " [ GENERAL_ERROR ] " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
     }
 }
@@ -44,9 +46,8 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
     std::string message = "exception";
     try {
         IE_THROW() << message;
-    }
-    catch (InferenceEngine::Exception &iex) {
-        std::string ref_message = message;
+    } catch (InferenceEngine::Exception& iex) {
+        std::string ref_message = "[ GENERAL_ERROR ] " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
     }
 }
@@ -56,7 +57,7 @@ TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
     ASSERT_THROW(IE_THROW(), std::exception);
 }
 
-#ifdef    NDEBUG  // disabled for debug as macros calls assert()
+#ifdef NDEBUG  // disabled for debug as macros calls assert()
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfTrue) {
     ASSERT_NO_THROW(IE_ASSERT(true) << "shouldn't assert if true");
 }

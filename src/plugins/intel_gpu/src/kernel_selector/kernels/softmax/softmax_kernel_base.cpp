@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,24 +7,14 @@
 namespace kernel_selector {
 JitConstants SoftmaxKernelBase::GetJitConstants(const softmax_params& params,
                                                 SoftmaxKernelBase::DispatchData dispatchData) const {
-    JitConstants mem_consts = MakeBaseParamsJitConstants(params);
+    JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    mem_consts.AddConstants({MakeJitConstant("ALONG_" + toString(params.dim), "")});
+    jit.AddConstants({MakeJitConstant("ALONG_" + toString(params.dim), "1")});
 
-    mem_consts.AddConstants({
-        MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
-        MakeJitConstant("LWS", dispatchData.lws[0]),
-        MakeJitConstant("GWS", dispatchData.gws[0]),
-        MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
-        MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-        MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
-    });
-
-    return mem_consts;
+    return jit;
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&,
-                                                              const optional_params&) const {
+SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&) const {
     DispatchData dispatchData;
 
     dispatchData.gws[0] = 1;
@@ -40,6 +30,7 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     dispatchData.normIndex = 0;
     dispatchData.dataSetsCount = 0;
     dispatchData.dataSetSize = 0;
+    dispatchData.maxSlmSize = 0;
 
     return dispatchData;
 }
@@ -60,13 +51,25 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     const softmax_params& orgParams = static_cast<const softmax_params&>(params);
     KernelData kd = KernelData::Default<softmax_params>(params);
 
-    auto dispatchData = SetDefault(orgParams, options);
+    auto dispatchData = SetDefault(orgParams);
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     orgParams.outputs[0].is_dynamic());
 
     return {kd};
 }
@@ -89,27 +92,41 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
 
     switch (params.dim) {
         case SoftmaxDim::X:
-            return input.Y().v == 1 && input.Z().v == 1 && input.Feature().v == 1;
+            return !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1 &&
+                   !input.Feature().is_dynamic && input.Feature().v == 1;
         case SoftmaxDim::Y:
-            return input.X().v == 1 && input.Z().v == 1 && input.Feature().v == 1;
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1 &&
+                   ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
         case SoftmaxDim::Z:
-            return input.X().v == 1 && input.Y().v == 1 && input.Feature().v == 1;
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Feature().is_dynamic && input.Feature().v == 1;
         case SoftmaxDim::FEATURE:
-            return input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
+            return !input.X().is_dynamic && input.X().v == 1 &&
+                   !input.Y().is_dynamic && input.Y().v == 1 &&
+                   !input.Z().is_dynamic && input.Z().v == 1;
         default:
             return false;
     }
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_params& params,
-                                                                const optional_params& options) const {
+SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_params& params) const {
     const auto& input = params.inputs[0];
 
-    DispatchData dispatchData = Parent::SetDefault(params, options);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
-    auto flatten_input = input.FlattenFeatureAndSpatials();
-    dispatchData.dataSetSize = flatten_input.Feature().v;
-    dispatchData.dataSetsCount = input.Batch().v;
+    if (params.dim == SoftmaxDim::Y && input.Feature().v > 1 && input.GetLayout() == DataLayout::bfyx) {
+        // Flatten BF for such case, X is expected to be 1
+        OPENVINO_ASSERT(input.X().v == 1, "[GPU] SoftmaxKernelBaseBF: input.X() is expected to be 1 while actual value is ", input.X().v);
+        dispatchData.dataSetSize = input.Y().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
+    } else {
+        auto flatten_input = input.FlattenFeatureAndSpatials();
+        dispatchData.dataSetSize = flatten_input.Feature().v;
+        dispatchData.dataSetsCount = input.Batch().v;
+    }
 
     return dispatchData;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,9 @@ std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
         auto relu = std::make_shared<ov::opset8::Relu>(input);
         auto type_relaxed =
-            std::make_shared<ngraph::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
-                                                                        std::vector<element::Type>{element::f32},
-                                                                        relu);
+            std::make_shared<ov::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+                                                                    std::vector<element::Type>{element::f32},
+                                                                    relu);
         auto axis_node = ov::opset8::Constant::create(ov::element::i64, Shape{}, {1});
         auto split = std::make_shared<ov::opset8::Split>(type_relaxed, axis_node, 2);
         return split->outputs();
@@ -34,9 +34,9 @@ std::shared_ptr<ov::Model> create_complex_function(size_t wide = 50) {
     const auto& concat_subgraph = [](const ov::OutputVector& inputs) -> ov::Output<ov::Node> {
         auto concat = std::make_shared<ov::opset8::Concat>(inputs, 1);
         auto type_relaxed =
-            std::make_shared<ngraph::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
-                                                                        std::vector<element::Type>{element::f32},
-                                                                        concat);
+            std::make_shared<ov::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+                                                                    std::vector<element::Type>{element::f32},
+                                                                    concat);
         auto relu = std::make_shared<ov::opset8::Relu>(concat);
         return relu->output(0);
     };

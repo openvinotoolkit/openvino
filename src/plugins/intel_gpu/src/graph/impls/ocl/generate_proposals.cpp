@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "generate_proposals_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "generate_proposals_inst.h"
 #include "generate_proposals/generate_proposals_kernel_selector.h"
 #include "generate_proposals/generate_proposals_kernel_ref.h"
-
-
 
 namespace cldnn {
 namespace ocl {
@@ -27,8 +24,8 @@ struct generate_proposals_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance, int32_t) const override {
-        auto args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance) const override {
+        auto args = parent::get_arguments(instance);
         args.inputs.push_back(instance.output_rois_scores_memory());
         args.inputs.push_back(instance.output_rois_nums_memory());
         return args;
@@ -79,3 +76,4 @@ namespace detail {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generate_proposals_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::generate_proposals)

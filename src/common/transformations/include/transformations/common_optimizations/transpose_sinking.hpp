@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
@@ -92,14 +90,3 @@ public:
         add_matcher<ov::pass::TransposeFuse>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::TransposeConvert;
-using ov::pass::TransposeEltwise;
-using ov::pass::TransposeFQReduction;
-using ov::pass::TransposeFuse;
-using ov::pass::TransposeReduction;
-using ov::pass::TransposeSinking;
-}  // namespace pass
-}  // namespace ngraph

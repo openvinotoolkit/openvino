@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,6 @@ void SetUp() override {
 };
 
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     using indexInterval = std::pair<size_t, size_t>;
     size_t elemsCount = pConstStorage->size();
     const indexInterval intervals[] = {
@@ -98,7 +97,9 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
         for (size_t i = 0; i < elemsCount; ++i) {
             if (randomIndexSet.count(i)) {
                 auto denormal = random.Generate(denormalsRange) + 1;
-                pConstStorage->get_ptr()[i] = *(reinterpret_cast<float*>(&denormal));
+                float tmp;
+                memcpy(&tmp, &denormal, sizeof(float));
+                pConstStorage->get_ptr()[i] = tmp;
             } else {
                 pConstStorage->get_ptr()[i] = randomRange[i];
             }

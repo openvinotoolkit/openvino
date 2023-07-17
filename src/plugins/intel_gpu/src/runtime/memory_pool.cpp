@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,13 +55,12 @@ void memory_pool::release_memory(memory* mem, const primitive_id& id, uint32_t n
     auto type = mem->get_allocation_type();
 
     {
-        auto range = _non_padded_pool.equal_range(_layout.bytes_count());
-        auto it = range.first;
+        auto it = _non_padded_pool.lower_bound(_layout.bytes_count());
 
-        while (it != range.second && it != _non_padded_pool.end()) {
+        while (it != _non_padded_pool.end()) {
             if (it->second._network_id == network_id &&
                 it->second._type == type &&
-                it->second._memory.get() == mem) {
+                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
                 auto user_it = it->second._users.find({ id, network_id });
 
                 // normally there should be only one entry
@@ -120,7 +119,8 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& id,
                                                   uint32_t network_id,
                                                   const std::set<primitive_id>& restrictions,
-                                                  allocation_type type) {
+                                                  allocation_type type,
+                                                  bool reset) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
     while (it != _non_padded_pool.end()) {
         if (it->second._network_id == network_id &&
@@ -137,12 +137,9 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ++it;
         }
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
-    }
+    GPU_DEBUG_LOG << "[" << id << ": output]" << std::endl;
     // didn't find anything for you? create new resource
-    auto mem = alloc_memory(layout, type);
+    auto mem = alloc_memory(layout, type, reset);
     {
         _non_padded_pool.emplace(layout.bytes_count(),
                                  memory_record({{id, network_id}}, mem, network_id, type));
@@ -179,10 +176,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             memory_record({{id, network_id}}, mem, network_id, type));
         return mem;
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "[" << id << ": output]" << std::endl;
-    }
+    GPU_DEBUG_LOG << "[" << id << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
     std::list<memory_record> list = {memory_record({{id, network_id}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
@@ -227,21 +221,22 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     uint32_t network_id,
                                     const std::set<primitive_id>& restrictions,
                                     allocation_type type,
-                                    bool reusable_across_network) {
+                                    bool reusable_across_network,
+                                    bool reset) {
     if (reusable_across_network) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
-            return get_from_non_padded_pool(layout, id, network_id, restrictions, type);
+            return get_from_non_padded_pool(layout, id, network_id, restrictions, type, reset);
         } else if (!layout.format.is_image()) {
             // padded buffers
             return get_from_padded_pool(layout, id, network_id, restrictions, type);
         } else {
             // images (reuse not yet implemented)
-            return alloc_memory(layout, type);
+            return alloc_memory(layout, type, reset);
         }
     } else {
-        return alloc_memory(layout, type);
+        return alloc_memory(layout, type, reset);
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ typedef std::tuple<
         std::string>                 // Target device name
         addOutputsParams;
 
-class AddOutputsTest : public CommonTestUtils::TestsCommon,
+class AddOutputsTest : public ov::test::TestsCommon,
                        public testing::WithParamInterface<addOutputsParams> {
 protected:
     InferenceEngine::CNNNetwork net;

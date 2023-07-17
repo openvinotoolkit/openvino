@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ public:
             { {}, {}, {} });
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::PadTransformation, ngraph::opset1::Pad>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PadFunction::get(

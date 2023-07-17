@@ -1,5 +1,4 @@
 #include <openvino/runtime/core.hpp>
-#define OV_GPU_USE_OPENCL_HPP
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
 cl::Context get_ocl_context(); // a function which returns cl context created on the app side

@@ -1,5 +1,7 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+#cython: language_level=3
 
 from .cimport ie_api_impl_defs as C
 
@@ -9,7 +11,7 @@ from enum import Enum
 supported_precisions = ['FP32', 'FP64', 'FP16', 'I64', 'U64', 'I32', 'U32',
                         'I16', 'I4', 'I8', 'U16', 'U4', 'U8', 'BOOL', 'BIN', 'BF16']
 
-known_plugins = ['CPU', 'GPU', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
+known_plugins = ['CPU', 'GPU', 'HETERO', 'MULTI']
 
 layout_int_to_str_map = {0: 'ANY', 1: 'NCHW', 2: 'NHWC', 3: 'NCDHW', 4: 'NDHWC', 64: 'OIHW', 95: 'SCALAR', 96: 'C',
                          128: 'CHW', 192: 'HW', 193: 'NC', 194: 'CN', 200: 'BLOCKED'}
@@ -69,8 +71,6 @@ class ColorFormat(Enum):
     BGR = 2
     RGBX = 3
     BGRX = 4
-    NV12 = 5
-    I420 = 6
 
 
 cpdef enum StatusCode:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(grn)
 
 layout grn_inst::calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_non_padded_input_layout();
-    auto output_type = impl_param.desc->output_data_type ? *impl_param.desc->output_data_type : input_node_layout.data_type;
+    auto output_type = impl_param.desc->output_data_types[0].value_or(input_node_layout.data_type);
 
     return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }

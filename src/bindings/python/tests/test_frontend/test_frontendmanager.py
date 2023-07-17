@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
@@ -27,15 +27,24 @@ try:
 except Exception:
     mock_available = False
 
-# FrontEndManager shall be initialized and destroyed after all tests finished
-# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
-fem = FrontEndManager()
-
 mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
                                                             f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
                                                             f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
+
+# FrontEndManager shall be initialized and destroyed after all tests finished
+# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
+fem = FrontEndManager()
+if (mock_available):
+    import glob
+    import pybind_mock_frontend
+    # Assume "mock_py" frontend is nearby to "pybind_mock_frontend"
+    mock_py_fe_path_l = glob.glob(str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*"))
+    if not mock_py_fe_path_l:
+        raise Exception(f"Path to frontend '{MOCK_PY_FRONTEND_NAME}' can't be found")
+    # If multiple "mock_py" frontends found, use any - only one is real, the rest are symlinks to real
+    fem.register_front_end(MOCK_PY_FRONTEND_NAME, mock_py_fe_path_l[0])
 
 
 def clear_all_stat():
@@ -100,13 +109,25 @@ def test_load_wrong_path():
     assert fe is not None
     with pytest.raises(RuntimeError) as e:
         fe.load(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+    assert "Only path is supported." in str(e.value)
 
 
 @mock_needed
 def test_load_by_model():
     clear_all_stat()
-    fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
+    fe = fem.load_by_model(model="abc.test_mock_py_mdl")
+    assert fe is not None
+    assert fe.get_name() == MOCK_PY_FRONTEND_NAME
+    stat = get_fe_stat()
+    assert stat.get_name == 1
+    assert stat.supported == 1
+
+
+@mock_needed
+def test_load_by_model_path():
+    clear_all_stat()
+    import pathlib
+    fe = fem.load_by_model(pathlib.Path("abc.test_mock_py_mdl"))
     assert fe is not None
     assert fe.get_name() == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()

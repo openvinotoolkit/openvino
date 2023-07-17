@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 
 using namespace std;
 using namespace ov;
-
-BWDCMP_RTTI_DEFINITION(op::internal::MulticlassNmsIEInternal);
 
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                                                const Output<Node>& scores,
@@ -35,7 +33,7 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
     } else if (new_args.size() == 2) {
         return std::make_shared<MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    OPENVINO_THROW("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {

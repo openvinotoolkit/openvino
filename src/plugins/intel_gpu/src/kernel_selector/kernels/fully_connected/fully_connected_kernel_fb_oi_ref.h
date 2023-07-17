@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,5 +26,6 @@ protected:
                  FusedOpType::ELTWISE };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

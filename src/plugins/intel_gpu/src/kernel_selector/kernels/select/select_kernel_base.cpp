@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,22 +95,16 @@ JitConstants SelectKernelBase::GetJitConstants(const select_params& params) cons
 
 SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params& params) const {
     DispatchData dispatchData;
-
     const auto& out = params.outputs[0];
+    const auto& in = params.inputs[0];
 
-    std::vector<size_t> gws;
-    for (const auto& o : out.GetDims()) {
-        gws.push_back(o.v);
-    }
+    dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
 
-    for (size_t i = gws.size(); i < 4; i++) {
-        gws.push_back(1U);
-    }
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws[0] = gws[0];
-    dispatchData.gws[1] = gws[1];
-    dispatchData.gws[2] = gws[2] * gws[3];
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in.GetLayout(), out.GetLayout(), dims_by_gws);
 
     return dispatchData;
 }
@@ -129,13 +123,22 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
 
     DispatchData dispatchData = SetDefault(newParams);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const select_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+
     auto& kernel = kd.kernels[0];
-
-    kernel.params.workGroups.global = dispatchData.gws;
-    kernel.params.workGroups.local = dispatchData.lws;
-
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false,
+                     (uint32_t)newParams.inputs.size(),
+                     0,
+                     1,
+                     newParams.outputs[0].is_dynamic());
 
     return {kd};
 }

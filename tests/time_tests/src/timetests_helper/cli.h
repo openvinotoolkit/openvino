@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,14 @@ static const char data_shapes_message[] =
 static const char statistics_path_message[] =
         "Required. Path to a file to write statistics.";
 
+/// @brief message for input precision argument
+static const char input_precision[] =
+    "Not required. Use this key to change input precision.";
+
+/// @brief message for output precision argument
+static const char output_precision[] =
+    "Not required. Use this key to change output precision.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -76,6 +84,14 @@ DEFINE_bool(c, false, model_cache_message);
 /// It is a required parameter
 DEFINE_string(s, "", statistics_path_message);
 
+/// @brief Define parameter for changing input precision <br>
+/// It is a non-required parameter
+DEFINE_string(ip, "", input_precision);
+
+/// @brief Define parameter for changing output precision <br>
+/// It is a non-required parameter
+DEFINE_string(op, "", output_precision);
+
 /**
  * @brief This function show a help message
  */
@@ -91,4 +107,6 @@ static void showUsage() {
     std::cout << "    -c                   " << model_cache_message << std::endl;
     std::cout << "    -reshape_shapes      " << reshape_shapes_message << std::endl;
     std::cout << "    -data_shapes         " << data_shapes_message << std::endl;
+    std::cout << "    -ip                  " << input_precision << std::endl;
+    std::cout << "    -op                  " << output_precision << std::endl;
 }

@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "detection_output_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "detection_output_inst.h"
 #include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
-#include <vector>
 
 namespace cldnn {
 namespace ocl {
@@ -24,13 +21,6 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
-    }
-
-protected:
-    bool optimized_out(detection_output_inst& instance) const override {
-        /// purpose: To optimize out detection_output for perf measurement.
-        /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument->nms_threshold < -1);
     }
 
 public:
@@ -93,3 +83,4 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::detection_output)

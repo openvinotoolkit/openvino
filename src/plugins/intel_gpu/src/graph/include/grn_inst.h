@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/grn.hpp"
 #include "primitive_inst.h"
@@ -19,10 +18,13 @@ class typed_primitive_inst<grn> : public typed_primitive_inst_base<grn> {
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(grn_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
     static layout calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(grn_node const& node);
 
-public:
     typed_primitive_inst(network& network, grn_node const& node);
 };
 

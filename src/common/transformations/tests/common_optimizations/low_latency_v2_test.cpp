@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
-
+#include <queue>
+#include <string>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/low_latency.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -99,8 +97,8 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -109,12 +107,12 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -185,8 +183,8 @@ TEST(TransformationTests, LowLatency2_GRU) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -198,7 +196,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
 
         const std::string variable_name_H("GRUTensorIterator/Yi/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -266,8 +264,8 @@ TEST(TransformationTests, LowLatency2_RNN) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -279,7 +277,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
 
         const std::string variable_name_H("RNNTensorIterator/Yi/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -344,8 +342,8 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -355,12 +353,12 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -429,8 +427,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -440,12 +438,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -508,8 +506,8 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -521,12 +519,12 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -596,7 +594,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto results = body->get_results();
 
         auto shape_of = std::make_shared<ShapeOf>(X);
-        const auto trip_count = std::make_shared<ov::opset8::Gather>(shape_of,
+        const auto trip_count = std::make_shared<ov::op::v8::Gather>(shape_of,
                                                                      Constant::create(ngraph::element::i64, {1}, {0}),
                                                                      Constant::create(ngraph::element::i64, {1}, {0}));
         auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
@@ -623,8 +621,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -634,12 +632,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -704,8 +702,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>(true);
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>(true);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -715,12 +713,12 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -777,71 +775,6 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    {
-        auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-        auto C_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-
-        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-        auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-
-        // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
-
-        auto tensor_iterator = std::make_shared<TensorIterator>();
-        tensor_iterator->set_body(body);
-        tensor_iterator->set_friendly_name("LSTMTensorIterator");
-
-        tensor_iterator->set_merged_input(C_t, C_init, res_3);
-        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        tensor_iterator->set_merged_input(H_t, H_init, res_1);
-
-        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
-
-        auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
-
-        auto f_2 = ngraph::clone_function(*f);
-        pass::Manager manager_2;
-        manager_2.register_pass<pass::InitNodeInfo>();
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        manager_2.register_pass<ngraph::pass::LowLatency>();
-        NGRAPH_SUPPRESS_DEPRECATED_END
-        EXPECT_NO_THROW(manager_2.run_passes(f_2));
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        manager.register_pass<ngraph::pass::LowLatency>();
-        NGRAPH_SUPPRESS_DEPRECATED_END
-        // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
-        // but unrolls TI/Loop
-        manager.register_pass<pass::LowLatency2>();
-
-        EXPECT_NO_THROW(manager.run_passes(f));
-    }
-}
-
 namespace {
 using OutPtr = Output<Node>;
 enum class RNNType : size_t {
@@ -866,14 +799,12 @@ struct RNNAttributes {
 OutputVector create_sequence(RNNType rnn_type, RNNAttributes attrs, const OutPtr& X, const OutPtr& H, const OutPtr& C) {
     auto gate = static_cast<size_t>(rnn_type);
     auto shape_of = std::make_shared<ShapeOf>(X);
-    auto batch_dimension = std::make_shared<Gather>(
-            shape_of,
-            Constant::create(ngraph::element::i64, {1}, {0}),
-            Constant::create(ngraph::element::i64, {}, {0}));
-    auto seq_len_dim = std::make_shared<Gather>(
-            shape_of,
-            Constant::create(element::i64, {1}, {1}),
-            Constant::create(element::i64, {}, {0}));
+    auto batch_dimension = std::make_shared<Gather>(shape_of,
+                                                    Constant::create(ngraph::element::i64, {1}, {0}),
+                                                    Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim = std::make_shared<Gather>(shape_of,
+                                                Constant::create(element::i64, {1}, {1}),
+                                                Constant::create(element::i64, {}, {0}));
     auto seq_lengths = std::make_shared<Broadcast>(seq_len_dim, batch_dimension);
     auto W = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.input_size}, 0);
     auto R = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.hidden_size}, 0);
@@ -881,11 +812,33 @@ OutputVector create_sequence(RNNType rnn_type, RNNAttributes attrs, const OutPtr
 
     shared_ptr<Node> sequence;
     if (rnn_type == RNNType::LSTM) {
-        sequence = make_shared<LSTMSequence>(X, H, C, seq_lengths, W, R, B, attrs.hidden_size, LSTMSequence::direction::FORWARD);
+        sequence = make_shared<LSTMSequence>(X,
+                                             H,
+                                             C,
+                                             seq_lengths,
+                                             W,
+                                             R,
+                                             B,
+                                             attrs.hidden_size,
+                                             LSTMSequence::direction::FORWARD);
     } else if (rnn_type == RNNType::RNN) {
-        sequence = make_shared<RNNSequence>(X, H, seq_lengths, W, R, B, attrs.hidden_size, op::RecurrentSequenceDirection::FORWARD);
+        sequence = make_shared<RNNSequence>(X,
+                                            H,
+                                            seq_lengths,
+                                            W,
+                                            R,
+                                            B,
+                                            attrs.hidden_size,
+                                            op::RecurrentSequenceDirection::FORWARD);
     } else if (rnn_type == RNNType::GRU) {
-        sequence = make_shared<GRUSequence>(X, H, seq_lengths, W, R, B, attrs.hidden_size, op::RecurrentSequenceDirection::FORWARD);
+        sequence = make_shared<GRUSequence>(X,
+                                            H,
+                                            seq_lengths,
+                                            W,
+                                            R,
+                                            B,
+                                            attrs.hidden_size,
+                                            op::RecurrentSequenceDirection::FORWARD);
     }
     return sequence->outputs();
 }
@@ -898,7 +851,11 @@ shared_ptr<ReadValue> create_read_value(const shared_ptr<Parameter>& param, cons
     return read_value;
 }
 
-OutputVector create_cell_reference(RNNType rnn_type, RNNAttributes attrs, const OutPtr& X, const OutPtr& H, const OutPtr& C) {
+OutputVector create_cell_reference(RNNType rnn_type,
+                                   RNNAttributes attrs,
+                                   const OutPtr& X,
+                                   const OutPtr& H,
+                                   const OutPtr& C) {
     auto gate = static_cast<size_t>(rnn_type);
     auto axis_0 = Constant::create(element::i32, Shape{1}, {0});
     auto axis_1 = Constant::create(element::i32, Shape{1}, {1});
@@ -921,7 +878,8 @@ OutputVector create_cell_reference(RNNType rnn_type, RNNAttributes attrs, const 
 
     shared_ptr<Node> cell;
     if (rnn_type == RNNType::LSTM) {
-        cell = make_shared<LSTMCell>(squeeze_X, squeeze_H, squeeze_C, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
+        cell =
+            make_shared<LSTMCell>(squeeze_X, squeeze_H, squeeze_C, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
     } else if (rnn_type == RNNType::RNN) {
         cell = make_shared<RNNCell>(squeeze_X, squeeze_H, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
     } else if (rnn_type == RNNType::GRU) {
@@ -939,12 +897,9 @@ OutputVector create_cell_reference(RNNType rnn_type, RNNAttributes attrs, const 
     }
     return outputs;
 }
-} // namespace
+}  // namespace
 
-class LLT2Sequence
-        : public WithParamInterface<LLT2Params>,
-          public TransformationTestsF {
-};
+class LLT2Sequence : public WithParamInterface<LLT2Params>, public TransformationTestsF {};
 
 TEST_P(LLT2Sequence, RNNLowLatency_v2) {
     const auto& p = GetParam();
@@ -958,7 +913,14 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         if (p.rnn_type == RNNType::LSTM) {
             params.push_back(C);
         }
-        model = make_shared<ov::Model>(outputs, params);
+        ResultVector results;
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            auto result = std::make_shared<Result>(outputs[i]);
+            auto result_name = "output_" + std::to_string(i);
+            result->set_friendly_name(result_name);
+            results.push_back(result);
+        }
+        model = make_shared<ov::Model>(results, params);
         manager.register_pass<pass::LowLatency2>();
     }
 
@@ -966,8 +928,10 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         auto X = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.seq_len, attrs.input_size});
         auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
-        auto variable_h = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_0"});
-        auto variable_c = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_1"});
+        auto variable_h =
+            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_0"});
+        auto variable_c =
+            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_1"});
         auto read_val_H = create_read_value(H, variable_h);
         auto read_val_C = create_read_value(C, variable_c);
 
@@ -990,18 +954,26 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
             assign_c->add_control_dependency(read_val_C);
             sinks.push_back(assign_c);
         }
-        model_ref = make_shared<ov::Model>(outputs, sinks, params);
+
+        ResultVector results;
+        for (size_t i = 0; i < outputs.size(); ++i) {
+            auto result = std::make_shared<Result>(outputs[i]);
+            auto result_name = "output_" + std::to_string(i);
+            result->set_friendly_name(result_name);
+            results.push_back(result);
+        }
+        model_ref = make_shared<ov::Model>(results, sinks, params);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 static const std::vector<LLT2Params> llt_v2_params = {
-        LLT2Params{RNNType::RNN, 1},
-        LLT2Params{RNNType::GRU, 1},
-        LLT2Params{RNNType::LSTM, 1},
-        LLT2Params{RNNType::RNN, 10},
-        LLT2Params{RNNType::GRU, 10},
-        LLT2Params{RNNType::LSTM, 10},
+    LLT2Params{RNNType::RNN, 1},
+    LLT2Params{RNNType::GRU, 1},
+    LLT2Params{RNNType::LSTM, 1},
+    LLT2Params{RNNType::RNN, 10},
+    LLT2Params{RNNType::GRU, 10},
+    LLT2Params{RNNType::LSTM, 10},
 };
 
 INSTANTIATE_TEST_SUITE_P(LLT2Sequence, LLT2Sequence, ValuesIn(llt_v2_params));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,28 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+namespace {
+std::shared_ptr<Node> configure_postops(const std::shared_ptr<Node>& parent,
+                                        const ov::element::Type& precision,
+                                        const std::string& postops_configuration) {
+    std::shared_ptr<Node> res = parent;
+    if (postops_configuration.empty() || postops_configuration == "bias") {
+        auto bias = opset1::Constant::create(precision, { 1, 1, 1, 1 }, {1.f});
+        res = std::make_shared<opset1::Add>(res, bias);
+    } else if (postops_configuration == "bias_on_zero_input") {
+        auto bias = opset1::Constant::create(precision, { 1, 1, 1, 1 }, {1.f});
+        res = std::make_shared<opset1::Add>(bias, res);
+    } else {
+        return parent;
+    }
+
+    return ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+           res,
+           precision,
+           {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+}
+}  // namespace
+
 std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape1,
@@ -30,7 +52,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
     const int constInput,
     const std::vector<float>& constValues,
-    const std::string& additionalLayer) {
+    const std::string& additionalLayer,
+    const std::string& postops_configuration) {
     std::shared_ptr<ngraph::Node> input1;
     std::shared_ptr<ngraph::Node> parent1;
     if (constInput == 0) {
@@ -72,11 +95,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     }
     auto parent = input2;
     if (additionalLayer == "convolution") {
-        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        parent = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ precision },
-            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(
+            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
                 std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                 element::f32).get(),
             ngraph::Strides{ 1, 1 },
@@ -86,11 +109,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     }
     std::shared_ptr<Node> additional_output = nullptr;
     if (additionalLayer == "convolution_multiconsumers") {
-        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        parent = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 std::vector<element::Type>{ element::f32, element::f32 },
                 std::vector<element::Type>{ precision },
-                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(
+                ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(
                         std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                         element::f32).get(),
                 ngraph::Strides{ 1, 1 },
@@ -100,11 +123,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
         additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
-        parent = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+        parent = std::make_shared< ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ precision },
-            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(
+            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
                 std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 4, 1, 1, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                 element::f32).get(),
             ngraph::Strides{ 1, 1 },
@@ -113,13 +136,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             ngraph::Strides{ 1, 1 });
     }
     if (additionalLayer != "") {
-        parent = std::make_shared<ngraph::opset1::Add>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            parent,
-            precision,
-            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+        parent = configure_postops(parent, precision, postops_configuration);
     }
 
     auto dequantizationStructure2 = dequantization2;
@@ -203,7 +220,8 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const int constInputIndex,
     const std::vector<float>& constValues,
     const std::string& additionalLayer,
-    const std::string& operationType) {
+    const std::string& operationType,
+    const std::string& postops_configuration) {
     std::shared_ptr<ngraph::Node> input1;
     std::shared_ptr<ngraph::Node> parent1;
     if (constInputIndex == 0) {
@@ -241,11 +259,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     }
     auto parent = input2;
     if (additionalLayer == "convolution") {
-        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        parent = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ precision },
-            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(
+            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
                 std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                 element::f32).get(),
             ngraph::Strides{ 1, 1 },
@@ -255,11 +273,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     }
     std::shared_ptr<Node> additional_output = nullptr;
     if (additionalLayer == "convolution_multiconsumers") {
-        parent = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        parent = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 std::vector<element::Type>{ element::f32, element::f32 },
                 std::vector<element::Type>{ precision },
-                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(
+                ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(
                         std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 1, 4, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                         element::f32).get(),
                 ngraph::Strides{ 1, 1 },
@@ -269,11 +287,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
         additional_output = parent;
     }
     if (additionalLayer == "group_convolution") {
-        parent = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+        parent = std::make_shared< ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ precision },
-            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(
+            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
                 std::make_shared<ngraph::opset1::Constant>(element::i8, Shape{ 4, 1, 1, 1, 1 }, std::vector<float>{0.8f, 0.8f, 0.8f, 0.8f}),
                 element::f32).get(),
             ngraph::Strides{ 1, 1 },
@@ -282,13 +300,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             ngraph::Strides{ 1, 1 });
     }
     if (additionalLayer != "") {
-        parent = std::make_shared<ngraph::opset1::Add>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-            parent,
-            precision,
-            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+        parent = configure_postops(parent, precision, postops_configuration);
     }
 
     auto dequantizationStructure2 = dequantization2;
@@ -296,16 +308,16 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     const auto dequantizationOp2 = ov::is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
 
     const std::shared_ptr<Node> add = operationType == "Add" ?
-        std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
+        std::dynamic_pointer_cast<Node>(std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Add>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
-        std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
+            ov::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
+        std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
 
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, dequantizationAfter.empty() ? precision : element::f32);
     auto& rtInfo = add->get_rt_info();

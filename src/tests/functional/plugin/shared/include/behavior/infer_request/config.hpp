@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         // Create CNNNetwork from ngrpah::Function
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -116,8 +116,7 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, target_device, config);
         execNet.CreateInferRequest();
-        if ((target_device == CommonTestUtils::DEVICE_MYRIAD) ||
-            (target_device == CommonTestUtils::DEVICE_KEEMBAY)) {
+        if (target_device == CommonTestUtils::DEVICE_KEEMBAY) {
             ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
             ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
         } else if ((target_device == CommonTestUtils::DEVICE_AUTO) ||

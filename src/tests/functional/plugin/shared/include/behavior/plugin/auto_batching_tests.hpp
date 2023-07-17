@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,8 +70,11 @@ protected:
                 n.second->setPrecision(Precision::FP32);
             }
             std::map<std::string, std::string> config;
-            if (target_device.find("GPU") != std::string::npos)
+            if (target_device.find("GPU") != std::string::npos) {
                 config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
+                config["INFERENCE_PRECISION_HINT"] = "f32";
+            }
+
             if (target_device.find("CPU") != std::string::npos) {
                 config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
                 config[CONFIG_KEY(ENFORCE_BF16)] = CONFIG_VALUE(NO);

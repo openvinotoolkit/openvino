@@ -1,41 +1,38 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include <ie_core.hpp>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
-
 #include "ngraph_functions/pass/convert_prc.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 using concatParamsTuple = typename std::tuple<
-        //TODO: according to specification axis have to be int, negative values are allowed
-        size_t,                            // Concat axis
-        std::vector<size_t>,               // Input shapes
-        size_t,                            // Concat inputs number
-        size_t,                            // Concats nymber
-        InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        std::string>;                      // Device name
+    // TODO: according to specification axis have to be int, negative values are allowed
+    size_t,                      // Concat axis
+    std::vector<size_t>,         // Input shapes
+    size_t,                      // Concat inputs number
+    size_t,                      // Concats nymber
+    InferenceEngine::Precision,  // Network precision
+    InferenceEngine::Precision,  // Input precision
+    InferenceEngine::Precision,  // Output precision
+    InferenceEngine::Layout,     // Input layout
+    InferenceEngine::Layout,     // Output layout
+    std::string>;                // Device name
 
 namespace LayerTestsDefinitions {
 
 class InsertCopyBeforeSelfConcatTest : public testing::WithParamInterface<concatParamsTuple>,
-    public LayerTestsUtils::LayerTestsCommon {
+                                       public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<concatParamsTuple> obj) {
         int axis;
@@ -45,7 +42,16 @@ public:
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
         std::string targetName;
-        std::tie(axis, inputShape, inputsNum, concatsNum, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
+        std::tie(axis,
+                 inputShape,
+                 inputsNum,
+                 concatsNum,
+                 netPrecision,
+                 inPrc,
+                 outPrc,
+                 inLayout,
+                 outLayout,
+                 targetName) = obj.param;
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
         result << "IN=" << inputsNum << "_";
@@ -66,7 +72,16 @@ protected:
         std::vector<size_t> inputShape;
         size_t inputsNum, concatsNum;
         InferenceEngine::Precision netPrecision;
-        std::tie(axis, inputShape, inputsNum, concatsNum, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
+        std::tie(axis,
+                 inputShape,
+                 inputsNum,
+                 concatsNum,
+                 netPrecision,
+                 inPrc,
+                 outPrc,
+                 inLayout,
+                 outLayout,
+                 targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         ngraph::OutputVector concatInputs;
@@ -87,14 +102,9 @@ TEST_P(InsertCopyBeforeSelfConcatTest, CompareWithRefs) {
     Run();
 };
 
-std::vector<size_t > axes = {1};
+std::vector<size_t> axes = {1};
 
-std::vector<std::vector<size_t>> inShapes = {
-        {1, 32},
-        {1, 128},
-        {8, 64},
-        {1, 16}
-};
+std::vector<std::vector<size_t>> inShapes = {{1, 32}, {1, 128}, {8, 64}, {1, 16}};
 
 std::vector<size_t> inputsNum = {2, 3, 5};
 
@@ -103,18 +113,18 @@ std::vector<size_t> concatsNum = {1, 2, 3, 4};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                          InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_InsertCopy, InsertCopyBeforeSelfConcatTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(axes),
-                                ::testing::ValuesIn(inShapes),
-                                ::testing::ValuesIn(inputsNum),
-                                ::testing::ValuesIn(concatsNum),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                        InsertCopyBeforeSelfConcatTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_InsertCopy,
+                         InsertCopyBeforeSelfConcatTest,
+                         ::testing::Combine(::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(inShapes),
+                                            ::testing::ValuesIn(inputsNum),
+                                            ::testing::ValuesIn(concatsNum),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                         InsertCopyBeforeSelfConcatTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

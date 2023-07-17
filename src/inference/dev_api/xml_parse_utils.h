@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "ie_common.h"
 #include "ie_precision.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @ingroup    ie_dev_api_xml
  * @brief      Defines convinient for-each based cycle to iterate over node children
@@ -36,7 +37,13 @@
  * @brief XML helpers function to extract values from `pugi::xml_node`
  * @ingroup    ie_dev_api_xml
  */
-namespace XMLParseUtils {
+namespace pugixml {
+
+/**
+ * @brief XML helpers function to extract values from `pugi::xml_node`
+ * @ingroup    ie_dev_api_xml
+ */
+namespace utils {
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -217,7 +224,8 @@ GetPrecisionAttr(const pugi::xml_node& node, const char* str, InferenceEngine::P
  */
 INFERENCE_ENGINE_API_CPP(int) GetIntChild(const pugi::xml_node& node, const char* str, int defVal);
 
-}  // namespace XMLParseUtils
+}  // namespace utils
+}  // namespace pugixml
 
 /**
  * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.
@@ -289,3 +297,5 @@ inline parse_result ParseXml(const char* file_path) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }
+
+IE_SUPPRESS_DEPRECATED_END

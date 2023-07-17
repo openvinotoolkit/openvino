@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
     if(NOT DEFINED SELECTIVE_BUILD_STAT)
-        message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
+        message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected IntelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
     find_package (PythonInterp 3 REQUIRED)
@@ -30,8 +30,12 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
+                                -Wno-unused-variable
                                 -Wno-unused-parameter
                                 -Wno-unused-local-typedefs)
+    endif()
+    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+        target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")

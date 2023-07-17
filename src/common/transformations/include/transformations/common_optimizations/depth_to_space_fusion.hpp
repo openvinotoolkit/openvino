@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
  * Callback example:
  *
  *     // This callback enables DepthToSpaceFusion transformation
- *     auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
- *         return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
+ *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
+ *         return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) != nullptr;
  *     };
  *
  *     auto p = ov::pass::DepthToSpaceFusion();
@@ -44,9 +44,3 @@ public:
     OPENVINO_RTTI("DepthToSpaceFusion", "0");
     DepthToSpaceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DepthToSpaceFusion;
-}  // namespace pass
-}  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::BatchNormInference);
 
 op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -44,6 +42,7 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
                                  get_input_element_type(INPUT_DATA),
@@ -56,7 +55,7 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
                                  get_input_partial_shape(INPUT_BETA),
                                  get_input_partial_shape(INPUT_MEAN),
                                  get_input_partial_shape(INPUT_VARIANCE));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, result_batch_shape);
 }
 
@@ -70,8 +69,6 @@ std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const Ou
                                                 new_args.at(4),
                                                 m_epsilon);
 }
-
-BWDCMP_RTTI_DEFINITION(op::v5::BatchNormInference);
 
 op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -102,6 +99,7 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
                                  get_input_element_type(INPUT_DATA),
@@ -114,7 +112,7 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
                                  get_input_partial_shape(INPUT_BETA),
                                  get_input_partial_shape(INPUT_MEAN),
                                  get_input_partial_shape(INPUT_VARIANCE));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, result_batch_shape);
 }
 

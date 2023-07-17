@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,15 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(SnippetsTransform);
+OV_ITT_DOMAIN(SnippetsTransform);
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass
-}   // namespace ngraph
+}   // namespace ov
 
 OV_CC_DOMAINS(internal_op);
 

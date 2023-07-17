@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,38 +25,24 @@ public:
     // which may necessitate saving afterwards.
     // This class is not thread-safe and all concurrent modifications should be synchronized by owner.
     // cacheFilePath - Path to cache file
-    // createMode    - Flag to enable creation if cache file does not exist.
     // If file doesn't exist and createMode is false this constructor will throw.
-    explicit TuningCache(const std::string& cacheFilePath, bool createMode = false);
+    explicit TuningCache(const std::string& cacheFilePath);
 
     // Constructs empty tuning cache.
     TuningCache();
 
     // Returns cached kernel for specified params. If "update" moves it to newest version if found, which may require saving afterwards.
-    Entry LoadKernel(const Params& params, bool update = true);
+    Entry LoadKernel(const Params& params);
     // Overrides the compute units count in params.
-    Entry LoadKernel(const Params& params, uint32_t computeUnitsCount, bool update = true);
-    // Stores kernel for specified params.
-    void StoreKernel(const Params& params, const std::string& implementationName, int tuneIndex);
-    // Overrides the compute units count in params.
-    void StoreKernel(const Params& params, uint32_t computeUnitsCount, const std::string& implementationName, int tuneIndex);
-    // Removes the cached kernel for specified params if it exists, for all cache versions.
-    void RemoveKernel(const Params& params);
-    // Saves the internal cache to specified file.
-    void Save(const std::string& cacheFilePath);
+    Entry LoadKernel(const Params& params, uint32_t computeUnitsCount);
 
-    bool NeedsSave() const { return needsSave; }
+    static TuningCache* get();
 
 private:
     Entry LoadKernel_v1(const Params& params, uint32_t computeUnitsCount);
     Entry LoadKernel_v2(const Params& params, uint32_t computeUnitsCount);
 
-    bool RemoveKernel_v1(const Params& params, uint32_t computeUnitsCount);
-    bool RemoveKernel_v2(const Params& params, uint32_t computeUnitsCount);
-
-
     rapidjson::Document cache;
-    bool needsSave;
 
     static constexpr const char* version1Marker = "version_1";
     static constexpr const char* version2Marker = "version_2";
@@ -65,21 +51,9 @@ private:
 class AutoTuner {
 public:
     AutoTuner() = default;
-    std::tuple<std::string, int> LoadKernelOnline(const TuningMode tuningMode,
-                                                  const std::string& cacheFilePath,
-                                                  const Params& params);
-    void StoreKernel(const std::string& cacheFilePath,
-                     const Params& params,
-                     std::string implementationName,
-                     const int tuneIndex);
-    void RemoveKernel(const std::string& cacheFilePath,
-                      const Params& params);
-    std::tuple<std::string, int> LoadKernelOffline(TuningCache* cache,
-                                                   const Params& params);
+    std::tuple<std::string, int> LoadKernelOffline(const Params& params);
 
 private:
-    std::string lastCachePath;
-    std::shared_ptr<TuningCache> onlineCache;
     std::mutex mutex;  // Mutex to synchronize cache updates
 
     /*

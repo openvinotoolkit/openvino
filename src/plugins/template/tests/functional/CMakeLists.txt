@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -35,4 +35,9 @@ else()
     message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()
 
+if (ENABLE_INTEL_CPU)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/executable_network/get_metric.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
+endif()
 # [cmake:functional_tests]

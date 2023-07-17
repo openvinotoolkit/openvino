@@ -1,172 +1,209 @@
 # Layout API Overview {#openvino_docs_OV_UG_Layout_Overview}
 
+@sphinxdirective
+
+.. meta::
+   :description: The layout enables the application to interpret each particular 
+                 dimension of input/ output tensor properly and the input size 
+                 can be resized to fit the model.
 
 
+The concept of layout helps you (and your application) to understand what each particular dimension of input/output tensor means. For example, if your input has the ``{1, 3, 720, 1280}`` shape and the ``NCHW`` layout, it is clear that ``N(batch) = 1``, ``C(channels) = 3``, ``H(height) = 720``, and ``W(width) = 1280``. Without the layout information, the ``{1, 3, 720, 1280}`` tuple does not give any idea to your application on what these numbers mean and how to resize the input image to fit the expectations of the model.
 
-The concept of layout helps you (and your application) to understand what each particular dimension of input/output tensor means. For example, if your input has the `{1, 3, 720, 1280}` shape and the `NCHW` layout, it is clear that `N(batch) = 1`, `C(channels) = 3`, `H(height) = 720`, and `W(width) = 1280`. Without the layout information, the `{1, 3, 720, 1280}` tuple does not give any idea to your application on what these numbers mean and how to resize the input image to fit the expectations of the model.
-
-With the `NCHW` layout, it is easier to understand what the `{8, 3, 224, 224}` model shape means. Without the layout, it is just a 4-dimensional tensor.
+With the ``NCHW`` layout, it is easier to understand what the ``{8, 3, 224, 224}`` model shape means. Without the layout, it is just a 4-dimensional tensor.
 
 Below is a list of cases where input/output layout is important:
- - Performing model modification:
-    - Applying the [preprocessing](./preprocessing_overview.md) steps, such as subtracting means, dividing by scales, resizing an image, and converting `RGB`<->`BGR`.
-    - Setting/getting a batch for a model.
- - Doing the same operations as used during the model conversion phase. For more information, refer to the [Model Optimizer Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md) guide.
- - Improving the readability of a model input and output.
 
-## Syntax of Layout
+* Performing model modification:
 
-### Short Syntax
+  * Applying the :doc:`preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
+  * Setting/getting a batch for a model.
+
+* Doing the same operations as used during the model conversion phase. For more information, refer to the :doc:`Model Optimizer Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` guide.
+* Improving the readability of a model input and output.
+
+Syntax of Layout
+####################
+
+Short Syntax
+++++++++++++++++++++
+
 The easiest way is to fully specify each dimension with one alphabet letter.
 
-@sphinxtabset
 
-@sphinxtab{C++}
+.. tab-set::
 
-@snippet docs/snippets/ov_layout.cpp ov:layout:simple
+    .. tab-item:: Python
+        :sync: py
 
-@endsphinxtab
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:simple
 
-@sphinxtab{Python}
+    .. tab-item:: C++
+        :sync: cpp
 
-@snippet docs/snippets/ov_layout.py ov:layout:simple
-
-@endsphinxtab
-
-@endsphinxtabset
-
-This assigns `N` to the first dimension, `C` to the second, `H` to the third, and `W` to the fourth.
-
-### Advanced Syntax
-The advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets `[]` and specify each name separated by a comma `,`.
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_layout.cpp ov:layout:complex
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet docs/snippets/ov_layout.py ov:layout:complex
-
-@endsphinxtab
-
-@endsphinxtabset
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:simple
 
 
-### Partially Defined Layout
-If a certain dimension is not important, its name can be set to `?`.
+This assigns ``N`` to the first dimension, ``C`` to the second, ``H`` to the third, and ``W`` to the fourth.
 
-@sphinxtabset
+Advanced Syntax
+++++++++++++++++++++
 
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_layout.cpp ov:layout:partially_defined
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet docs/snippets/ov_layout.py ov:layout:partially_defined
-
-@endsphinxtab
-
-@endsphinxtabset
+The advanced syntax allows assigning a word to a dimension. To do this, wrap a layout with square brackets ``[]`` and specify each name separated by a comma ``,``.
 
 
-### Dynamic Layout
-If several dimensions are not important, an ellipsis `...` can be used to specify those dimensions.
+.. tab-set::
 
-@sphinxtabset
+    .. tab-item:: Python
+        :sync: py
 
-@sphinxtab{C++}
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:complex
 
-@snippet docs/snippets/ov_layout.cpp ov:layout:dynamic
+    .. tab-item:: C++
+        :sync: cpp
 
-@endsphinxtab
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:complex
 
-@sphinxtab{Python}
 
-@snippet docs/snippets/ov_layout.py ov:layout:dynamic
+Partially Defined Layout
+++++++++++++++++++++++++
 
-@endsphinxtab
+If a certain dimension is not important, its name can be set to ``?``.
 
-@endsphinxtabset
 
-### Predefined Names
+.. tab-set::
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:partially_defined
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:partially_defined
+
+
+Dynamic Layout
+++++++++++++++++++++
+
+If several dimensions are not important, an ellipsis ``...`` can be used to specify those dimensions.
+
+
+.. tab-set::
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:dynamic
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:dynamic
+
+
+Predefined Names
+++++++++++++++++++++
 
 A layout has some pre-defined dimension names, widely used in computer vision:
-- `N`/`Batch` - batch size
-- `C`/`Channels` - channels
-- `D`/`Depth` - depth
-- `H`/`Height` - height
-- `W`/`Width` - width
 
-These names are used in [PreProcessing API](./preprocessing_overview.md). There is a set of helper functions to get appropriate dimension index from a layout.
+* ``N``/``Batch`` - batch size
+* ``C``/``Channels`` - channels
+* ``D``/``Depth`` - depth
+* ``H``/``Height`` - height
+* ``W``/``Width`` - width
 
-@sphinxtabset
+These names are used in :doc:`PreProcessing API <openvino_docs_OV_UG_Preprocessing_Overview>`. There is a set of helper functions to get appropriate dimension index from a layout.
 
-@sphinxtab{C++}
 
-@snippet docs/snippets/ov_layout.cpp ov:layout:predefined
+.. tab-set::
 
-@endsphinxtab
+    .. tab-item:: Python
+        :sync: py
 
-@sphinxtab{Python}
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:predefined
 
-@snippet docs/snippets/ov_layout.py ov:layout:predefined
+    .. tab-item:: C++
+        :sync: cpp
 
-@endsphinxtab
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:predefined
 
-@endsphinxtabset
 
-### Equality
+Equality
+++++++++++++++++++++
 
-Layout names are case-insensitive, which means that `Layout("NCHW")` = `Layout("nChW") = `Layout("[N,c,H,w]")`.
+Layout names are case-insensitive, which means that ``Layout("NCHW")`` = ``Layout("nChW")`` = ``Layout("[N,c,H,w]")``.
 
-### Dump Layout
+Dump Layout
+++++++++++++++++++++
 
 A layout can be converted to a string in the advanced syntax format. It can be useful for debugging and serialization purposes.
 
-@sphinxtabset
 
-@sphinxtab{C++}
+.. tab-set::
 
-@snippet docs/snippets/ov_layout.cpp ov:layout:dump
+    .. tab-item:: Python
+        :sync: py
 
-@endsphinxtab
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:dump
 
-@sphinxtab{Python}
+    .. tab-item:: C++
+        :sync: cpp
 
-@snippet docs/snippets/ov_layout.py ov:layout:dump
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:dump
 
-@endsphinxtab
 
-@endsphinxtabset
-
-### Get layout from Model Input/Output
+Get layout from Model Input/Output
+++++++++++++++++++++++++++++++++++
 
 OpenVINO provides helpers which provide a simple interface to get layout from Model input or output.
 
-@sphinxtabset
 
-@sphinxtab{C++}
+.. tab-set::
 
-@snippet docs/snippets/ov_layout.cpp ov:layout:get_from_model
+    .. tab-item:: Python
+        :sync: py
 
-@endsphinxtab
+        .. doxygensnippet:: docs/snippets/ov_layout.py
+           :language: python
+           :fragment: ov:layout:get_from_model
 
-@sphinxtab{Python}
+    .. tab-item:: C++
+        :sync: cpp
 
-@snippet docs/snippets/ov_layout.py ov:layout:get_from_model
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:get_from_model
 
-@endsphinxtab
 
-@endsphinxtabset
+See also
+####################
 
-## See also
+* API Reference: `ov::Layout <classov_1_1Layout.html#doxid-classov-1-1-layout>`__ C++ class 
 
-* API Reference: <code>ov::Layout</code> C++ class 
+@endsphinxdirective

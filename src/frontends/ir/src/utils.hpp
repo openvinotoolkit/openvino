@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ void str_to_container(const std::string& value, T& res) {
     std::string field;
     while (getline(ss, field, ',')) {
         if (field.empty())
-            IE_THROW() << "Cannot get vector of parameters! \"" << value << "\" is incorrect";
+            OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
         std::stringstream fs(field);
         typename T::value_type val;
         fs >> val;

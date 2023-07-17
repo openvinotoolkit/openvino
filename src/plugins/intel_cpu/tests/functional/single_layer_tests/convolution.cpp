@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
 
 using namespace InferenceEngine;
@@ -91,6 +92,8 @@ protected:
     InferenceEngine::SizeVector kernel, dilation;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
+        if (!execNet) return;
+
         auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 
@@ -142,7 +145,10 @@ protected:
                     }
 
                     std::vector<ov::Shape> secondParameterShapes;
-                    opToShapeInfer->get_input_tensor(0).set_partial_shape(targetShapes.front());
+                    if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(opToShapeInfer->get_input_node_ptr(0))) {
+                        parameter->set_partial_shape(targetShapes.front());
+                        parameter->validate_and_infer_types();
+                    }
                     opToShapeInfer->validate_and_infer_types();
                     targetShapes.push_back(opToShapeInfer->get_output_shape(0));
                 }
@@ -202,8 +208,6 @@ protected:
 };
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
     if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
@@ -214,31 +218,33 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         }
     }
 
-    // Skip tests for brgconv convolution where kernel size = 1x1
-    if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
-        bool is_1x1 = true;
-        for (const auto &i : kernel) {
-            if (i != 1) {
-                is_1x1 = false;
-                break;
-            }
+    if (!priority.empty()) {
+        // Skip tests for brgconv convolution where kernel size = 1x1
+        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+                bool is_1x1 = true;
+                for (const auto &i : kernel) {
+                if (i != 1) {
+                        is_1x1 = false;
+                        break;
+                }
+                }
+                if (is_1x1) {
+                GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
+                }
         }
-        if (is_1x1) {
-            GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
-        }
-    }
 
-    // Skip tests for brgconv_amx convolution where dilation is not 1
-    if (priority[0].find("amx") != std::string::npos) {
-        bool dilation_is_1x1 = true;
-        for (const auto &i : dilation) {
-            if (i != 1) {
-                dilation_is_1x1 = false;
-                break;
-            }
-        }
-        if (!dilation_is_1x1) {
-            GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
+        // Skip tests for brgconv_amx convolution where dilation is not 1
+        if (priority[0].find("amx") != std::string::npos) {
+                bool dilation_is_1x1 = true;
+                for (const auto &i : dilation) {
+                if (i != 1) {
+                        dilation_is_1x1 = false;
+                        break;
+                }
+                }
+                if (!dilation_is_1x1) {
+                GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
+                }
         }
     }
 
@@ -499,6 +505,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32, ConvolutionLayerCPUTest,
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_1D)),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+// Verify that even if primitive is missed in custom priority list there is still a fallback to the default priority list
+const auto conv_gemm_1D_improperPriorityList = CPUSpecificParams{{ncw}, {ncw}, {"unknown"}, "jit_gemm"};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32_ImproperPriorityList, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 convParams_ExplicitPadding_GEMM_1D,
+                                 ::testing::Values(ElementType::f32),
+                                 ::testing::Values(ElementType::undefined),
+                                 ::testing::Values(ElementType::undefined),
+                                 ::testing::ValuesIn(inShapesGemm1D),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_1D})),
+                             ::testing::Values(emptyFusingSpec),
+                             ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_BF16, ConvolutionLayerCPUTest,
@@ -1625,62 +1648,53 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_AutoPad_FP32, ConvolutionLayerCPUTest,
 
 } // namespace
 
+/* ============= Large Filter Test ============= */
+namespace {
 
-/* ============= Winograd ============= */
-namespace winograd {
+const size_t outChannels = 80;
 
-const std::vector<fusingSpecificParams> fusingParamsSet{
-        emptyFusingSpec,
-        fusingRelu,
-        fusingSum,
-        fusingAddPerChannel // bias
-};
+const SizeVector kernel = { 251 };
+const SizeVector stride = { 10 };
+const std::vector<ptrdiff_t> padBegins = { 0 };
+const std::vector<ptrdiff_t> padEnds = { 0 };
+const SizeVector dilations = { 1 };
 
-const SizeVector numOutChannels = { 32 };
-
-const std::vector<SizeVector> kernels2d = { {3, 3} };
-const std::vector<SizeVector> strides2d = { {1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
-const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
-const std::vector<SizeVector> dilations2d = { {1, 1} };
-
-const auto convParams_2D = ::testing::Combine(
-        ::testing::ValuesIn(kernels2d),
-        ::testing::ValuesIn(strides2d),
-        ::testing::ValuesIn(padBegins2d),
-        ::testing::ValuesIn(padEnds2d),
-        ::testing::ValuesIn(dilations2d),
-        ::testing::ValuesIn(numOutChannels),
+const auto convParams_1D = ::testing::Combine(
+        ::testing::Values(kernel),
+        ::testing::Values(stride),
+        ::testing::Values(padBegins),
+        ::testing::Values(padEnds),
+        ::testing::Values(dilations),
+        ::testing::Values(outChannels),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-std::vector<InputShape> inShapesWinograd = {
-    {{}, {{ 1, 16, 10, 10 }}},
+std::vector<InputShape> inShapes = {
+    {{}, {{ 1, 1, 600 }}},
     {
         //dynamic shape
-        { {1, 200}, 16, -1, {1, 200} },
+        { -1, 1, -1 },
         { //target static shapes
-            { 1, 16, 5, 5 },
-            { 1, 16, 7, 7 },
-            { 1, 16, 5, 5 }
+            { 1, 1, 600 },
+            { 10, 1, 700 },
+            { 1, 1, 600 }
         }
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Large_Filter, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
-                                         convParams_2D,
+                                         convParams_1D,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inShapesWinograd),
+                                         ::testing::ValuesIn(inShapes),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(std::vector<CPUSpecificParams>{conv_winograd})),
-                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type}),
+                                 ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-} // namespace winograd
-
+} // namespace
 } // namespace CPULayerTestsDefinitions

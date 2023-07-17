@@ -1,32 +1,35 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "snippets/utils.hpp"
 
 #include "snippets/pass/fq_decomposition.hpp"
+#include "openvino/core/rt_info.hpp"
 
 
-auto ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq) -> size_t {
-    std::vector<float> out_scales;
+namespace ov {
+namespace snippets {
+namespace utils {
+
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t {
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    const bool status = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    const bool status = ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    bool is_optimized = false;  // The case when we can calculate only scales
     if (status) {
-        out_scales = ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
-        if (out_scales.size() != 0) {
-            return out_scales.size() != 1;
-        }
+        const auto out_scales = ov::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+        is_optimized = out_scales.size() != 0;
     }
 
-    const bool only_quantized = status &&
-                                std::all_of(osc.cbegin(), osc.cend(),
-                                    [](float val) { return val == 1.f; }) &&
-                                std::all_of(osh.cbegin(), osh.cend(),
-                                    [](float val) { return val == 0.f; });
-    const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool only_quantized = is_optimized || (status &&
+                                                 std::all_of(osc.cbegin(), osc.cend(),
+                                                     [](float val) { return val == 1.f; }) &&
+                                                 std::all_of(osh.cbegin(), osh.cend(),
+                                                     [](float val) { return val == 0.f; }));
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
@@ -37,21 +40,63 @@ auto ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(const std::sh
     //      - osh := ol
     // New formula:
     //      round(x * isc + ish) * osc + osh
-    // Thus, after FakeQuantize decompoisition we have 6 Constants instead of original 4:
-    //      ih, il (for Max/Min), isc, ish, osc, osh
+    // Thus, after FakeQuantize decompoisition we have:
+    //      - If it's non optimized FQ, 6 Constants instead of original 4:
+    //              ih, il (for Max/Min), isc, ish, osc, osh
+    //      - If it's optimized FQ, 3 Constants instead of original 4:
+    //              ih, il (for Max/Min), isc
     // Some of them can be scalar or non-scalar. It depends on which original 4 Constants are non-scalar
     // To sum it up, below conditions check all possible cases to calculate count of new generated non-scalars
-    if (ol && il && ih)
-        return 6;
-    else if ((ol && (il || ih)) || (il && ih && oh))
-        return 5;
-    else if ((il && oh) || (ih && oh) || (il && ih))
-        return 4;
-    else if (il || ih)
-        return 3;
-    else if (ol)
-        return 2;
-    else if (oh)
-        return 1;
-    return 0;
+    if (is_optimized) {
+        if (il && ih)
+            return 3;
+        else if (il || ih)
+            return 2;
+        return 0;
+    } else {
+        if (ol && il && ih)
+            return 6;
+        else if ((ol && (il || ih)) || (il && ih && oh))
+            return 5;
+        else if ((il && oh) || (ih && oh) || (il && ih))
+            return 4;
+        else if (il || ih)
+            return 3;
+        else if (ol)
+            return 2;
+        else if (oh)
+            return 1;
+        return 0;
+    }
 }
+
+ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout) {
+    if (layout.empty())
+        return shape;
+    std::vector<Dimension> reordered_shape(layout.size());
+    if (shape.rank().is_dynamic())
+        OPENVINO_THROW("get_reordered_planar_shape can't be called for outputs with dynamic rank");
+    const size_t rank = shape.rank().get_length();
+    if (layout.size() > rank)
+        OPENVINO_THROW("Layout rank can't be larger than tensor rank");
+    // Note that it can be smaller though, for example tensor shape can be prepended with 1 for scheduling purposes
+    if (std::any_of(layout.begin(), layout.end(), [=](size_t x) {return x >= rank;}))
+        OPENVINO_THROW("Invalid layout detected: all layout indexes must be smaller than the tensor rank");
+    for (size_t i = 0; i < layout.size(); i++)
+        reordered_shape[i] = shape[layout[i]];
+    return reordered_shape;
+}
+
+ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
+ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
+} // namespace utils
+} // namespace snippets
+} // namespace ov

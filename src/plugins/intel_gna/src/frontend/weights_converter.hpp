@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "precision_utils.h"
 #include "layers/gna_layer_info.hpp"
+#include "precision_utils.h"
 
 namespace ov {
 namespace intel_gna {

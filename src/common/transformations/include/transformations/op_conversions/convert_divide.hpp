@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,3 @@ public:
     OPENVINO_RTTI("ConvertDivideWithConstant", "0");
     ConvertDivideWithConstant();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDivide;
-using ov::pass::ConvertDivideWithConstant;
-}  // namespace pass
-}  // namespace ngraph

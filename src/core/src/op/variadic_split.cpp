@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
@@ -14,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,
@@ -35,7 +34,9 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
         set_input_is_relevant_to_value(i);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
@@ -85,8 +86,10 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
                  "split_lengths element type is not integral data type");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
     axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
                                                   axis_tensor->get_partial_shape(),
@@ -129,18 +132,20 @@ bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
     return true;
 }
 
-bool op::v1::VariadicSplit::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
-    return has_evaluate() && has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::VariadicSplit::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
-    return has_evaluate() && has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

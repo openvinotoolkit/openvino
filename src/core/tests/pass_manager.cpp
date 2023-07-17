@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,12 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_tools.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -37,7 +37,7 @@ namespace {
 class DummyPass : public pass::FunctionPass {
 public:
     DummyPass() {}
-    bool run_on_function(std::shared_ptr<ngraph::Function> /* f */) override {
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& /* f */) override {
         return false;
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,18 +56,20 @@ protected:
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
-    std::unordered_map<std::string, void*> externalPtr;
+    std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
 
 private:
     void PushStates();
     void PullStates();
     void redefineMemoryForInputNodes();
 
-    void changeDefaultPtr();
     std::shared_ptr<ExecNetwork>        execNetwork;
     openvino::itt::handle_t             profilingTask;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
     AsyncInferRequest*                  _asyncRequest = nullptr;
+
+protected:
+    virtual void changeDefaultPtr();
 };
 
 class LegacyInferRequest : public InferRequestBase {
@@ -82,7 +84,7 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
+    void changeDefaultPtr() override;
 };
 
 class InferRequest : public InferRequestBase {
@@ -98,7 +100,6 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
 
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;

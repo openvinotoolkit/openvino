@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
-            commonTestUtils
+            common_test_utils
             openvino::runtime
             openvino::runtime::dev
         PRIVATE

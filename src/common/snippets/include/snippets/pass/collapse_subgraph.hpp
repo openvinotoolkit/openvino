@@ -1,39 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
-/*
- NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
- SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via SetSnippetsNodeType(...).
- */
-enum class SnippetsNodeType : int64_t {NotSet, SkippedByPlugin};
-void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
-void SetTopologicalOrder(const std::shared_ptr<Node>&, int64_t);
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
-bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
-
-/**
- * @interface EnumerateNodes
- * @brief  Snippets rely on topological order to avoid creating cyclic dependencies. This transformation sets the order.
- * @ingroup snippets
- */
-class EnumerateNodes : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("EnumerateNodes", "0");
-    EnumerateNodes() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
-};
 
 /**
  * @interface TokenizeSnippets
@@ -57,12 +34,16 @@ public:
  * Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
-class TokenizeSnippets: public ngraph::pass::MatcherPass {
+class TokenizeSnippets: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TokenizeSnippets", "0");
     explicit TokenizeSnippets();
+
+    static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
+
+    static const std::set<ov::element::Type> supported_element_types;
 };
 
 }  // namespace pass
 }  // namespace snippets
-}  // namespace ngraph
+}  // namespace ov

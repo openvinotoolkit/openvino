@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 std::function<void()> load_unload_plugin(const std::string &target_device, const int &api_version) {
     return [&] {
         auto ie_api_wrapper = create_infer_api_wrapper(api_version);
-        // get_versions silently register plugin in `plugins` through `GetCPPPluginByName`
+        // get_versions silently register plugin in `plugins` through `get_plugin`
         ie_api_wrapper->load_plugin(target_device);
         // Remove plugin for target_device from `plugins`
         ie_api_wrapper->unload_plugin(target_device);

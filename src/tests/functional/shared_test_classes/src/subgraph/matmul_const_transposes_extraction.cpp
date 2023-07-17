@@ -40,7 +40,7 @@ void MatMulConstTransposesExtractionTest::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;
@@ -87,7 +87,7 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;
@@ -101,6 +101,7 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
 }
 
 void QuantizedMatMulConstTransposesExtractionTest::TearDown() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto runtime_function = executableNetwork.GetExecGraphInfo().getFunction();
     int ops_found = 0;
     for (const auto& node : runtime_function->get_ordered_ops()) {

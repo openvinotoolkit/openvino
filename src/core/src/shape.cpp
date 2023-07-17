@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@ using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     s << "[";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(shape, ",");
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "]";
     return s;
 }
@@ -37,10 +39,12 @@ ov::Shape::Shape(const Shape& axis_lengths) = default;
 ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
 
 ov::Shape::Shape(const std::string& value) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto val = ngraph::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
     val = ngraph::trim(val);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<size_t> dims;
     std::stringstream ss(val);
     std::string field;
@@ -68,5 +72,3 @@ std::string ov::Shape::to_string() const {
     shape_str_stream << *this;
     return shape_str_stream.str();
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Shape>);

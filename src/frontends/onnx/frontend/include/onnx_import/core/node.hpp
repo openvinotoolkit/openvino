@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,10 @@ namespace onnx_import {
 namespace error {
 namespace node {
 struct UnknownAttribute : ngraph_error {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit UnknownAttribute(const std::string& node, const std::string& name)
         : ngraph_error{"Node (" + node + "): unknown attribute \'" + name + "\'"} {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace node
@@ -41,7 +43,7 @@ class ONNX_IMPORTER_API Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
-    Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
+    Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph);
 
     Node(Node&&) noexcept;
     Node(const Node&);

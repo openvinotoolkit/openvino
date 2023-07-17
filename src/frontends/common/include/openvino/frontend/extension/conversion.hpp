@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ public:
         return m_op_type;
     }
 
-    ~ConversionExtensionBase() override = 0;
+    virtual ~ConversionExtensionBase();
 
 private:
     std::string m_op_type;
@@ -37,6 +37,10 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter_named(converter) {}
 
+    ConversionExtension(const std::string& op_type, const CreatorFunctionNamedAndIndexed& converter)
+        : ConversionExtensionBase(op_type),
+          m_converter_named_and_indexed(converter) {}
+
     const CreatorFunction& get_converter() const {
         return m_converter;
     };
@@ -45,11 +49,16 @@ public:
         return m_converter_named;
     };
 
+    const CreatorFunctionNamedAndIndexed& get_converter_named_and_indexed() const {
+        return m_converter_named_and_indexed;
+    };
+
     ~ConversionExtension() override;
 
 private:
     CreatorFunction m_converter;
     CreatorFunctionNamed m_converter_named;
+    CreatorFunctionNamedAndIndexed m_converter_named_and_indexed;
 };
 
 }  // namespace frontend

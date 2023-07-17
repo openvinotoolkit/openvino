@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <set>
 #include <type_traits>
 #include "buffer.hpp"
 #include "helpers.hpp"
+#include "openvino/core/axis_set.hpp"
 
 namespace cldnn {
 template <typename BufferType, typename T>
@@ -31,6 +31,32 @@ public:
 
         for (long unsigned int i = 0; i < set_size; i++) {
             T el;
+            buffer >> el;
+            set.insert(el);
+        }
+    }
+};
+
+template <typename BufferType>
+class Serializer<BufferType, ov::AxisSet, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void save(BufferType& buffer, const ov::AxisSet& set) {
+        buffer << set.size();
+        for (const auto& el : set) {
+            buffer << el;
+        }
+    }
+};
+
+template <typename BufferType>
+class Serializer<BufferType, ov::AxisSet, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void load(BufferType& buffer, ov::AxisSet& set) {
+        typename ov::AxisSet::size_type set_size = 0UL;
+        buffer >> set_size;
+
+        for (long unsigned int i = 0; i < set_size; i++) {
+            size_t el;
             buffer >> el;
             set.insert(el);
         }

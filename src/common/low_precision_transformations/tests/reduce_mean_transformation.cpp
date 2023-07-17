@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-class ReduceMeanTransformation : public ReduceTransformation<opset1::ReduceMean> {
+class ReduceMeanTransformation : public ReduceTransformation<ov::op::v1::ReduceMean> {
     void SetUp() override {
         ReduceTransformation::SetUp();
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMeanTransformation, ngraph::opset1::ReduceMean>(transformationParams);
+        transform.add<ngraph::pass::low_precision::ReduceMeanTransformation, ov::op::v1::ReduceMean>(transformationParams);
         transform.transform(actualFunction);
     }
 };

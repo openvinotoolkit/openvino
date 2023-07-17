@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <ngraph/ngraph.hpp>
@@ -17,7 +18,7 @@ public:
     FakeQuantizeOnData();
 
     FakeQuantizeOnData(
-        const size_t quantizationLevel,
+        const uint64_t quantizationLevel,
         const ngraph::Shape& constantShape,
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,
@@ -31,7 +32,7 @@ public:
     bool isSigned() const;
     virtual bool empty() const;
 
-    size_t quantizationLevel;
+    uint64_t quantizationLevel;
     ngraph::Shape constantShape;
     std::vector<float> inputLowValues;
     std::vector<float> inputHighValues;
@@ -67,7 +68,7 @@ public:
     FakeQuantizeOnDataWithConstant();
 
     FakeQuantizeOnDataWithConstant(
-        const size_t quantizationLevel,
+        const uint64_t quantizationLevel,
         const std::vector<ngraph::Shape>& constantShapes,
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,
@@ -80,7 +81,7 @@ public:
 
     virtual bool empty() const;
 
-    size_t quantizationLevel;
+    uint64_t quantizationLevel;
     std::vector<ngraph::Shape> constantShapes;
     std::vector<float> inputLowValues;
     std::vector<float> inputHighValues;

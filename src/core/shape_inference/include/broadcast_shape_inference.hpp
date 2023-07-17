@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -103,7 +103,9 @@ void set_result_shape_pdpd(const ov::Node* op,
         return;
     }
     result_shape = target_input_shape;
-    auto& start_axis = broadcast_spec.m_axis;
+    auto start_axis = ((broadcast_spec.m_type == op::BroadcastType::PDPD) && (broadcast_spec.m_axis == -1))
+                          ? static_cast<int64_t>(target_input_shape.size()) - static_cast<int64_t>(arg0_shape.size())
+                          : broadcast_spec.m_axis;
 
     NODE_VALIDATION_CHECK(op, start_axis >= 0, "Broadcast start_axis must be greater than 0");
 
@@ -214,12 +216,13 @@ void broadcast_base_shape_infer(
         if (data_input_shape.rank().is_static() && target_input_shape.rank().is_static() && axes_shape.is_static()) {
             int64_t input_rank =
                 (data_input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : data_input_shape.size();
-            NODE_VALIDATION_CHECK(op,
-                                  axes_shape[0].get_length() == input_rank,
-                                  "Broadcast axes_mapping shape ",
-                                  axes_shape,
-                                  " doesn't match rank of input tensor ",
-                                  input_rank);
+            NODE_VALIDATION_CHECK(
+                op,
+                static_cast<uint64_t>(axes_shape[0].get_length()) == static_cast<uint64_t>(input_rank),
+                "Broadcast axes_mapping shape ",
+                axes_shape,
+                " doesn't match rank of input tensor ",
+                input_rank);
             std::vector<int64_t> axes_mapping_val;
             if (is_target_shape_defined && get_data_as_int64<T>(2, op, axes_mapping_val, constant_data)) {
                 AxisVector axes_mapping =
@@ -250,7 +253,10 @@ void broadcast_base_shape_infer(
         } else if (data_input_shape.rank().is_static() && is_target_input_shape_static) {
             result_shape = PartialShape::dynamic(target_input_shape[0].get_length());
             // The logic of BroadcastType::BIDIRECTIONAL matches broadcast_merge_into with AutoBroadcastType::NUMPY
-            T::broadcast_merge_into(result_shape, data_input_shape, op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(op,
+                                  T::broadcast_merge_into(result_shape, data_input_shape, op::AutoBroadcastType::NUMPY),
+                                  "Broadcast shape inference failed, output shape calculation with "
+                                  "'broadcast_merge_into' was unsuccessful.");
         } else {
             result_shape = PartialShape::dynamic();
         }

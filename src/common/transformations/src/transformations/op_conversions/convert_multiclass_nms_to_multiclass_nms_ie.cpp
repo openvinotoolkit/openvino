@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,10 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -60,13 +59,13 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
         Output<Node> output_2 = nms_new->output(2);
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
-            output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
+            output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
             output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
-            output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
+            output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
             output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }

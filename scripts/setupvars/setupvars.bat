@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (C) 2018-2022 Intel Corporation
+:: Copyright (C) 2018-2023 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 set SCRIPT_NAME=%~nx0
@@ -36,8 +36,7 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
-set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
@@ -61,18 +60,13 @@ if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
    )
 )
 
-:: Compile tool
-if exist %INTEL_OPENVINO_DIR%\tools\compile_tool (
-   set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
-)
-
 :: Add libs dirs to the PATH
 set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=7
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=10
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=11
 
 python --version 2>NUL
 if errorlevel 1 (call :python_not_installed) else (call :check_python_version)
@@ -107,7 +101,7 @@ if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
 )
 
 if not "%check_pyversion%"=="true" (
-   echo Unsupported Python version. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version %pyversion_major%.%pyversion_minor%. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR% ^(64-bit^) from https://www.python.org/downloads/
    exit /B 0
 )
 
@@ -127,7 +121,7 @@ if not "%bitness%"=="64" (
    exit /B 0
 )
 
-set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\python;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 exit /B 0
 
 :GetFullPath

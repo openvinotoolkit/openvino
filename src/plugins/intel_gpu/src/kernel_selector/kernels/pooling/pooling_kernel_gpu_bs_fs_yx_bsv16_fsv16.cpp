@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,14 @@ ParamsKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
     k.EnableDifferentTypes();
+    return k;
+}
+
+DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 

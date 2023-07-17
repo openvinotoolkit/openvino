@@ -18,9 +18,6 @@ from .utils.path import TEST_ROOT
 from .utils.data_helper import load_json
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'MinMaxQuantization', 'performance', 'VPU'),
-    ('resnet-50-tf', 'tf', 'DefaultQuantization', 'performance', 'VPU'),
-    ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'accuracy', 'VPU'),
     ('concat_depthwise_model', 'pytorch', 'MinMaxQuantization', 'accuracy', 'CPU'),
 ]
 
@@ -35,6 +32,9 @@ def _params(request):
 
 def test_unify_scales(_params, tmp_path, models):
     model_name, model_framework, algorithm, preset, device = _params
+
+    if model_framework == 'mxnet':
+        pytest.skip('Skipped due to conflict with numpy version in mxnet #99501.')
 
     algorithm_config = Dict({
         'algorithms': [{

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,19 @@
 #include "functional_test_utils/plugin_cache.hpp"
 
 TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferenceEngine::CNNNetwork net(fn_ptr);
     net.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
 
     auto ie = PluginCache::get().ie();
 
-    auto exec_net = ie->LoadNetwork(net, device_names);
+    std::map<std::string, std::string> configs;
+    for (auto&& value : _properties) {
+        configs.emplace(value.first, value.second.as<std::string>());
+    }
+
+    auto exec_net = ie->LoadNetwork(net, device_names, configs);
     if (expected_status) {
         std::shared_ptr<InferenceEngine::RemoteContext> ctx;
         ASSERT_NE(ctx = exec_net.GetContext(), nullptr);

@@ -1,34 +1,33 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <memory>
-#include <tuple>
-#include <vector>
-#include <string>
-#include <fstream>
-
-#include <ie_core.hpp>
 #include <ie_layouts.h>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include <fstream>
+#include <ie_core.hpp>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
-typedef std::tuple<
-        InferenceEngine::Precision,         // Network Precision
-        std::string,                        // Target Device
-        std::map<std::string, std::string>, // Export Configuration
-        std::map<std::string, std::string>, // Import Configuration
-        std::pair<bool, bool>               // With reset
-> exportImportNetworkParams;
+#include "functional_test_utils/blob_utils.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+
+typedef std::tuple<InferenceEngine::Precision,          // Network Precision
+                   std::string,                         // Target Device
+                   std::map<std::string, std::string>,  // Export Configuration
+                   std::map<std::string, std::string>,  // Import Configuration
+                   std::pair<bool, bool>                // With reset
+                   >
+    exportImportNetworkParams;
 
 namespace LayerTestsDefinitions {
 
 class ImportMemoryTest : public testing::WithParamInterface<exportImportNetworkParams>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
         InferenceEngine::Precision netPrecision;
@@ -41,10 +40,10 @@ public:
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
-        for (auto const &configItem : exportConfiguration) {
+        for (auto const& configItem : exportConfiguration) {
             result << "_exportConfigItem=" << configItem.first << "_" << configItem.second;
         }
-        for (auto const &configItem : importConfiguration) {
+        for (auto const& configItem : importConfiguration) {
             result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
         }
         result << "_resetBefore=" << withReset.first;
@@ -60,12 +59,12 @@ public:
         GenerateInputs();
         Infer();
         if (withReset.first) {
-            for (auto &query_state : inferRequest.QueryState()) {
+            for (auto& query_state : inferRequest.QueryState()) {
                 query_state.Reset();
             }
         }
         executableNetwork.Export("exported_model.blob");
-        for (auto const &configItem : importConfiguration) {
+        for (auto const& configItem : importConfiguration) {
             configuration[configItem.first] = configItem.second;
         }
         std::fstream inputStream("exported_model.blob", std::ios_base::in | std::ios_base::binary);
@@ -76,19 +75,20 @@ public:
         std::vector<std::string> queryToState;
         InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
 
-        for (auto &query_state : importInfer.QueryState()) {
+        for (auto& query_state : importInfer.QueryState()) {
             queryToState.push_back(query_state.GetName());
         }
         if (withReset.first) {
             CheckQueryStates(&inferRequest);
         }
-        for (const auto &next_memory : importInfer.QueryState()) {
-            ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
-                                        << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
+        for (const auto& next_memory : importInfer.QueryState()) {
+            ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) !=
+                        queryToState.end())
+                << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
         importInfer.Infer();
         if (withReset.second) {
-            for (auto &query_state : importInfer.QueryState()) {
+            for (auto& query_state : importInfer.QueryState()) {
                 query_state.Reset();
             }
             CheckQueryStates(&importInfer);
@@ -116,9 +116,9 @@ protected:
     }
 
     void CheckQueryStates(InferenceEngine::InferRequest* inferRequest) {
-        for (auto &query_state : inferRequest->QueryState()) {
+        for (auto& query_state : inferRequest->QueryState()) {
             auto state = query_state.GetState();
-            auto state_data = state->cbuffer().as<int16_t *>();
+            auto state_data = state->cbuffer().as<int16_t*>();
             for (int i = 0; i < state->size(); i++) {
                 EXPECT_NEAR(0, state_data[i], 1e-5);
             }
@@ -135,42 +135,30 @@ TEST_P(ImportMemoryTest, CompareWithRefImpl) {
     Run();
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> exportConfigs = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"}
-        }
-};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}}};
 
 const std::vector<std::map<std::string, std::string>> importConfigs = {
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "32767"}
-        },
-        {
-                {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"}
-        },
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "32767"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_SCALE_FACTOR_0", "327.67"}},
 };
 
 const std::vector<std::pair<bool, bool>> withReset = {
     {false, false},
-    {true, false}, // Reset before export
-    {false, true}  // Reset after export
+    {true, false},  // Reset before export
+    {false, true}   // Reset after export
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase, ImportMemoryTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::ValuesIn(exportConfigs),
-                                ::testing::ValuesIn(importConfigs),
-                                ::testing::ValuesIn(withReset)),
-                        ImportMemoryTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase,
+                         ImportMemoryTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(exportConfigs),
+                                            ::testing::ValuesIn(importConfigs),
+                                            ::testing::ValuesIn(withReset)),
+                         ImportMemoryTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

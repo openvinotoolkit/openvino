@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <array>
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ov;
@@ -44,6 +44,24 @@ TEST(type_prop, unique_no_axis_3d_index_type_i32) {
     const auto unique = make_shared<opset10::Unique>(data, true, element::i32);
 
     CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i32, element::i32, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{9}}, PartialShape{{1, 9}}}});
+}
+
+TEST(type_prop, unique_no_axis_3d_count_type_i32) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 3});
+    const auto unique = make_shared<opset10::Unique>(data, true, element::i64, element::i32);
+
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i32}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{9}}, PartialShape{{1, 9}}}});
+}
+
+TEST(type_prop, unique_no_axis_3d_all_outputs_i32) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 3});
+    const auto unique = make_shared<opset10::Unique>(data, true, element::i32, element::i32);
+
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i32, element::i32, element::i32}});
     CHECK_OUTPUT_SHAPES(unique,
                         {{PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{9}}, PartialShape{{1, 9}}}});
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,15 +99,10 @@ protected:
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);
 
         function = makeNgraphFunction(netPrecision, params, augruCellOp, "AUGRUCell");
-        ov::pass::Serialize serializer("AUGRUCell.xml", "AUGRUCell.bin");
-        serializer.run_on_model(function);
-        std::cout << "Saved subgraph IR." << std::endl;
     }
 };
 
 TEST_P(AUGRUCellCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RNNCell");
 }

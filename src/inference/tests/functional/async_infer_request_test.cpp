@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+IE_SUPPRESS_DEPRECATED_START
 
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
     InferRequest req;
@@ -20,11 +21,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
 TEST(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
     InferRequest req;
     ASSERT_THROW(req.GetBlob({}), InferenceEngine::NotAllocated);
-}
-
-TEST(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
-    InferRequest req;
-    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::NotAllocated);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
@@ -50,11 +46,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetInput) {
 TEST(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
     InferRequest req;
     ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::NotAllocated);
-}
-
-TEST(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
-    InferRequest req;
-    ASSERT_THROW(req.SetBatch({}), InferenceEngine::NotAllocated);
 }
 
 TEST(InferRequestCPPTests, throwsOnUninitializedStartAsync) {

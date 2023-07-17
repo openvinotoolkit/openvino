@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,16 +89,16 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
     desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    return make_blob_with_precision(desc, mem.GetData());
+    return make_blob_with_precision(desc, mem.getData());
 }
 
-InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const Memory &mem) {
+InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory &mem) {
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
@@ -157,5 +157,18 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
     return Shape(dummyDims);
 }
 
+Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dummyVals) {
+    if (shape.getRank() != dummyVals.size()) {
+        IE_THROW() << "makeDummyShape(): dummyVals vector size and shape ranks mismatch";
+    }
+    const auto& minDims = shape.getMinDims();
+    const auto& maxDims = shape.getMaxDims();
+    const auto& dims = shape.getDims();
+    VectorDims dummyDims(dims.size());
+    for (size_t i = 0; i < dims.size(); ++i) {
+        dummyDims[i] = dims[i] == Shape::UNDEFINED_DIM ? std::min(maxDims[i], std::max(minDims[i], dummyVals[i])) : dims[i];
+    }
+    return Shape(dummyDims);
+}
 }   // namespace intel_cpu
 }   // namespace ov

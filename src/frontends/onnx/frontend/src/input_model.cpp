@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <openvino/util/file_util.hpp>
 
 #include "ngraph/log.hpp"
+#include "openvino/util/log.hpp"
 #include "place.hpp"
 
 using namespace ov;
@@ -15,23 +16,30 @@ using namespace ov::frontend::onnx;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModel::InputModel(const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModel::InputModel(const std::wstring& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, std::move(extensions))} {}
+InputModel::InputModel(const std::wstring& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
 #endif
 
-InputModel::InputModel(std::istream& model_stream, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream, const bool enable_mmap, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, "", enable_mmap, std::move(extensions))} {}
 
-InputModel::InputModel(std::istream& model_stream, const std::string& path, frontend::ExtensionHolder extensions)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, std::move(extensions))} {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::string& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path, enable_mmap, std::move(extensions))} {
+}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModel::InputModel(std::istream& model_stream, const std::wstring& path, frontend::ExtensionHolder extensions)
-    : InputModel(model_stream, ov::util::wstring_to_string(path), std::move(extensions)) {}
+InputModel::InputModel(std::istream& model_stream,
+                       const std::wstring& path,
+                       const bool enable_mmap,
+                       frontend::ExtensionHolder extensions)
+    : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
@@ -193,6 +201,33 @@ void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const n
     m_editor->set_input_types(m);
 }
 
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    OPENVINO_ASSERT(place, "Cannot return a type for nullptr Place.");
+    std::string tensor_name;
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
+    const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve source tensor name for this InputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else if (output_edge) {
+        const auto tensor_names = output_edge->get_target_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve target tensor name for this OutputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else {
+        OPENVINO_ASSERT(place->get_names().size() > 0, "Place must have its name.");
+        tensor_name = place->get_names().at(0);
+    }
+
+    if (place->is_input()) {
+        return m_editor->get_input_type(tensor_name);
+    }
+    // now we can return the concrete element type only for model inputs
+    return element::undefined;
+}
+
 std::shared_ptr<Model> InputModel::decode() {
     return m_editor->decode();
 }
@@ -230,8 +265,8 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            NGRAPH_WARN << "Name  " << output->get_names().at(0)
-                        << " of output node is not a correct node name. Ignoring this parameter.";
+            OPENVINO_WARN << "Name  " << output->get_names().at(0)
+                          << " of output node is not a correct node name. Ignoring this parameter.";
         else
             expected_valid_outputs.push_back(output);
     }
@@ -263,8 +298,8 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            NGRAPH_WARN << "Name  " << input->get_names().at(0)
-                        << " of input node is not a correct node. Ignoring this parameter.";
+            OPENVINO_WARN << "Name  " << input->get_names().at(0)
+                          << " of input node is not a correct node. Ignoring this parameter.";
         else
             expected_valid_inputs.push_back(input);
     }

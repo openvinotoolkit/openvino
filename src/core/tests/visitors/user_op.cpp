@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -9,7 +10,6 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -31,13 +31,8 @@ class AttributeAdapter<TuringModel> : public EnumAttributeAdapterBase<TuringMode
 public:
     AttributeAdapter(TuringModel& value) : EnumAttributeAdapterBase<TuringModel>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<TuringModel>", static_cast<uint64_t>(0)};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<TuringModel>");
 };
-
-constexpr DiscreteTypeInfo AttributeAdapter<TuringModel>::type_info;
 
 struct Position {
     float x;
@@ -64,16 +59,11 @@ public:
         visitor.on_attribute("z", m_ref.z);
         return true;
     }
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", static_cast<uint64_t>(0)};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<Position>");
 
 protected:
     Position& m_ref;
 };
-
-constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
 }  // namespace ov
 
 // Given a Turing machine program and data, return scalar 1 if the program would

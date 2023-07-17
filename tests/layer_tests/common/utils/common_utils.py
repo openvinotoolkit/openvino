@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,10 @@ def generate_ir(coverage=False, **kwargs):
             params.extend(("-b", str(value)))
         elif key == "k":
             params.extend(("-k", str(value)))
+        # for FP32 set explicitly compress_to_fp16=False,
+        # if we omit this argument for FP32, it will be set implicitly to True as the default
+        elif key == 'compress_to_fp16':
+            params.append("--{}={}".format(key, value))
         elif isinstance(value, bool) and value:
             params.append("--{}".format(key))
         elif isinstance(value, bool) and not value:
@@ -41,6 +46,20 @@ def generate_ir(coverage=False, **kwargs):
     logger.error(stderr)
     return exit_code, stderr
 
+
+def generate_ir_python_api(coverage=False, **kwargs):
+    from openvino.runtime import convert_model, serialize
+    from openvino.tools.mo import convert_model as legacy_convert_model
+
+    if "use_legacy_frontend" in kwargs and kwargs['use_legacy_frontend']:
+        ov_model = legacy_convert_model(**kwargs)
+    else:
+        ov_model = convert_model(**kwargs)
+
+    out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+    serialize(ov_model, out_dir)
+
+    return 0, ""
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "ie_api.h"
 #include "ie_blob.h"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 /**
@@ -24,3 +25,4 @@ namespace InferenceEngine {
 INFERENCE_ENGINE_API_CPP(void) blob_copy(Blob::Ptr src, Blob::Ptr dst);
 
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END

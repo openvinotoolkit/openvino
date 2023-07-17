@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 
@@ -22,8 +20,8 @@ void trim_to_outputs::run(program& p) {
     }
 
     // do backward bfs starting from all outputs
-    std::queue<const std::vector<program_node*>*> queue;
-    queue.push(&p.get_outputs());
+    std::queue<std::vector<program_node*>> queue;
+    queue.push(p.get_outputs());
 
     std::vector<program_node*> special_nodes;
     for (auto& node : p.get_processing_order()) {   // input layout may become disconnected during prior boxes calculations so
@@ -31,17 +29,21 @@ void trim_to_outputs::run(program& p) {
             special_nodes.push_back(node);          // ToDo: remove this after support for multi-outputs in primitives will
         }                                           // be implemented.
     }
-    queue.push(&special_nodes);
+    queue.push(special_nodes);
 
     while (!queue.empty()) {
         auto nodes_list = queue.front();
         queue.pop();
 
-        for (auto& node : *nodes_list) {
+        for (auto& node : nodes_list) {
             if (!node->is_marked()) {
                 node->mark();
                 if (!node->get_dependencies().empty()) {
-                    queue.push(&node->get_dependencies());
+                   std::vector<program_node*> deps;
+                    for (auto& dep : node->get_dependencies()) {
+                        deps.push_back(dep.first);
+                    }
+                    queue.push(deps);
                 }
             }
         }

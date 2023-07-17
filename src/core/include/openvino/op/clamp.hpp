@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v0 {
 class OPENVINO_API Clamp : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Clamp", "opset1", UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     Clamp() = default;
     /// \brief Constructs a Clamp node.
@@ -48,14 +47,14 @@ public:
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
 
 private:
-    double m_min;
-    double m_max;
+    double m_min = 0.0;
+    double m_max = 0.0;
 };
 }  // namespace v0
 }  // namespace op

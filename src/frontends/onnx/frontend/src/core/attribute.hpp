@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,11 @@ using AttributeProto_AttributeType = decltype(ONNX_NAMESPACE::AttributeProto{}.t
 namespace error {
 namespace attribute {
 namespace detail {
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct Attribute : ngraph_error {
     Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph_error{msg} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace detail
 
@@ -198,9 +200,12 @@ public:
     };
 
     Attribute() = delete;
-    explicit Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto, const std::string& model_dir)
+    explicit Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto,
+                       const std::string& model_dir,
+                       const bool enable_mmap)
         : m_attribute_proto{&attribute_proto},
-          m_model_dir{model_dir} {}
+          m_model_dir{model_dir},
+          m_enable_mmap{enable_mmap} {}
 
     Attribute(Attribute&&) noexcept = default;
     Attribute(const Attribute&) = default;
@@ -251,10 +256,10 @@ public:
         return get_type() == Type::graph_array;
     }
     Tensor get_tensor() const {
-        return Tensor{m_attribute_proto->t(), m_model_dir};
+        return Tensor{m_attribute_proto->t(), m_model_dir, m_enable_mmap};
     }
     SparseTensor get_sparse_tensor() const {
-        return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir};
+        return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir, m_enable_mmap};
     }
     float get_float() const {
         return m_attribute_proto->f();
@@ -265,14 +270,14 @@ public:
     const std::string& get_string() const {
         return m_attribute_proto->s();
     }
-    Subgraph get_subgraph(const Graph* parent_graph) const;
+    Subgraph get_subgraph(Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
         std::vector<Tensor> ret;
         const auto& tensors = m_attribute_proto->tensors();
         ret.reserve(tensors.size());
         for (const auto& tensor : tensors)
-            ret.emplace_back(tensor, m_model_dir);
+            ret.emplace_back(tensor, m_model_dir, m_enable_mmap);
         return ret;
     }
 
@@ -281,7 +286,7 @@ public:
         const auto& sparse_tensors = m_attribute_proto->sparse_tensors();
         ret.reserve(sparse_tensors.size());
         for (const auto& tensor : sparse_tensors)
-            ret.emplace_back(tensor, m_model_dir);
+            ret.emplace_back(tensor, m_model_dir, m_enable_mmap);
         return ret;
     }
 
@@ -313,7 +318,7 @@ public:
     template <typename T, typename std::enable_if<std::is_same<T, Tensor>::value, bool>::type = true>
     T get_value() const {
         if (is_tensor()) {
-            return Tensor{m_attribute_proto->t(), m_model_dir};
+            return Tensor{m_attribute_proto->t(), m_model_dir, m_enable_mmap};
         }
         throw error::attribute::InvalidData{m_attribute_proto->type()};
     }
@@ -321,7 +326,7 @@ public:
     template <typename T, typename std::enable_if<std::is_same<T, std::vector<Tensor>>::value, bool>::type = true>
     T get_value() const {
         if (is_tensor()) {
-            return {Tensor{m_attribute_proto->t(), m_model_dir}};
+            return {Tensor{m_attribute_proto->t(), m_model_dir, m_enable_mmap}};
         } else if (is_tensor_array()) {
             return get_tensor_array();
         }
@@ -331,7 +336,7 @@ public:
     template <typename T, typename std::enable_if<std::is_same<T, SparseTensor>::value, bool>::type = true>
     T get_value() const {
         if (is_sparse_tensor()) {
-            return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir};
+            return SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir, m_enable_mmap};
         }
         throw error::attribute::InvalidData{m_attribute_proto->type()};
     }
@@ -339,7 +344,7 @@ public:
     template <typename T, typename std::enable_if<std::is_same<T, std::vector<SparseTensor>>::value, bool>::type = true>
     T get_value() const {
         if (is_sparse_tensor()) {
-            return {SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir}};
+            return {SparseTensor{m_attribute_proto->sparse_tensor(), m_model_dir, m_enable_mmap}};
         } else if (is_sparse_tensor_array()) {
             return get_sparse_tensor_array();
         }
@@ -351,6 +356,7 @@ public:
 private:
     const ONNX_NAMESPACE::AttributeProto* m_attribute_proto;
     std::string m_model_dir;
+    const bool m_enable_mmap;
 };
 
 }  // namespace onnx_import

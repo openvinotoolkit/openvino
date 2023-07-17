@@ -14,7 +14,7 @@ class IELauncher:
 
     def __init__(self, device='CPU'):
         """ Constructor
-         :param device: specify the target device to infer on; CPU, GPU, FPGA, HDDL, MYRIAD or HETERO: is acceptable
+         :param device: specify the target device to infer on; CPU, GPU or HETERO: is acceptable
          :param extension: path to the extension library with custom layers
         """
         self._tmp_dir = create_tmp_dir()
@@ -23,6 +23,7 @@ class IELauncher:
         self.infer_request = None
 
         self._ie = Core()
+        self._ie.set_property({"ENABLE_MMAP": "NO"})
 
     def set_model(self, model, output_names=None, md_shapes=None):
         """ Set/reset model to instance of engine class

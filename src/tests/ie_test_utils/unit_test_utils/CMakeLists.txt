@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,10 +19,10 @@ addIeTarget(
             tests
         LINK_LIBRARIES
             PUBLIC
-                commonTestUtils_s
+                common_test_utils_s
                 inference_engine_s
                 gmock
         INCLUDES
-            PRIVATE
-                $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+            PUBLIC
+                "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )

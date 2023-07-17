@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_nd_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "gather_nd_inst.h"
 #include "gather/gather_nd_kernel_selector.h"
 #include "gather/gather_nd_kernel_ref.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -38,22 +35,45 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_gather_nd_impl::attach_gather_nd_impl() {
-    implementation_map<gather_nd>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-    });
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i32
+    };
+
+    auto static_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_nd>::add(impl_types::ocl,
+                                       shape_types::static_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       static_formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<gather_nd>::add(impl_types::ocl,
+                                       shape_types::dynamic_shape,
+                                       typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>,
+                                       types,
+                                       dyn_formats);
 }
 
 }  // namespace detail
@@ -61,3 +81,4 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_nd)

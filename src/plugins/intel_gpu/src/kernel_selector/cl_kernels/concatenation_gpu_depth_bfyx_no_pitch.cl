@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 //
@@ -16,17 +17,9 @@
 #define WORK_GROUP_SIZE 16
 #define INPUT0_ELEMENTS_COUNT (INPUT0_LENGTH/INPUT0_BATCH_NUM)
 
-#if FP16_UNIT_USED
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) intel_sub_group_block_write_us8((__global ushort*)(ptr) + (byte_offset), as_ushort8(val))
-#else
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) intel_sub_group_block_write8((__global uint*)(ptr) + (byte_offset), as_uint8(val))
-#endif
-
 __attribute__((reqd_work_group_size(1, WORK_GROUP_SIZE, 1)))
-__attribute__((intel_reqd_sub_group_size(WORK_GROUP_SIZE)))
-KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __global UNIT_TYPE* output, uint output_offset_in_concat_axis)
+REQD_SUB_GROUP_SIZE(WORK_GROUP_SIZE)
+KERNEL(concatenation_gpu_depth_bfyx_no_pitch)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output, uint output_offset_in_concat_axis)
 {
     const uint batch_id = get_group_id(0);
 
@@ -41,7 +34,7 @@ KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __gl
     const uint output_offset = OUTPUT_OFFSET + element_group_offset + output_batch_offset + output_offset_in_concat_axis*OUTPUT_PITCHES[CONCAT_AXIS_INDEX];
 
     //Check if current group in batch starts from 16-byte aligned pos. If not then move block read to 16-byte aligned position.
-    //Requirement for intel_sub_group_block_write8.
+    //Requirement for _sub_group_block_write8.
     uint align_offset = 0;
     const uint group_start_pos = output_offset;
     if(group_start_pos % WORK_GROUP_SIZE != 0)
@@ -52,8 +45,8 @@ KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global UNIT_TYPE* input, __gl
 
     if(element_group_offset + align_offset + WORK_GROUP_SIZE * ELEMENTS_PER_WORK_ITEM < INPUT0_ELEMENTS_COUNT)
     {
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) in = ALIGNED_BLOCK_READ8(input, input_offset + align_offset);
-        ALIGNED_BLOCK_WRITE8(output, output_offset + align_offset, ACTIVATION(in, ACTIVATION_PARAMS));
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) in = DT_INPUT_BLOCK_READ8(input, input_offset + align_offset);
+        DT_OUTPUT_BLOCK_WRITE8(output, output_offset + align_offset, ACTIVATION(in, ACTIVATION_PARAMS));
 
         //Fill the values that were missed upon adding align_offset
         if((align_offset != 0) && (element_offset + output_batch_offset < group_start_pos + align_offset))

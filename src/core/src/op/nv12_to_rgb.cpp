@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/nv12_to_rgb.hpp"
 
 #include "itt.hpp"
-
-BWDCMP_RTTI_DEFINITION(ov::op::v8::NV12toRGB);
 
 ov::op::v8::NV12toRGB::NV12toRGB(const Output<Node>& arg)
     : util::ConvertColorNV12Base(arg, util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB) {

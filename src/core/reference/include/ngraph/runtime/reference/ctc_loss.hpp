@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,11 @@ void CTCLoss(const T* logits,
         U actualTargetLen = labelsLength[b];
         if (static_cast<size_t>(actualLogitLen) > maxTime || static_cast<size_t>(actualTargetLen) > maxTime ||
             actualTargetLen > actualLogitLen) {
-            throw ngraph_error(std::string("Logit or label length cannot greater than max sequence"
-                                           "length. Also a label length cannot be greater than a"
-                                           "logit length.\nMaxSeqLen: ") +
-                               std::to_string(maxTime) + "; Logit len: " + std::to_string(actualLogitLen) +
-                               "; Label len: " + std::to_string(actualTargetLen));
+            OPENVINO_THROW(std::string("Logit or label length cannot greater than max sequence"
+                                       "length. Also a label length cannot be greater than a"
+                                       "logit length.\nMaxSeqLen: ") +
+                           std::to_string(maxTime) + "; Logit len: " + std::to_string(actualLogitLen) +
+                           "; Label len: " + std::to_string(actualTargetLen));
         }
 
         const U* target = &labels[b * maxTime];

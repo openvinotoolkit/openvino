@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ void OVCompiledModelEmptyPropertiesTests::SetUp() {
     target_device = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
 }
 
 std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -38,7 +38,7 @@ void OVCompiledModelPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     APIBaseTest::SetUp();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
 }
 
 void OVCompiledModelPropertiesTests::TearDown() {
@@ -80,6 +80,11 @@ TEST_P(OVCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncorrectP
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }
 
+TEST_P(OVClassCompileModelTest, LoadNetworkWithBigDeviceIDThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
+}
+
 TEST_P(OVCompiledModelPropertiesDefaultTests, CanCompileWithDefaultValueFromPlugin) {
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
@@ -110,7 +115,8 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property);
+        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+            << " expected value is: " << default_property.second.as<std::string>();
     }
 }
 

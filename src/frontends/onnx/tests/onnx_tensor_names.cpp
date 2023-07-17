@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -69,8 +69,8 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
 
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "x", {"x"}));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"values"}, 0));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::TopK>(ops, "indices", {"indices"}, 1));
+    EXPECT_TRUE(matching_node_found_in_graph<ov::op::util::TopKBase>(ops, "indices", {"values"}, 0));
+    EXPECT_TRUE(matching_node_found_in_graph<ov::op::util::TopKBase>(ops, "indices", {"indices"}, 1));
 
     const auto results = function->get_results();
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "values/sink_port_0", {"values"}));

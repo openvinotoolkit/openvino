@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Erf);
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Erf_visit_attributes);
@@ -61,7 +59,7 @@ bool evaluate_erf(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Erf_evaluate);
-    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Erf::has_evaluate() const {

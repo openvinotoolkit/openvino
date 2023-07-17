@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class DnnlMemoryDesc;
 class BlockedMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class CpuBlockedMemoryDesc;
-class Memory;
+class IMemory;
 
 class MemoryDescUtils {
 public:
@@ -65,14 +65,14 @@ public:
      * @param desc Memory from which will be created InferenceEngine::Blob
      * @return pointer to InferenceEngine::Blob
      */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
+    static InferenceEngine::Blob::Ptr interpretAsBlob(const IMemory& mem);
 
     /**
      * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
      * @param desc Memory from which will be created InferenceEngine::Blob
      * @return InferenceEngine::TensorDesc
      */
-    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const IMemory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
@@ -93,11 +93,19 @@ public:
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
-    * @param shape a shape from which the new static shape is generated
+    * @param shape a Shape object from which the new static shape is generated
     * @param dummyVal Dim value to replace undefined dimensions
     * @return a new Shape with dummy values instead of undefined dims
     */
     static Shape makeDummyShape(const Shape& shape, Dim dummyVal = DEFAULT_DUMMY_VAL);
+
+    /**
+    * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
+    * @param shape a Shape object from which the new static shape is generated
+    * @param dummyVals vector of values to replace undefined dimensions
+    * @return a new Shape with dummy values instead of undefined dims
+    */
+    static Shape makeDummyShape(const Shape& shape, const VectorDims& dummyVals);
 
     /**
      * @brief Converts dim to string, undefined dim represented as ?

@@ -147,17 +147,11 @@ graph {
     }
   }
   output {
-    name: "mul2"
+    name: "add2"
     type {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 1
-          }
           dim {
             dim_value: 2
           }
@@ -169,11 +163,17 @@ graph {
     }
   }
   output {
-    name: "add2"
+    name: "mul2"
     type {
       tensor_type {
         elem_type: 1
         shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
           dim {
             dim_value: 2
           }

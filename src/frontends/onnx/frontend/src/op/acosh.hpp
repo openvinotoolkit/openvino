@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
+namespace set_9 {
 inline OutputVector acosh(const Node& node) {
     return {std::make_shared<default_opset::Acosh>(node.get_ng_inputs().at(0))};
 }
-}  // namespace set_1
+}  // namespace set_9
 
 }  // namespace op
 

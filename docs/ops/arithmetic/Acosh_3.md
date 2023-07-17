@@ -1,5 +1,11 @@
 # Acosh {#openvino_docs_ops_arithmetic_Acosh_3}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Acosh-3 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Acosh-3*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +14,9 @@
 
 **Detailed description**:  Operation takes one input tensor and performs the element-wise hyperbolic inverse cosine operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = acosh(a_{i})
-\f]
+.. math::
+   
+   a_{i} = acosh(a_{i})
 
 **Attributes**: *Acosh* operation has no attributes.
 
@@ -28,19 +34,23 @@ a_{i} = acosh(a_{i})
 
 **Examples**
 
-```xml
-<layer ... type="Acosh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="Acosh">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

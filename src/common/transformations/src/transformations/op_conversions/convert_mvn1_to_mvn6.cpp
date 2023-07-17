@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,17 +7,18 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset6.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/mvn.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
-    auto mvn = pattern::wrap_type<ov::opset2::MVN>();
+    auto mvn = pattern::wrap_type<ov::op::v0::MVN>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto mvn_node = std::dynamic_pointer_cast<ov::opset2::MVN>(m.get_match_root());
+        auto mvn_node = std::dynamic_pointer_cast<ov::op::v0::MVN>(m.get_match_root());
         if (!mvn_node) {
             return false;
         }
@@ -31,13 +32,16 @@ ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         if (input_rank.get_length() <= start_axis) {
             return false;
         }
+
+        const auto eps_f = op::util::cast_eps_to_float(mvn_node->get_eps());
+
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
-        auto axes = opset6::Constant::create(ngraph::element::i64, {axes_v.size()}, axes_v);
-        auto mvn6_node = std::make_shared<ov::opset6::MVN>(input,
+        auto axes = ov::op::v0::Constant::create(ngraph::element::i64, {axes_v.size()}, axes_v);
+        auto mvn6_node = std::make_shared<ov::op::v6::MVN>(input,
                                                            axes,
                                                            mvn_node->get_normalize_variance(),
-                                                           static_cast<float>(mvn_node->get_eps()),
+                                                           eps_f,
                                                            op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());

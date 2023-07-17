@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 #include "ngraph/runtime/reference/group_convolution.hpp"
 #include "ngraph/util.hpp"
 

@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reverse_sequence_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reverse_sequence_inst.h"
 #include "reverse_sequence/reverse_sequence_kernel_selector.h"
 #include "reverse_sequence/reverse_sequence_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -57,3 +53,4 @@ attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_sequence_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reverse_sequence)

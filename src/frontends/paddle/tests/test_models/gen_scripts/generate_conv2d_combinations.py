@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from save_model import saveModel
@@ -18,8 +18,8 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with paddle.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x],
-                  outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feedkeys=[feed], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
 
 
 def paddle_conv2d(input_x, name, input_shape, kernel, dilation, padding, stride, groups=1, use_cudnn=True):

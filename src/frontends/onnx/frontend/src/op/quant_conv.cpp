@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ namespace ngraph
 
                                 if (bias.get_node())
                                 {
-                                    throw ngraph_error(
+                                    OPENVINO_THROW(
                                         "Groups != 1 not supported for Quantized Convolution with "
                                         "bias.");
                                 }

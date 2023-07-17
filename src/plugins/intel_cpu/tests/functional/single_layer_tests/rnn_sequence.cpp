@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,12 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
+        if (selectedType.find("BF16") != std::string::npos) {
+            rel_threshold = 5e-2;
+        } else if (selectedType.find("FP32") != std::string::npos) {
+            rel_threshold = 1e-4;
+        }
+
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
@@ -132,8 +138,8 @@ protected:
         if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
-                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+                manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
+            manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
             manager.run_passes(function);
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
@@ -161,8 +167,6 @@ protected:
 };
 
 TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }

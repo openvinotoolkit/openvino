@@ -16,7 +16,7 @@ Loading data written in numpy formats into C++ is equally simple, but requires y
 Default installation directory is /usr/local. 
 To specify a different directory, add `-DCMAKE_INSTALL_PREFIX=/path/to/install/dir` to the cmake invocation in step 4.
 
-1. get [cmake](www.cmake.org)
+1. get [cmake](https://cmake.org/)
 2. create a build directory, say $HOME/build
 3. cd $HOME/build
 4. cmake /path/to/cnpy

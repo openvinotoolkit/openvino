@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -41,6 +41,19 @@ TEST(type_prop, random_uniform_dynamic_shape) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::i64);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
+
+TEST(type_prop, random_uniform_dynamic_shape_1) {
+    auto shape = make_shared<opset8::Parameter>(element::i32, PartialShape{{0, 10}, 4, {3, 7}, -1});
+    auto out_shape = make_shared<opset8::ShapeOf>(shape);
+
+    auto min_val = make_shared<opset8::Constant>(element::i64, Shape{}, 5);
+    auto max_val = make_shared<opset8::Constant>(element::i64, Shape{}, 10);
+
+    auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i64, 100, 200);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::i64);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({{0, 10}, 4, {3, 7}, -1}));
 }
 
 TEST(type_prop, random_uniform_dynamic_rank) {

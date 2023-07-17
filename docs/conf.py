@@ -24,10 +24,11 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2022, Intel®'
+copyright = '2023, Intel®'
 author = 'Intel®'
 
 language = 'en'
+version_name = 'nightly'
 
 # -- General configuration ---------------------------------------------------
 
@@ -38,6 +39,7 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'sphinx_panels',
+    'sphinx_design',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -45,9 +47,15 @@ extensions = [
     'sphinx_sitemap'
 ]
 
-html_baseurl = 'https://docs.openvino.ai/latest/'
+html_baseurl = 'https://docs.openvino.ai/canonical/'
+
+# -- Sitemap configuration ---------------------------
 
 sitemap_url_scheme = "{link}"
+site_url = f'https://docs.openvino.ai/{version_name}/'
+
+# ----------------------------------------------------
+
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
@@ -78,10 +86,12 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 5,
+    "navigation_depth": 8,
+    "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
     "footer_items": ["footer_info"],
+    "show_prev_next": False,
 }
 
 html_context = {
@@ -164,17 +174,20 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
+shutil.copy("../../../docs/home.rst",".")
+
+def replace_index_with_redirect(app,exception):
+    shutil.copy("../../../docs/index.html","../_build/index.html")
+
 def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file',
                          doxygen_mapping_file, rebuild=True)
     app.add_config_value('repositories', repositories, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
+    app.connect('build-finished',replace_index_with_redirect)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/newsletter.js')
     app.add_js_file('js/graphs_ov_tf.js')
-    try:
-        shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(
-            app.outdir, 'csv'), dirs_exist_ok=True)
-    except FileNotFoundError:
-        logger.warning('csv directory not found.')
+    app.add_js_file('js/open_sidebar.js')

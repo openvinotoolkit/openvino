@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -17,7 +17,7 @@ from tests.test_onnx.utils import (
 )
 from tests import (xfail_issue_35927,
                    xfail_issue_44858,
-                   xfail_issue_44968)
+                   xfail_dynamic_rank)
 
 
 def test_reshape():
@@ -219,12 +219,17 @@ def test_concat():
             assert np.array_equal(graph_results, [expected_output])
 
 
-@xfail_issue_44968
 def test_squeeze():
-    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
-    expected_output = data.reshape([2, 3])
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3, 1])
+    axes = np.array([2]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
 
-    axes = np.array([0, 3]).astype(np.int64)
+    data = np.arange(6, dtype=np.int32).reshape([2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([-1]).astype(np.int64)
     node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])
@@ -232,6 +237,44 @@ def test_squeeze():
     data = np.random.randn(1, 3, 4, 5).astype(np.float32)
     expected_output = np.squeeze(data, axis=0)
     axes = np.array([0]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3, 1])
+    axes = np.array([2]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+
+@xfail_dynamic_rank
+def test_squeeze_dyn_rank():
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([0, 3]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([0, 0]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([1, 2, 1, 3, 1])
+    expected_output = data.reshape([1, 2, 3])
+    axes = np.array([-3, -1]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    graph_results = run_node(node, [data, axes])
+    assert np.array_equal(graph_results, [expected_output])
+
+    data = np.arange(6, dtype=np.int32).reshape([2, 1, 3])
+    expected_output = data.reshape([2, 3])
+    axes = np.array([1, 1]).astype(np.int64)
     node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
     graph_results = run_node(node, [data, axes])
     assert np.array_equal(graph_results, [expected_output])
@@ -369,7 +412,7 @@ def test_split_1d():
 
 
 def test_depth_to_space():
-    b, c, h, w = shape = (2, 8, 3, 3)
+    b, c, h, w = shape = (2, 8, 3, 3)  # noqa: VNE001
     blocksize = 2
     data = np.random.random_sample(shape).astype(np.float32)
     tmp = np.reshape(data, [b, blocksize, blocksize, c // (blocksize ** 2), h, w])

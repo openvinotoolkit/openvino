@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
         opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
-            attributes_v1.num_classes = num_classes.get_length();
+            attributes_v1.num_classes = (int)num_classes.get_length();
         }
 
         Dimension num_loc_classes = attributes_v8.share_location ? 1 : num_classes;
@@ -91,7 +91,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
                                                    ngraph::ParameterVector{box_logits, class_preds, proposals});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 
@@ -128,7 +128,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
         opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
-            attributes_v1.num_classes = num_classes.get_length();
+            attributes_v1.num_classes = (int)num_classes.get_length();
         }
 
         Dimension num_loc_classes = attributes_v8.share_location ? 1 : num_classes;
@@ -162,7 +162,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
                 ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 

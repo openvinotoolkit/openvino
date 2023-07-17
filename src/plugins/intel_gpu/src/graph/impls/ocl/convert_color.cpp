@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_color_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "convert_color_inst.h"
 #include "convert_color/convert_color_kernel_selector.h"
 #include "convert_color/convert_color_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -29,8 +23,8 @@ struct convert_color_impl : typed_primitive_impl_ocl<convert_color> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<convert_color>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<convert_color>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
@@ -71,3 +65,4 @@ attach_convert_color_impl::attach_convert_color_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convert_color_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::convert_color)

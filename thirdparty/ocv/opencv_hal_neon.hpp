@@ -2563,11 +2563,11 @@ CV_ALWAYS_INLINE void v_deinterleave_expand(const v_uint8x16& src,
                                             v_int16x8& even, v_int16x8& odd)
 {
     constexpr int nlanes = static_cast<int>(v_uint8x16::nlanes);
-    uchar mask_e[nlanes] = { 0, -1, 2, -1, 4, -1, 6, -1,
-                            8, -1, 10, -1, 12, -1, 14, -1 };
+    uchar mask_e[nlanes] = { 0x00, 0xff, 0x02, 0xff, 0x04, 0xff, 0x06, 0xff,
+                             0x08, 0xff, 0x0a, 0xff, 0x0c, 0xff, 0x0e, 0xff };
 
-    uchar mask_o[nlanes] = { 1, -1, 3, -1, 5, -1, 7, -1,
-                            9, -1, 11, -1, 13, -1, 15, -1 };
+    uchar mask_o[nlanes] = { 0x01, 0xff, 0x03, 0xff, 0x05, 0xff, 0x07, 0xff,
+                             0x09, 0xff, 0x0b, 0xff, 0x0d, 0xff, 0x0f, 0xff };
 
     uint8x16_t mask_even = vld1q_u8(mask_e);
     uint8x16_t mask_odd = vld1q_u8(mask_o);

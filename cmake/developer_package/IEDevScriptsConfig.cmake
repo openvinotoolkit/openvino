@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,12 @@ cmake_minimum_required(VERSION 3.13)
 if(NOT DEFINED IEDevScripts_DIR)
     message(FATAL_ERROR "IEDevScripts_DIR is not defined")
 endif()
+
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
 
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
@@ -24,7 +30,6 @@ function(set_ci_build_number)
 endfunction()
 
 include(features)
-include(message)
 
 set_ci_build_number()
 
@@ -72,23 +77,8 @@ endfunction()
 # For cross-compilation
 #
 
-# Search packages for the host system instead of packages for the target system
-# in case of cross compilation these macros should be defined by the toolchain file
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
-endif()
-if(NOT COMMAND find_host_library)
-    macro(find_host_library)
-        find_library(${ARGN})
-    endmacro()
-endif()
-if(NOT COMMAND find_host_program)
-    macro(find_host_program)
-        find_program(${ARGN})
-    endmacro()
-endif()
+include(cross_compile/find_commands)
+include(cross_compile/native_compile)
 
 #
 # Common scripts
@@ -112,10 +102,13 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
-if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
+    # 'Ninja Multi-Config' specific, see:
+    # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+elseif(NOT OV_GENERATOR_MULTI_CONFIG)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 
 if(USE_BUILD_TYPE_SUBFOLDER)
@@ -153,22 +146,16 @@ set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
 # Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
-if (OV_GENERATOR_MULTI_CONFIG)
+if(OV_GENERATOR_MULTI_CONFIG)
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
-else ()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+else()
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
     else()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
     endif()
 endif()
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
-
-macro(ov_set_if_not_defined var value)
-    if(NOT DEFINED ${var})
-        set(${var} ${value})
-    endif()
-endmacro()
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -177,13 +164,11 @@ ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-    # to make sure that lib/<multiarch-tuple> is created on Debian
+    # to make sure that lib/<multiarch-triplet> is created on Debian
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
 
 include(packaging/packaging)
-
-set(CMAKE_SKIP_INSTALL_RPATH ON)
 
 if(APPLE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
@@ -192,10 +177,6 @@ if(APPLE)
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
     else()
         message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
-    endif()
-
-    if(CPACK_GENERATOR STREQUAL "BREW")
-        set(CMAKE_SKIP_INSTALL_RPATH OFF)
     endif()
 
     # WA for Xcode generator + object libraries issue:
@@ -215,8 +196,12 @@ set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
 # CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.12+: find_package() uses <PackageName>_ROOT variables.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.19+: An imported target missing its location property fails during generation.
+set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 # CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
 set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 
@@ -234,23 +219,12 @@ if(ENABLE_LTO)
                         LANGUAGES C CXX)
 
     if(NOT IPO_SUPPORTED)
-        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optimization" FORCE)
         message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
     endif()
 endif()
 
 # General flags
-
-macro(ov_install_static_lib target comp)
-    if(NOT BUILD_SHARED_LIBS)
-        get_target_property(target_type ${target} TYPE)
-        if(${target_type} STREQUAL "STATIC_LIBRARY")
-            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
-        endif()
-        install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
-    endif()
-endmacro()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -288,7 +262,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
     endif()
     target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
-    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+    if(NOT SELECTIVE_BUILD STREQUAL "ON")
         return()
     endif()
 
@@ -298,6 +272,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+    add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 endfunction()
 
 function(ov_mark_target_as_cc)

@@ -1,43 +1,42 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <gna/gna_config.hpp>
+#include <ie_icore.hpp>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
+#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "gna_infer_request.hpp"
 #include "gna_plugin.hpp"
-#include <gna/gna_config.hpp>
-#include <threading/ie_executor_manager.hpp>
-#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
-#include <ie_icore.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
 
- public:
-     GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg)
-         : plg(plg) {
-         std::fstream inputStream(aotFileName, std::ios_base::in | std::ios_base::binary);
-         if (inputStream.fail()) {
-             THROW_GNA_EXCEPTION << "Cannot open file to import model: " << aotFileName;
-         }
-         plg->ImportNetwork(inputStream);
-         // old API
-         setNetworkInputs(plg->GetNetworkInputs());
-         setNetworkOutputs(plg->GetNetworkOutputs());
-         // new API
-         setInputs(plg->GetInputs());
-         setOutputs(plg->GetOutputs());
-     }
+public:
+    GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg) : plg(plg) {
+        std::fstream inputStream(aotFileName, std::ios_base::in | std::ios_base::binary);
+        if (inputStream.fail()) {
+            THROW_GNA_EXCEPTION << "Cannot open file to import model: " << aotFileName;
+        }
+        plg->ImportNetwork(inputStream);
+        // old API
+        setNetworkInputs(plg->GetNetworkInputs());
+        setNetworkOutputs(plg->GetNetworkOutputs());
+        // new API
+        setInputs(plg->GetInputs());
+        setOutputs(plg->GetOutputs());
+    }
 
-    GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg)
-        : plg(plg) {
+    GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg) : plg(plg) {
         plg->ImportNetwork(networkModel);
         // old API
         setNetworkInputs(plg->GetNetworkInputs());
@@ -47,34 +46,31 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         setOutputs(plg->GetOutputs());
     }
 
-    GNAExecutableNetwork(const InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
-        : plg(plg) {
+    GNAExecutableNetwork(const InferenceEngine::CNNNetwork& network, std::shared_ptr<GNAPlugin> plg) : plg(plg) {
         plg->LoadNetwork(network);
     }
 
     GNAExecutableNetwork(const std::string& aotFileName, const std::map<std::string, std::string>& config)
-        : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
-    }
+        : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {}
 
-    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config)
-        : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
-    }
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config)
+        : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {}
 
-    InferenceEngine::IInferRequestInternal::Ptr
-        CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                               InferenceEngine::OutputsDataMap networkOutputs) override {
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        InferenceEngine::InputsDataMap networkInputs,
+        InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
-    InferenceEngine::IInferRequestInternal::Ptr
-        CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                               const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
         if (!this->_plugin || !_plugin->IsNewAPI())
             return nullptr;
         return std::make_shared<GNAInferRequest>(plg, inputs, outputs);
     }
 
-    void Export(const std::string &modelFileName) override {
+    void Export(const std::string& modelFileName) override {
         plg->UpdateInputs(getInputs());
         plg->UpdateOutputs(getOutputs());
         plg->Export(modelFileName);
@@ -101,8 +97,9 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
                                << "for compiled model in the GNA plugin: " << item.first;
                 }
             } else if (item.first != KEY_GNA_DEVICE_MODE) {
-                IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork in the GNA plugin: "
-                                   << item.first << ". Only " << KEY_GNA_DEVICE_MODE << " is supported.";
+                IE_THROW() << "The following config value cannot be changed dynamically for ExecutableNetwork in the "
+                              "GNA plugin: "
+                           << item.first << ". Only " << KEY_GNA_DEVICE_MODE << " is supported.";
             }
         }
 
@@ -122,7 +119,7 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
         plg->SetConfig(configForPlugin);
     }
 
-    InferenceEngine::Parameter GetConfig(const std::string &name) const override {
+    InferenceEngine::Parameter GetConfig(const std::string& name) const override {
         return plg->GetConfig(name, {});
     }
 
@@ -135,4 +132,5 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

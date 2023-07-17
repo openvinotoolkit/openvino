@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
-
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Acos);
 
 ov::op::v0::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -61,7 +59,7 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
 
 bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Acos_evaluate);
-    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool ov::op::v0::Acos::has_evaluate() const {

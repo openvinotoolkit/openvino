@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/pattern/op/wrap_type.hpp"
 
 #include "ngraph/pattern/matcher.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(pattern::op::WrapType);
 
 bool pattern::op::WrapType::match_value(Matcher* matcher,
                                         const Output<Node>& pattern_value,
@@ -32,7 +31,7 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
 
 NodeTypeInfo pattern::op::WrapType::get_wrapped_type() const {
     if (m_wrapped_types.size() > 1) {
-        throw ngraph::ngraph_error("get_wrapped_type() called on WrapType with more than one type");
+        OPENVINO_THROW("get_wrapped_type() called on WrapType with more than one type");
     }
     return m_wrapped_types.at(0);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer({}, {}, { ngraph::element::f32, defaultPrecisions });
-        transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ngraph::opset6::Assign>(actualFunction, params);
+        transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ov::op::v6::Assign>(actualFunction, params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AssignAndReadValueFunction::getReference(

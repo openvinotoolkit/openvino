@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,16 +166,21 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
                                                             {IE::ColorFormat::RGB, colorformat_e::RGB},
                                                             {IE::ColorFormat::BGR, colorformat_e::BGR},
                                                             {IE::ColorFormat::BGRX, colorformat_e::BGRX},
-                                                            {IE::ColorFormat::RGBX, colorformat_e::RGBX},
-                                                            {IE::ColorFormat::NV12, colorformat_e::NV12},
-                                                            {IE::ColorFormat::I420, colorformat_e::I420}};
+                                                            {IE::ColorFormat::RGBX, colorformat_e::RGBX}};
 
 #define CATCH_IE_EXCEPTION(StatusCode, ExceptionType) \
     catch (const IE::ExceptionType&) {                \
         return IEStatusCode::StatusCode;              \
     }
 
+#define CATCH_OV_EXCEPTION(StatusCode, ExceptionType) \
+    catch (const ov::ExceptionType&) {                \
+        return IEStatusCode::StatusCode;              \
+    }
+
 #define CATCH_IE_EXCEPTIONS                                   \
+    CATCH_OV_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
+    CATCH_OV_EXCEPTION(GENERAL_ERROR, Exception)              \
     CATCH_IE_EXCEPTION(GENERAL_ERROR, GeneralError)           \
     CATCH_IE_EXCEPTION(NOT_IMPLEMENTED, NotImplemented)       \
     CATCH_IE_EXCEPTION(NETWORK_NOT_LOADED, NetworkNotLoaded)  \
@@ -189,7 +194,7 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
     CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
     CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (...) {                                             \
+    catch (const std::exception&) {                           \
         return IEStatusCode::UNEXPECTED;                      \
     }
 
@@ -534,16 +539,16 @@ IEStatusCode ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_conf
     return status;
 }
 
-IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name) {
+IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || plugin_name == nullptr || device_name == nullptr) {
+    if (core == nullptr || plugin == nullptr || device_name == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        core->object.RegisterPlugin(plugin_name, device_name);
+        core->object.RegisterPlugin(plugin, device_name);
     }
     CATCH_IE_EXCEPTIONS
 
@@ -864,7 +869,7 @@ IEStatusCode ie_network_set_input_precision(ie_network_t* network, const char* i
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Precision precision;
-            for (auto it : precision_map) {
+            for (auto const& it : precision_map) {
                 if (it.second == p) {
                     precision = it.first;
                     break;
@@ -914,7 +919,7 @@ IEStatusCode ie_network_set_input_layout(ie_network_t* network, const char* inpu
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Layout layout = IE::Layout::NCHW;
-            for (auto it : layout_map) {
+            for (auto const& it : layout_map) {
                 if (it.second == l) {
                     layout = it.first;
                     break;
@@ -993,7 +998,7 @@ IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t* network,
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::ResizeAlgorithm resize = IE::ResizeAlgorithm::NO_RESIZE;
-            for (auto it : resize_alg_map) {
+            for (auto const& it : resize_alg_map) {
                 if (it.second == resize_algo) {
                     resize = it.first;
                     break;
@@ -1047,7 +1052,7 @@ IEStatusCode ie_network_set_color_format(ie_network_t* network,
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::ColorFormat color = IE::ColorFormat::RGB;
-            for (auto it : colorformat_map) {
+            for (auto const& it : colorformat_map) {
                 if (it.second == color_format) {
                     color = it.first;
                     break;
@@ -1207,7 +1212,7 @@ IEStatusCode ie_network_set_output_precision(ie_network_t* network, const char* 
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Precision precision;
-            for (auto it : precision_map) {
+            for (auto const& it : precision_map) {
                 if (it.second == p) {
                     precision = it.first;
                     break;
@@ -1259,7 +1264,7 @@ IEStatusCode ie_network_set_output_layout(ie_network_t* network, const char* out
             status = IEStatusCode::NOT_FOUND;
         } else {
             IE::Layout layout = IE::Layout::NCHW;
-            for (auto it : layout_map) {
+            for (auto const& it : layout_map) {
                 if (it.second == l) {
                     layout = it.first;
                     break;
@@ -1428,29 +1433,13 @@ IEStatusCode ie_infer_request_wait(ie_infer_request_t* infer_request, const int6
     return status;
 }
 
-IEStatusCode ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size) {
-    IEStatusCode status = IEStatusCode::OK;
-
-    if (infer_request == nullptr) {
-        status = IEStatusCode::GENERAL_ERROR;
-        return status;
-    }
-
-    try {
-        infer_request->object.SetBatch(static_cast<int>(size));
-    }
-    CATCH_IE_EXCEPTIONS
-
-    return status;
-}
-
 IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob) {
     if (tensorDesc == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
     IE::Precision prec;
-    for (auto it : precision_map) {
+    for (auto const& it : precision_map) {
         if (it.second == tensorDesc->precision) {
             prec = it.first;
             break;
@@ -1458,7 +1447,7 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** bl
     }
 
     IE::Layout l = IE::Layout::NCHW;
-    for (auto it : layout_map) {
+    for (auto const& it : layout_map) {
         if (it.second == tensorDesc->layout) {
             l = it.first;
             break;
@@ -1517,7 +1506,7 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDe
     }
 
     IE::Precision prec;
-    for (auto it : precision_map) {
+    for (auto const& it : precision_map) {
         if (it.second == tensorDesc->precision) {
             prec = it.first;
             break;
@@ -1525,7 +1514,7 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDe
     }
 
     IE::Layout l = IE::Layout::NCHW;
-    for (auto it : layout_map) {
+    for (auto const& it : layout_map) {
         if (it.second == tensorDesc->layout) {
             l = it.first;
             break;
@@ -1598,39 +1587,6 @@ IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_
     CATCH_IE_EXCEPTIONS
 
     return status;
-}
-
-IEStatusCode ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv12Blob) {
-    if (y == nullptr || uv == nullptr || nv12Blob == nullptr) {
-        return IEStatusCode::GENERAL_ERROR;
-    }
-
-    try {
-        std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
-        _blob->object = IE::make_shared_blob<IE::NV12Blob>(y->object, uv->object);
-        *nv12Blob = _blob.release();
-    }
-    CATCH_IE_EXCEPTIONS
-
-    return IEStatusCode::OK;
-}
-
-IEStatusCode ie_blob_make_memory_i420(const ie_blob_t* y,
-                                      const ie_blob_t* u,
-                                      const ie_blob_t* v,
-                                      ie_blob_t** i420Blob) {
-    if (y == nullptr || u == nullptr || v == nullptr || i420Blob == nullptr) {
-        return IEStatusCode::GENERAL_ERROR;
-    }
-
-    try {
-        std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
-        _blob->object = IE::make_shared_blob<IE::I420Blob>(y->object, u->object, v->object);
-        *i420Blob = _blob.release();
-    }
-    CATCH_IE_EXCEPTIONS
-
-    return IEStatusCode::OK;
 }
 
 IEStatusCode ie_blob_size(ie_blob_t* blob, int* size_result) {

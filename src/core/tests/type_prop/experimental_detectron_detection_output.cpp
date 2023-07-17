@@ -1,125 +1,459 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "gmock/gmock.h"
+#include "openvino/opsets/opset11.hpp"
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+using namespace ov;
+using namespace ov::opset11;
+using namespace testing;
 
-using namespace ngraph;
+class TypePropExperimentalDetectronDetectionOutputV6Test
+    : public TypePropOpTest<op::v6::ExperimentalDetectronDetectionOutput> {
+protected:
+    using Attrs = op::v6::ExperimentalDetectronDetectionOutput::Attributes;
 
-using Attrs = op::v6::ExperimentalDetectronDetectionOutput::Attributes;
-using ExperimentalDetection = op::v6::ExperimentalDetectronDetectionOutput;
+    static Attrs make_attrs(size_t max_detection, int64_t num_classes) {
+        return {.05f, .5f, 4.1352f, num_classes, 20, max_detection, false, {10.0f, 10.0f, 5.0f, 5.0f}};
+    }
 
-TEST(type_prop, detectron_detection_output) {
-    Attrs attrs;
-    attrs.class_agnostic_box_regression = false;
-    attrs.deltas_weights = {10.0f, 10.0f, 5.0f, 5.0f};
-    attrs.max_delta_log_wh = 4.135166645050049f;
-    attrs.max_detections_per_image = 100;
-    attrs.nms_threshold = 0.5f;
-    attrs.num_classes = 81;
-    attrs.post_nms_count = 2000;
-    attrs.score_threshold = 0.05000000074505806f;
+    size_t exp_detection = 25;
+    int64_t num_classes = 81;
+};
 
-    size_t rois_num = static_cast<size_t>(attrs.max_detections_per_image);
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, default_ctor) {
+    constexpr size_t max_detection = 100;
 
-    auto rois = std::make_shared<op::Parameter>(element::f32, Shape{1000, 4});
-    auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{1000, 324});
-    auto scores = std::make_shared<op::Parameter>(element::f32, Shape{1000, 81});
-    auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 3});
+    const auto rois = std::make_shared<Parameter>(element::f32, Shape{1000, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f32, Shape{1000, 324});
+    const auto scores = std::make_shared<Parameter>(element::f32, Shape{1000, 81});
+    const auto im_info = std::make_shared<Parameter>(element::f32, Shape{1, 3});
 
-    auto detection = std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
+    const auto op = make_op();
+    op->set_arguments(OutputVector{rois, deltas, scores, im_info});
+    op->set_attrs(make_attrs(max_detection, num_classes));
+    op->validate_and_infer_types();
 
-    ASSERT_EQ(detection->get_output_element_type(0), element::f32);
-    ASSERT_EQ(detection->get_output_element_type(1), element::i32);
-    ASSERT_EQ(detection->get_output_element_type(2), element::f32);
-
-    EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
-    EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
-    EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
-
-    rois = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
-    deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
-    scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
-    im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
-
-    detection = std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
-
-    ASSERT_EQ(detection->get_output_element_type(0), element::f32);
-    ASSERT_EQ(detection->get_output_element_type(1), element::i32);
-    ASSERT_EQ(detection->get_output_element_type(2), element::f32);
-
-    EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
-    EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
-    EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
+    EXPECT_EQ(op->get_input_size(), 4);
+    EXPECT_EQ(op->get_output_size(), 3);
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f32),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::f32)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({max_detection, 4})),
+                            Property("Classes shape", &Output<Node>::get_shape, Shape({max_detection})),
+                            Property("Scores shape", &Output<Node>::get_shape, Shape({max_detection}))));
 }
 
-TEST(type_prop, detectron_detection_output_dynamic_input_shapes) {
-    Attrs attrs;
-    attrs.class_agnostic_box_regression = false;
-    attrs.deltas_weights = {10.0f, 10.0f, 5.0f, 5.0f};
-    attrs.max_delta_log_wh = 4.135166645050049f;
-    attrs.max_detections_per_image = 100;
-    attrs.nms_threshold = 0.5f;
-    attrs.num_classes = 81;
-    attrs.post_nms_count = 2000;
-    attrs.score_threshold = 0.05000000074505806f;
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, basic_shape_inference) {
+    const auto rois = std::make_shared<Parameter>(element::f64, Shape{1000, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{1000, 324});
+    const auto scores = std::make_shared<Parameter>(element::f64, Shape{1000, 81});
+    const auto im_info = std::make_shared<Parameter>(element::f64, Shape{1, 3});
 
-    size_t rois_num = static_cast<size_t>(attrs.max_detections_per_image);
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
-    struct ShapesAndAttrs {
-        PartialShape rois_shape;
-        PartialShape deltas_shape;
-        PartialShape scores_shape;
-        PartialShape im_info_shape;
-    };
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f64),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::f64)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
+                            Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
+                            Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+}
 
-    const auto dyn_dim = Dimension::dynamic();
-    const auto dyn_shape = PartialShape::dynamic();
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_input_got_dynamic_type) {
+    const auto rois = std::make_shared<Parameter>(element::dynamic, Shape{1000, 4});
+    const auto deltas = std::make_shared<Parameter>(element::dynamic, Shape{1000, 324});
+    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{1000, 81});
+    const auto im_info = std::make_shared<Parameter>(element::dynamic, Shape{1, 3});
 
-    std::vector<ShapesAndAttrs> shapes = {
-        {{1000, 4}, {1000, 324}, {1000, 81}, {1, 3}},
-        {{1000, 4}, {1000, 324}, {1000, 81}, {1, dyn_dim}},
-        {{1000, 4}, {1000, 324}, {1000, 81}, {dyn_dim, 3}},
-        {{1000, 4}, {1000, 324}, {1000, 81}, {dyn_dim, dyn_dim}},
-        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {1, 3}},
-        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {1, dyn_dim}},
-        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {dyn_dim, 3}},
-        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {dyn_dim, dyn_dim}},
-        {{1000, 4}, {1000, 324}, {1000, 81}, dyn_shape},
-        {{1000, 4}, {1000, 324}, dyn_shape, {1, 3}},
-        {{1000, 4}, {1000, 324}, dyn_shape, dyn_shape},
-        {{1000, 4}, dyn_shape, {1000, 81}, {1, 3}},
-        {{1000, 4}, dyn_shape, {1000, 81}, dyn_shape},
-        {{1000, 4}, dyn_shape, dyn_shape, {1, 3}},
-        {{1000, 4}, dyn_shape, dyn_shape, dyn_shape},
-        {dyn_shape, {1000, 324}, {1000, 81}, {1, 3}},
-        {dyn_shape, {1000, 324}, {1000, 81}, dyn_shape},
-        {dyn_shape, {1000, 324}, dyn_shape, {1, 3}},
-        {dyn_shape, {1000, 324}, dyn_shape, dyn_shape},
-        {dyn_shape, dyn_shape, {1000, 81}, {1, 3}},
-        {dyn_shape, dyn_shape, {1000, 81}, dyn_shape},
-        {dyn_shape, dyn_shape, dyn_shape, {1, 3}},
-        {dyn_shape, dyn_shape, dyn_shape, dyn_shape},
-    };
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
-    for (const auto& s : shapes) {
-        auto rois = std::make_shared<op::Parameter>(element::f32, s.rois_shape);
-        auto deltas = std::make_shared<op::Parameter>(element::f32, s.deltas_shape);
-        auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
-        auto im_info = std::make_shared<op::Parameter>(element::f32, s.im_info_shape);
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::dynamic),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::dynamic)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
+                            Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
+                            Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+}
 
-        auto detection = std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, some_input_got_dynamic_type) {
+    const auto rois = std::make_shared<Parameter>(element::dynamic, Shape{1000, 4});
+    const auto deltas = std::make_shared<Parameter>(element::f64, Shape{1000, 324});
+    const auto scores = std::make_shared<Parameter>(element::dynamic, Shape{1000, 81});
+    const auto im_info = std::make_shared<Parameter>(element::f64, Shape{1, 3});
 
-        ASSERT_EQ(detection->get_output_element_type(0), element::f32);
-        ASSERT_EQ(detection->get_output_element_type(1), element::i32);
-        ASSERT_EQ(detection->get_output_element_type(2), element::f32);
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(exp_detection, num_classes));
 
-        EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
-        EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
-        EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f64),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::f64)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape", &Output<Node>::get_shape, Shape({exp_detection, 4})),
+                            Property("Classes shape", &Output<Node>::get_shape, Shape({exp_detection})),
+                            Property("Scores shape", &Output<Node>::get_shape, Shape({exp_detection}))));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {
+    auto rois_shape = PartialShape{{1, 201600}, {1, 4}};
+    auto deltas_shape = PartialShape{{1, 12}, {1, 500}};
+    auto scores_shape = PartialShape{{1, 3}, {10, 90}};
+    auto im_info_shape = PartialShape{1, {1, 4}};
+    set_shape_labels(rois_shape, 10);
+    set_shape_labels(deltas_shape, 20);
+    set_shape_labels(scores_shape, 30);
+    set_shape_labels(im_info_shape, 40);
+
+    const auto rois = std::make_shared<Parameter>(element::f16, rois_shape);
+    const auto deltas = std::make_shared<Parameter>(element::f16, deltas_shape);
+    const auto scores = std::make_shared<Parameter>(element::f16, scores_shape);
+    const auto im_info = std::make_shared<Parameter>(element::f16, im_info_shape);
+
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
+
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::f16),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::f16)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Classes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Scores shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_inputs_dynamic_rank) {
+    const auto rois = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto deltas = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::bf16, PartialShape::dynamic());
+
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
+
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::bf16),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::bf16)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Classes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Scores shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_not_floating_point) {
+    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(bad_param, ok_param, ok_param, ok_param, make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[0] type 'i32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(ok_param, bad_param, ok_param, ok_param, make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'i32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(ok_param, ok_param, bad_param, ok_param, make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[2] type 'i32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(ok_param, ok_param, ok_param, bad_param, make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[3] type 'i32' is not floating point or not same as others inputs"));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_mixed_floating_point_type) {
+    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(f32_param, f16_param, f16_param, f16_param, make_attrs(100, 20)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'f16' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(f16_param, f32_param, f16_param, f16_param, make_attrs(100, 20)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'f32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(f16_param, f16_param, f32_param, f16_param, make_attrs(100, 20)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[2] type 'f32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(f16_param, f16_param, f16_param, f32_param, make_attrs(100, 20)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[3] type 'f32' is not floating point or not same as others inputs"));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_shape_not_2d) {
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          deltas,
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input rois rank must be equal to 2."));
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          deltas,
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input rois rank must be equal to 2."));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, inputs_deltas_not_2d) {
+    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input deltas rank must be equal to 2."));
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input deltas rank must be equal to 2."));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_not_2d) {
+    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          deltas,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input scores rank must be equal to 2."));
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          deltas,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input scores rank must be equal to 2."));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, im_infos_not_2d) {
+    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          deltas,
+                                          scores,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input image info shape must be compatible with [1,3]"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          deltas,
+                                          scores,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{1, 3, 1}),
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input image info shape must be compatible with [1,3]"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(rois,
+                                          deltas,
+                                          scores,
+                                          std::make_shared<Parameter>(element::f32, PartialShape{2, 3}),
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("Input image info shape must be compatible with [1,3]"));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, rois_2nd_dim_not_compatible_4) {
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 3}}),
+                                          deltas,
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("The last dimension of the 'input_rois' input must be compatible with 4."));
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {5, -1}}),
+                                          deltas,
+                                          scores,
+                                          im_info,
+                                          make_attrs(25, num_classes)),
+                    NodeValidationFailure,
+                    HasSubstr("The last dimension of the 'input_rois' input must be compatible with 4."));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, deltas_2nd_dim_not_compatible_with_num_classes) {
+    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(rois,
+                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 4 * num_classes - 1}}),
+                              scores,
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The last dimension of the 'input_deltas' input be compatible with the value of the attribute "
+                  "'num_classes"));
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(rois,
+                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {4 * num_classes + 1, -1}}),
+                              scores,
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The last dimension of the 'input_deltas' input be compatible with the value of the attribute "
+                  "'num_classes"));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, scores_2nd_dim_not_compatible_with_num_classes) {
+    const auto rois = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto deltas = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(rois,
+                              deltas,
+                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, num_classes - 1}}),
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The last dimension of the 'input_scores' input must be compatible withthe value of the attribute "
+                  "'num_classes'"));
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(rois,
+                              deltas,
+                              std::make_shared<Parameter>(element::f32, PartialShape{-1, {num_classes + 1, -1}}),
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The last dimension of the 'input_scores' input must be compatible withthe value of the attribute "
+                  "'num_classes'"));
+}
+
+TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, 1st_dim_rois_and_scores_compatible_with_num_batches) {
+    const auto scores = std::make_shared<Parameter>(element::f32, PartialShape{{5, 10}, -1});
+    const auto im_info = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{2, 6}, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{9, 15}, -1}),
+                              scores,
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{2, 6}, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{2, 4}, -1}),
+                              scores,
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{{11, 12}, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{9, 15}, -1}),
+                              scores,
+                              im_info,
+                              make_attrs(25, num_classes)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of inputs 'input_rois', 'input_deltas', 'input_scores' must be the compatible"));
+}
+
+using DetectronGenerateProposalsParams = std::tuple<PartialShape, PartialShape, PartialShape, PartialShape, int64_t>;
+
+class ExperimentalDetectronDetectionOutputV6Test : public TypePropExperimentalDetectronDetectionOutputV6Test,
+                                                   public WithParamInterface<DetectronGenerateProposalsParams> {
+protected:
+    void SetUp() override {
+        std::tie(rois_shape, deltas_shape, scores_shape, im_info_shape, num_classes) = GetParam();
     }
+
+    PartialShape rois_shape, deltas_shape, scores_shape, im_info_shape;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    ExperimentalDetectronDetectionOutputV6Test,
+    Values(DetectronGenerateProposalsParams({2, 4}, {2, -1}, {2, -1}, {1, 3}, 2),
+           DetectronGenerateProposalsParams({{{0, 4}, 4}}, {{2, 5}, {1, 15}}, {3, 3}, {1, 3}, 3),
+           DetectronGenerateProposalsParams({{{0, 4}, 4}}, {{2, 5}, 12}, {3, 3}, {1, 3}, 3),
+           DetectronGenerateProposalsParams({{{0, 4}, 4}}, {{2, 5}, 12}, {3, {1, 3}}, {1, 3}, 3),
+           DetectronGenerateProposalsParams(PartialShape::dynamic(), {5, 40}, {5, -1}, {1, -1}, 10),
+           DetectronGenerateProposalsParams({5, 4}, PartialShape::dynamic(), {-1, 10}, {-1, -1}, 10),
+           DetectronGenerateProposalsParams({5, 4}, {-1, 40}, PartialShape::dynamic(), {-1, 3}, 10),
+           DetectronGenerateProposalsParams({5, 4}, {5, {20, 50}}, {-1, 10}, PartialShape::dynamic(), 10),
+           DetectronGenerateProposalsParams(PartialShape::dynamic(2),
+                                            PartialShape::dynamic(2),
+                                            PartialShape::dynamic(2),
+                                            PartialShape::dynamic(2),
+                                            100)),
+    PrintToStringParamName());
+
+TEST_P(ExperimentalDetectronDetectionOutputV6Test, static_rank_shape_inference) {
+    const auto rois = std::make_shared<Parameter>(element::bf16, rois_shape);
+    const auto deltas = std::make_shared<Parameter>(element::bf16, deltas_shape);
+    const auto scores = std::make_shared<Parameter>(element::bf16, scores_shape);
+    const auto im_info = std::make_shared<Parameter>(element::bf16, im_info_shape);
+
+    const auto op = make_op(rois, deltas, scores, im_info, make_attrs(25, num_classes));
+
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes type", &Output<Node>::get_element_type, element::bf16),
+                            Property("Classes type", &Output<Node>::get_element_type, element::i32),
+                            Property("Scores types", &Output<Node>::get_element_type, element::bf16)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Boxes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Classes shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                            Property("Scores shape",
+                                     &Output<Node>::get_partial_shape,
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
 }

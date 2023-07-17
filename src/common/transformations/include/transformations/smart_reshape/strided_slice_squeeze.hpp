@@ -1,19 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
+
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class NGRAPH_API StridedSliceSqueeze;
-class NGRAPH_API SqueezeStridedSlice;
-class NGRAPH_API SharedSqueeze;
+class TRANSFORMATIONS_API StridedSliceSqueeze;
+class TRANSFORMATIONS_API SqueezeStridedSlice;
+class TRANSFORMATIONS_API SharedSqueeze;
 
 }  // namespace pass
 }  // namespace ov
@@ -24,7 +26,7 @@ class NGRAPH_API SharedSqueeze;
  * to be squeeze-able
  */
 
-class ov::pass::StridedSliceSqueeze : public ngraph::pass::MatcherPass {
+class ov::pass::StridedSliceSqueeze : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StridedSliceSqueeze", "0");
     StridedSliceSqueeze();
@@ -36,7 +38,7 @@ public:
  * output to be squeeze-able
  */
 
-class ov::pass::SqueezeStridedSlice : public ngraph::pass::MatcherPass {
+class ov::pass::SqueezeStridedSlice : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SqueezeStridedSlice", "0");
     SqueezeStridedSlice();
@@ -48,16 +50,8 @@ public:
  * outputs to it
  */
 
-class ov::pass::SharedSqueeze : public ngraph::pass::FunctionPass {
+class ov::pass::SharedSqueeze : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedSqueeze", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SharedSqueeze;
-using ov::pass::SqueezeStridedSlice;
-using ov::pass::StridedSliceSqueeze;
-}  // namespace pass
-}  // namespace ngraph

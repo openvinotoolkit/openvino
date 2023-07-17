@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v5::GRUSequence);
 
 op::v5::GRUSequence::GRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),
@@ -60,7 +58,9 @@ void op::v5::GRUSequence::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
     shape_infer(this, input_shapes, output_shapes);
 

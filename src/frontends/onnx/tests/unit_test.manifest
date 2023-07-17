@@ -2,5 +2,3 @@
 ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoFiles/onnx
 ONNXLoadTest/FrontEndLoadFromTest.testLoadFromTwoStreams/onnx
 
-# exception: invalid external data: ExternalDataInfo
-ONNXLoadTest/FrontEndLoadFromTest.testLoadFromStreamAndPassPath/onnx

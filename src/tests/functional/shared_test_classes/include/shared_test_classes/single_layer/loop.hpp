@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ protected:
 
         std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> res_collection(num_out_blob);
 
-        for (int i = 0; i < num_out_blob; i++) {
+        for (size_t i = 0; i < num_out_blob; i++) {
             // TODO: name of original NG result doesn't match with outs after conversion.
             //       Expected : auto name = results[i]->get_friendly_name();
             auto name = results[i]->get_input_node_ptr(0)->get_friendly_name();

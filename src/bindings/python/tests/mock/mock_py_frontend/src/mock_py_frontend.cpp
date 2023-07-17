@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -365,7 +365,8 @@ InputModel::Ptr FrontEndMockPy::load_impl(const std::vector<ov::Any>& params) co
         m_telemetry->send_error("load_impl_error");
         m_telemetry->send_stack_trace("mock_stack_trace");
     }
-    if (!params.empty() && params[0].is<std::string>()) {
+    if (!params.empty()) {
+        OPENVINO_ASSERT(params[0].is<std::string>(), "Only path is supported.");
         m_stat.m_load_paths.push_back(params[0].as<std::string>());
     }
 
@@ -427,14 +428,14 @@ void FrontEndMockPy::clear_stat() {
 }  // namespace frontend
 }  // namespace ov
 
-MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion();
-MOCK_C_API void* GetFrontEndData();
+MOCK_C_API ov::frontend::FrontEndVersion get_api_version();
+MOCK_C_API void* get_front_end_data();
 
-MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+MOCK_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-MOCK_C_API void* GetFrontEndData() {
+MOCK_C_API void* get_front_end_data() {
     ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "mock_py";
     res->m_creator = []() {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/threading/immediate_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "intel_gpu/primitives/random_uniform.hpp"
 #include "primitive_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 
@@ -22,7 +21,6 @@ public:
 
     static std::string to_string(random_uniform_node const &node);
 
-public:
     typed_primitive_inst(network &network, random_uniform_node const &desc);
 };
 

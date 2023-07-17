@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ class FakeQuantizeOnWeightsWithUnsupportedChildTestValues {
 public:
     class Actual {
     public:
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ov::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class Expected {
     public:
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ov::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
@@ -62,7 +62,7 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         ngraph::pass::Manager cleanupManager;

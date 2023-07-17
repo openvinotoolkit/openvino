@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(region_yolo)
 
 layout region_yolo_inst::calc_output_layout(region_yolo_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "region_yolo_node!");
     auto input_layout = impl_param.get_input_layout();

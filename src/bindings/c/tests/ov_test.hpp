@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
@@ -11,36 +11,35 @@
 
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
-
-extern const char* xml;
-extern const char* bin;
-extern const char* input_image;
-extern const char* input_image_nv12;
-
-extern const char* plugins_xml;
+#include "test_model_repo.hpp"
 
 #define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_NOT_OK(...)       EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <wchar.h>
 #endif
 
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
+
+class ov_capi_test_base : public ::testing::TestWithParam<std::string> {
+public:
+    void SetUp() override {
+        TestDataHelpers::generate_test_model();
+        xml_file_name = TestDataHelpers::get_model_xml_file_name();
+        bin_file_name = TestDataHelpers::get_model_bin_file_name();
+    }
+
+    void TearDown() override {
+        TestDataHelpers::release_test_model();
+    }
+
+public:
+    std::string xml_file_name, bin_file_name;
+};
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.size; ++i) {
@@ -78,14 +77,14 @@ inline void fix_slashes(std::wstring& str) {
 }
 
 inline bool copy_file(std::string source_path, std::wstring dest_path) {
-#    ifndef _WIN32
-    std::ifstream source(source_path, std::ios::binary);
-    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
-#    else
+#    ifdef _WIN32
     fix_slashes(source_path);
     fix_slashes(dest_path);
     std::ifstream source(source_path, std::ios::binary);
     std::ofstream dest(dest_path, std::ios::binary);
+#    else
+    std::ifstream source(source_path, std::ios::binary);
+    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
 #    endif
     bool result = source && dest;
     std::istreambuf_iterator<char> begin_source(source);

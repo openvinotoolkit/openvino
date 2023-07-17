@@ -1,4 +1,4 @@
-/// Copyright (C) 2018-2022 Intel Corporation
+/// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ protected:
     void generatePooledVector() {
         std::random_device rd;
         std::uniform_int_distribution<int32_t> distribution(1, 5);
-        for (int i = 0; i < pooledVector.size(); i++) {
+        for (size_t i = 0; i < pooledVector.size(); i++) {
             pooledVector[i] = distribution(rd);
         }
     }
@@ -133,6 +133,7 @@ protected:
     }
 
     void validate() override {
+        auto actualOutputs = get_plugin_outputs();
         if (function->get_parameters().size() == 2) {
             auto pos = std::find_if(inputs.begin(), inputs.end(),
                                     [](const std::pair<std::shared_ptr<ov::Node>, ov::Tensor> &params) {
@@ -141,13 +142,20 @@ protected:
             IE_ASSERT(pos != inputs.end());
             inputs.erase(pos);
         }
-        SubgraphBaseTest::validate();
+        auto expectedOutputs = calculate_refs();
+        if (expectedOutputs.empty()) {
+                return;
+        }
+        ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+
+        compare(expectedOutputs, actualOutputs);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -169,7 +177,6 @@ private:
 };
 
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, "AdaptivePooling");
 }

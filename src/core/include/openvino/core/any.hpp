@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,14 +21,20 @@
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace InferenceEngine {
-struct InferencePlugin;
 class ExecutableNetwork;
 }  // namespace InferenceEngine
 
 namespace ov {
+class Plugin;
 /** @cond INTERNAL */
 class Any;
+
+using AnyMap = std::map<std::string, Any>;
+
 namespace util {
+
+OPENVINO_API bool equal(std::type_index lhs, std::type_index rhs);
+
 template <typename T, typename = void>
 struct Read;
 
@@ -123,6 +129,11 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
+template <>
+struct OPENVINO_API Read<AnyMap> {
+    void operator()(std::istream& is, AnyMap& map) const;
+};
+
 template <typename T>
 auto from_string(const std::string& str) -> const
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
@@ -185,9 +196,9 @@ template <typename T>
 auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value && !std::is_same<T, std::string>::value,
                             T>::type {
-    OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
-                         " defined or ov::util::Read<T> class specialization, T: ",
-                         typeid(T).name());
+    OPENVINO_THROW("Could read type without std::istream& operator>>(std::istream&, T)",
+                   " defined or ov::util::Read<T> class specialization, T: ",
+                   typeid(T).name());
 }
 
 template <typename T, typename A>
@@ -207,14 +218,36 @@ struct Read<
     std::map<K, T, C, A>,
     typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
-        while (is.good()) {
-            std::string str;
-            is >> str;
-            auto k = from_string<K>(str);
-            is >> str;
-            auto v = from_string<T>(str);
-            map.emplace(std::move(k), std::move(v));
+        char c;
+
+        is >> c;
+        OPENVINO_ASSERT(c == '{', "Failed to parse std::map<K, T>. Starting symbols is not '{', it's ", c);
+
+        while (c != '}') {
+            std::string key, value;
+            std::getline(is, key, ':');
+            size_t enclosed_container_level = 0;
+
+            while (is.good()) {
+                is >> c;
+                if (c == ',') {                         // delimiter between map's pairs
+                    if (enclosed_container_level == 0)  // we should interrupt after delimiter
+                        break;
+                }
+                if (c == '{' || c == '[')  // case of enclosed maps / arrays
+                    ++enclosed_container_level;
+                if (c == '}' || c == ']') {
+                    if (enclosed_container_level == 0)
+                        break;  // end of map
+                    --enclosed_container_level;
+                }
+
+                value += c;  // accumulate current value
+            }
+            map.emplace(from_string<K>(key), from_string<T>(value));
         }
+
+        OPENVINO_ASSERT(c == '}', "Failed to parse std::map<K, T>. Ending symbols is not '}', it's ", c);
     }
 };
 
@@ -294,9 +327,9 @@ template <typename T>
 auto to_string(const T&) ->
     typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value && !std::is_same<T, std::string>::value,
                             std::string>::type {
-    OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
-                         " defined or ov::util::Write<T> class specialization, T: ",
-                         typeid(T).name());
+    OPENVINO_THROW("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
+                   " defined or ov::util::Write<T> class specialization, T: ",
+                   typeid(T).name());
 }
 
 template <typename T, typename A>
@@ -319,14 +352,14 @@ struct Write<std::map<K, T, C, A>> {
     void operator()(std::ostream& os, const std::map<K, T, C, A>& map) const {
         if (!map.empty()) {
             std::size_t i = 0;
+            os << '{';
             for (auto&& v : map) {
-                os << to_string(v.first);
-                os << ' ';
-                os << to_string(v.second);
+                os << to_string(v.first) << ':' << to_string(v.second);
                 if (i < (map.size() - 1))
-                    os << ' ';
+                    os << ',';
                 ++i;
             }
+            os << '}';
         }
     }
 };
@@ -339,13 +372,12 @@ class RuntimeAttribute;
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
-class InferencePlugin;
 
 /**
  * @brief This class represents an object to work with different types
  */
 class OPENVINO_API Any {
-    std::vector<std::shared_ptr<void>> _so;
+    std::shared_ptr<void> _so;
 
     template <typename T>
     using decay_t = typename std::decay<T>::type;
@@ -391,7 +423,7 @@ class OPENVINO_API Any {
     template <class U>
     [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
                                                                                                       const U&) {
-        OPENVINO_UNREACHABLE("Could not compare types without equality operator");
+        OPENVINO_THROW("Could not compare types without equality operator");
     }
 
     template <typename T>
@@ -416,8 +448,6 @@ class OPENVINO_API Any {
             return {typeid(Args)...};
         }
     };
-
-    static bool equal(std::type_index lhs, std::type_index rhs);
 
     class OPENVINO_API Base : public std::enable_shared_from_this<Base> {
     public:
@@ -466,7 +496,7 @@ class OPENVINO_API Any {
         }
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <class T, typename = void>
@@ -527,7 +557,7 @@ class OPENVINO_API Any {
         }
 
         void read(std::istream&) override {
-            OPENVINO_UNREACHABLE("Pointer to runtime attribute is not readable from std::istream");
+            OPENVINO_THROW("Pointer to runtime attribute is not readable from std::istream");
         }
 
         T runtime_attribute;
@@ -614,9 +644,9 @@ class OPENVINO_API Any {
         static typename std::enable_if<!util::Readable<U>::value && !util::Istreamable<U>::value>::type read_impl(
             std::istream&,
             U&) {
-            OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
-                                 " defined or ov::util::Read<T> class specialization, T: ",
-                                 typeid(T).name());
+            OPENVINO_THROW("Could read type without std::istream& operator>>(std::istream&, T)",
+                           " defined or ov::util::Read<T> class specialization, T: ",
+                           typeid(T).name());
         }
 
         void read(std::istream& is) override {
@@ -627,14 +657,13 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend struct ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
-    friend class ::ov::InferencePlugin;
+    friend class ::ov::Plugin;
 
-    Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
+    Any(const Any& other, const std::shared_ptr<void>& so);
 
     void impl_check() const;
 
@@ -646,14 +675,14 @@ public:
     /// @brief Default constructor
     Any() = default;
 
-    /// @brief Default copy constructor
+    /// @brief Сopy constructor
     /// @param other other Any object
-    Any(const Any& other) = default;
+    Any(const Any& other);
 
-    /// @brief Default copy assignment operator
+    /// @brief Сopy assignment operator
     /// @param other other Any object
     /// @return reference to the current object
-    Any& operator=(const Any& other) = default;
+    Any& operator=(const Any& other);
 
     /// @brief Default move constructor
     /// @param other other Any object
@@ -733,7 +762,7 @@ public:
                 return true;
             }
             for (const auto& type_index : _impl->base_type_info()) {
-                if (equal(type_index, typeid(decay_t<T>))) {
+                if (util::equal(type_index, typeid(decay_t<T>))) {
                     return true;
                 }
             }
@@ -757,20 +786,20 @@ public:
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
                 if (runtime_attribute == nullptr) {
-                    OPENVINO_UNREACHABLE("Any does not contains pointer to runtime_attribute. It contains ",
-                                         _impl->type_info().name());
+                    OPENVINO_THROW("Any does not contains pointer to runtime_attribute. It contains ",
+                                   _impl->type_info().name());
                 }
                 auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    OPENVINO_UNREACHABLE("Could not cast Any runtime_attribute to ",
-                                         typeid(T).name(),
-                                         " from ",
-                                         _impl->type_info().name(),
-                                         "; from ",
-                                         static_cast<std::string>(runtime_attribute->get_type_info()),
-                                         " to ",
-                                         static_cast<std::string>(T::element_type::get_type_info_static()));
+                    OPENVINO_THROW("Could not cast Any runtime_attribute to ",
+                                   typeid(T).name(),
+                                   " from ",
+                                   _impl->type_info().name(),
+                                   "; from ",
+                                   static_cast<std::string>(runtime_attribute->get_type_info()),
+                                   " to ",
+                                   static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 _temp = std::make_shared<Impl<decay_t<T>>>(
                     std::static_pointer_cast<typename T::element_type>(runtime_attribute));
@@ -799,11 +828,11 @@ public:
             return *static_cast<decay_t<T>*>(_temp->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
+            if (util::equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -822,11 +851,11 @@ public:
             return *static_cast<decay_t<T>*>(_impl->addressof());
         }
         for (const auto& type_index : _impl->base_type_info()) {
-            if (equal(type_index, typeid(decay_t<T>))) {
+            if (util::equal(type_index, typeid(decay_t<T>))) {
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -861,39 +890,6 @@ public:
     }
 
     /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator T&() & {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator const T&() const& {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator T&() const& {
-        return const_cast<Any*>(this)->as<T>();
-    }
-
-    /**
      * @brief The comparison operator for the Any
      *
      * @param other object to compare
@@ -918,20 +914,6 @@ public:
     bool operator!=(const Any& other) const;
 
     /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* operator->();
-
-    /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* operator->() const;
-
-    /**
      * @brief Prints underlying object to the given output stream.
      * Uses operator<< if it is defined, leaves stream unchanged otherwise.
      * In case of empty any or nullptr stream immediately returns.
@@ -950,26 +932,6 @@ public:
     void read(std::istream& stream);
 
     /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* get() {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* get() const {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
      * @brief Returns address to internal value if any is not empty and `nullptr` instead
      * @return address to internal stored value
      */
@@ -982,25 +944,6 @@ public:
     const void* addressof() const;
 };
 
-/** @cond INTERNAL */
-namespace util {
-template <>
-struct AsTypePtr<Any> {
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-    static std::shared_ptr<T> call(const Any& any) {
-        try {
-            return any.as<std::shared_ptr<T>>();
-        } catch (...) {
-            return {};
-        }
-    }
-};
-}  // namespace util
-/** @endcond */
-
-using AnyMap = std::map<std::string, Any>;
-
 using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
@@ -1012,22 +955,3 @@ inline static void PrintTo(const Any& any, std::ostream* os) {
 /** @endcond */
 
 }  // namespace ov
-
-namespace std {
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
-    try {
-        return any.as<std::shared_ptr<T>>();
-    } catch (...) {
-        return {};
-    }
-}
-
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
-    return any.as<std::shared_ptr<T>>();
-}
-
-}  // namespace std

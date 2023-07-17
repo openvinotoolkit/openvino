@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,13 +75,3 @@ public:
         add_matcher<ov::pass::HSwishFusionWithClamp>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::HSwishFusion;
-using ov::pass::HSwishFusionWithClamp;
-using ov::pass::HSwishFusionWithHSigmoid;
-using ov::pass::HSwishFusionWithReluDiv;
-using ov::pass::HSwishFusionWithReluMul;
-}  // namespace pass
-}  // namespace ngraph

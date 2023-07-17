@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ctc_greedy_decoder_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "ctc_greedy_decoder_inst.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_selector.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -63,3 +57,4 @@ attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_greedy_decoder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_greedy_decoder)

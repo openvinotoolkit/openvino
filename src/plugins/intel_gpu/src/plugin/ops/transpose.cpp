@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,15 +16,13 @@ namespace intel_gpu {
 
 static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
     validate_inputs_count(op, {1, 2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     std::vector<uint16_t> order;
     if (op->get_input_size() == 2) {
         auto order_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        if (!order_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(order_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         order = order_constant->cast_vector<uint16_t>();
     }
 
@@ -52,7 +50,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
             && order == std::vector<uint16_t>{0, 3, 1, 2}) {
         auto precision = input->get_element_type();
         auto reorder_prim = cldnn::reorder(layerName,
-                                      inputPrimitives[0],
+                                      inputs[0],
                                       cldnn::format::bfyx,
                                       cldnn::element_type_to_data_type(precision),
                                       std::vector<float>(),
@@ -69,7 +67,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     }
 
     auto permutePrim = cldnn::permute(layerName,
-                                      inputPrimitives[0],
+                                      inputs[0],
                                       order);
 
     p.add_primitive(*op, permutePrim);

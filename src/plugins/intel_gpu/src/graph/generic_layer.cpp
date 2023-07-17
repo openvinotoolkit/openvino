@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "generic_layer_inst.h"
 #include "primitive_type_base.h"
 
@@ -22,6 +20,11 @@ generic_layer_node::typed_program_node(const std::shared_ptr<generic_layer> prim
 
 generic_layer_inst::typed_primitive_inst(network& network, generic_layer_node const& node)
     : parent(network, node) {}
+
+generic_layer_inst::typed_primitive_inst(network& network)
+    : parent(network) {
+    _type = generic_layer::type_id();
+}
 
 std::string generic_layer_inst::to_string(generic_layer_node const& node) {
     auto node_info = node.desc_to_json();

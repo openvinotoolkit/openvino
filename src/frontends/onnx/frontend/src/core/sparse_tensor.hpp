@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,11 @@ namespace onnx_import {
 class SparseTensor {
 public:
     SparseTensor() = delete;
-    explicit SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor, const std::string& model_dir)
-        : m_sparse_tensor_proto{&sparse_tensor},
-          m_values{sparse_tensor.values(), model_dir},
-          m_indices{sparse_tensor.indices(), model_dir},
+    SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
+                 const std::string& model_dir,
+                 const bool enable_mmap)
+        : m_values{sparse_tensor.values(), model_dir, enable_mmap},
+          m_indices{sparse_tensor.indices(), model_dir, enable_mmap},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {
         if (m_shape == Shape{0}) {
             // It's possible to construct a sparse tensor in ONNX with "dims: 0" property
@@ -57,7 +58,6 @@ public:
     }
 
 private:
-    const ONNX_NAMESPACE::SparseTensorProto* m_sparse_tensor_proto;
     Tensor m_values;
     Tensor m_indices;
     Shape m_shape;

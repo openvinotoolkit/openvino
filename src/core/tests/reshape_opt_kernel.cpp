@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <numeric>
 #include <vector>
 
+#include "common_test_utils/ndarray.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
-#include "util/ndarray.hpp"
 
 using namespace ngraph;
 
@@ -45,11 +45,16 @@ TEST_P(ReshapeOptKernel, reshape_opt_kernel) {
     const AxisVector axis_order = get_axis_order(p.order, p.input.get_shape().size());
     std::vector<ElementValue> output_buff(p.input.get_vector().size());
 
+    const auto& in_shape = p.input.get_shape();
+    Shape out_shape(in_shape.size());
+    for (size_t i = 0; i < out_shape.size(); i++)
+        out_shape[i] = in_shape[axis_order[i]];
+
     runtime::opt_kernel::reshape((const char*)p.input.data(),
                                  (char*)output_buff.data(),
-                                 p.input.get_shape(),
+                                 in_shape,
                                  axis_order,
-                                 p.output.get_shape(),
+                                 out_shape,
                                  sizeof(ElementValue));
     EXPECT_EQ(p.output.get_vector(), output_buff);
 }

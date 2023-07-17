@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_cnn_test.hpp"
@@ -46,7 +46,7 @@ void ReferenceCNNTest::LoadNetworkLegacy() {
         inputInfo[param->get_friendly_name()]->setPrecision(InferenceEngine::details::convertPrecision(param->get_element_type()));
     }
     for (const auto& result : function->get_results()) {
-        outputInfo[ngraph::op::util::create_ie_output_name(result->input_value(0))]->setPrecision(
+        outputInfo[ov::op::util::create_ie_output_name(result->input_value(0))]->setPrecision(
                 InferenceEngine::details::convertPrecision(result->get_element_type()));
     }
     legacy_exec_network = legacy_core->LoadNetwork(legacy_network, targetDevice);
@@ -101,7 +101,7 @@ void ReferenceCNNTest::InferLegacy() {
 
 void ReferenceCNNTest::Validate() {
     for (const auto& result : function->get_results()) {
-        auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        auto name = ov::op::util::create_ie_output_name(result->input_value(0));
         outputs_ov20.emplace_back(inferRequest.get_tensor(name));
         auto outBlob = legacy_infer_request.GetBlob(name);
         auto outMem = outBlob->buffer();

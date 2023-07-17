@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@
 #include <set>
 #include <string>
 
+#include "openvino/util/log.hpp"
+
 namespace ngraph {
 
 /**
@@ -28,7 +30,7 @@ namespace ngraph {
 class Mask : public std::vector<std::set<uint64_t>>, public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", "0"};
         return type_info_static;
     }
 
@@ -196,7 +198,7 @@ public:
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
-            if (i == axis) {
+            if (static_cast<int64_t>(i) == axis) {
                 std::set<uint64_t> dst_set;
                 const auto& src_set = mask->at(i);
                 auto it = src_set.lower_bound(split_start);
@@ -211,7 +213,7 @@ public:
 
     bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
-            NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
+            OPENVINO_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());

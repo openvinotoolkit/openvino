@@ -6,7 +6,7 @@ set(TARGET_NAME snippetsNgraphFunctions)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include")
-set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:commonTestUtils,INTERFACE_INCLUDE_DIRECTORIES>")
+set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:common_test_utils,INTERFACE_INCLUDE_DIRECTORIES>")
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -23,8 +23,9 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime::dev
-                commonTestUtils
+                common_test_utils
                 inference_engine_snippets
+                lptNgraphFunctions
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             tests
@@ -34,4 +35,3 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
-openvino_developer_export_targets(COMPONENT tests TARGETS inference_engine_snippets)

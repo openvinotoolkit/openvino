@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 
 using namespace reference_tests;
 using namespace ov;
+
+#ifdef _MSC_VER
+#   pragma warning(disable : 4756)
+#endif  
 
 namespace {
 struct SoftmaxParams {

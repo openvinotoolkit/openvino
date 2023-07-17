@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,18 +7,21 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
     auto dts_node =
-        ngraph::pattern::wrap_type<ov::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
+        ngraph::pattern::wrap_type<ov::op::v0::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto dts_node = std::dynamic_pointer_cast<ov::opset1::DepthToSpace>(m.get_match_root());
+        auto dts_node = std::dynamic_pointer_cast<ov::op::v0::DepthToSpace>(m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
         }
@@ -51,10 +54,10 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         }
 
         switch (mode) {
-        case opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+        case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
             shape_begin.push_back(C);
             break;
-        case opset1::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+        case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
             shape_begin.insert(shape_begin.begin() + 1, C);
             break;
         }
@@ -66,14 +69,14 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         // Calculate Transpose order
         std::vector<int64_t> order{0};
         switch (mode) {
-        case opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+        case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
             order.push_back(spatial_dims + 1);
             for (size_t i = 1; i <= spatial_dims; ++i) {
                 order.push_back(spatial_dims + 1 + i);
                 order.push_back(i);
             }
             break;
-        case opset1::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+        case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
             order.push_back(1);
             for (size_t i = 1; i <= spatial_dims; ++i) {
                 order.push_back(spatial_dims + 1 + i);
@@ -88,13 +91,13 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
             shape_end.push_back(block_size * input_shape[2 + i]);
         }
 
-        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<opset1::Constant> {
-            return opset1::Constant::create(element::i64, Shape{v.size()}, v);
+        auto create_constant = [](std::vector<int64_t>& v) -> std::shared_ptr<ov::op::v0::Constant> {
+            return ov::op::v0::Constant::create(element::i64, Shape{v.size()}, v);
         };
 
-        auto reshape_begin = std::make_shared<ov::opset1::Reshape>(input, create_constant(shape_begin), true);
-        auto transpose = std::make_shared<ov::opset1::Transpose>(reshape_begin, create_constant(order));
-        auto reshape_end = std::make_shared<ov::opset1::Reshape>(transpose, create_constant(shape_end), true);
+        auto reshape_begin = std::make_shared<ov::op::v1::Reshape>(input, create_constant(shape_begin), true);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape_begin, create_constant(order));
+        auto reshape_end = std::make_shared<ov::op::v1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(dts_node->get_friendly_name());
         ngraph::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
         ngraph::replace_node(dts_node, reshape_end);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,6 @@ struct convolution_params : public weight_bias_zero_point_params {
     uSize stride;
     uSize dilation;
     uSize padding;
-    uint32_t split = 1;
-    bool depthwise_separable_opt = false;
     bool transposed = false;
     QuantizationType quantization = QuantizationType::NONE;
     bool deformable_mode = false;

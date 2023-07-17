@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@ using namespace ov::frontend;
 using PaddleConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
-    std::string("conv2d"),
-    std::string("conv2d_s/conv2d.pdmodel"),
+    std::string("conv2d/conv2d.pdmodel"),
     std::string("conv2d_relu/conv2d_relu.pdmodel"),
     std::string("2in_2out/2in_2out.pdmodel"),
     std::string("multi_tensor_split/multi_tensor_split.pdmodel"),

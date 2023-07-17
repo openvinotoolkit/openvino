@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,13 +41,62 @@ struct PadParams {
     std::string testcaseName;
 };
 
+template <typename TPad>
+std::shared_ptr<Model> commonConstPadsCreateFunction(const PadParams& params) {
+    const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type, params.inputData.shape);
+    const auto padsBegin =
+        op::v0::Constant::create(params.padsBegin.type, params.padsBegin.shape, params.padsBegin.data.data());
+    const auto padsEnd =
+        op::v0::Constant::create(params.padsEnd.type, params.padsEnd.shape, params.padsEnd.data.data());
+    const auto f = [&] {
+        if (params.useConstValue) {
+            // pad_value should be used only in CONSTANT mode
+            const auto padVal = op::v0::Constant::create(params.constantValue.type,
+                                                         params.constantValue.shape,
+                                                         params.constantValue.data.data());
+            return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, padVal, params.padMode),
+                                           ParameterVector{data});
+        }
+
+        return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, params.padMode),
+                                       ParameterVector{data});
+    }();
+    return f;
+}
+template <typename TPad>
+std::shared_ptr<Model> commonParamPadsCreateFunction(const PadParams& params) {
+    const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type, params.inputData.shape);
+    const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type, params.padsBegin.shape);
+    const auto padsEnd = std::make_shared<op::v0::Parameter>(params.padsEnd.type, params.padsEnd.shape);
+    const auto f = [&] {
+        if (params.useConstValue) {
+            // pad_value should be used only in CONSTANT mode
+            const auto padVal =
+                std::make_shared<op::v0::Parameter>(params.constantValue.type, params.constantValue.shape);
+            return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, padVal, params.padMode),
+                                           ParameterVector{data, padsBegin, padsEnd, padVal});
+        }
+
+        return std::make_shared<Model>(std::make_shared<TPad>(data, padsBegin, padsEnd, params.padMode),
+                                       ParameterVector{data, padsBegin, padsEnd});
+    }();
+    return f;
+}
+
 class ReferencePadTest : public testing::TestWithParam<PadParams>, public CommonReferenceTest {
 public:
-    void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    void BaseConstSetUp() {
         auto params = GetParam();
-        function = CreateFunction(params);
         inputData = {params.inputData.data};
+        refOutData = {params.expectedOutput.data};
+    }
+
+    void BaseParamSetUp() {
+        auto params = GetParam();
+        if (params.useConstValue)
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data, params.constantValue.data};
+        else
+            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data};
         refOutData = {params.expectedOutput.data};
     }
 
@@ -65,114 +114,97 @@ public:
         result << "_=" << param.testcaseName;
         return result.str();
     }
+};
 
-private:
+class ReferencePadV1Test : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = CreateFunction(GetParam());
+    }
+
+    public:
     static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
-                                                              params.inputData.shape);
-        const auto padsBegin = op::v0::Constant::create(params.padsBegin.type,
-                                                        params.padsBegin.shape,
-                                                        params.padsBegin.data.data());
-        const auto padsEnd = op::v0::Constant::create(params.padsEnd.type,
-                                                      params.padsEnd.shape,
-                                                      params.padsEnd.data.data());
-        const auto f = [&] {
-            if (params.useConstValue) {
-                // pad_value should be used only in CONSTANT mode
-                const auto padVal = op::v0::Constant::create(params.constantValue.type,
-                                                             params.constantValue.shape,
-                                                             params.constantValue.data.data());
-                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                                padsBegin,
-                                                                                padsEnd,
-                                                                                padVal,
-                                                                                params.padMode),
-                                                  ParameterVector{data});
-            }
-
-            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                            padsBegin,
-                                                                            padsEnd,
-                                                                            params.padMode),
-                                              ParameterVector{data});
-        }();
-        return f;
+        return commonConstPadsCreateFunction<op::v1::Pad>(params);
     }
 };
 
-TEST_P(ReferencePadTest, CompareWithRefs) {
+class ReferencePadV12Test : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = CreateFunction(GetParam());
+    }
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
+        return commonConstPadsCreateFunction<op::v12::Pad>(params);
+    }
+};
+
+
+TEST_P(ReferencePadV1Test, CompareWithRefs) {
     Exec();
 }
 
-class ReferencePadTestParamsTooLarge : public ReferencePadTest {};
+TEST_P(ReferencePadV12Test, CompareWithRefs) {
+    Exec();
+}
+
+class ReferencePadTestParamsTooLarge : public ReferencePadV1Test {};
 
 TEST_P(ReferencePadTestParamsTooLarge, CompareWithRefs) {
     EXPECT_ANY_THROW(Exec());
 }
 
-class ReferencePadTestParamsOk : public ReferencePadTest {};
+class ReferencePadTestParamsOk : public ReferencePadV1Test {};
 
 TEST_P(ReferencePadTestParamsOk, CompareWithRefs) {
     EXPECT_NO_THROW(Exec());
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
+
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        auto params = GetParam();
-        function = CreateFunction(params);
-        if (params.useConstValue)
-            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data, params.constantValue.data};
-        else
-            inputData = {params.inputData.data, params.padsBegin.data, params.padsEnd.data};
-        refOutData = {params.expectedOutput.data};
+        BaseParamSetUp();
+        function = CreateFunction(GetParam());
     }
 
-private:
     static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.inputData.type,
-                                                              params.inputData.shape);
-        const auto padsBegin = std::make_shared<op::v0::Parameter>(params.padsBegin.type,
-                                                                   params.padsBegin.shape);
-        const auto padsEnd = std::make_shared<op::v0::Parameter>(params.padsEnd.type,
-                                                                 params.padsEnd.shape);
-        const auto f = [&] {
-            if (params.useConstValue) {
-                // pad_value should be used only in CONSTANT mode
-                const auto padVal = std::make_shared<op::v0::Parameter>(params.constantValue.type,
-                                                                        params.constantValue.shape);
-                return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                                padsBegin,
-                                                                                padsEnd,
-                                                                                padVal,
-                                                                                params.padMode),
-                                                  ParameterVector{data, padsBegin, padsEnd, padVal});
-            }
-
-            return std::make_shared<Model>(std::make_shared<op::v1::Pad>(data,
-                                                                            padsBegin,
-                                                                            padsEnd,
-                                                                            params.padMode),
-                                              ParameterVector{data, padsBegin, padsEnd});
-        }();
-        return f;
+        return commonParamPadsCreateFunction<op::v1::Pad>(params);
     }
 };
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
+class ReferencePadV12TestNonConstPadsBeginPadsEndPadVal : public ReferencePadTest {
+public:
+    void SetUp() override {
+        BaseParamSetUp();
+        function = CreateFunction(GetParam());
+    }
+
+    static std::shared_ptr<Model> CreateFunction(const PadParams& params) {
+        return commonParamPadsCreateFunction<op::v12::Pad>(params);
+    }
+};
+
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
     Exec();
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+TEST_P(ReferencePadV12TestNonConstPadsBeginPadsEndPadVal, CompareWithRefs) {
+    Exec();
+}
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge, CompareWithRefs) {
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge : public ReferencePadV1TestNonConstPadsBeginPadsEndPadVal {};
+
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge, CompareWithRefs) {
     EXPECT_ANY_THROW(Exec());
 }
 
-class ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk : public ReferencePadTestNonConstPadsBeginPadsEndPadVal {};
+class ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk : public ReferencePadV1TestNonConstPadsBeginPadsEndPadVal {};
 
-TEST_P(ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk, CompareWithRefs) {
+TEST_P(ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk, CompareWithRefs) {
     EXPECT_NO_THROW(Exec());
 }
 
@@ -845,6 +877,7 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6,
+                7, 8, 9,
             }),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
@@ -971,6 +1004,281 @@ std::vector<PadParams> generateParams() {
             op::PadMode::SYMMETRIC,
             reference_tests::Tensor(ET, {}, std::vector<T>{2112}),
             "pad_symmetric"),
+        PadParams(
+            reference_tests::Tensor(ET, {4, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET, {2, 1}, std::vector<T>{
+                5, 8
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_4x3_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
+            reference_tests::Tensor(ET, {1, 2}, std::vector<T>{
+                6, 7
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_3x4_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{-1, 0, 0}),
+            reference_tests::Tensor(ET, {1, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_last"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{-1, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET, {1, 2, 3}, std::vector<T>{
+                7, 8, 9,
+                10, 11, 12
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_first"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, -1, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
+                4, 5, 6,
+
+                10, 11, 12
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_middle_begin"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, -1, 0}),
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
+                1, 2, 3,
+
+                7, 8, 9,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_middle_end"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                1, 2,
+                3, 4,
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET, {0, 2}, std::vector<T>{}),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{10}),
+            "pad_neg_2x2_reult_empty_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-2, -2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -2}),
+            reference_tests::Tensor(ET, {0, 0}, std::vector<T>{}),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{10}),
+            "pad_neg_3x4_reult_empty_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6,
+                9, 10
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_mix_cross_3x4_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -2}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
+                 7, 8, 0, 0, 0,
+                 11, 12, 0, 0, 0,
+                 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_begin_3x4_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -2}),
+            reference_tests::Tensor(ET, {4, 5}, std::vector<T>{
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 1, 2,
+                0, 0, 0, 5, 6,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_end_3x4_mode_const"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                10, 11, 12, 11, 10, 9,
+                6,   7,  8,  7,  6, 5,
+                2,   3,  4,  3,  2, 1,
+                6,   7,  8,  7,  6, 5,
+            }),
+            op::PadMode::REFLECT,
+            "pad_neg_ones_cross_3x4_mode_reflect"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12,
+
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-4, 3}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -5}),
+            reference_tests::Tensor(ET, {1, 2}, std::vector<T>{
+               4, 3,
+            }),
+            op::PadMode::REFLECT,
+            "pad_neg_mix_cross_3x4_mode_reflect"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                2, 3, 4, 4, 4, 4,
+                2, 3, 4, 4, 4, 4,
+                2, 3, 4, 4, 4, 4,
+                6, 7, 8, 8, 8, 8,
+            }),
+            op::PadMode::EDGE,
+            "pad_neg_ones_cross_3x4_mode_edge"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6,
+                9, 10
+            }),
+            op::PadMode::EDGE,
+            "pad_neg_mix_cross_3x4_mode_edge"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6,
+                9, 10
+            }),
+            op::PadMode::REFLECT,
+            "pad_neg_mix_cross_3x4_mode_reflect"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
+            reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
+                5, 6,
+                9, 10
+            }),
+            op::PadMode::SYMMETRIC,
+            "pad_neg_mix_cross_3x4_mode_symmetric"),
+        PadParams(
+            reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
+                1, 2, 3, 4,
+                5, 6, 7, 8,
+                9, 10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 3}),
+            reference_tests::Tensor(ET, {4, 6}, std::vector<T>{
+                6, 7, 8, 8, 7, 6,
+                2, 3, 4, 4, 3, 2,
+                2, 3, 4, 4, 3, 2,
+                6, 7, 8, 8, 7, 6,
+            }),
+            op::PadMode::SYMMETRIC,
+            "pad_neg_ones_cross_3x4_mode_symmetric"),
     };
     return params;
 }
@@ -1062,10 +1370,17 @@ std::vector<PadParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTest,
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV1_With_Hardcoded_Refs, ReferencePadV1Test,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadVal,
+INSTANTIATE_TEST_SUITE_P(smoke_PadV1_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadVal,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV12_With_Hardcoded_Refs, ReferencePadV12Test,
+    testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PadV12_With_Hardcoded_Refs, ReferencePadV12TestNonConstPadsBeginPadsEndPadVal,
     testing::ValuesIn(generateCombinedParams()), ReferencePadTest::getTestCaseName);
 
 template <element::Type_t ET, element::Type_t ET_INT>
@@ -1115,7 +1430,7 @@ std::vector<PadParams> generateCombinedParamsTooLarge() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsTooLarge,
     testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValTooLarge,
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadValTooLarge,
     testing::ValuesIn(generateCombinedParamsTooLarge()), ReferencePadTest::getTestCaseName);
 
 template <element::Type_t ET, element::Type_t ET_INT>
@@ -1165,6 +1480,6 @@ std::vector<PadParams> generateCombinedParamsOk() {
 INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestParamsOk,
     testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadTestNonConstPadsBeginPadsEndPadValParamsOk,
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs, ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk,
     testing::ValuesIn(generateCombinedParamsOk()), ReferencePadTest::getTestCaseName);
 } // namespace

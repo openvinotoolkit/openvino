@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2022 Intel Corporation
+ Copyright (C) 2018-2023 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -144,7 +144,8 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
             print("\nRemoving samples_smoke_tests_data.zip...")
             os.remove(samples_path)	
 
-    except Exception:
+    except Exception as error:
+        print(error)
         print(f"Exception during downloading samples_smoke_tests_data.zip")
 
 class SamplesCommonTestClass():

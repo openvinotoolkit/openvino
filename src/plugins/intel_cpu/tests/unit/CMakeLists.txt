@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,18 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd5051)
+endif()
+
+if (X86_64)
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
+else()
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
 addIeTargetTest(
@@ -24,6 +36,8 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
+        EXCLUDED_SOURCE_PATHS
+            ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -38,10 +52,14 @@ addIeTargetTest(
             unitTestUtils
             ngraphFunctions
             snippetsNgraphFunctions
+            snippets_test_utils
         ADD_CPPLINT
         LABELS
             CPU
 )
+
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)

@@ -1,24 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <memory>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/mod.hpp>
-#include <transformations/op_conversions/convert_mod.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <sstream>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 
@@ -31,12 +31,12 @@ TEST(TransformationTests, ModDecompositionTests) {
         auto mod = std::make_shared<ngraph::op::v1::Mod>(data1, data2);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mod}, ngraph::ParameterVector{});
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMod>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertMod>();
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

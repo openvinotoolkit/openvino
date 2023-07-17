@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getReference(
 
     std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 
-    std::shared_ptr<ngraph::opset1::Clamp> clamp = std::make_shared<op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
+    std::shared_ptr<ngraph::opset1::Clamp> clamp = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(clamp, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");

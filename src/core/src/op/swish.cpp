@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v4::Swish);
 
 op::v4::Swish::Swish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -38,10 +36,11 @@ void op::v4::Swish::validate_and_infer_types() {
                           "Swish must have 1 or 2 inputs, but it has: ",
                           inputs_count);
 
+    auto in_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real(),
+                          in_type.is_dynamic() || in_type.is_real(),
                           "Swish input tensor must be floating point type(",
-                          get_input_element_type(0),
+                          in_type,
                           ").");
 
     if (inputs_count == 2) {
@@ -113,8 +112,10 @@ bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out) {
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_Swish_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) &&
                  (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return swish::evaluate_swish(inputs, outputs[0]);
 }
 

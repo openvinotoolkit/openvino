@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 from argparse import Namespace
 from unittest.mock import patch
+import os
 
 from generator import generator, generate
 
@@ -331,3 +332,19 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+
+class TestPipelineConfig(unittest.TestCase):
+    def test_pipeline_config_loading(self):
+        from openvino.tools.mo.utils.pipeline_config import PipelineConfig
+        pipeline_config = PipelineConfig(os.path.join(os.path.dirname(__file__), "test_configs/config1.config"))
+        assert pipeline_config.get_param('ssd_anchor_generator_num_layers') == 6
+        assert pipeline_config.get_param('num_classes') == 90
+        assert pipeline_config.get_param('resizer_image_width') == 300
+        assert pipeline_config.get_param('resizer_image_height') == 300
+
+        pipeline_config = PipelineConfig(os.path.join(os.path.dirname(__file__), "test_configs/config2.config"))
+        assert pipeline_config.get_param('ssd_anchor_generator_num_layers') is None
+        assert pipeline_config.get_param('num_classes') == 10
+        assert pipeline_config.get_param('resizer_image_width') == 640
+        assert pipeline_config.get_param('resizer_image_height') == 640

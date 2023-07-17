@@ -1,4 +1,4 @@
- // Copyright (C) 2018-2022 Intel Corporation
+ // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,8 +139,10 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ov::Node> &node,
         const auto &cur_node_input = node->input_value(port_id);
         const auto &ref_node_input = ref->input_value(port_id);
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto &cur_const_input = ov::get_constant_from_source(cur_node_input);
         const auto &ref_const_input = ov::get_constant_from_source(ref_node_input);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         // Check that both OP an reference port inputs are constant and have same data
         if (cur_const_input && ref_const_input &&
@@ -179,7 +181,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
 SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
             std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
-            std::make_shared<MatcherConfig<ov::opset8::FakeQuantize>>(std::vector<std::string>{},
+            std::make_shared<MatcherConfig<ov::op::v0::FakeQuantize>>(std::vector<std::string>{},
                                                                       std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
                     ov::op::v0::MatMul,

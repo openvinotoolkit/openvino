@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 
+#include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -12,9 +15,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/all_close.hpp"
-#include "util/test_control.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -56,7 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/scatter_elements_opset11.onnx"));
 
-    test_constant_folding<float>(fn, {1.0, 1.1, 3.0, 2.1, 5.0}, Shape{1, 5});
+    test_constant_folding<float>(fn, {1.0f, 1.1f, 3.0f, 2.1f, 5.0f}, Shape{1, 5});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {

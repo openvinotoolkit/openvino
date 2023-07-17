@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ ngraph::op::PadMode get_pad_mode(std::string mode) {
     } else if (mode == "edge") {
         pad_mode = ngraph::op::PadMode::EDGE;
     } else {
-        throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
+        OPENVINO_THROW("Unsupported padding mode: [" + mode + "]");
     }
 
     return pad_mode;

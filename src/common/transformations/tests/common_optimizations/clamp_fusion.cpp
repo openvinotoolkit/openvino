@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/clamp_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -30,11 +29,11 @@ TEST_F(TransformationTestsF, ClampFusion) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -49,11 +48,11 @@ TEST_F(TransformationTestsF, ClampFusionScalars) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -68,7 +67,7 @@ TEST_F(TransformationTestsF, ClampFusionNonConstMin) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
@@ -91,11 +90,11 @@ TEST_F(TransformationTestsF, ClampFusionMinMax) {
 
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -110,11 +109,11 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxScalars) {
         auto max = std::make_shared<opset5::Maximum>(min, min_const);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -129,7 +128,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxNonConstMax) {
         auto max = std::make_shared<opset5::Maximum>(min, max_val);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data, max_val});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {

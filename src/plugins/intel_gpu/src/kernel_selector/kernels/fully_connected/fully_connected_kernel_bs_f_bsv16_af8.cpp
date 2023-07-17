@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,13 @@ ParamsKey FullyConnected_bs_f_bsv16_af8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_bs_f_bsv16_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -34,34 +40,26 @@ FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDe
     return dispatchData;
 }
 
-static bool check_input_layout(const DataTensor& t) {
-    bool b16_layout = false;
-    b16_layout |= t.GetLayout() == DataLayout::bs_f_bsv16__af8;
-    b16_layout |= DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::BATCH) == 0 && t.Batch().v == 16;
-    return b16_layout;
-}
-
 bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_params& o) const {
     if (!FullyConnectedBlockKernelBase::Validate(p, o)) {
         return false;
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
-    const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
-    if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
+    if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 
     const bool bProperBatch = params.inputs[0].Batch().v == 16;
-    const bool bProperInput = check_input_layout(params.inputs[0]);
-    const bool bSupportedLayout = optParams.allowInputReordering || bProperInput;
 
-    if (!bProperBatch || !bSupportedLayout) {
-        return false;
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
     }
 
-    return true;
+    return bProperBatch;
 }
 
 KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,8 +91,6 @@ void FuseTransposeAndReorderTest::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(0);
 }
@@ -168,8 +166,6 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
 
 // Test disabled temporarily, it conflicts with TransposeFuse transformation in common optimizations step
 TEST_P(FuseTransposeAndReorderTest1, DISABLED_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(2);
 }
@@ -230,8 +226,6 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(1);
 }
@@ -285,8 +279,6 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(1);
 }
@@ -326,25 +318,23 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
     auto memFmt = nhwc;
 
     auto inputParams = ngraph::builder::makeParams(ngPrc, {inputShape});
-    const auto relu = std::make_shared<ov::opset8::Relu>(inputParams[0]);
-    const auto transposeOrder = ov::opset8::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
-    const auto transpose1 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    const auto relu = std::make_shared<ov::op::v0::Relu>(inputParams[0]);
+    const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv1 = ngraph::builder::makeConvolution(transpose1, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv1->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto transpose2 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv2 = ngraph::builder::makeConvolution(transpose2, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv2->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto add = std::make_shared<ov::opset8::Add>(conv1, conv2);
+    const auto add = std::make_shared<ov::op::v1::Add>(conv1, conv2);
 
-    ov::ResultVector results{std::make_shared<ov::opset8::Result>(add->output(0))};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add->output(0))};
     function = std::make_shared<ov::Model>(results, inputParams, "TransposeReorder");
 }
 
 TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
     CheckTransposeCount(0);
 }

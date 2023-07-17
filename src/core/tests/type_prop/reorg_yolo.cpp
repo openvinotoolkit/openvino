@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -19,6 +19,29 @@ TEST(type_prop, reorg_yolo_stride_2) {
     Shape expected_shape = Shape{1, 256, 13, 13};
 
     EXPECT_EQ(reorg_yolo->get_output_shape(0), expected_shape);
+}
+
+TEST(type_prop, reorg_yolo_stride_2_dynamic_shape) {
+    const auto in_shape = PartialShape{-1, -1, -1, -1};
+    size_t stride = 2;
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
+
+    const auto expected_shape = PartialShape{-1, -1, -1, -1};
+
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0), expected_shape);
+}
+
+TEST(type_prop, reorg_yolo_stride_2_dynamic_shape_ranges) {
+    const auto in_shape = PartialShape{{1, 4}, {3, 9}, {16, 32}, {16, 32}};
+    size_t stride = 2;
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
+
+    // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
+    const auto expected_shape = PartialShape{{1, 4}, {12, 36}, {8, 16}, {8, 16}};
+
+    EXPECT_EQ(reorg_yolo->get_output_partial_shape(0), expected_shape);
 }
 
 TEST(type_prop, reorg_yolo_stride_2_batch_2) {

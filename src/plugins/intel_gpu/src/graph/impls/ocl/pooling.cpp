@@ -1,16 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "pooling_inst.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
 #include "ngraph/validation_util.hpp"
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -58,8 +55,8 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
@@ -101,6 +98,7 @@ public:
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             pads_begin.clear();
             pads_end.clear();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
                                            kernel,
                                            stride,
@@ -108,6 +106,7 @@ public:
                                            auto_pad,
                                            pads_end,
                                            pads_begin);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (auto_pad == ov::op::PadType::VALID) {
             pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
@@ -132,7 +131,7 @@ public:
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
-            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
+            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + kernel[spatial_rank - i - 1]) >
                                  static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
         }
 
@@ -141,9 +140,9 @@ public:
         else
             pp.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
 
-        uint32_t kernel_z = kernel.size() >= 3 ? kernel[kernel.size() - 3] : 1;
-        uint32_t kernel_y = kernel.size() >= 2 ? kernel[kernel.size() - 2] : 1;
-        uint32_t kernel_x = kernel.size() >= 1 ? kernel[kernel.size() - 1] : 1;
+        uint32_t kernel_z = kernel.size() >= 3 ? static_cast<uint32_t>(kernel[kernel.size() - 3]) : 1;
+        uint32_t kernel_y = kernel.size() >= 2 ? static_cast<uint32_t>(kernel[kernel.size() - 2]) : 1;
+        uint32_t kernel_x = kernel.size() >= 1 ? static_cast<uint32_t>(kernel[kernel.size() - 1]) : 1;
         pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
@@ -151,14 +150,14 @@ public:
         uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
         pp.poolPad  = {pad_x, pad_y, pad_z};
 
-        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
+        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
+        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
         pp.poolStride = {stride_x, stride_y, stride_z};
 
-        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
         return {params, optional_params};
@@ -168,8 +167,6 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<resample>::key_type> keys;
-
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,
                      format::byxf,
@@ -190,12 +187,7 @@ attach_pooling_impl::attach_pooling_impl() {
                      format::bs_fs_zyx_bsv32_fsv16,
                      format::bs_fs_zyx_bsv32_fsv32 };
 
-    for (const auto type : types) {
-        for (const auto format : formats) {
-            keys.emplace(type, format);
-        }
-    }
-
+    auto keys = implementation_map<pooling>::combine(types, formats);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
     keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
@@ -207,3 +199,4 @@ attach_pooling_impl::attach_pooling_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::pooling)

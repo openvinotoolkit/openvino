@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RNNSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase, 4);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase);
 
     RNNSequence();
 
@@ -44,6 +43,9 @@ public:
 
     op::RecurrentSequenceDirection get_direction() const {
         return m_direction;
+    }
+    void set_direction(const RecurrentSequenceDirection& direction) {
+        m_direction = direction;
     }
 
 protected:

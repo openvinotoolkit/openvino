@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("RandomUniformFusion", "0");
     RandomUniformFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::RandomUniformFusion;
-}  // namespace pass
-}  // namespace ngraph

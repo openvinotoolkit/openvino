@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,15 +23,6 @@ namespace util {
  */
 std::shared_ptr<void> load_shared_object(const char* path);
 
-/**
- * @brief Loads a library with absolute path specified.
- * Prevents library search in working directory, environment
- * variables etc.
- * @param path Full path to the plugin library
- * @return Reference to shared object
- */
-std::shared_ptr<void> load_shared_object_safely(const char* path);
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Loads a library with the wide char name specified.
@@ -39,15 +30,6 @@ std::shared_ptr<void> load_shared_object_safely(const char* path);
  * @return Reference to shared object
  */
 std::shared_ptr<void> load_shared_object(const wchar_t* path);
-
-/**
- * @brief Loads a library with wide char absolute path specified.
- * Prevents library search in working directory, environment
- * variables etc.
- * @param path Full path to the plugin library
- * @return Reference to shared object
- */
-std::shared_ptr<void> load_shared_object_safely(const wchar_t* path);
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
  * @brief Searches for a function symbol in the loaded module

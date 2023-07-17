@@ -42,7 +42,7 @@ InferenceEngine::Blob::Ptr make_fp32_blob(InferenceEngine::Blob::Ptr fp16_blob) 
 }
 
 void convert_blobs_precision(InferenceEngine::CNNLayer& layer) {
-    auto layer_info = GNAPluginNS::LayerInfo(layer);
+    auto layer_info = LayerInfo(layer);
 
     if (layer_info.isWeightable()) {
         InferenceEngine::WeightableLayer& wl = dynamic_cast<InferenceEngine::WeightableLayer&>(layer);

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
@@ -12,12 +11,6 @@
 #include <limits>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Generates a set of default bounding boxes with different sizes and aspect ratios.
 /// @details The prior-boxes are shared across all the images in a batch (since they have the same width and height).
@@ -25,6 +18,10 @@ namespace cldnn {
 /// Second feature stores the variance of each prior coordinate.
 struct prior_box : public primitive_base<prior_box> {
     CLDNN_DECLARE_PRIMITIVE(prior_box)
+
+    prior_box() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs prior-box primitive.
     /// @param id This primitive id.
@@ -40,7 +37,7 @@ struct prior_box : public primitive_base<prior_box> {
     /// @param step_height Step height.
     /// @param offset Offset to the top left corner of each cell.
     prior_box(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& img_size,
               const std::vector<float>& min_sizes,
               const std::vector<float>& max_sizes = {},
@@ -56,7 +53,7 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& fixed_size = {},
               const std::vector<float>& density = {},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           img_size(img_size),
           min_sizes(min_sizes),
           max_sizes(max_sizes),
@@ -75,7 +72,7 @@ struct prior_box : public primitive_base<prior_box> {
 
     /// @brief Constructs prior-box primitive, which supports v8 features.
     prior_box(const primitive_id& id,
-              const std::vector<primitive_id>& inputs,
+              const std::vector<input_info>& inputs,
               const tensor& output_size,
               const tensor& img_size,
               const std::vector<float>& min_sizes,
@@ -113,7 +110,7 @@ struct prior_box : public primitive_base<prior_box> {
 
     /// @brief Constructs prior-box primitive, which executes clustered version.
     prior_box(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& img_size,
               const bool clip,
               const std::vector<float>& variance,
@@ -124,7 +121,7 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& heights,
               data_types output_dt,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}),
           img_size(img_size),
           flip(false),
           clip(clip),
@@ -179,6 +176,119 @@ struct prior_box : public primitive_base<prior_box> {
 
     bool is_clustered() const { return clustered; }
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, img_size.spatial[0]);
+        seed = hash_combine(seed, img_size.spatial[1]);
+
+        seed = hash_range(seed, min_sizes.begin(), min_sizes.end());
+        seed = hash_range(seed, max_sizes.begin(), max_sizes.end());
+        seed = hash_range(seed, aspect_ratios.begin(), aspect_ratios.end());
+
+        seed = hash_combine(seed, flip);
+        seed = hash_combine(seed, clip);
+
+        seed = hash_range(seed, variance.begin(), variance.end());
+        seed = hash_combine(seed, step_width);
+        seed = hash_combine(seed, step_height);
+        seed = hash_combine(seed, offset);
+        seed = hash_combine(seed, scale_all_sizes);
+
+        seed = hash_range(seed, fixed_ratio.begin(), fixed_ratio.end());
+        seed = hash_range(seed, fixed_size.begin(), fixed_size.end());
+        seed = hash_range(seed, density.begin(), density.end());
+
+        seed = hash_combine(seed, support_opset8);
+        seed = hash_combine(seed, step);
+        seed = hash_combine(seed, min_max_aspect_ratios_order);
+
+        seed = hash_range(seed, widths.begin(), widths.end());
+        seed = hash_range(seed, heights.begin(), heights.end());
+
+        seed = hash_combine(seed, clustered);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const prior_box>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(img_size) &&
+               cmp_fields(min_sizes) &&
+               cmp_fields(max_sizes) &&
+               cmp_fields(aspect_ratios) &&
+               cmp_fields(flip) &&
+               cmp_fields(clip) &&
+               cmp_fields(variance) &&
+               cmp_fields(step_width) &&
+               cmp_fields(step_height) &&
+               cmp_fields(offset) &&
+               cmp_fields(scale_all_sizes) &&
+               cmp_fields(fixed_ratio) &&
+               cmp_fields(fixed_size) &&
+               cmp_fields(density) &&
+               cmp_fields(support_opset8) &&
+               cmp_fields(step) &&
+               cmp_fields(min_max_aspect_ratios_order) &&
+               cmp_fields(widths) &&
+               cmp_fields(heights) &&
+               cmp_fields(clustered);
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<prior_box>::save(ob);
+        ob << output_size;
+        ob << img_size;
+        ob << min_sizes;
+        ob << max_sizes;
+        ob << aspect_ratios;
+        ob << flip;
+        ob << clip;
+        ob << variance;
+        ob << step_width;
+        ob << step_height;
+        ob << offset;
+        ob << scale_all_sizes;
+        ob << fixed_ratio;
+        ob << fixed_size;
+        ob << density;
+        ob << support_opset8;
+        ob << step;
+        ob << min_max_aspect_ratios_order;
+        ob << widths;
+        ob << heights;
+        ob << clustered;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<prior_box>::load(ib);
+        ib >> output_size;
+        ib >> img_size;
+        ib >> min_sizes;
+        ib >> max_sizes;
+        ib >> aspect_ratios;
+        ib >> flip;
+        ib >> clip;
+        ib >> variance;
+        ib >> step_width;
+        ib >> step_height;
+        ib >> offset;
+        ib >> scale_all_sizes;
+        ib >> fixed_ratio;
+        ib >> fixed_size;
+        ib >> density;
+        ib >> support_opset8;
+        ib >> step;
+        ib >> min_max_aspect_ratios_order;
+        ib >> widths;
+        ib >> heights;
+        ib >> clustered;
+    }
+
 private:
     bool clustered;
 
@@ -217,7 +327,4 @@ private:
         }
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,15 +1,23 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/any.hpp"
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+
+namespace {
+bool check_key(py::object key, py::object obj) {
+    return key.is(py::type::of(obj));
+}
+};  // namespace
 
 void regclass_graph_Any(py::module m) {
     py::class_<ov::Any, std::shared_ptr<ov::Any>> ov_any(m, "OVAny");
@@ -19,13 +27,11 @@ void regclass_graph_Any(py::module m) {
                    "into C++ based core of the project.";
 
     ov_any.def(py::init([](py::object& input_value) {
-        return ov::Any(py_object_to_any(input_value));
+        return ov::Any(Common::utils::py_object_to_any(input_value));
     }));
 
     ov_any.def("__repr__", [](const ov::Any& self) {
-        std::stringstream ret;
-        self.print(ret);
-        return ret.str();
+        return "<" + Common::get_class_name(self) + " class>";
     });
 
     ov_any.def("__hash__", [](ov::Any& self) {
@@ -60,8 +66,74 @@ void regclass_graph_Any(py::module m) {
         return a == b;
     });
     ov_any.def("__eq__", [](const ov::Any& a, py::object& b) -> bool {
-        return a == ov::Any(py_object_to_any(b));
+        return a == ov::Any(Common::utils::py_object_to_any(b));
     });
+    ov_any.def(
+        "astype",
+        [](ov::Any& self, py::object dtype) {
+            if (check_key(dtype, py::bool_())) {
+                return py::cast(self.as<bool>());
+            } else if (check_key(dtype, py::str())) {
+                return py::cast(self.as<std::string>());
+            } else if (check_key(dtype, py::int_())) {
+                return py::cast(self.as<int64_t>());
+            } else if (check_key(dtype, py::float_())) {
+                return py::cast(self.as<double>());
+            } else if (check_key(dtype, py::dict())) {
+                return Common::utils::from_ov_any_map_no_leaves(self);
+            }
+            std::stringstream str;
+            str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+            OPENVINO_THROW(str.str());
+        },
+        R"(
+            Returns runtime attribute casted to defined data type.
+
+            :param dtype: Data type in which runtime attribute will be casted.
+            :type dtype: Union[bool, int, str, float, dict]
+
+            :return: A runtime attribute.
+            :rtype: Any
+    )");
+    ov_any.def(
+        "aslist",
+        [](ov::Any& self, py::object dtype) {
+            // before serialization
+            if (self.is<Common::utils::EmptyList>() || dtype.is_none()) {
+                return py::cast<py::object>(py::list());
+            } else if (self.is<std::vector<double>>()) {
+                return py::cast(self.as<std::vector<double>>());
+            } else if (self.is<std::vector<std::string>>()) {
+                return py::cast(self.as<std::vector<std::string>>());
+            } else if (self.is<std::vector<bool>>()) {
+                return py::cast(self.as<std::vector<bool>>());
+            } else if (self.is<std::vector<int64_t>>()) {
+                return py::cast(self.as<std::vector<int64_t>>());
+            }
+            // after serialization
+            if (check_key(dtype, py::str())) {
+                return py::cast(self.as<std::vector<std::string>>());
+            } else if (check_key(dtype, py::int_())) {
+                return py::cast(self.as<std::vector<int64_t>>());
+            } else if (check_key(dtype, py::float_())) {
+                return py::cast(self.as<std::vector<double>>());
+            } else if (check_key(dtype, py::bool_())) {
+                return py::cast(self.as<std::vector<bool>>());
+            }
+            std::stringstream str;
+            str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+            OPENVINO_THROW(str.str());
+        },
+        py::arg("dtype") = py::none(),
+        R"(
+            Returns runtime attribute as a list with specified data type.
+
+            :param dtype: Data type of a list in which runtime attribute will be casted.
+            :type dtype: Union[bool, int, str, float]
+
+            :return: A runtime attribute as a list.
+            :rtype: Union[List[float], List[int], List[str], List[bool]]
+    )");
     ov_any.def(
         "get",
         [](const ov::Any& self) -> py::object {
@@ -74,7 +146,7 @@ void regclass_graph_Any(py::module m) {
     ov_any.def(
         "set",
         [](ov::Any& self, py::object& value) {
-            self = ov::Any(py_object_to_any(value));
+            self = ov::Any(Common::utils::py_object_to_any(value));
         },
         R"(
             :param: Value to be set in OVAny.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@ using namespace ngraph;
 
 std::ostream& ov::operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff) {
     s << "CoordinateDiff{";
+    OPENVINO_SUPPRESS_DEPRECATED_START
     s << ngraph::join(coordinate_diff);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     s << "}";
     return s;
 }
@@ -39,5 +41,3 @@ ov::CoordinateDiff& ov::CoordinateDiff::operator=(CoordinateDiff&& v) noexcept {
     static_cast<std::vector<std::ptrdiff_t>*>(this)->operator=(v);
     return *this;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::CoordinateDiff>);

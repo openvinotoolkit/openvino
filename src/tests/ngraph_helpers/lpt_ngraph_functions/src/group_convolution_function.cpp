@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,8 @@ std::shared_ptr<Node> createWeightsOriginal(
     const size_t kernelSize,
     const std::vector<float>& weightsValues,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+    const bool addReshape = true) {
     std::shared_ptr<Node> weights;
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
         weights = ngraph::opset1::Constant::create(
@@ -44,27 +45,49 @@ std::shared_ptr<Node> createWeightsOriginal(
                 weightsValues);
     } else {
         const size_t inputChannelsPerGroup = inputChannelsCount / groupCount;
-        weights = ngraph::opset1::Constant::create(
-            precision,
-            rankLength == 3 ?
-                ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize } :
-                ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize },
-            weightsValues.size() == 1ul ?
-                std::vector<float>(
-                    rankLength == 3 ?
-                        outputChannelsCount * kernelSize * inputChannelsPerGroup :
-                        outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup,
-                    weightsValues[0]) :
-                weightsValues);
+        if ((rankLength == 3) || (rankLength == 4)) {
+            weights = ngraph::opset1::Constant::create(
+                precision,
+                addReshape ?
+                    (rankLength == 3 ?
+                        ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize } :
+                        ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize }) :
+                    (rankLength == 3 ?
+                        ngraph::Shape{ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize } :
+                        ngraph::Shape{ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize, kernelSize }),
+                weightsValues.size() == 1ul ?
+                    std::vector<float>(
+                        rankLength == 3 ?
+                            outputChannelsCount * kernelSize * inputChannelsPerGroup :
+                            outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup,
+                        weightsValues[0]) :
+                    weightsValues);
+        } else {
+            const ngraph::Shape shape{outputChannelsCount, inputChannelsPerGroup, 1ull, kernelSize, kernelSize};
+            const std::vector<float> values = weightsValues.size() == 1ull ?
+                std::vector<float>(shape_size(shape), weightsValues[0]) :
+                weightsValues;
+            weights = ngraph::opset1::Constant::create(precision, shape, values);
+        }
 
         if (!fakeQuantizeOnWeights.empty()) {
+            Shape constantShape;
+            if (ov::shape_size(fakeQuantizeOnWeights.constantShape) != 1) {
+                constantShape = fakeQuantizeOnWeights.constantShape;
+            } else {
+                constantShape = Shape(weights->get_shape().size(), 1);
+                if (addReshape) {
+                    constantShape[0] = outputChannelsCount;
+                } else {
+                    constantShape[0] = groupCount;
+                    constantShape[1] = outputChannelsCount / groupCount;
+                }
+            }
             weights = ngraph::builder::makeFakeQuantize(
                 weights,
                 precision,
                 fakeQuantizeOnWeights.quantizationLevel,
-                rankLength == 3 ?
-                    std::vector<size_t>{ outputChannelsCount, 1, 1 } :
-                    std::vector<size_t>{ outputChannelsCount, 1, 1, 1 },
+                constantShape,
                 fakeQuantizeOnWeights.inputLowValues,
                 fakeQuantizeOnWeights.inputHighValues,
                 fakeQuantizeOnWeights.outputLowValues,
@@ -75,24 +98,39 @@ std::shared_ptr<Node> createWeightsOriginal(
             weights = ngraph::builder::subgraph::makeDequantization(weights, dequantizationOnWeights);
         }
 
-        weights = std::make_shared<ngraph::opset1::Reshape>(
-            weights,
-            ngraph::opset1::Constant::create(
-                element::i64,
-                Shape{ static_cast<size_t>(rankLength) + 1ul },
-                rankLength == 3 ?
-                    std::vector<int64_t> {
-                        calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
-                        calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
-                        static_cast<int64_t>(inputChannelsPerGroup),
-                        static_cast<int64_t>(kernelSize) } :
-                    std::vector<int64_t> {
-                        calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
-                        calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
-                        static_cast<int64_t>(inputChannelsPerGroup),
-                        static_cast<int64_t>(kernelSize),
-                        static_cast<int64_t>(kernelSize) }),
-            true);
+        if (addReshape) {
+            std::vector<int64_t> values;
+            if (rankLength == 3ll) {
+                values = std::vector<int64_t>{
+                    calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
+                    calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
+                    static_cast<int64_t>(inputChannelsPerGroup),
+                    static_cast<int64_t>(kernelSize)};
+            } else if (rankLength == 4ll) {
+                values = std::vector<int64_t>{
+                    calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
+                    calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
+                    static_cast<int64_t>(inputChannelsPerGroup),
+                    static_cast<int64_t>(kernelSize),
+                    static_cast<int64_t>(kernelSize)};
+            } else if (rankLength == 5ll) {
+                values = std::vector<int64_t>{
+                    calculatedDimention == 0 ? -1 : static_cast<int64_t>(groupCount),
+                    calculatedDimention == 1 ? -1 : static_cast<int64_t>(outputChannelsCount / groupCount),
+                    static_cast<int64_t>(inputChannelsPerGroup),
+                    1,
+                    static_cast<int64_t>(kernelSize),
+                    static_cast<int64_t>(kernelSize)};
+            }
+
+            weights = std::make_shared<ngraph::opset1::Reshape>(
+                weights,
+                ngraph::opset1::Constant::create(
+                    element::i64,
+                    Shape{ static_cast<size_t>(rankLength) + 1ul },
+                    values),
+                true);
+        }
     }
 
     return weights;
@@ -108,9 +146,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
     const auto rankLength = inputShape.size();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto dequantization = makeDequantization(input, dequantizationBefore);
@@ -157,11 +193,10 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const int groupCalculationDimention,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const bool addReshape,
     const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4 || rankLength == 5, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
@@ -214,8 +249,6 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         parent = pooling;
     }
 
-    // TODO: pass as argument
-    //const size_t groupCount = 3ul;
     const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 5ul;
     const size_t inputChannelsCount = inputShape[1].get_length();
@@ -231,7 +264,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         kernelSize,
         weightsValues,
         fakeQuantizeOnWeights,
-        {});
+        {},
+        addReshape);
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
         parent,
@@ -257,11 +291,10 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-    const ngraph::element::Type precisionAfterDequantization) {
+    const ngraph::element::Type precisionAfterDequantization,
+    const bool addReshape) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -275,9 +308,6 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const size_t outputChannelsInGroup = outputChannelsCount / groupCount;
 
     const size_t weightsSize = weightsConst->cast_vector<float>().size();
-    if ((weightsSize != 1ul) && (weightsSize != (inputChannelsCount * outputChannelsCount))) {
-        throw std::runtime_error("unexpected actual weights values size");
-    }
 
     std::shared_ptr<ngraph::Node> weights;
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
@@ -299,18 +329,19 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
             kernelSize,
             weightsConst->cast_vector<float>(),
             fakeQuantizeOnWeights,
-            dequantizationOnWeights);
+            dequantizationOnWeights,
+            addReshape);
     }
 
     auto convolutionOriginal = ngraph::opset1::GroupConvolution(
-        ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
-    std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+    std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});

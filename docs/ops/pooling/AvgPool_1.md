@@ -1,18 +1,26 @@
 # AvgPool {#openvino_docs_ops_pooling_AvgPool_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about AvgPool-1 - a pooling operation, which can 
+                be performed on a 3D, 4D or 5D input tensor.
+
 **Versioned name**: *AvgPool-1*
 
 **Category**: *Pooling*
 
-**Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/pooling.html)
+**Short description**: `Reference <http://caffe.berkeleyvision.org/tutorial/layers/pooling.html>`__
 
-**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#pool). Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows:
-        `H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
-        `W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
-        `D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
+**Detailed description**: `Reference <http://cs231n.github.io/convolutional-networks/#pool>`__ . Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows:
 
+``H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1``
 
-**Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
+``W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
+
+``D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
+
+**Attributes**: *Pooling* attributes are specified in the ``data`` node, which is a child of the layer node.
 
 * *strides*
 
@@ -55,6 +63,7 @@
 
   * **Description**: *rounding_type* is a type of rounding to be applied.
   * **Range of values**:
+    
     * *ceil*
     * *floor*
   * **Type**: string
@@ -64,6 +73,7 @@
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
+    
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
@@ -74,117 +84,122 @@
 
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor. **Required.**
+* **1**: 3D, 4D or 5D input tensor. **Required.**
 
 **Outputs**:
-  * **1**: Input shape can be either `[N,C,H]`, `[N,C,H,W]` or `[N,C,H,W,D]`. Then the corresponding output shape is `[N,C,H_out]`, `[N,C,H_out,W_out]` or `[N,C,H_out,W_out,D_out]`.
+  
+* **1**: Input shape can be either ``[N,C,H]``, ``[N,C,H,W]`` or ``[N,C,H,W,D]``. Then the corresponding output shape is ``[N,C,H_out]``, ``[N,C,H_out,W_out]`` or ``[N,C,H_out,W_out,D_out]``.
 
 **Mathematical Formulation**
 
-\f[
-output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
-\f]
+.. math::
+   
+   output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 
 **Examples**
 
-```xml
-<layer ... type="AvgPool" ... >
-    <data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </output>
-</layer>
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="AvgPool" ... >
+       <data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </output>
+   </layer>
+   
+   <layer ... type="AvgPool" ... >
+       <data auto_pad="same_upper" exclude-pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </output>
+   </layer>
+   
+   <layer ... type="AvgPool" ... >
+       <data auto_pad="explicit" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>10</dim>
+               <dim>10</dim>
+           </port>
+       </output>
+   </layer>
+   
+   <layer ... type="AvgPool" ... >
+       <data auto_pad="explicit" exclude-pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>15</dim>
+               <dim>15</dim>
+           </port>
+       </output>
+   </layer>
+   
+   <layer ... type="AvgPool" ... >
+       <data auto_pad="valid" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>32</dim>
+               <dim>32</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>14</dim>
+               <dim>14</dim>
+           </port>
+       </output>
+   </layer>
 
-<layer ... type="AvgPool" ... >
-    <data auto_pad="same_upper" exclude-pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </output>
-</layer>
+@endsphinxdirective
 
-<layer ... type="AvgPool" ... >
-    <data auto_pad="explicit" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>10</dim>
-            <dim>10</dim>
-        </port>
-    </output>
-</layer>
-
-<layer ... type="AvgPool" ... >
-    <data auto_pad="explicit" exclude-pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>15</dim>
-            <dim>15</dim>
-        </port>
-    </output>
-</layer>
-
-<layer ... type="AvgPool" ... >
-    <data auto_pad="valid" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>32</dim>
-            <dim>32</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>1</dim>
-            <dim>3</dim>
-            <dim>14</dim>
-            <dim>14</dim>
-        </port>
-    </output>
-</layer>
-```

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:
-    MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
+    MatrixNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -65,6 +65,8 @@ private:
     float m_gaussianSigma;
     float m_postThreshold;
     bool m_normalized;
+
+    bool m_outStaticShape = false;
 
     struct Rectangle {
         Rectangle(float x_left, float y_left, float x_right, float y_right) : x1 {x_left}, y1 {y_left}, x2 {x_right}, y2 {y_right} {}

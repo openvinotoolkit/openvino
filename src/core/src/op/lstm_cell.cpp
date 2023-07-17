@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <functional>
-#include <lstm_cell_shape_inference.hpp>
 
 #include "itt.hpp"
+#include "lstm_cell_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -17,9 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
-BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -235,7 +232,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_clip(),
                                              m_input_forget);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
@@ -250,8 +247,6 @@ NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMW
                                                                        {"iofc", ngraph::op::LSTMWeightsFormat::IOFC}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
 ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFormat format) {
     switch (format) {
@@ -406,6 +401,6 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                      get_activations_beta(),
                                      get_clip());
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }

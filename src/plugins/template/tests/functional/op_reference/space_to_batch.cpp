@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,10 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.dataTensor.data};
+        inputData = {params.dataTensor.data,
+                     params.blockShapeTensor.data,
+                     params.padsBeginTensor.data,
+                     params.padsEndTensor.data};
         refOutData = {params.expectedTensor.data};
     }
 
@@ -62,11 +65,12 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const SpaceToBatchParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<opset1::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
-        const auto padsBegin = std::make_shared<opset1::Constant>(element::i64, params.padsBeginTensor.shape, params.padsBeginTensor.data.data());
-        const auto padsEnd = std::make_shared<opset1::Constant>(element::i64, params.padsEndTensor.shape, params.padsEndTensor.data.data());
+        const auto blockShape = std::make_shared<opset1::Parameter>(element::i64, params.blockShapeTensor.shape);
+        const auto padsBegin = std::make_shared<opset1::Parameter>(element::i64, params.padsBeginTensor.shape);
+        const auto padsEnd = std::make_shared<opset1::Parameter>(element::i64, params.padsEndTensor.shape);
         const auto batchToSpace = std::make_shared<opset2::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
-        return std::make_shared<ov::Model>(NodeVector {batchToSpace}, ParameterVector {data});
+        return std::make_shared<ov::Model>(NodeVector{batchToSpace},
+                                           ParameterVector{data, blockShape, padsBegin, padsEnd});
     }
 };
 
@@ -78,6 +82,15 @@ template <element::Type_t IN_ET>
 std::vector<SpaceToBatchParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<SpaceToBatchParams> batchToSpaceParams {
+        // space_to_batch_3D
+        SpaceToBatchParams(
+            reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{1, 1, 1}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
+            reference_tests::Tensor({1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),
+            "space_to_batch_4D"),
+
         // space_to_batch_4D
         SpaceToBatchParams(
             reference_tests::Tensor({1, 1, 2, 2}, IN_ET, std::vector<T>{1, 1, 1, 1}),

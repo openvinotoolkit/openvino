@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,6 +231,15 @@ std::vector<RangeParams> generateParamsForRangeV0Float() {
                     0.0f,
                     1.0f,
                     0.25f),
+        RangeParams(ov::Shape{},
+                    ov::Shape{},
+                    IN_ET,
+                    IN_ET,
+                    IN_ET,
+                    std::vector<T>{1.0f, 4.f, 7.f},
+                    1.0f,
+                    10.0f,
+                    3.0f),
         RangeParams(ov::Shape{},
                     ov::Shape{10},
                     IN_ET,

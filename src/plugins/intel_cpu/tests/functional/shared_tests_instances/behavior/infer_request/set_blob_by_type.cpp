@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,6 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
     FuncTestUtils::BlobType::Compound,
     FuncTestUtils::BlobType::Batched,
     FuncTestUtils::BlobType::Memory,
-//    FuncTestUtils::BlobType::Remote,
-    FuncTestUtils::BlobType::I420,
-    FuncTestUtils::BlobType::NV12
 };
 
 const std::map<std::string, std::string> cpuConfig{}; //nothing special

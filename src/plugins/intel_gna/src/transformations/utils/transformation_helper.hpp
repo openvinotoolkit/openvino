@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset7.hpp>
+
+#include "openvino/opsets/opset12.hpp"
+#include "ops/gna_convolution.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -43,12 +47,21 @@ struct ConvData {
 void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data);
 
 /**
+ * @brief gets all convolution related data into a struct for further processing
+ * @param conv GNA custom convolution node to get data of
+ * @param conv_data convolution data structure to put data into
+ * @return void
+ */
+void GetConvData(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv, ConvData& conv_data);
+
+/**
  * @brief ngraph matcher predicate fusing existing predicates for consumers count and rank of a layer
  * @param expected_count expected consumers count for of node
  * @param expected_rank expected node rank
  * @return predicate function wrapper
  */
-std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count, const ngraph::Dimension& expected_rank);
+std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count,
+                                                                     const ngraph::Dimension& expected_rank);
 
 /**
  * @brief checks whether transpose matches a given order
@@ -81,9 +94,67 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  * @param last_node the node to which output the new fake quantize layer will be connected
  * @return new fake quantize layer or the last node
  */
-std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
+std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
+                                            std::shared_ptr<ngraph::Node> last_node);
 
-} // namespace helper
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+/**
+ * @brief removes single node and inserts Reshape if its input and output shapes differ
+ * @param node the node to be removed
+ * @return void
+ */
+void remove_single_input_node(std::shared_ptr<ov::Node> node);
+
+/**
+ * @brief Swaps @args output tensor names
+ */
+void swap_output_names(ov::Output<ov::Node>, ov::Output<ov::Node>);
+
+/**
+ * @brief Swaps @args friendly names
+ */
+void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+
+/**
+ * @brief Swaps @args output tensor names and friendly names
+ */
+void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+
+/**
+ * @brief Reverses axis order. Final result will be such an order, that together
+ * with initial order will be {0, 1, 2, ...}
+ */
+ov::AxisVector reverse_transpose_order(const ov::AxisVector& axis_order);
+
+/**
+ * @brief Finds all input node transposes
+ */
+ov::NodeVector find_input_transposes(const std::shared_ptr<const ov::Node>& node);
+
+/**
+ * @brief Marks all input transposes with flag NoSinking
+ */
+void mark_input_transposes_as_nosinking(std::shared_ptr<const ov::Node> node);
+
+struct TransposeInfo {
+    std::shared_ptr<ov::opset12::Transpose> transpose;
+    std::shared_ptr<ov::opset12::Constant> transpose_const;
+
+    bool isEmpty() const {
+        return !transpose || !transpose_const;
+    }
+};
+
+/**
+ * @brief Finds first input node transpose
+ */
+TransposeInfo get_first_input_transpose(const std::shared_ptr<const ov::Node>& node);
+
+/**
+ * @brief Finds first output node transpose
+ */
+TransposeInfo get_first_output_transpose(const std::shared_ptr<const ov::Node>& node);
+
+}  // namespace helper
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

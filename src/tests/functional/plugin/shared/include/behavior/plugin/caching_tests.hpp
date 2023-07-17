@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <string>
 #include <vector>
-
+#include <thread>
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -20,6 +20,8 @@
 
 using ngraphFunctionGenerator = std::function<std::shared_ptr<ngraph::Function>(ngraph::element::Type, std::size_t)>;
 using nGraphFunctionWithName = std::tuple<ngraphFunctionGenerator, std::string>;
+using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
+                                                                         ngraph::element::Type_t type)>;
 
 using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
@@ -45,7 +47,13 @@ public:
 
     bool importExportSupported(InferenceEngine::Core& ie) const;
 
+    // Wrapper of most part of available builder functions
+    static ngraphFunctionGenerator inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape);
     // Default functions and precisions that can be used as test parameters
+    static std::vector<nGraphFunctionWithName> getAnyTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericAnyTypeFunctions();
+    static std::vector<nGraphFunctionWithName> getFloatingPointOnlyFunctions();
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 
@@ -53,6 +61,9 @@ using compileKernelsCacheParams = std::tuple<
         std::string,            // device name
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
 >;
+
+OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                           // so turn it off
 class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
                                             virtual public BehaviorTestsUtils::IEPluginTestBase,
                                             public testing::WithParamInterface<compileKernelsCacheParams> {
@@ -79,9 +90,17 @@ protected:
         } else {
             m_extList.push_back(ext);
         }
-        std::replace(test_name.begin(), test_name.end(), '/', '_');
-        std::replace(test_name.begin(), test_name.end(), '\\', '_');
-        cache_path = "LoadNetwork" + test_name + "_cache";
+        auto hash = std::hash<std::string>()(test_name);
+        std::stringstream ss;
+        ss << std::this_thread::get_id();
+        cache_path = "LoadNetwork" + std::to_string(hash) + "_"
+                + ss.str() + "_" + GetTimestamp() + "_cache";
+    }
+    void TearDown() override {
+        APIBaseTest::TearDown();
     }
 };
+
+OPENVINO_DISABLE_WARNING_MSVC_END(4250)
+
 } // namespace LayerTestsDefinitions

@@ -1,24 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -43,23 +41,25 @@ public:
     TestTransformationParams params;
     Values actual;
     Values expected;
+    std::string operation;
 };
 
-typedef std::tuple<
-    ngraph::Shape,
-    std::pair<ngraph::Shape, ngraph::Shape>,
-    ngraph::Shape, // multiplyShapes
-    PullReshapeThroughDequantizationTestValues> PullReshapeThroughDequantizationParams;
+typedef std::tuple<ngraph::Shape,
+                   std::pair<ngraph::Shape, ngraph::Shape>,
+                   ngraph::Shape,  // multiplyShapes
+                   PullReshapeThroughDequantizationTestValues>
+    PullReshapeThroughDequantizationParams;
 
-class PullReshapeThroughDequantizationTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<PullReshapeThroughDequantizationParams> {
+class PullReshapeThroughDequantizationTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<PullReshapeThroughDequantizationParams> {
 public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
         const auto dequantizationElementwiseShape = std::get<1>(GetParam());
         const auto multiplyShape = std::get<2>(GetParam());
         auto testValues = std::get<3>(GetParam());
+        const auto operation = testValues.operation.empty() ? "GroupConvolution" : testValues.operation;
 
         // to prevent test cases increasing let's parameterize test by dequantization shape and
         // initialize values here
@@ -84,14 +84,14 @@ public:
             testValues.actual.transpose,
             testValues.actual.reshape2,
             testValues.actual.dequantizationAfter,
-            "GroupConvolution");
+            operation);
 
         ngraph::pass::Manager manager;
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+        const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
         decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+        decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
@@ -109,7 +109,7 @@ public:
             testValues.expected.transpose,
             testValues.expected.reshape2,
             testValues.expected.dequantizationAfter,
-            "GroupConvolution");
+            operation);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj) {
@@ -119,16 +119,12 @@ public:
         const PullReshapeThroughDequantizationTestValues testValues = std::get<3>(obj.param);
 
         std::ostringstream result;
-        result << toString(testValues.params) << "_" <<
-            inputShape << "_" <<
-            dequantizationElementwiseShape.first << "_" <<
-            dequantizationElementwiseShape.second << "_" <<
-            multiplyShape << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
-            testValues.actual.weights.outPrecision << "_" << "{ " <<
-            testValues.actual.weights.values[0] << " }_" <<
-            testValues.actual.dequantizationOnWeights;
+        result << toString(testValues.params) << "_" << inputShape << "_" << dequantizationElementwiseShape.first << "_"
+               << dequantizationElementwiseShape.second << "_" << multiplyShape << "_"
+               << testValues.actual.precisionBeforeDequantization << "_"
+               << testValues.actual.dequantizationOnActivations << "_"
+               << "_weights_" << testValues.actual.weights.outPrecision << "_"
+               << "{ " << testValues.actual.weights.values[0] << " }_" << testValues.actual.dequantizationOnWeights;
         return result.str();
     }
 };
@@ -139,19 +135,19 @@ TEST_P(PullReshapeThroughDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+// clang-format off
+
 const std::vector<ngraph::Shape> inputShapes = {
-    ngraph::Shape({ 1, 960, 7, 7 }),
-    ngraph::Shape({ 4, 960, 7, 7 })
+    ngraph::Shape({1, 960, 7, 7}),
+    ngraph::Shape({4, 960, 7, 7})
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
-    { ngraph::Shape({1, 960}), ngraph::Shape({960, 1, 1, 1}) },
-    { ngraph::Shape({9, 960}), ngraph::Shape({960, 1, 3, 3}) }
+    {ngraph::Shape({1, 960}), ngraph::Shape({960, 1, 1, 1})},
+    {ngraph::Shape({9, 960}), ngraph::Shape({960, 1, 3, 3})}
 };
 
-const std::vector<ngraph::Shape> multiplyShapes = {
-    ngraph::Shape({1, 1, 960, 1})
-};
+const std::vector<ngraph::Shape> multiplyShapes = {ngraph::Shape({1, 1, 960, 1})};
 
 const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     // Subtract with Constant (no Convert)
@@ -349,12 +345,52 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    PullReshapeThroughDequantizationTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(dequantizationOnWeightElementwiseConstantShapes),
-        ::testing::ValuesIn(multiplyShapes),
-        ::testing::ValuesIn(testValues)),
-    PullReshapeThroughDequantizationTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         PullReshapeThroughDequantizationTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(dequantizationOnWeightElementwiseConstantShapes),
+                                            ::testing::ValuesIn(multiplyShapes),
+                                            ::testing::ValuesIn(testValues)),
+                         PullReshapeThroughDequantizationTransformation::getTestCaseName);
+
+namespace reshapeAsTranspose {
+const PullReshapeThroughDequantizationTestValues reshapeAsTransposeTestCase = {
+    LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+    // ActualValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 1, 1, 32}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {{}},
+        {{24, 32, 1, 1}},
+        element::f32,
+        {}
+    },
+    // ExpectedValues
+    {
+        element::u8,
+        {{element::f32, false}, {}, {{0.02f}, element::f32, {}, false}},
+        {std::vector<float>{2.f}, element::i8, {24, 32, 1, 1}},
+        {{element::f32, false}, {}, {{0.03f}, element::f32, {/* from parameter */}, false}},
+        {},
+        {},
+        {},
+        {},
+        element::f32,
+        {}
+    },
+    "Convolution"
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         PullReshapeThroughDequantizationTransformation,
+                         ::testing::Combine(::testing::Values(Shape{1, 32, 150, 150}),
+                                            ::testing::Values(std::pair<Shape, Shape>{{24, 1, 1, 1}, {24, 1, 1, 1}}),
+                                            ::testing::Values(Shape{}),
+                                            ::testing::Values(reshapeAsTransposeTestCase)),
+                         PullReshapeThroughDequantizationTransformation::getTestCaseName);
+// clang-format on
+}  // namespace reshapeAsTranspose

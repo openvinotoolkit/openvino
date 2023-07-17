@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,9 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
 
         for (const auto& dim : dims) {
             if (dim >= shape.size()) {
-                NGRAPH_DEBUG << "[WARNING] Attemt to initialize masks on " << dim << " dimension which is out of shape "
-                             << shape << " for node (" << const_node->get_friendly_name() << ")";
+                OPENVINO_DEBUG << "[WARNING] Attemt to initialize masks on " << dim
+                               << " dimension which is out of shape " << shape << " for node ("
+                               << const_node->get_friendly_name() << ")";
                 continue;
             }
 
@@ -61,7 +62,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
         setInitMask(const_node, mask);
 #endif
         if (!mask->all_dims_are_empty()) {
-            NGRAPH_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
+            OPENVINO_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
         }
 
         return false;

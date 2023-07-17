@@ -1,22 +1,29 @@
 # Sigmoid {#openvino_docs_ops_activation_Sigmoid_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Sigmoid-1 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Sigmoid-1*
 
 **Category**: *Activation function*
 
 **Short description**: Sigmoid element-wise activation function.
 
-**Detailed description**: [Reference](https://deepai.org/machine-learning-glossary-and-terms/sigmoid-function)
+**Detailed description**: `Reference <https://deepai.org/machine-learning-glossary-and-terms/sigmoid-function>`__
 
 **Attributes**: *Sigmoid* operation has no attributes.
 
 **Mathematical Formulation**
 
-   For each element from the input tensor calculates corresponding
-    element in the output tensor with the following formula:
-\f[
-sigmoid( x ) = \frac{1}{1+e^{-x}}
-\f]
+For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
+
+.. math:: 
+
+   sigmoid( x ) = \frac{1}{1+e^{-x}}
+
 
 **Inputs**:
 
@@ -28,20 +35,23 @@ sigmoid( x ) = \frac{1}{1+e^{-x}}
 
 **Example**
 
-```xml
-<layer ... type="Sigmoid">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
+.. code-block:: xml
+   :force:
 
-```
+    <layer ... type="Sigmoid">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+
+@endsphinxdirective

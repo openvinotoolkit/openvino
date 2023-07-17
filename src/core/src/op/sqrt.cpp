@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Sqrt);
 
 op::Sqrt::Sqrt(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -61,7 +59,7 @@ bool evaluate_sqrt(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sqrt_evaluate);
-    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Sqrt::has_evaluate() const {

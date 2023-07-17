@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,6 +77,16 @@ static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
 };
 
 bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+    if (duration_nsec.has_value()) {
+        auto stage = instrumentation::profiling_stage::executing;
+        auto duration = std::chrono::nanoseconds(duration_nsec.value());
+        auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
+
+        info.push_back({ stage, period });
+
+        return true;
+    }
+
     if (!is_event_profiled(_event))
         return true;
 
@@ -180,10 +190,10 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->print_multi_kernel_perf) {
             if (period.stage == instrumentation::profiling_stage::executing) {
-                GPU_DEBUG_COUT << "Multi-kernel time: ";
+                GPU_DEBUG_TRACE << "Multi-kernel time: ";
                 for (auto& duration : all_durations[period.stage])
-                    std::cout << "  " << (duration.second - duration.first) / 1000;
-                std::cout << " Total " << sum / 1000 << std::endl;
+                    GPU_DEBUG_TRACE << "  " << (duration.second - duration.first) / 1000;
+                GPU_DEBUG_TRACE << " Total " << sum / 1000 << std::endl;
             }
         }
 

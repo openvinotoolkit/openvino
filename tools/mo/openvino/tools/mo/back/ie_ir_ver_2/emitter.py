@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
@@ -427,6 +427,8 @@ def add_net_rt_info(net: Element, meta_info: dict):
     else:
         meta = SubElement(net, 'rt_info')
         for key, value in meta_info.items():
+            if isinstance(value, dict) and value == {}:
+                continue
             add_meta_data_elem(meta, key, value)
 
 
@@ -512,8 +514,8 @@ def serialize_network(graph, net_element, unsupported):
             check_and_add_result_name(node.soft_get('name'), ordered_results)
             continue
 
-        # Here output data node count is checked. Each port cannot have more than one data node.
-        assert len(node.out_nodes()) == 1, "Incorrect graph. Non-Result node with name {} " \
+        # Here output data node count is checked. Output Op nodes must have at least one data node
+        assert len(node.out_nodes()) >= 1, "Incorrect graph. Non-Result node with name {} " \
                                            "has no output data node.".format(output_name)
 
         # After port renumbering port/connection API is not applicable, and output port numbering

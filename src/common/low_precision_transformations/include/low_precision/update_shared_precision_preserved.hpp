@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <ngraph/pass/pass.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
@@ -35,23 +34,23 @@ class UpdateSharedPrecisionPreserved;
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
-class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
 public:
     UpdateSharedPrecisionPreserved(const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support) {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
             auto node = m.get_match_root();
 
             const bool needToCheckExpectedAttributeType = !std::is_same<ExpectedAttributeType, AttributeType>::value;
             if (!needToCheckExpectedAttributeType) {
                 // expected attribute is ignored, set attributes for node inputs except Result & FakeQuantize operations
-                if (ov::is_type<ngraph::opset1::Result>(node) ||
-                    ov::is_type<ngraph::opset1::FakeQuantize>(node) ||
+                if (ov::is_type<ov::opset1::Result>(node) ||
+                    ov::is_type<ov::opset1::FakeQuantize>(node) ||
                     transformation_callback(node)) {
                     return false;
                 }
             }
 
-            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<opset1::FakeQuantize>(node)) {
+            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::opset1::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -91,7 +90,7 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "UpdateSharedPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::any_input(), "UpdateSharedPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
@@ -99,8 +98,8 @@ private:
     Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ngraph::element::Type>& defaultPrecisions) {
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
         if (!dequantization.empty() &&
-            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
-            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            (ov::is_type<ov::opset1::Convert>(dequantization.data.get_node())) &&
+            ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             assert(dequantization.data.get_target_inputs().size() == 1ul);
             return *dequantization.data.get_target_inputs().begin();
         }

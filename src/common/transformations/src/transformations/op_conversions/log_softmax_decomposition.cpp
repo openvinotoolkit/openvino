@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,34 +7,40 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     MATCHER_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
-    auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
+    auto log_softmax = ngraph::pattern::wrap_type<ov::op::v5::LogSoftmax>();
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node =
-            std::dynamic_pointer_cast<ov::opset5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
         if (log_softmax_node == nullptr || transformation_callback(log_softmax_node)) {
             return false;
         }
 
         auto axis1 =
-            ov::opset5::Constant::create(element::Type_t::i64, ngraph::Shape{1}, {log_softmax_node->get_axis()});
+            ov::op::v0::Constant::create(element::Type_t::i64, ngraph::Shape{1}, {log_softmax_node->get_axis()});
         auto axis2 =
-            ov::opset5::Constant::create(element::Type_t::i64, ngraph::Shape{1}, {log_softmax_node->get_axis()});
-        auto max = std::make_shared<ov::opset5::ReduceMax>(log_softmax_node->input_value(0), axis1, true);
-        auto sub = std::make_shared<ov::opset5::Subtract>(log_softmax_node->input_value(0), max);
-        auto exp = std::make_shared<ov::opset5::Exp>(sub);
-        auto sum = std::make_shared<ov::opset5::ReduceSum>(exp, axis2, true);
-        auto log = std::make_shared<ov::opset5::Log>(sum);
-        auto sub_end = std::make_shared<ov::opset5::Subtract>(sub, log);
+            ov::op::v0::Constant::create(element::Type_t::i64, ngraph::Shape{1}, {log_softmax_node->get_axis()});
+        auto max = std::make_shared<ov::op::v1::ReduceMax>(log_softmax_node->input_value(0), axis1, true);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(log_softmax_node->input_value(0), max);
+        auto exp = std::make_shared<ov::op::v0::Exp>(sub);
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(exp, axis2, true);
+        auto log = std::make_shared<ov::op::v0::Log>(sum);
+        auto sub_end = std::make_shared<ov::op::v1::Subtract>(sub, log);
 
         sub_end->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(log_softmax_node, {axis1, axis2, max, sub, exp, sum, log, sub_end});

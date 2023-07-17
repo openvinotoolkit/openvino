@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
@@ -18,12 +18,27 @@ except ImportError:
 
 
 def refer_to_faq_msg(question_num: int):
-    t = tm.Telemetry()
-    t.send_event('mo', 'error_info', "faq:" + str(question_num))
+    try:
+        t = tm.Telemetry()
+        t.send_event('mo', 'error_info', "faq:" + str(question_num))
+    except Exception:
+        # Telemetry can be not initialized if it is used in MO IR Reader
+        pass
 
-    return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
-           '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+    return '\n For more information please refer to Model Conversion API FAQ, question #{0}. ' \
+           '(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
+
+
+def check_values_equal(val1, val2):
+    # This method is needed to check equality of values where some values can be None
+    if val1 is None and val2 is None:
+        return True
+    if val1 is None:
+        return False
+    if val2 is None:
+        return False
+    return val1 == val2
 
 
 class NamedAttrsClass:

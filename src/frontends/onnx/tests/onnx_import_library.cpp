@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <onnx/onnx_pb.h>
 
+#include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "util/test_control.hpp"
 
 using namespace ngraph;
 

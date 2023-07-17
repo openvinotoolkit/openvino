@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -63,7 +63,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         value = mo_array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
         # load typed value
-        if type_helper[0] != np.str:
+        if type_helper[0] != str:
             value = mo_array(type_helper[1](pb_tensor), dtype=type_helper[0])
         else:
             try:
@@ -82,7 +82,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             value_length = len(value)
         except TypeError:
             # case, when value is a scalar
-            value_length = 0
+            return value
         if value_length == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
             try:
@@ -91,18 +91,33 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
                 log.error(decode_err_msg, extra={'is_warning': True})
                 return mo_array(value[0])
         else:
+            if len(shape) == 0 and value_length == 0:
+                # Since TF 2.10 the model freezing can produce constants with non-empty tensor
+                # but with undefined value []
+                # in this case, the tensor is filled with the default value
+                # that is 0 for numeric types and "" for string
+                default_value = 0 if type_helper[0] != str else ""
+                value = mo_array(default_value, dtype=type_helper[0])
             # no shape, return value as is
             return value
 
     if len(value) != shape.prod():
         log.warning("Shape and content size of tensor don't match, shape: {} content size: {}".
                     format(shape, len(value)))
+
+        if len(value) == 0:
+            # Since TF 2.10 the model freezing can produce constants with non-empty tensor but with undefined value []
+            # In this case, the tensor is filled with the default value that is 0 for numeric types and "" for string
+            default_value = 0 if type_helper[0] != str else ""
+            value_flatten = mo_array([default_value], dtype=type_helper[0])
+        else:
+            value_flatten = value.flatten()
+
         # broadcast semantics according to TensorFlow v1.5 documentation:
         # The argument value can be a constant value, or a list of values of type dtype. If value is a list,
         # then the length of the list must be less than or equal to the number of elements implied by the shape
         # argument (if specified). In the case where the list length is less than the number of elements specified
         # by shape, the last element in the list will be used to fill the remaining entries.
-        value_flatten = value.flatten()
         add_value = value_flatten[-1]
         add_length = shape.prod() - len(value_flatten)
         value = np.concatenate([value_flatten, np.full([add_length], add_value)])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,11 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const auto deq = makeDequantization(input, dequantization);
 
     const auto beginParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ begin.size() }, begin);
+    beginParam->set_friendly_name("begin");
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
+    endParam->set_friendly_name("end");
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
+    stridesParam->set_friendly_name("strides");
 
     const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
         deq, beginParam, endParam, stridesParam,
@@ -69,8 +72,11 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
 
     const auto beginParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ begin.size() }, begin);
+    beginParam->set_friendly_name("begin");
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
+    endParam->set_friendly_name("end");
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
+    stridesParam->set_friendly_name("strides");
 
     const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
         fqOnData, beginParam, endParam, stridesParam,
@@ -106,8 +112,11 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getReference(
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
     const auto beginParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ begin.size() }, begin);
+    beginParam->set_friendly_name("begin");
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
+    endParam->set_friendly_name("end");
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
+    stridesParam->set_friendly_name("strides");
 
     const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
         deqBefore, beginParam, endParam, stridesParam,

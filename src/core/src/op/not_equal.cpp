@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,9 +52,6 @@ bool evaluate_not_equal(const HostTensorPtr& arg0,
 }  // namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::NotEqual);
-
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
@@ -68,7 +65,9 @@ shared_ptr<Node> op::v1::NotEqual::clone_with_new_inputs(const OutputVector& new
 
 bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_NotEqual_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
