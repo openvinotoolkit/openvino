@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
@@ -53,8 +54,6 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
-#include "transformations/op_conversions/convert_subtract.hpp"
-#include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -98,11 +97,6 @@
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "transformations/cpu_opset/x64/pass/mha_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
-#include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
-#include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
-#include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
@@ -129,7 +123,7 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
     if (it == precisions.end())
@@ -141,7 +135,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
         // is converted to be 1 for boolean, but 0 for u8. Thus an Abs and Ceil node should be added before the
         // Convert node for this scenario.
         if (convert->input(0).get_element_type().is_real() &&
-            convert->get_convert_element_type() == ngraph::element::boolean && to.is_integral_number()) {
+            convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
             auto abs = std::make_shared<ov::opset10::Abs>(convert->input_value(0).get_node_shared_ptr());
             auto ceil = std::make_shared<ov::opset10::Ceiling>(abs);
             auto new_convert = std::make_shared<ov::opset10::Convert>(ceil, to);
@@ -193,7 +187,7 @@ void Transformations::UpToCpuSpecificOpSet() {
 void Transformations::CpuSpecificOpSet(void) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
-    ConvertToCPUSpecificOpset(model);
+    ConvertToCPUSpecificOpset(model, config.enableNativeI64);
 }
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
@@ -209,11 +203,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
     }
+    const bool enable_i64 = config.enableNativeI64;
 
-    auto get_convert_precisions = []() {
+    auto get_convert_precisions = [&]() {
         precisions_map map = {
-            {ov::element::i64,     ov::element::i32},
-            {ov::element::u64,     ov::element::i32},
             {ov::element::i16,     ov::element::i32},
             {ov::element::u16,     ov::element::i32},
             {ov::element::u32,     ov::element::i32},
@@ -224,12 +217,21 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::u4,      ov::element::u8}
         };
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
+        if (enable_i64) {
+            map.insert({ov::element::u64, ov::element::i64});
+        } else {
+            map.insert({ov::element::u64, ov::element::i32});
+            map.insert({ov::element::i64, ov::element::i32});
+        }
+
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
             map.insert({ov::element::bf16, ov::element::f32});
+        }
 
         return map;
     };
-    static const auto precisions = get_convert_precisions();
+
+    const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
@@ -264,8 +266,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    if (!enable_i64) {
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+    if (enable_i64) {
+        CPU_REGISTER_PASS_X64(manager, ConvertPrecisionI64ToI32);
+    }
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);

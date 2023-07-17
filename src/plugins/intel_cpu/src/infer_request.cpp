@@ -367,7 +367,7 @@ InferRequestBase::normToInputSupportedPrec(const std::pair<const std::string, In
     if (graph->hasMeanImageFor(input.first) && one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
         inPrec = InferenceEngine::Precision::FP32;
     } else {
-        inPrec = normalizeToSupportedPrecision(inPrec);
+        inPrec = normalizeToSupportedPrecision(inPrec, graph->getConfig().enableNativeI64);
     }
 
     if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
@@ -583,7 +583,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-                desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
+                desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision(), graph->getConfig().enableNativeI64));
 
                 // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
                 // in situation if we push output blobs as inputs for next network (in Hetero plugin)

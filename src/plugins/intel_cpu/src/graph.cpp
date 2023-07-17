@@ -45,7 +45,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <openvino/core/model.hpp>
-#include <openvino/core/node.hpp>
 #include <openvino/op/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
@@ -306,7 +305,7 @@ void Graph::Replicate(const CNNNetwork &network) {
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision(), getConfig().enableNativeI64);
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
@@ -320,7 +319,7 @@ void Graph::Replicate(const CNNNetwork &network) {
     }
 
     for (auto &output : outputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision(), getConfig().enableNativeI64);
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
         const auto parentEdges = output.second->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
@@ -1004,7 +1003,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
 
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
-            if (inTensorDesc.getPrecision() == InferenceEngine::Precision::FP32) {
+            if (inTensorDesc.getPrecision() == Precision::FP32) {
                 _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
                                                           inTensorDesc.getLayout());
             } else {
@@ -1460,16 +1459,16 @@ void Graph::SortTopologically() {
     }
 }
 
-void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
+void Graph::GetPerfData(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
     unsigned i = 0;
-    std::function<void(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &, const NodePtr&)>
-            getPerfMapFor = [&](std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap, const NodePtr& node) {
-        InferenceEngine::InferenceEngineProfileInfo &pc = perfMap[node->getName()];
+    std::function<void(std::map<std::string, InferenceEngineProfileInfo> &, const NodePtr&)>
+            getPerfMapFor = [&](std::map<std::string, InferenceEngineProfileInfo> &perfMap, const NodePtr& node) {
+        InferenceEngineProfileInfo &pc = perfMap[node->getName()];
         pc.execution_index = i++;
         // TODO: Why time counter is signed?
         pc.cpu_uSec = pc.realTime_uSec = (long long) node->PerfCounter().avg();
-        pc.status = pc.cpu_uSec > 0 ? InferenceEngine::InferenceEngineProfileInfo::EXECUTED
-                                    : InferenceEngine::InferenceEngineProfileInfo::NOT_RUN;
+        pc.status = pc.cpu_uSec > 0 ? InferenceEngineProfileInfo::EXECUTED
+                                    : InferenceEngineProfileInfo::NOT_RUN;
         std::string pdType = node->getPrimitiveDescriptorType();
         size_t typeLen = sizeof(pc.exec_type) / sizeof(pc.exec_type[0]);
         pdType.copy(pc.exec_type, typeLen, 0);
