@@ -4,12 +4,12 @@
 
 #include <numeric>
 
-#include "dev/make_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shape_util.hpp"
@@ -34,12 +34,11 @@ Tensor::~Tensor() {
 
 Tensor::Tensor(const Tensor& tensor, const std::shared_ptr<void>& so) : _impl{tensor._impl}, _so{tensor._so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-    _so.emplace_back(so);
+    if (!_so)
+        _so = so;
 }
 
-Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so)
-    : _impl{impl},
-      _so{so} {
+Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::shared_ptr<void>& so) : _impl{impl}, _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
@@ -231,26 +230,7 @@ Tensor::operator bool() const noexcept {
 }
 
 bool Tensor::is_continuous() const {
-    OV_TENSOR_STATEMENT({
-        if (get_element_type().bitwidth() < 8)
-            // OpenVINO doesn't support strides for lp types
-            return true;
-        const auto& shape = get_shape();
-        const auto& type = get_element_type();
-        std::vector<size_t> strides(shape.size());
-        if (!shape.empty()) {
-            strides[shape.size() - 1] = 1;
-        }
-        auto size = shape.size();
-        for (size_t i = 1; i < size; i++) {
-            strides[size - i - 1] = strides[size - i] * shape[size - i];
-        }
-
-        ov::Strides byte_strides(strides.size());
-        for (size_t i = 0; i < strides.size(); ++i)
-            byte_strides[i] = strides[i] * type.size();
-        return byte_strides == get_strides();
-    });
+    OV_TENSOR_STATEMENT(return _impl->is_continuous());
 }
 
 }  // namespace ov

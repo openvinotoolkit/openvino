@@ -108,6 +108,10 @@ std::vector<float> split_float(const std::string& s, char delim) {
     return result;
 }
 
+bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info) {
+    return app_input_info.size() == 1;
+}
+
 static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};
 bool is_virtual_device(const std::string& device_name) {
     return std::find(meta_plugins.begin(), meta_plugins.end(), device_name) != meta_plugins.end();
