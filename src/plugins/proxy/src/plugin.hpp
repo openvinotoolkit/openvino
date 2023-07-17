@@ -51,11 +51,14 @@ private:
                                                        const ov::AnyMap& properties) const;
 
     size_t m_default_device = 0;
-    std::vector<std::string> m_device_order;
-    std::unordered_set<std::string> m_alias_for;
+    mutable std::vector<std::string> m_device_order;
+    mutable std::unordered_set<std::string> m_alias_for;
     // Update per device config in get_hidden_devices
     mutable std::unordered_map<std::string, ov::AnyMap> m_configs;
     mutable std::mutex m_plugin_mutex;
+    mutable std::mutex m_init_devs_mutex;
+    mutable std::vector<std::vector<std::string>> m_hidden_devices;
+    mutable bool m_init_devs{false};
 };
 
 }  // namespace proxy
