@@ -14,7 +14,7 @@ namespace autobatch_plugin {
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
     SyncInferRequest(const std::shared_ptr<const ov::autobatch_plugin::CompiledModel>& compiled_model,
-                     std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest> worker_request,
+                     const std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>& worker_request,
                      int batch_id,
                      int num_batch,
                      const std::set<std::string>& batched_inputs,

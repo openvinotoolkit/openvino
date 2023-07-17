@@ -42,7 +42,7 @@ CompiledModel::~CompiledModel() {
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     auto async_infer_request = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
-        std::static_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
+        std::dynamic_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
         workerRequestPtrAndId.first,
         workerRequestPtrAndId.second,
         m_device_info.device_batch_size,
