@@ -14,8 +14,6 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
-#include "openvino/pass/constant_folding.hpp"
-
 namespace ov {
 namespace test {
 namespace utils {
@@ -46,7 +44,6 @@ namespace {
 static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
     inGenData.range = 8;
     inGenData.resolution = 32;
-    inGenData.start_from *= inGenData.resolution;
 }
 
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
@@ -508,6 +505,8 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogical
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
+
+
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,

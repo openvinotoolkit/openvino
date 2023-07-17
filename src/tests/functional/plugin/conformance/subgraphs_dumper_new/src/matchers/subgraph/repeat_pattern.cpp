@@ -42,7 +42,6 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
 
         std::vector<std::set<std::shared_ptr<ov::Node>>> nodes(start_node_idx.size());
-        // std::set<std::shared_ptr<ov::Node>> unique_nodes;
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             for (size_t j = i + 1; j < start_node_idx.size(); ++j) {
                 size_t node_idx = start_node_idx[i], ref_node_idx = start_node_idx[j];
@@ -57,7 +56,6 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
                         if (node_idx == start_node_idx[i] && ref_node_idx == start_node_idx[j]) {
                                 nodes[i].insert(node);
                                 nodes[j].insert(ref_node);
-                                // unique_nodes.insert(node < ref_node ? node : ref_node);
                         } else if (manager.match(node, ref_node)) {
                             // check if we met the same node
                             if (manager.match(node, op)) {
@@ -67,16 +65,6 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
                                 checked_ops.count(ref_node->get_friendly_name())) {
                                 break;
                             }
-                            // bool is_met_before = false;
-                            // for (const auto& unique_node : unique_nodes) {
-                            //     if (manager.match(node, unique_node)) {
-                            //         is_met_before = true;
-                            //         break;
-                            //     }
-                            // }
-                            // if (is_met_before) {
-                            //     break;
-                            // }
                             // check that any input node is using in graph
                             bool is_input_in_graph = false;
                             for (size_t in_idx = 0; in_idx < node->inputs().size(); ++in_idx) {
@@ -93,7 +81,6 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
 
                             nodes[i].insert(ordered_ops[node_idx]);
                             nodes[j].insert(ordered_ops[ref_node_idx]);
-                            // unique_nodes.insert(node < ref_node ? node : ref_node);
                         } else {
                             break;
                         }

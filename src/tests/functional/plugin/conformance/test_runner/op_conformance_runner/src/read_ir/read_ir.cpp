@@ -9,26 +9,20 @@
 
 #include <pugixml.hpp>
 
-#include "shared_test_classes/base/utils/ranges.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "input_info.hpp"
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
 
-#include <setjmp.h>
+#include "common_test_utils/postgres_link.hpp"
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/runtime/common.hpp"
+#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -155,44 +149,68 @@ void ReadIRTest::SetUp() {
     if (CommonTestUtils::fileExists(metaFile)) {
         pugi::xml_document doc;
         doc.load_file(metaFile.c_str());
+        auto models = doc.child("meta_info").child("models");
+        size_t model_len = 0, occurance = 0;
+        for (const auto &model : models.children("model")) {
+            ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
+            model_len++;
+            occurance += model.attribute("count").as_uint();
+        }
         rel_influence_coef = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         // TODO: remove after cache update w/a
         if (rel_influence_coef == 0) {
             rel_influence_coef = 1.f;
         }
-        auto input_info_xml = doc.child("meta_info").child("input_info");
-        std::map<std::string, ov::tools::subgraph_dumper::InputInfo> input_info;
-        for (const auto &input : input_info_xml.children()) {
-            auto in_name = std::string(input.attribute("id").value());
-            ov::tools::subgraph_dumper::InputInfo in_info;
-            in_info.is_const = input.attribute("convert_to_const").as_bool();
-            if (std::string(input.attribute("min").value()) != "undefined") {
-                in_info.ranges.min = input.attribute("min").as_double();
+        auto portsInfo = doc.child("meta_info").child("ports_info");
+        auto getPortInfo = [&](size_t id) {
+            LayerTestsUtils::PortInfo info;
+            for (const auto &p : portsInfo.children()) {
+                if (p.attribute("id").as_uint() == id) {
+                    info.convert_to_const = p.attribute("convert_to_const").as_bool();
+                    if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
+                        info.min = p.attribute("min").as_double();
+                    } else {
+                        info.min = -10;
+                    }
+                    if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
+                        info.max = p.attribute("max").as_double();
+                    } else {
+                        info.max = 10;
+                    }
+                    break;
+                }
             }
-            if (std::string(input.attribute("max").value()) != "undefined") {
-                in_info.ranges.max = input.attribute("max").as_double();
+            return info;
+        };
+
+        auto params = function->get_parameters();
+        for (const auto &param : params) {
+            auto idx = -1;
+            for (size_t i = 0; i < param->get_output_size(); i++) {
+                for (const auto &node : param->get_output_target_inputs(i)) {
+                    const auto nodePtr = node.get_node()->shared_from_this();
+                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                            idx = port;
+                            break;
+                        }
+                    }
+                }
             }
-            input_info.insert({in_name, in_info});
-        }
-        auto inputMap = utils::getInputMap();
-        std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
-        for (const auto& param : function->get_parameters()) {
-            auto in_info = input_info.find(param->get_friendly_name())->second;
-            if (!in_info.is_const) {
-                continue;
+            EXPECT_GE(idx, 0);
+
+            auto info = getPortInfo(idx);
+            if (info.convert_to_const) {
+                const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
+                                                                    param->get_shape(),
+                                                                    std::vector<double>{},
+                                                                    true,
+                                                                    info.max,
+                                                                    info.min,
+                                                                    1);
+                ov::replace_node(param, constant);
+                function->remove_parameter(param);
             }
-            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
-            // auto next_node = param->get_default_output().get_node_shared_ptr();
-            auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
-            auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
-            auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
-            ov::replace_node(param, const_node);
-            parameter_to_remove.push_back(param);
-            utils::ConstRanges::reset();
-        }
-        for (const auto& param : parameter_to_remove) {
-            function->remove_parameter(param);
         }
     }
 
@@ -211,6 +229,74 @@ void ReadIRTest::SetUp() {
             }
         }
     }
+
+#ifdef ENABLE_CONFORMANCE_PGQL
+    // Updating data in runtime. Should be set before possible call of a first GTEST status
+    auto pgLink = this->GetPGLink();
+    if (pgLink) {
+        auto devNameProperty = core->get_property(this->targetDevice, "FULL_DEVICE_NAME");
+        auto devName = devNameProperty.is<std::string>() ?  devNameProperty.as<std::string>() : "";
+        pgLink->set_custom_field("targetDeviceName", devName, true);
+        if (this->targetDevice == "CPU") {
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+            pgLink->set_custom_field("targetDeviceArch", devName.find("ARM") != std::string::npos ? "arm" : "", true);
+        } else if (this->targetDevice == "GPU") {
+            if (devName.find("dGPU") != std::string::npos) {
+                pgLink->set_custom_field("targetDevice", "DGPU", true);
+            } else {
+                pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+            }
+        } else {
+            pgLink->set_custom_field("targetDevice", this->targetDevice, true);
+        }
+        pgLink->set_custom_field("caseType", hasDynamic ? "dynamic" : "static");
+        pgLink->set_custom_field("irWeight", std::to_string(rel_influence_coef), true);
+
+        // Do not store waste results
+        if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
+            pgLink->set_refuse_result();
+        } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
+            pgLink->set_refuse_result();
+        }
+
+        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        std::reverse(splittedFilename.begin(), splittedFilename.end());
+
+        // Try to resolve missing info
+        if (splittedFilename.size() > 2) {
+            auto pos = splittedFilename[2].find('-');
+            std::string op_name = "", op_version = "opset";
+            if (pos != std::string::npos) {
+                op_name = splittedFilename[2].substr(0, pos);
+                op_version += splittedFilename[2].substr(pos + 1);
+                if (ov::test::conformance::unique_ops.find(op_name) != ov::test::conformance::unique_ops.end() &&
+                    std::find(ov::test::conformance::unique_ops[op_name].begin(),
+                              ov::test::conformance::unique_ops[op_name].end(),
+                              op_version) != ov::test::conformance::unique_ops[op_name].end()) {
+                    pgLink->set_custom_field("opName", op_name, true);
+                    pgLink->set_custom_field("opSet", op_version, true);
+                }
+            } else {
+                for (const auto& path_part : splittedFilename) {
+                    if (ov::test::conformance::unique_ops.find(path_part) != ov::test::conformance::unique_ops.end()) {
+                        op_name = path_part;
+                        break;
+                    }
+                }
+                if (op_name.length() > 0) {
+                    for (const auto& node : function->get_ordered_ops()) {
+                        if (node->get_type_name() == op_name) {
+                            op_version = node->get_type_info().version_id;
+                            pgLink->set_custom_field("opSet", op_version, true);
+                        }
+                    }
+                }
+            }
+        }
+        pgLink->manual_start();
+    }
+#endif
+
     if (hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::STATIC) {
         GTEST_SKIP() << "Dynamic cases are skipped according `shape_mode`";
     } else if (!hasDynamic && ov::test::conformance::shapeMode == ov::test::conformance::ShapeMode::DYNAMIC) {
@@ -311,5 +397,4 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 } // namespace subgraph
 } // namespace test
 } // namespace ov
-
 

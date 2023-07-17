@@ -7,8 +7,6 @@
 #include "ie_core.hpp"
 #include "ngraph/node.hpp"
 
-#include "shared_test_classes/base/utils/ranges.hpp"
-
 namespace ov {
 namespace test {
 namespace utils {

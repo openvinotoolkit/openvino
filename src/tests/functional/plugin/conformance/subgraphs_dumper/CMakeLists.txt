@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphsDumper_deprecated)
+set(TARGET_NAME subgraphsDumper)
 
 list(APPEND LIBRARIES
         gflags

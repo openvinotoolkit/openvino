@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphsDumperTests_deprecated)
+set(TARGET_NAME subgraphsDumperTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
