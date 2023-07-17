@@ -6,11 +6,11 @@
 
 #include <memory>
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/util/common_util.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

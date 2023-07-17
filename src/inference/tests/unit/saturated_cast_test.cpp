@@ -14,7 +14,7 @@
 
 using namespace InferenceEngine;
 
-class SaturateCastTestsI64ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsI64ToI32 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::I64>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
@@ -50,7 +50,7 @@ TEST_F(SaturateCastTestsI64ToI32, I64ToI32NarrowingNonMinToMin) {
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturateCastTestsU64ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU64ToI32 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U64>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
@@ -71,7 +71,7 @@ TEST_F(SaturateCastTestsU64ToI32, U64ToI32NarrowingNonMaxToMax) {
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturateCastTestsBoolToU8 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsBoolToU8 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::BOOL>::value_type;
     using toType = typename PrecisionTrait<Precision::U8>::value_type;
@@ -82,7 +82,7 @@ TEST_F(SaturateCastTestsBoolToU8, BOOLtoU8MaxToNonMax) {
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturateCastTestsBoolToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsBoolToI32 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::BOOL>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
@@ -93,7 +93,7 @@ TEST_F(SaturateCastTestsBoolToI32, BOOLtoI32MaxToNonMax) {
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturateCastTestsU8ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU8ToI32 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U8>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
@@ -104,7 +104,7 @@ TEST_F(SaturateCastTestsU8ToI32, U8toI32FMaxToNonMax) {
     EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturateCastTestsU16ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU16ToI32 : public ov::test::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U8>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;

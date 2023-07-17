@@ -17,7 +17,7 @@ namespace element = ov::element;
 using std::make_shared;
 using TypeVector = element::TypeVector;
 
-using TypeRelaxedTests = CommonTestUtils::TestsCommon;
+using TypeRelaxedTests = ov::test::TestsCommon;
 
 TEST_F(TypeRelaxedTests, noOverrideCopyCtor) {
     std::shared_ptr<ov::Model> model;

@@ -27,7 +27,7 @@ struct LinuxCpuMapTestCase {
     std::vector<std::string> node_info_table;
 };
 
-class LinuxCpuMapCacheParserTests : public CommonTestUtils::TestsCommon,
+class LinuxCpuMapCacheParserTests : public ov::test::TestsCommon,
                                     public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
 public:
     void SetUp() override {
@@ -58,7 +58,7 @@ public:
     }
 };
 
-class LinuxGetCpuMapFromCoresTests : public CommonTestUtils::TestsCommon,
+class LinuxGetCpuMapFromCoresTests : public ov::test::TestsCommon,
                                      public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
 public:
     void SetUp() override {

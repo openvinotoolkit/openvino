@@ -7,7 +7,11 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
@@ -63,10 +67,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "sequnce_generator.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

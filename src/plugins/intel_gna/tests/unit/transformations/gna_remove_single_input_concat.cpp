@@ -93,7 +93,7 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
 // -------------------------------------------------------------------------------------------------------
 
 class RemoveSingleInputConcatFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<std::tuple<Graph /* tranformed */, Graph /* reference */>> {
 public:
     void SetUp() override;

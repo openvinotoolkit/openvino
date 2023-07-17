@@ -42,7 +42,7 @@ inline bool sw_plugin_in_target_device(std::string targetDevice) {
             targetDevice.find("HETERO") != std::string::npos || targetDevice.find("AUTO") != std::string::npos);
 }
 
-class APIBaseTest : public CommonTestUtils::TestsCommon {
+class APIBaseTest : public ov::test::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
     const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(

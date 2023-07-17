@@ -153,7 +153,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertDWSCToScaleShiftsTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class ConvertDWSCToScaleShiftsTestInvalidFixture : public ov::test::TestsCommon,
                                                    public ::testing::WithParamInterface<fqDWSCToScaleShiftsParams> {
 public:
     void SetUp() override;
@@ -215,7 +215,7 @@ void ConvertDWSCToScaleShiftsTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertDWSCToScaleShiftsTestFixture : public CommonTestUtils::TestsCommon,
+class ConvertDWSCToScaleShiftsTestFixture : public ov::test::TestsCommon,
                                             public ::testing::WithParamInterface<fqDWSCToScaleShiftsParams> {
 public:
     void SetUp() override;

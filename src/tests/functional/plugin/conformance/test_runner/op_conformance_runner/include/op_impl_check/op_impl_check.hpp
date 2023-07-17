@@ -22,7 +22,7 @@ using OpImplParams = std::tuple<
         ov::AnyMap>; // Plugin Config
 
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
-                        public CommonTestUtils::TestsCommon {
+                        public ov::test::TestsCommon {
 protected:
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();

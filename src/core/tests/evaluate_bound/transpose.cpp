@@ -4,11 +4,11 @@
 
 #include "openvino/op/transpose.hpp"
 
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 #include "transpose_shape_inference.hpp"
-#include "type_prop.hpp"
 
 namespace {
 template <typename T>

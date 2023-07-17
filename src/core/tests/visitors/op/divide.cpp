@@ -11,11 +11,11 @@ using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::Divide, ngraph:
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);
 
 */
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;

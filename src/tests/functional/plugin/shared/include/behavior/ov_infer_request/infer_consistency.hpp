@@ -36,7 +36,7 @@ struct ModelContext {
 
 class OVInferConsistencyTest : public
     testing::WithParamInterface<OVInferConsistencyTestParamsTuple>,
-    public CommonTestUtils::TestsCommon {
+    public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>&
         obj);

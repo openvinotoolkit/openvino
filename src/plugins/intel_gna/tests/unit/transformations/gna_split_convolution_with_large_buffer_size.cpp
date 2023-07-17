@@ -266,7 +266,7 @@ Graph createSolidGraph(const ngraph::Shape& input_shape, const ngraph::Shape& ke
 
 using TestParams = std::tuple<Graph, Graph, ngraph::pass::Manager>;
 
-class SplitConvolutionFixture : public CommonTestUtils::TestsCommon,
+class SplitConvolutionFixture : public ov::test::TestsCommon,
                                 public ::testing::WithParamInterface<std::tuple<DeviceVersion, TestParams>> {
 public:
     void SetUp() override;

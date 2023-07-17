@@ -405,8 +405,9 @@ public:
         if (m_inputs.size()) {
             node->set_arguments(m_inputs);
             return node->clone_with_new_inputs(m_inputs);
-        } else
+        } else {
             return node;
+        }
     }
 
     AttributeVisitor& get_node_saver() {

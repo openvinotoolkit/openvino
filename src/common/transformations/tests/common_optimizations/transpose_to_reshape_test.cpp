@@ -42,7 +42,7 @@ struct ReferenceParams {
 };
 
 class TransposeToReshapeTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TransposeOrder, ReferenceParams>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;

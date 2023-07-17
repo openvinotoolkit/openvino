@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "all_close.hpp"
+#include "common_test_utils/all_close.hpp"
 
 ::testing::AssertionResult ov::test::all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
     if (a.get_element_type() != b.get_element_type()) {

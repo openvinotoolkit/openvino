@@ -9,7 +9,7 @@
 #include "engines_util/test_engines.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;

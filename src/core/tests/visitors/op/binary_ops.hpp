@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
-#include "util/visitor.hpp"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>
 class BinaryOperatorType {

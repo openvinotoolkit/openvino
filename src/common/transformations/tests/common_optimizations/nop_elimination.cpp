@@ -1164,7 +1164,7 @@ struct SplitConcatEliminationParams {
 };
 
 class SplitConcatElimination : public testing::WithParamInterface<SplitConcatEliminationParams>,
-                               public CommonTestUtils::TestsCommon {};
+                               public ov::test::TestsCommon {};
 
 TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     const auto& p = GetParam();

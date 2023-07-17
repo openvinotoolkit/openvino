@@ -5,7 +5,11 @@
 #include <algorithm>
 #include <sstream>
 
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "default_opset.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
@@ -14,10 +18,6 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 OPENVINO_SUPPRESS_DEPRECATED_START

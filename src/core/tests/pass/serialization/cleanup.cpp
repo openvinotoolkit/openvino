@@ -7,9 +7,9 @@
 #include <fstream>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "util/test_common.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {
 protected:

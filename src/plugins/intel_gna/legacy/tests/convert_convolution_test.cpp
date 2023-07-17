@@ -30,7 +30,7 @@ using namespace ngraph::opset1;
 using InputShape = PartialShape;
 using WeightsShape = PartialShape;
 
-class ConvertConvolutionTest : public CommonTestUtils::TestsCommon,
+class ConvertConvolutionTest : public ov::test::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, WeightsShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;

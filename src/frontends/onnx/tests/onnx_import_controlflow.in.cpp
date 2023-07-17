@@ -3,6 +3,9 @@
 //
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
@@ -11,9 +14,6 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;

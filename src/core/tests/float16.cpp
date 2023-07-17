@@ -7,9 +7,9 @@
 #include <climits>
 #include <random>
 
+#include "common_test_utils/float_util.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "util/float_util.hpp"
 
 using namespace std;
 using namespace ngraph;

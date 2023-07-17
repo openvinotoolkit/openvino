@@ -23,7 +23,7 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 
-class RemoteBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<bool> {
+class RemoteBlob_Test : public ov::test::TestsCommon, public testing::WithParamInterface<bool> {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
     std::string deviceName;
@@ -553,7 +553,7 @@ std::vector<bool> with_auto_batching {true, false};
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, RemoteBlob_Test, ::testing::ValuesIn(with_auto_batching),
         RemoteBlob_Test::getTestCaseName);
 
-class BatchedBlob_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+class BatchedBlob_Test : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
     };
@@ -574,7 +574,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlob, BatchedBlob_Test, ::testing::ValuesIn
 using TwoNetsParams = std::tuple<size_t,   // number of streams
                                  size_t>;  // number of requests
 
-class TwoNets_Test : public CommonTestUtils::TestsCommon,
+class TwoNets_Test : public ov::test::TestsCommon,
     public testing::WithParamInterface<TwoNetsParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();

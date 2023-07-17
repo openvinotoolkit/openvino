@@ -29,7 +29,7 @@ using namespace testing;
 using InputShape = ngraph::PartialShape;
 using WeightsShape = ngraph::Shape;
 
-class ConvertDeconvolutionTest : public CommonTestUtils::TestsCommon,
+class ConvertDeconvolutionTest : public ov::test::TestsCommon,
                                  public testing::WithParamInterface<std::tuple<InputShape, WeightsShape>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;

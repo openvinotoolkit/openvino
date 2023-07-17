@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 #include "openvino/core/dimension.hpp"
 #include "sequnce_generator.hpp"

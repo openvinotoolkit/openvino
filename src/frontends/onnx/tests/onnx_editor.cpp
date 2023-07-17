@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "default_opset.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
@@ -15,7 +16,6 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_test_util.hpp"
-#include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

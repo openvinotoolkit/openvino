@@ -30,7 +30,7 @@ void eliminate_broadcast_test(std::shared_ptr<Function> f, std::shared_ptr<Funct
     ASSERT_TRUE(res.first) << res.second;
 }
 
-class EliminateBroadcastTest : public CommonTestUtils::TestsCommon,
+class EliminateBroadcastTest : public ov::test::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -69,7 +69,7 @@ public:
 };
 
 class EliminateBroadcastSwapInputsTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -107,7 +107,7 @@ public:
     }
 };
 
-class NoEliminateBroadcastTest : public CommonTestUtils::TestsCommon,
+class NoEliminateBroadcastTest : public ov::test::TestsCommon,
                                  public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -152,7 +152,7 @@ public:
 };
 
 class EliminateDynamicBroadcastTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape, InputShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -192,7 +192,7 @@ public:
 };
 
 class NoEliminateDynamicBroadcastTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;

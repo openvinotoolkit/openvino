@@ -29,8 +29,7 @@ typedef std::tuple<DeviceVersion,  // Device version
                    >
     InsertCopyTestParams;
 
-class InsertCopyLayerTest : public CommonTestUtils::TestsCommon,
-                            public ::testing::WithParamInterface<InsertCopyTestParams> {
+class InsertCopyLayerTest : public ov::test::TestsCommon, public ::testing::WithParamInterface<InsertCopyTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InsertCopyTestParams>& obj) {
         DeviceVersion device_ver;
@@ -189,7 +188,7 @@ public:
     }
 };
 
-class TransformationTestsBase : public CommonTestUtils::TestsCommon,
+class TransformationTestsBase : public ov::test::TestsCommon,
                                 public ::testing::WithParamInterface<std::tuple<DeviceVersion>> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<DeviceVersion>>& obj) {

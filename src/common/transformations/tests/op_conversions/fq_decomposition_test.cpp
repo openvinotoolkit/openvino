@@ -30,7 +30,7 @@ using FakeQuantizeDecompositionParamsSet = std::tuple<FakeQuantizeDecompositionB
                                                       bool                      // should be decompos
                                                       >;
 
-class FakeQuantizeDecompositionTest : public CommonTestUtils::TestsCommon,
+class FakeQuantizeDecompositionTest : public ov::test::TestsCommon,
                                       public ::testing::WithParamInterface<FakeQuantizeDecompositionParamsSet> {
 public:
     static std::string getTestCaseName(::testing::TestParamInfo<FakeQuantizeDecompositionParamsSet> obj) {

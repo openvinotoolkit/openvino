@@ -6,7 +6,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/core.hpp"
 
-class OVExtensionTests : public CommonTestUtils::TestsCommon {
+class OVExtensionTests : public ov::test::TestsCommon {
 public:
     ov::Core core;
 

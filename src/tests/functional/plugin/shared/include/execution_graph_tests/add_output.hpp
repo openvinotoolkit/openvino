@@ -14,7 +14,7 @@ typedef std::tuple<
         std::string>                 // Target device name
         addOutputsParams;
 
-class AddOutputsTest : public CommonTestUtils::TestsCommon,
+class AddOutputsTest : public ov::test::TestsCommon,
                        public testing::WithParamInterface<addOutputsParams> {
 protected:
     InferenceEngine::CNNNetwork net;
