@@ -72,4 +72,3 @@ public:
 
 }  // namespace template_plugin
 }  // namespace ov
-
