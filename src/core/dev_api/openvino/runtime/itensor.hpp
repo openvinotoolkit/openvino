@@ -76,6 +76,13 @@ public:
      */
     bool is_continuous() const;
 
+    /**
+     * @brief Copy tensor, destination tensor should have the same element type and shape
+     *
+     * @param dst destination tensor
+     */
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
+
 protected:
     virtual ~ITensor();
 };

@@ -13,17 +13,17 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 

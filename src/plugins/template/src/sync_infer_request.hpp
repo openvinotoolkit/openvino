@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "executable.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"

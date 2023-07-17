@@ -18,6 +18,7 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
+#include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
 #include "variable_state.hpp"
 
@@ -149,38 +150,37 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     // Allocate backend tensors
     OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
-        auto tensor = make_tensor(get_tensor(get_inputs()[i]));
-        if (tensor.is<ov::RemoteTensor>()) {
-            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
-                            "Template plugin supports only VectorTensor with remote context.");
-            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
-            auto element_type = vector_tensor.get_element_type();
-            void* data = vector_tensor.get_data();
+        auto tensor = get_tensor(get_inputs()[i]);
+        if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+            auto vector_tensor = std::dynamic_pointer_cast<ov::template_plugin::VectorImpl>(tensor._ptr);
+            OPENVINO_ASSERT(vector_tensor, "Template plugin supports only VectorTensor with remote context.");
+            auto element_type = vector_tensor->get_element_type();
+            void* data = vector_tensor->get_data();
             OPENVINO_ASSERT(data != nullptr);
             // Create backend tenor
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
-                                                                                      vector_tensor.get_shape(),
+                                                                                      vector_tensor->get_shape(),
                                                                                       data);
-        } else if (tensor.is_continuous()) {
+        } else if (tensor->is_continuous()) {
             // No ROI extraction is needed
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                      tensor.get_shape(),
-                                                                                      tensor.data());
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
+                                                                                      tensor->get_shape(),
+                                                                                      tensor->data());
         } else {
-            OPENVINO_ASSERT(tensor.get_element_type().bitwidth() % 8 == 0,
+            OPENVINO_ASSERT(tensor->get_element_type().bitwidth() % 8 == 0,
                             "Template plugin: Unsupported ROI tensor with element type having ",
-                            std::to_string(tensor.get_element_type().bitwidth()),
+                            std::to_string(tensor->get_element_type().bitwidth()),
                             " bits size");
-            ov::Shape shape = tensor.get_shape();
+            ov::Shape shape = tensor->get_shape();
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                      tensor.get_shape());
-            tensor.copy_to(m_backend_input_tensors[i]);
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
+                                                                                      tensor->get_shape());
+            tensor->copy_to(ov::get_tensor_impl(m_backend_input_tensors[i])._ptr);
         }
     }
     // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
@@ -236,23 +236,21 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
         auto host_tensor = m_backend_output_tensors[i];
-        auto tensor = make_tensor(get_tensor(get_outputs()[i]));
+        auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
-                auto ov_tensor = make_tensor(tensor);
-                host_tensor.copy_to(ov_tensor);
+                host_tensor.copy_to(ov::make_tensor(tensor));
             });
-        } else if (!tensor.is_continuous()) {
-            host_tensor.copy_to(tensor);
-        } else if (tensor.is<ov::RemoteTensor>()) {
-            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
-                            "Template plugin supports only VectorTensor with remote context.");
-            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
-            void* data = vector_tensor.get_data();
+        } else if (!tensor->is_continuous()) {
+            host_tensor.copy_to(ov::make_tensor(tensor));
+        } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+            auto vector_tensor = std::dynamic_pointer_cast<ov::template_plugin::VectorImpl>(tensor._ptr);
+            OPENVINO_ASSERT(vector_tensor, "Template plugin supports only VectorTensor with remote context.");
+            void* data = vector_tensor->get_data();
             // Copy to vector
-            std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
+            std::memcpy(data, host_tensor.data(), tensor->get_byte_size());
         }
     }
     m_durations[Postprocess] = Time::now() - start;
