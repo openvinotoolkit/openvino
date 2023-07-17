@@ -27,7 +27,7 @@ The ``CompiledModel`` class provides the ``__call__`` method that runs a single 
 
 
 Shared Memory on Inputs and Outputs
-#######################
+###################################
 
 While using ``CompiledModel``, ``InferRequest`` and ``AsyncInferQueue``, 
 OpenVINO™ Runtime Python API provides an additional mode - "Shared Memory". 
