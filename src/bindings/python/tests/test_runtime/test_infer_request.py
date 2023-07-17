@@ -10,7 +10,7 @@ import pytest
 import datetime
 import time
 
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset12 as ops
 from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor

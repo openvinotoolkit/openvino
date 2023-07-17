@@ -30,7 +30,7 @@ using ExecGraphRuntimePrecisionParams = std::tuple<
 >;
 
 class ExecGraphRuntimePrecision : public testing::WithParamInterface<ExecGraphRuntimePrecisionParams>,
-                                 public CommonTestUtils::TestsCommon {
+                                 public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj);
     std::string targetDevice;

@@ -24,7 +24,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<condition>());
+        OPENVINO_ASSERT(arg.is_type<condition>());
         const auto& node = arg.as<condition>();
         _node_id = node.id();
     }

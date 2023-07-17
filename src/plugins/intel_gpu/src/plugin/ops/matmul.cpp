@@ -62,7 +62,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             }
         } else {
             if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+                OPENVINO_THROW("Shapes can't be aligned: ", shape_a_aligned, " ", shape_b_aligned);
             }
             auto max_value = std::max(a_dim.get_length(), b_dim.get_length());
             shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -96,7 +96,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
     if (is_fc) {
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            OPENVINO_THROW("MatMul ", op->get_friendly_name(), " shapes are inconsistent.");
         }
 
         auto inputName = inputs[0].pid;
