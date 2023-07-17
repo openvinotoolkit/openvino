@@ -17,41 +17,19 @@ def arg_parse_helper(input_model,
                      use_new_frontend,
                      input_model_is_text,
                      framework,
-                     compress_to_fp16=False,
-                     freeze_placeholder_with_value=None,
-                     tensorflow_object_detection_api_pipeline_config=None):
+                     compress_to_fp16=False):
     path = os.path.dirname(__file__)
     input_model = os.path.join(path, "test_models", input_model)
 
     return argparse.Namespace(
         input_model=input_model,
-        use_legacy_frontend=use_legacy_frontend,
-        use_new_frontend=use_new_frontend,
-        framework=framework,
-        input_model_is_text=input_model_is_text,
         log_level='INFO',
         silent=True,
         output_model=None,
         transform=[],
-        scale=None,
         output=None,
         input=None,
-        input_shape=None,
-        batch=None,
-        input_checkpoint=None,
-        saved_model_dir=None,
-        input_meta_graph=None,
-        saved_model_tags=None,
         output_dir='.',
-        mean_values=(),
-        scale_values=(),
-        layout={},
-        source_layout={},
-        target_layout={},
-        freeze_placeholder_with_value=freeze_placeholder_with_value,
-        data_type=None,
-        tensorflow_custom_operations_config_update=None,
-        tensorflow_object_detection_api_pipeline_config=tensorflow_object_detection_api_pipeline_config,
         compress_to_fp16=compress_to_fp16,
         extensions=None
     )

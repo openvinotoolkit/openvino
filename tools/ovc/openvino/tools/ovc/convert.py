@@ -6,14 +6,14 @@ import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.runtime import PartialShape, Shape, Layout, Model # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import PartialShape, Shape, Model # pylint: disable=no-name-in-module,import-error
 
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 
+#TODO: Why names InputCutInfo and InputInfo are different
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
 
 
 def convert_model(
@@ -23,13 +23,9 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         example_input: Any = None,
-        source_layout: [str, Layout, dict] = (),
-        target_layout: [str, Layout, dict] = (),
-        layout: [str, Layout, LayoutMap, list, dict] = (),
         extensions: [str, pathlib.Path, list, Any] = None,
         transform: [str, list, tuple] = "",  #TODO: Consider removing
-        silent: bool = True,    #TODO: Consider removing
-        log_level: str = 'ERROR',
+        silent: bool = True,    #TODO: Consider replacing by verbose with default False
         share_weights: bool = True,
 
         # PaddlePaddle-specific parameters:
@@ -103,26 +99,6 @@ def convert_model(
             For PyTorch it can be torch.Tensor.
             For Tensorflow it can be tf.Tensor or numpy.ndarray.
             For PaddlePaddle it can be Paddle Variable.
-        :param source_layout:
-            Layout of the input or output of the model in the framework. Layout can
-            be set by passing a dictionary, where key is input name and value is LayoutMap
-            object. Or layout can be set by string of the following format. Layout
-            can be specified in the short form, e.g. nhwc, or in complex form, e.g.
-            "[n,h,w,c]". Example for many names: "in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)".
-            Layout can be partially defined, "?" can be used to specify undefined
-            layout for one dimension, "..." can be used to specify undefined layout
-            for multiple dimensions, for example "?c??", "nc...", "n...c", etc.
-        :param target_layout:
-            Same as "source_layout", but specifies target layout that will be in
-            the model after processing by ModelOptimizer.
-        :param layout:
-            Combination of "source_layout" and "target_layout". Can't be used
-            with either of them. If model has one input it is sufficient to specify
-            layout of this input, for example "layout" nhwc. To specify layouts
-            of many tensors, names must be provided, for example: layout="name1(nchw),name2(nc)".
-            It is possible to instruct ModelOptimizer to change layout, for example:
-                layout="name1(nhwc->nchw),name2(cn->nc)".
-            Also "*" in long layout form can be used to fuse dimensions, for example "[n,c,...]->[n*c,...]".
         :param extensions:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
@@ -146,9 +122,6 @@ def convert_model(
             Prevent any output messages except those that correspond to log level
             equals ERROR, that can be set with the following option: "log_level".
             By default, log level is already ERROR.
-        :param log_level:
-            Logger level of logging massages from MO.
-            Expected one of ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'].
         :param share_weights:
             Reuse weights allocated in the original model. If input model is in file,
             then mmap is used to allocate weights directly from file. If input model is

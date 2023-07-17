@@ -241,9 +241,7 @@ def input_to_input_cut_info(input: [str, tuple, list]):
 
 def freeze_placeholder_to_input_cut_info(inputs: list):
     """
-    Parses 'argv_freeze_placeholder_with_value' to dictionary and collects unnamed inputs from 'inputs' to list.
-    :param argv_freeze_placeholder_with_value: string set by user.
-    As it was planned to be deprecated no Python analogs were made.
+    Parses freezing parts from input list.
     :param inputs: list of InputCutInfo with information from 'input' parameter
     :returns (placeholder_values, unnamed_placeholder_values), where
     placeholder_values - dictionary where key is node name, value is node value,
@@ -281,62 +279,6 @@ def layout_to_str(layout):
     raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
                     "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
 
-
-def source_target_layout_to_str(value):
-    # default empty value
-    if isinstance(value, tuple) and len(value) == 0:
-        return value
-
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        values_str = []
-        for op_name, layout in value.items():
-            if not isinstance(op_name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layout_to_str(layout) + ")")
-        return ",".join(values_str)
-
-    return layout_to_str(value)
-
-
-def layoutmap_to_str(value):
-    if isinstance(value, str):
-        return value
-    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
-        assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
-        source_layout = layout_to_str(value.source_layout)
-        if value.target_layout is not None:
-            target_layout = layout_to_str(value.target_layout)
-            source_layout += "->" + target_layout
-        return source_layout
-    return layout_to_str(value)
-
-
-def layout_param_to_str(value):
-    # default empty value
-    if isinstance(value, tuple) and len(value) == 0:
-        return value
-
-    if isinstance(value, str):
-        return value
-
-    if isinstance(value, dict):
-        values_str = []
-        for op_name, layout in value.items():
-            if not isinstance(op_name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
-        return ",".join(values_str)
-    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
-        return layoutmap_to_str(value)
-    if isinstance(value, list) or isinstance(value, tuple):
-        values_str = []
-        for layout in value:
-            values_str.append(layoutmap_to_str(layout))
-        return ",".join(values_str)
-
-    return layoutmap_to_str(value)
 
 def transform_param_value_to_str(value):
     # This function supports parsing of parameters of MakeStateful, LowLatency2, Pruning.
@@ -781,9 +723,6 @@ def get_common_cli_options(model_name):
     d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
-    d['source_layout'] = ['- Source layout', lambda x: x if x else 'Not specified']
-    d['target_layout'] = ['- Target layout', lambda x: x if x else 'Not specified']
-    d['layout'] = ['- Layout', lambda x: x if x else 'Not specified']
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     return d
 
@@ -1156,6 +1095,7 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
+#TODO: Should be removed?
 def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
     """
     Parses parse_freeze_placeholder_values string.

@@ -100,7 +100,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
             argv.input)
         argv.unnamed_freeze_placeholder_with_value = {}
     argv.output = argv.output.split(',') if argv.output else None
-    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
@@ -150,7 +149,7 @@ def prepare_ir(argv: argparse.Namespace):
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model
 
-    return None
+    raise Error('Cannot recognize input model.')
 
 
 def check_model_object(argv):
@@ -189,6 +188,8 @@ def check_model_object(argv):
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
+    if not hasattr(argv, 'log_level'):
+        argv.log_level = 'ERROR'
     init_logger(argv.log_level.upper(), argv.silent)
 
     # Log dictionary with non-default cli parameters where complex classes are excluded.
@@ -197,9 +198,6 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
     start_time = datetime.datetime.now()
 
     ov_model = moc_emit_ir(prepare_ir(argv), argv)
-
-    if ov_model is None:
-        return ov_model
 
     if not argv.silent:
         elapsed_time = datetime.datetime.now() - start_time
