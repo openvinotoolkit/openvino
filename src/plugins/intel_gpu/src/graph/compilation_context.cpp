@@ -12,12 +12,12 @@
 namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
-    CompilationContext(InferenceEngine::CPUStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
+    CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
         _task_executor_config._streams = 4;
-        _task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(_task_executor_config);
+        _task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(_task_executor_config);
     }
 
-    void push_task(size_t key, Task&& task) override {
+    void push_task(kernel_impl_params key, Task&& task) override {
         if (_stop_compilation)
             return;
 
@@ -29,7 +29,7 @@ public:
         }
     }
 
-    void remove_keys(std::vector<size_t>&& keys) override {
+    void remove_keys(std::vector<kernel_impl_params>&& keys) override {
         std::lock_guard<std::mutex> lock(_mutex);
         if (!_task_keys.empty()) {
             for (auto key : keys) {
@@ -62,14 +62,14 @@ public:
     }
 
 private:
-    InferenceEngine::CPUStreamsExecutor::Config _task_executor_config;
-    InferenceEngine::CPUStreamsExecutor::Ptr _task_executor;
+    ov::threading::IStreamsExecutor::Config _task_executor_config;
+    std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
     std::mutex _mutex;
-    std::unordered_set<size_t> _task_keys;
+    std::unordered_set<kernel_impl_params, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
 };
 
-std::unique_ptr<ICompilationContext> ICompilationContext::create(InferenceEngine::CPUStreamsExecutor::Config task_executor_config) {
+std::unique_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
     return cldnn::make_unique<CompilationContext>(task_executor_config);
 }
 

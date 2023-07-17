@@ -528,8 +528,8 @@ std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::
     auto ptr = output.get_memory();
     cldnn::mem_lock<T, cldnn::mem_lock_type::read> mem(ptr, net.get_stream());
     if (ptr->get_layout().data_type != cldnn::type_to_data_type<T>::value)
-        IE_THROW() << "target type " << cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value)
-                    << " mismatched with actual type " << cldnn::data_type_traits::name(ptr->get_layout().data_type);
+        OPENVINO_THROW("target type ", cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value),
+                       " mismatched with actual type ", cldnn::data_type_traits::name(ptr->get_layout().data_type));
     for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
         ret.push_back(mem[i]);
     return ret;
@@ -550,7 +550,7 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
         case cldnn::data_types::i64:
             return get_output_values_to_float<int64_t>(net, output, max_cnt);
         default:
-            IE_THROW() << "Unknown output data_type";
+            OPENVINO_THROW( "Unknown output data_type");
     }
 }
 

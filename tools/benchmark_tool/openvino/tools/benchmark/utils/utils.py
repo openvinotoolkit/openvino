@@ -78,19 +78,10 @@ def get_element_type(precision):
 
 
 def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
-    # TODO: remove warning after 23.3 release
-    warned = False
-    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
     for input_info in app_inputs_info:
         if input_info.mean.size:
-            if not warned:
-                logger.warning(warn_msg)
-                warned = True
             preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
         if input_info.scale.size:
-            if not warned:
-                logger.warning(warn_msg)
-                warned = True
             preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
 
 
@@ -272,7 +263,7 @@ def check_for_static(app_input_info):
 
 def can_measure_as_static(app_input_info):
     for info in app_input_info:
-        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+        if len(info.shapes) > 1:
             return False
     return True
 
@@ -559,7 +550,6 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
-        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = np.empty([0])
@@ -650,7 +640,6 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
-        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map:
             info.partial_shape = PartialShape(shape_map[info.name])
             reshape = True
