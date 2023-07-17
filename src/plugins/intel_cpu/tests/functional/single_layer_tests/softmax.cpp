@@ -21,7 +21,8 @@ struct SoftMaxConfig {
 typedef std::tuple<ElementType,    // netPrecision
                    SoftMaxConfig,  // softmaxTestConfig
                    std::string,    // targetDevice
-                   CPUSpecificParams>
+                   CPUSpecificParams,
+                   std::map<std::string, std::string>> //device_config
     softmaxCPUTestParams;
 
 class SoftMaxLayerCPUTest : public testing::WithParamInterface<softmaxCPUTestParams>,
@@ -33,7 +34,8 @@ public:
         ElementType inType;
         SoftMaxConfig config;
         std::string targetDevice;
-        std::tie(inType, config, targetDevice, cpuParams) = obj.param;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
@@ -47,6 +49,12 @@ public:
         result << "axis=" << config.axis << "_";
         result << "trgDev=" << targetDevice;
         result << CPUTestsBase::getTestCaseName(cpuParams);
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second;
+            }
+        }
 
         return result.str();
     }
@@ -56,7 +64,9 @@ protected:
         ElementType inType;
         SoftMaxConfig config;
         CPUSpecificParams cpuParams;
-        std::tie(inType, config, targetDevice, cpuParams) = this->GetParam();
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
@@ -194,7 +204,9 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),
                                               testing::Values(ov::test::utils::DEVICE_CPU),
-                                              testing::Values(notOptimizedCPUSpec));
+                                              testing::Values(notOptimizedCPUSpec);
+                                              testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                              testing::Values(cpuEmptyPluginConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
                          SoftMaxLayerCPUTest,
@@ -204,7 +216,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
 const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                  testing::ValuesIn(notOptimizedConfigsFP32),
                                                  testing::Values(ov::test::utils::DEVICE_CPU),
-                                                 testing::Values(notOptimizedCPUSpec));
+                                                 testing::Values(notOptimizedCPUSpec);
+                                                 testing::Values(cpuEmptyPluginConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
                          SoftMaxLayerCPUTest,
@@ -214,7 +227,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
 const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                 testing::ValuesIn(unsupportedConfigsFP32),
                                                 testing::Values(ov::test::utils::DEVICE_CPU),
-                                                testing::Values(notOptimizedCPUSpec));
+                                                testing::Values(notOptimizedCPUSpec);
+                                                testing::Values(cpuEmptyPluginConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,

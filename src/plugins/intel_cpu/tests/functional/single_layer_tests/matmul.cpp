@@ -152,6 +152,8 @@ protected:
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
             inType = outType = netType = ElementType::bf16;
+        else if (additionalConfig[ov::hint::inference_precision.name()] == "f16")
+            inType = outType = netType = ElementType::f16;
         else
             inType = outType = netType;
 
@@ -226,9 +228,7 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BrgemmAmx
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
     std::vector<std::map<std::string, std::string>> additionalConfig;
-    if (ov::with_cpu_x86_f16() || ov::with_cpu_x86_avx512_core_amx_f16()) {
-        additionalConfig.push_back({{ "INFERENCE_PRECISION_HINT", "f16" }});
-    }
+    additionalConfig.push_back({{ "INFERENCE_PRECISION_HINT", "f16" }});
     return additionalConfig;
 }
 
@@ -268,10 +268,10 @@ std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
 
 std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
     std::vector<CPUSpecificParams> specificParams;
-    if (with_cpu_x86_avx512_core()) {
+    if (ov::with_cpu_x86_f16()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     }
-    if (with_cpu_x86_avx512_core_amx()) {
+    if (ov::with_cpu_x86_avx512_core_amx_f16()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
     }
     return specificParams;

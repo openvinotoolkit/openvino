@@ -600,7 +600,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_FP16_AMX_NO_FUSING, DeconvolutionL
         ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn({emptyFusingSpec}),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
+        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16({conv_avx512_2D_nspc_brgconv_amx})),
         ::testing::Values(cpuFP16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
