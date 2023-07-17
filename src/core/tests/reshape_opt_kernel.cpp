@@ -5,11 +5,11 @@
 #include <numeric>
 #include <vector>
 
+#include "common_test_utils/ndarray.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
-#include "util/ndarray.hpp"
 
 using namespace ngraph;
 
