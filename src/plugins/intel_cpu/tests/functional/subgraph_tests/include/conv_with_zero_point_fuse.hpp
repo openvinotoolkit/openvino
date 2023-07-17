@@ -17,22 +17,30 @@ using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-using commonConvParams =  std::tuple<
-    InferenceEngine::SizeVector,    // Kernel size
-    InferenceEngine::SizeVector,    // Strides
-    std::vector<ptrdiff_t>,         // Pad begin
-    std::vector<ptrdiff_t>,         // Pad end
-    InferenceEngine::SizeVector,    // Dilation
-    size_t,                         // Num out channels
-    ngraph::op::PadType,            // Padding type
-    size_t                          // Number of groups
->;
-
 using convConcatCPUParams = std::tuple<
     nodeType,                           // Ngraph convolution type
-    commonConvParams,                   // Convolution params
     InferenceEngine::SizeVector         // Input shapes
 >;
+
+// Subgraph:
+/*
+ *           Paramter           Constant
+ *               |                 | i8
+ *               |                 |
+ *         FakeQuantise         Convert
+ *           /      \              | f32
+ *          /        \             |
+ *      MaxPool    FakeQuantize  Mulltiply
+ *         \           \         /
+ *          \           \       /
+ *           \        Convolution
+ *            \        /
+ *             \      /
+ *              Concat
+ *                |
+ *                |
+ *             Result
+ */
 
 class ConvWithZeroPointFuseSubgraphTest : public testing::WithParamInterface<convConcatCPUParams>,
                                           public CPUTestsBase,

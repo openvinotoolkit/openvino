@@ -14,27 +14,11 @@ namespace SubgraphTestsDefinitions {
 std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
     nodeType type;
-    commonConvParams convParams;
     SizeVector inputShapes;
-    std::tie(type, convParams, inputShapes) = obj.param;
+    std::tie(type, inputShapes) = obj.param;
 
     result << "Type=" << nodeType2str(type) << "_";
-
-    SizeVector kernelSize, strides, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t numOutChannels, numOfGroups;
-    ngraph::op::PadType paddingType;
-    std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
-
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernelSize) << "_";
-    result << "S" << CommonTestUtils::vec2str(strides) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
-    result << "O=" << numOutChannels << "_";
-    result << "G=" << numOfGroups << "_";
-    result << "AP=" << paddingType << "_";
 
     return result.str();
 }
@@ -42,17 +26,18 @@ std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestPara
 void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     targetDevice = CommonTestUtils::DEVICE_CPU;
     nodeType type;
-    commonConvParams convParams;
     SizeVector inputShapes;
-
-    std::tie(type, convParams, inputShapes) = this->GetParam();
+    std::tie(type, inputShapes) = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
-    SizeVector kernelSize, strides, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t numOutChannels, numOfGroups;
-    ngraph::op::PadType paddingType;
 
-    std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
+    const ngraph::op::PadType paddingType { ngraph::op::PadType::EXPLICIT };
+    const size_t numOutChannels = 256;
+    const SizeVector dilation { 1, 1 };
+    const SizeVector kernelSize { 1, 1 };
+    const SizeVector strides { 1, 1 };
+    const std::vector<ptrdiff_t> padBegin { 0, 0 };
+    const std::vector<ptrdiff_t> padEnd { 0, 0 };
+
     selectedType = ".*_I8";
 
     auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes});
@@ -84,10 +69,10 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
             ov::element::f32,
             256,
             {1, 1, 1, 1},
-            {-12.8},
-            {12.7},
-            {-12.8},
-            {12.7});
+            {-12.8f},
+            {12.7f},
+            {-12.8f},
+            {12.7f});
 
         const InferenceEngine::SizeVector weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ngraph::shape_size(weights_const_shape), 1);
@@ -154,15 +139,9 @@ TEST_P(ConvWithZeroPointFuseSubgraphTest, CompareWithRefs) {
     CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 
-const ngraph::op::PadType paddingType{ngraph::op::PadType::EXPLICIT};
-const size_t numOutChannels{256};
-const SizeVector inputShapes2D{1, 32, 136, 136};
-const SizeVector dilation2D{1, 1};
-
-commonConvParams convParams = commonConvParams{{1, 1}, {1, 1}, {0, 0}, {0, 0}, dilation2D, numOutChannels, paddingType, 1};
+const SizeVector inputShapes2D = {1, 32, 136, 136};
 
 const auto params2DConv = ::testing::Combine(::testing::ValuesIn({nodeType::convolution, nodeType::groupConvolution}),
-                                             ::testing::Values(convParams),
                                              ::testing::Values(inputShapes2D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvWithZeroPointFuse,

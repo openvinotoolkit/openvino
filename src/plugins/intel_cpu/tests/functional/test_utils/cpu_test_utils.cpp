@@ -423,8 +423,7 @@ void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, con
     CheckNumberOfNodesWithTypes(execNet, {nodeType}, expectedCount);
 }
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams,
-                                                      const bool int8SupportOnly) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;
 
@@ -433,7 +432,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
 
         if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
             continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && (!InferenceEngine::with_cpu_x86_sse42() || int8SupportOnly))
+        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
             continue;
         if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
             continue;
