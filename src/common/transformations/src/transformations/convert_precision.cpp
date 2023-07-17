@@ -871,6 +871,14 @@ inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
     return static_cast<int32_t>(val);
 }
 
+template <>
+inline int64_t convert_value<uint64_t, int64_t>(uint64_t val) {
+    if (val > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+        return std::numeric_limits<int64_t>::max();
+    }
+    return static_cast<int64_t>(val);
+}
+
 namespace {
 template <ov::element::Type_t PREC_FROM, ov::element::Type_t PREC_TO>
 std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
@@ -1110,7 +1118,9 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
     const auto& to = it->second;
     if (auto constant = ov::as_type_ptr<opset4::Constant>(node)) {
         std::shared_ptr<ngraph::Node> new_const;
-        if (from == ov::element::u64 && to == ov::element::i32) {
+        if (from == ov::element::u64 && to == ov::element::i64) {
+            new_const = change_constant_precision<ov::element::Type_t::u64, ov::element::Type_t::i64>(constant);
+        } else if (from == ov::element::u64 && to == ov::element::i32) {
             new_const = change_constant_precision<ov::element::Type_t::u64, ov::element::Type_t::i32>(constant);
         } else if (from == ov::element::i64 && to == ov::element::i32) {
             new_const = change_constant_precision<ov::element::Type_t::i64, ov::element::Type_t::i32>(constant);

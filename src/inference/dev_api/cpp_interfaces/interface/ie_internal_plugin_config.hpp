@@ -110,6 +110,11 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(ENABLE);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CONFIG_VALUE(DISABLE);
 
+/**
+ * @brief Enables inference with INT64 data type in CPU plugin if it's presented in the original model.
+ */
+DECLARE_CONFIG_KEY(CPU_NATIVE_I64);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

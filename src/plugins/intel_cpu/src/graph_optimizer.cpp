@@ -19,7 +19,6 @@
 #include "nodes/mvn.h"
 #include "nodes/transpose.h"
 #include "nodes/interpolate.h"
-#include "nodes/reduce.h"
 #include "nodes/input.h"
 #include "nodes/rnn.h"
 #include "nodes/common/cpu_convert.h"
