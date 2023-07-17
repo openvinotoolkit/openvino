@@ -76,6 +76,11 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };
 
+class MHAWithExtractedReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

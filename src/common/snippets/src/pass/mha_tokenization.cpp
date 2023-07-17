@@ -178,6 +178,15 @@ auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
 };
 }  // namespace
 
+bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
+    if (!matmul || matmul->get_output_target_inputs(0).size() != 1 || matmul->get_transpose_a() ||
+        !is_supported_tensor(matmul->get_input_tensor(0)) || !is_supported_tensor(matmul->get_input_tensor(1)))
+        return false;
+
+    const auto matmul_prc = op::Brgemm::get_output_type(matmul->get_input_element_type(0), matmul->get_input_element_type(1));
+    return matmul_prc != element::undefined;
+}
+
 ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeMHASnippets);
 
@@ -234,16 +243,10 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
          *                   MatMul1
          */
         const auto matmul0 = ov::as_type_ptr<ov::opset1::MatMul>(pattern_to_output.at(m_matmul0).get_node_shared_ptr());
-        if (!matmul0 || matmul0->get_output_target_inputs(0).size() != 1 || matmul0->get_transpose_a() ||
-            !is_supported_tensor(matmul0->get_input_tensor(0)) || !is_supported_tensor(matmul0->get_input_tensor(1)))
+        if (!is_matmul0_supported(matmul0))
             return false;
 
-        const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0),
-                                                             matmul0->get_input_element_type(1));
-        if (matmul0_prc == element::undefined) {
-            return false;
-        }
-
+        const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
         // Between MatMul0 and Softmax will be the one Loop because of LoopFusing optimization.
         // The Loop will have one Buffer with the same shape both on input and output.
         // Need to check for precision to get if we need one more register for Buffer
