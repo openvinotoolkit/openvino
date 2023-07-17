@@ -398,7 +398,6 @@ void InferRequest::enqueue() {
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
-
     for (const auto& inputTensor : inputTensorsMap) {
         const std::string name = inputTensor.first;
         const auto& blobs = inputTensor.second;
@@ -449,19 +448,20 @@ void InferRequest::enqueue() {
         }
     }
 
+    auto networkPtr = m_graph->GetNetwork();
+    networkPtr->reset_execution(true);
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
         prepare_input(inputName, inputBlob, dependencies);
     }
 
-    auto networkPtr = m_graph->GetNetwork();
     networkPtr->assign_variables_memories();
 
     for (auto& item : _outputs) {
         std::string outputName = item.first;
         Blob::Ptr& outputBlob = item.second;
-        prepare_output(outputName, outputBlob);
+        prepare_output(outputName, outputBlob, dependencies);
     }
 
     internal_outputs.clear();
@@ -659,55 +659,6 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
     } else {
         auto dst_ptr = dst->buffer().as<void*>();
         src->copy_to(stream, dst_ptr);
-    }
-}
-
-void InferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
-                                        const cldnn::primitive_id &inputName,
-                                        const cldnn::layout& inputLayout,
-                                        const Blob &inputBlob) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_input_data");
-
-    cldnn::primitive_id internalName = "parameter:" + inputName;
-    auto locked = inputBlob.cbuffer();
-    switch (inputBlob.getTensorDesc().getPrecision()) {
-    case Precision::FP32: {
-        float* blob_ptr = const_cast<float*>(locked.as<const float*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I32: {
-        int32_t* blob_ptr = const_cast<int32_t*>(locked.as<const int32_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I64: {
-        int64_t* blob_ptr = const_cast<int64_t*>(locked.as<const int64_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::FP16: {
-        uint16_t* blob_ptr = const_cast<uint16_t*>(locked.as<const uint16_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I8: {
-        int8_t* blob_ptr = const_cast<int8_t*>(locked.as<const int8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::U8: {
-        uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::BOOL: {
-        uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    default:
-        OPENVINO_THROW("The plugin does not support input ", inputBlob.getTensorDesc().getPrecision(), " precision");
     }
 }
 
@@ -989,7 +940,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     }
                 }
             }
-            _nw_ptr->set_input_data(internalName, inputMem);
+            dependencies.push_back(_nw_ptr->set_input_data(internalName, inputMem));
             break;
         }
         default:
@@ -997,7 +948,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     }
 }
 
-void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob) {
+void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob, std::vector<cldnn::event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_output");
     const auto output_id = outputsMap.at(outputName);
     const auto output_layout = m_graph->GetNetwork()->get_node_output_layout(output_id);
@@ -1027,7 +978,9 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
         OPENVINO_THROW(str_output_not_allocated);
     }
     auto outputMem = impl->get_memory();
-    _nw_ptr->set_output_memory(internalName, outputMem);
+    for (auto o_ev : _nw_ptr->set_output_memory(internalName, outputMem)) {
+        dependencies.push_back(o_ev);
+    }
 }
 
 InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc) {

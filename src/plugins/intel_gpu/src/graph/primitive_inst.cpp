@@ -101,11 +101,33 @@ bool is_user_cpu(const program_node* user) {
         return impl->is_cpu();
     return false;
 }
+bool has_cpu_user_not_shape_of(const program_node* user) {
+    if (user->can_be_optimized()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (has_cpu_user_not_shape_of(u)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    if (auto impl = user->get_selected_impl())
+        return impl->is_cpu() && !user->is_type<shape_of>();
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
+            return true;
+    }
+    return false;
+}
+
+bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (has_cpu_user_not_shape_of(user))
             return true;
     }
     return false;
@@ -174,11 +196,12 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
+event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
+    event::ptr ev = nullptr;
     if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
-        return;
+        return get_network().get_stream().create_user_event(true);
     }
 
     auto ol = _impl_params->get_output_layout(idx);
@@ -187,10 +210,12 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
         check_memory_to_set(*mem_new, ol);
 
     if (is_constant()) {
-        mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
+        ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
     } else {
+        ev = get_network().get_stream().create_user_event(true);
         _outputs[idx] = mem_new;
     }
+    return ev;
 }
 
 void primitive_inst::update_shape() {
@@ -267,6 +292,7 @@ void primitive_inst::update_shape() {
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
+    int64_t max_dyn_proc_count = 0;
     for (auto& i : _node->get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
@@ -285,7 +311,9 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        if (!dep.is_in_shape_of_subgraph())
+        max_dyn_proc_count =
+            std::max(max_dyn_proc_count, (get_network().get_primitive(dep_id)->dynamic_shape_proc_count));
+        if (!get_node().is_in_shape_of_subgraph() && !dep.is_in_shape_of_subgraph())
             has_runtime_deps = true;
     }
 
@@ -293,7 +321,13 @@ void primitive_inst::update_shape() {
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
-            _network.get_stream().finish();
+            if (max_dyn_proc_count > get_network().last_barrier) {
+            //if (1) {
+                _network.get_stream().finish();
+               // get_network().last_barrier = get_network().dynamic_shape_proc_count++;
+            } else {
+               // std::cout << "skipped clfinish" << std::endl;
+            }
         }
     }
 
@@ -662,7 +696,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-
+    // init
     bool need_args_update = false;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
@@ -723,6 +757,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
     update_shape_done_by_other = false; // reset
+    this->dynamic_shape_proc_count = get_network().dynamic_shape_proc_count++;
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
@@ -1146,9 +1181,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
-    auto use_lockable_memory = is_output_buffer|| is_cpu || is_any_user_cpu(_node.get_users()) ||
-                               !_engine.supports_allocation(allocation_type::usm_device) ||
-                               (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+    auto use_lockable_memory =
+        is_output_buffer || is_cpu ||
+        has_any_cpu_user_not_shape_of(_node.get_users()) ||
+        !_engine.supports_allocation(allocation_type::usm_device) ||
+        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type

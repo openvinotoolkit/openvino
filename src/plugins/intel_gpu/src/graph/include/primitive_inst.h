@@ -33,6 +33,7 @@ namespace cldnn {
 
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
+bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users);
 
 class primitive_inst;
 
@@ -157,7 +158,7 @@ public:
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
+    virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
     std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
@@ -266,6 +267,7 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+    int64_t dynamic_shape_proc_count;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
