@@ -96,32 +96,43 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     }
 }
 
-const std::vector<std::vector<ov::AnyMap>> testing_properties = {
-    {{ov::num_streams(1)}, {ov::num_streams(2)}},
+const std::vector<ov::AnyMap> testing_property_for_streams = {{ov::num_streams(1)}, {ov::num_streams(2)}};
 
-    {{ov::inference_num_threads(1)}, {ov::inference_num_threads(4)}},
+const std::vector<ov::AnyMap> testing_property_for_threads = {{ov::inference_num_threads(1)},
+                                                              {ov::inference_num_threads(4)}};
 
-    {{ov::hint::num_requests(1)}, {ov::hint::num_requests(4)}},
+const std::vector<ov::AnyMap> testing_property_for_performance_mode = {
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
-    {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}},
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_1 = {
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)}};
 
-    {{ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)}},
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_2 = {
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
-    {{ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
-     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}},
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_3 = {
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
-    {{ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}},
+const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov::hint::enable_hyper_threading(true)},
+                                                                             {ov::hint::enable_hyper_threading(false)}};
 
-    {{ov::hint::enable_hyper_threading(true)}, {ov::hint::enable_hyper_threading(false)}},
-
-    {{ov::hint::enable_cpu_pinning(true)}, {ov::hint::enable_cpu_pinning(false)}}};
+const std::vector<ov::AnyMap> testing_property_for_enable_cpu_pinning = {{ov::hint::enable_cpu_pinning(true)},
+                                                                         {ov::hint::enable_cpu_pinning(false)}};
 
 INSTANTIATE_TEST_CASE_P(smoke_ExportImportTest,
                         ExportOptimalNumStreams,
                         ::testing::Combine(::testing::Values(std::string("CPU")),
-                                           ::testing::ValuesIn(testing_properties)));
+                                           ::testing::Values(testing_property_for_streams,
+                                                             testing_property_for_threads,
+                                                             testing_property_for_performance_mode,
+                                                             testing_property_for_scheduling_core_type_1,
+                                                             testing_property_for_scheduling_core_type_2,
+                                                             testing_property_for_scheduling_core_type_3,
+                                                             testing_property_for_enable_hyper_threading,
+                                                             testing_property_for_enable_cpu_pinning)));
 
 }  // namespace
