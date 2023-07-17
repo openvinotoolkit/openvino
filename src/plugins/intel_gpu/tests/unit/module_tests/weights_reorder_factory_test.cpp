@@ -96,6 +96,7 @@ TEST(weights_factory, reorder_test) {
     args.outputs.push_back(weights_data_output);
 
     auto reorder_inst = std::make_shared<cldnn::reorder_inst>(network);
+
     reorder_inst->set_impl(reorder_impl->clone());
 
     reorder_inst->get_impl()->set_arguments(*reorder_inst, args);
