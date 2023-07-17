@@ -9,9 +9,6 @@
 #include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include "utils/shape_inference/shape_inference_cpu.hpp"
 #include "utils/custom_shape_inference/reshape.hpp"
 
 #include "common/cpu_memcpy.h"

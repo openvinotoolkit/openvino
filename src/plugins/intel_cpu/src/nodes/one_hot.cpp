@@ -11,8 +11,6 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
 #include "utils/custom_shape_inference/one_hot.hpp"
 

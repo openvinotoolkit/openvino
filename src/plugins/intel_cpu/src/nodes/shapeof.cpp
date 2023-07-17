@@ -4,7 +4,6 @@
 
 #include "shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/custom_shape_inference/shapeof.hpp"
 
 using namespace InferenceEngine;

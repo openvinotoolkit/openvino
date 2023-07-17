@@ -11,7 +11,6 @@
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
 #include "kernels/x64/gather_uni_kernel.hpp"
-#include "utils/shape_inference/shape_inference_cpu.hpp"
 #include <partitioned_mem_mgr.h>
 #include "utils/custom_shape_inference/gather.hpp"
 
