@@ -71,7 +71,7 @@ TEST(StaticShapeInferenceTest, TileStaticShapeRepeatsAsConst) {
     auto dims = std::vector<VectorDims>{{6, 8, 10}, {2}};
     auto in_shapes = std::vector<StaticShapeRef>(dims.begin(), dims.end());
 
-    const auto op_infer = make_shape_inference<IStaticShapeInfer>(tile);
+    const auto op_infer = make_shape_inference(tile);
     const auto outputs = op_infer->infer(in_shapes, ov::make_tensor_accessor());
 
     ASSERT_TRUE(outputs);
@@ -92,7 +92,7 @@ TEST(StaticShapeInferenceTest, TileNewApiInputsStaticRank) {
     auto dims = std::vector<VectorDims>{{8, 10}, {4}};
     auto in_shapes = std::vector<StaticShapeRef>(dims.begin(), dims.end());
 
-    const auto op_infer = make_shape_inference<IStaticShapeInfer>(tile);
+    const auto op_infer = make_shape_inference(tile);
     const auto outputs = op_infer->infer(in_shapes, ov::make_tensor_accessor(constant_data));
 
     ASSERT_TRUE(outputs);

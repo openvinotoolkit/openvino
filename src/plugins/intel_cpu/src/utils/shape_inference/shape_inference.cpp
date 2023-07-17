@@ -126,37 +126,6 @@ public:
         }
     }
 
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
-        // For backward compatibility, create ov tensors and run shape inference.
-        return infer(input_shapes, make_tensor_accessor(constant_data));
-    }
-
-    IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
-                                    const ov::ITensorAccessor& tensor_accessor) override {
-        // Temporary support of StaticShape.
-        auto in_shapes = std::vector<StaticShapeRef>();
-        in_shapes.reserve(input_shapes.size());
-        for (auto& s : input_shapes) {
-            in_shapes.emplace_back(reinterpret_cast<const VectorDims&>(s));
-        }
-
-        auto out_shapes = infer(in_shapes, tensor_accessor);
-        Result result{{}, out_shapes ? ShapeInferStatus::success : ShapeInferStatus::skip};
-
-        if (out_shapes) {
-            result.shapes.reserve(out_shapes->size());
-            std::transform(out_shapes->begin(),
-                           out_shapes->end(),
-                           std::back_inserter(result.shapes),
-                           [](StaticShape& s) {
-                               return std::move(reinterpret_cast<StaticShape&&>(*s));
-                           });
-        }
-
-        return result;
-    }
-
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor&) override {
         NODE_VALIDATION_CHECK(m_node.get(), input_shapes.size() > 0, "Incorrect number of input shapes");
@@ -573,13 +542,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
 #undef _OV_OP_SHAPE_INFER_MASK_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
 
-template <>
-std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<ov::Node> op) {
-    return make_shape_inference<IStaticShapeInfer>(op);
-}
-
-template <>
-std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op) {
+std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
