@@ -190,6 +190,19 @@ public:
         return testConfigs;
     }
 
+    static std::vector<ConfigParams> UnSupTestConfigs() {
+        testConfigs.clear();
+        testConfigs.push_back(ConfigParams{
+            "MULTI",
+            {"CPU", "GPU"},
+            {ov::device::priorities("CPU,GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}});
+        testConfigs.push_back(ConfigParams{
+            "MULTI",
+            {"CPU", "GPU"},
+            {ov::device::priorities("CPU,GPU"), ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}});
+        return testConfigs;
+    }
+
     void SetUp() override {
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
@@ -207,6 +220,7 @@ public:
 using NumStreamsAndDefaultPerfHintMockTest = AutoDefaultPerfHintTest;
 using PerHintAndDefaultPerfHintMockTest = AutoDefaultPerfHintTest;
 using SecPropAndDefaultPerfHintMockTest = AutoDefaultPerfHintTest;
+using UnsupportPerfHintTest = AutoDefaultPerfHintTest;
 
 TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
     std::string device;
@@ -369,3 +383,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiMock_SecPropAndDefaultPerfHintToHWTest,
                          SecPropAndDefaultPerfHintMockTest,
                          ::testing::ValuesIn(SecPropAndDefaultPerfHintMockTest::CreateSecPropAndDefaultPerfHintTestConfigs()),
                          SecPropAndDefaultPerfHintMockTest::getTestCaseName);
+
+TEST_P(UnsupportPerfHintTest, ExpectCompileModelThrow) {
+    std::string device;
+    std::vector<std::string> targetDevices;
+    ov::AnyMap config;
+    std::tie(device, targetDevices, config) = this->GetParam();
+    plugin->set_device_name("MULTI");
+    EXPECT_THROW_WITH_MESSAGE(plugin->compile_model(model, config), ov::Exception,
+                                "MULTI does not support");
+}
+
+TEST_P(UnsupportPerfHintTest, ExpectSetPropThrow) {
+    std::string device;
+    std::vector<std::string> targetDevices;
+    ov::AnyMap config;
+    std::tie(device, targetDevices, config) = this->GetParam();
+    plugin->set_device_name("MULTI");
+    EXPECT_THROW_WITH_MESSAGE(plugin->set_property(config), ov::Exception,
+                                "MULTI does not support");
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_CompileModelTest,
+                         UnsupportPerfHintTest,
+                         ::testing::ValuesIn(UnsupportPerfHintTest::UnSupTestConfigs()),
+                         UnsupportPerfHintTest::getTestCaseName);

@@ -30,6 +30,15 @@ using ::testing::HasSubstr;
 using ::testing::NiceMock;
 
 using namespace ov::mock_auto_plugin;
+
+#define EXPECT_THROW_WITH_MESSAGE(stmt, etype, whatstring) EXPECT_THROW( \
+        try { \
+            stmt; \
+        } catch (const etype& ex) { \
+            EXPECT_THAT(std::string(ex.what()), HasSubstr(whatstring)); \
+            throw; \
+        } \
+    , etype)
 namespace ov {
 namespace mock_auto_plugin {
 namespace tests {

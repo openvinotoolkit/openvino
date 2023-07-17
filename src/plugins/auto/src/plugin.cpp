@@ -71,6 +71,11 @@ namespace {
         }
         return result;
     }
+    void check_multi_perfhint(const ov::AnyMap& properties) {
+        auto&& it = properties.find(ov::hint::performance_mode.name());
+        if (it != properties.end() && it->second.as<std::string>() != "THROUGHPUT")
+            OPENVINO_THROW("MULTI does not support perf mode ", it->second.as<std::string>(), ", please use default, or compile with thoughput hint");
+    }
 }  // namespace
 
 namespace ov {
@@ -161,6 +166,9 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto get_device_config = [&] (const DeviceName & device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
+        if (get_device_name() == "MULTI") {
+            check_multi_perfhint(device_config);
+        }
         return device_config;
     };
 
@@ -337,6 +345,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
+    // one exception for muli, a.k.a, auto ctput, latency is not supported
+    if (get_device_name() == "MULTI") {
+        check_multi_perfhint(properties);
+    }
     m_plugin_config.set_property(pre_process_config(properties));
 }
 
@@ -388,9 +400,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.set_user_property(pre_process_config(properties));
     load_config.apply_user_properties();
     if (!work_mode_auto) {
-        if (iter_config != properties.end() && iter_config->second != ov::hint::PerformanceMode::THROUGHPUT) {
-            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
-        }
+        check_multi_perfhint(properties);
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
     auto full_property = load_config.get_full_properties();
@@ -422,7 +432,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model_priority = map_priority_value(load_config.get_property(ov::hint::model_priority));
     auto_s_context->m_batching_disabled = load_config.is_batching_disabled();
     // set performanceHint for AutoCompiledModel
-    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode.name());
+    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode);
     // filter the device that supports filter configure
     meta_devices = parse_meta_devices(str_devices, full_property);
     auto support_devices_by_property = filter_device(meta_devices, filter_property);
