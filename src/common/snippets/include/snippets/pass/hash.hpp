@@ -7,8 +7,7 @@
 #include <string>
 
 #include "openvino/core/model.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "transformations_visibility.hpp"
+#include <openvino/pass/pass.hpp>
 
 namespace ov {
 namespace snippets {
