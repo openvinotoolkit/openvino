@@ -56,7 +56,7 @@ Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
             auto array = elem.As<Napi::Array>();
             size_t i = 0;
 
-            //TO_DO
+            // TO_DO
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsObject()) {
                 throw std::invalid_argument(std::string("Passed array must contain objects."));
@@ -88,10 +88,8 @@ Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
                 ov::Tensor t = tensorWrap->get_tensor();
 
                 _infer_request.set_tensor(tensor_name, t);
-
             }
             _infer_request.infer();
-
         }
     } else {
         reportError(info.Env(), "Inference error.");
@@ -114,18 +112,11 @@ Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) 
 
 Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
     auto compiled_model = _infer_request.get_compiled_model().outputs();
-    Napi::HandleScope scope(info.Env());
     auto outputs_obj = Napi::Object::New(info.Env());
 
-    for (auto &node: compiled_model){
+    for (auto& node : compiled_model) {
         auto tensor = _infer_request.get_tensor(node);
-        auto wrapped_tensor = TensorWrap::Wrap(info.Env(), tensor);
-
-        Napi::ObjectReference* constructor = new Napi::ObjectReference();
-        *constructor = Napi::Persistent(wrapped_tensor);
-        info.Env().SetInstanceData(constructor);
-
-        outputs_obj.Set(node.get_any_name(), wrapped_tensor);
+        outputs_obj.Set(node.get_any_name(), TensorWrap::Wrap(info.Env(), tensor));
     }
 
     return outputs_obj;
