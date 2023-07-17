@@ -141,7 +141,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -S /root/repos/openvino \
             -B /root/w/build &&
-          cmake --build /root/w/build --parallel --config Release --verbose -- CudaFuncTests CudaUnitTests"
+          cmake --build /root/w/build --parallel --config Release --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests"
     displayName: 'Docker build Lin'
 
   - script: ls -alR $(OPENVINO_REPO_DIR)/bin/
