@@ -3542,6 +3542,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_optional_constant) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant_negative_begin_end) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/pad_negative_begin_end.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_input<int64_t>({-1, -1, -1, -1});
+    test_case.add_expected_output<int32_t>(Shape{1, 2}, {6, 7});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
