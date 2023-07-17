@@ -45,7 +45,7 @@ using RefFunction = std::function<std::shared_ptr<
     ngraph::Function>(const InputShape&, const MulConstant&, const AddConstant&, const IsDequantization&)>;
 
 class MulAddConversionTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<
           std::tuple<std::tuple<InputShape, MulConstant, AddConstant, IsDequantization>, RefFunction>> {
 public:

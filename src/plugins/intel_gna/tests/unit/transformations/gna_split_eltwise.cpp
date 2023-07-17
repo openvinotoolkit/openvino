@@ -130,7 +130,7 @@ static std::string getTestCaseName(testing::TestParamInfo<EltwiseSplitParams> ob
     return result.str();
 }
 
-class SplitEltwiseTestSuiteFixture : public CommonTestUtils::TestsCommon,
+class SplitEltwiseTestSuiteFixture : public ov::test::TestsCommon,
                                      public ::testing::WithParamInterface<EltwiseSplitParams> {
 public:
     void SetUp() override;

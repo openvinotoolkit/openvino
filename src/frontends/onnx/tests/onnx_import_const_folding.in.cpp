@@ -4,7 +4,10 @@
 
 #include <memory>
 
+#include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -12,9 +15,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/all_close.hpp"
-#include "util/test_control.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
