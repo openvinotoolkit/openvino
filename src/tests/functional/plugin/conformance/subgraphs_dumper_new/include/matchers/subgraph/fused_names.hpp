@@ -17,7 +17,7 @@ public:
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
                                         bool is_extract_body = true) override;
 
-private:
+protected:
     std::unordered_set<std::string> extract_compiled_model_names(const std::shared_ptr<ov::Model>& model);
 };
 

@@ -5,9 +5,10 @@
 #include "gtest/gtest.h"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/model.hpp"
-#include "test_models.hpp"
-
 #include "matchers/subgraph/subgraph.hpp"
+#include "test_models/model_0.hpp"
+#include "test_models/model_1.hpp"
+#include "test_models/model_2.hpp"
 
 namespace {
 
@@ -29,12 +30,15 @@ get_functional_ops(const std::shared_ptr<ov::Model>& model) {
     return { start_node, nodes };
 }
 
-TEST(ModelUtilsTest, generate_model_abs_relu_add) {
-    std::shared_ptr<ov::Model> test_model = generate_abs_relu_add(), recovered_model;
+TEST(ModelUtilsTest, generate_0) {
+    Model_0 test;
+    std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        // todo: ordered ops works different after recompilation
+        // auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        auto model_with_in_info = generate_model(func_ops.second, test.get_start_node(), checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
             if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
@@ -48,12 +52,15 @@ TEST(ModelUtilsTest, generate_model_abs_relu_add) {
     }
 }
 
-TEST(ModelUtilsTest, generate_model_abs_relu_abs_clamp_add) {
-    std::shared_ptr<ov::Model> test_model = generate_abs_relu_abs_clamp_add(), recovered_model;
+TEST(ModelUtilsTest, generate_1) {
+    Model_1 test;
+    std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        // todo: ordered ops works different after recompilation
+        // auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        auto model_with_in_info = generate_model(func_ops.second, test.get_start_node(), checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
             if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
@@ -67,12 +74,15 @@ TEST(ModelUtilsTest, generate_model_abs_relu_abs_clamp_add) {
     }
 }
 
-TEST(ModelUtilsTest, generate_model_abs_clamp_relu_abs_add) {
-    std::shared_ptr<ov::Model> test_model = generate_abs_clamp_relu_abs_add(), recovered_model;
+TEST(ModelUtilsTest, generate_2) {
+    Model_2 test;
+    std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        // todo: ordered ops works different after recompilation
+        // auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
+        auto model_with_in_info = generate_model(func_ops.second, test.get_start_node(), checked_ops);
         recovered_model = model_with_in_info.first;
         for (const auto& op : recovered_model->get_ordered_ops()) {
             if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
