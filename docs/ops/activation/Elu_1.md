@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Elu-1 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Elu-1*
 
 **Category**: *Activation function*
@@ -48,7 +52,8 @@ where α corresponds to *alpha* attribute.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Elu">
        <data alpha="1.0"/>

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about IsInf - an element-wise, comparison operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *IsInf-10*
 
 **Category**: *Comparison*
@@ -46,7 +50,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="IsInf" ...>
        <data detect_negative="true" detect_positive="true"/>

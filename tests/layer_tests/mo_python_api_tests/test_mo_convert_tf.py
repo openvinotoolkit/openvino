@@ -375,7 +375,7 @@ def create_tf_stateful_partioned_call_net(temp_dir):
 
     param1 = ov.opset8.parameter(data_shape, dtype=np.float32)
     param2 = ov.opset8.parameter(filters_shape, dtype=np.float32)
-    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1]))
+    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1], dtype=np.int64))
     conv = ov.opset11.convolution(param1, transpose2, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
 
     parameter_list = [param1, param2]
@@ -587,6 +587,29 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     return model, model_ref, {'example_input': example_input}
 
 
+def create_keras_layer_with_string_tensor(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var = tf.Variable("Text_1", dtype=tf.string)
+            self.const = tf.constant("Text_2", dtype=tf.string)
+
+        @tf.function(input_signature=[tf.TensorSpec([1], tf.float32), tf.TensorSpec([1], tf.float32)])
+        def __call__(self, input1, input2):
+            return input1 + input2, self.var, self.const
+
+    model = LayerModel()
+
+    param1 = ov.opset8.parameter([1], dtype=np.float32)
+    param2 = ov.opset8.parameter([1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    parameter_list = [param1, param2]
+    model_ref = Model([add], parameter_list, "test")
+
+    return model, model_ref, {}
+
+
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -608,6 +631,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
+        create_keras_layer_with_string_tensor,
 
         # TF1
         create_tf_graph,
@@ -666,7 +690,7 @@ class TFConvertTest(unittest.TestCase):
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
 
         @tf.function()
         def function(x1, x2):

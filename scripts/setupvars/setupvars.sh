@@ -79,10 +79,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     fi
 fi
 
-if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
-    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-fi
-
 # OpenCV environment
 if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
     # shellcheck source=/dev/null

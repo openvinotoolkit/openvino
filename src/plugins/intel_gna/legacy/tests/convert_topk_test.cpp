@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, ConvertTopKToTopKIEStatic) {
             std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
         manager.register_pass<ngraph::pass::ConvertTopKToTopKIEMatcher>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();

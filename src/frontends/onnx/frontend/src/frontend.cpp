@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <input_model.hpp>
@@ -18,9 +26,9 @@
 
 #include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
-#include "so_extension.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -37,7 +45,9 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     };
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }
@@ -46,29 +56,32 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants.empty()) {
         return nullptr;
     }
+    // enable mmap by default
+    const bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
+
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, m_extensions);
+        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, m_extensions);
+        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
             const auto path = variants[1].as<std::string>();
-            return std::make_shared<InputModel>(*stream, path, m_extensions);
+            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && variants[1].is<std::wstring>()) {
             const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, m_extensions);
+            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
         }
 #endif
-        return std::make_shared<InputModel>(*stream, m_extensions);
+        return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     return nullptr;
 }

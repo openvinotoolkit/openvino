@@ -24,19 +24,6 @@ def test_reverse_sequence():
     assert model.get_output_element_type(0) == Type.i32
 
 
-def test_pad_edge():
-    pads_begin = np.array([0, 1], dtype=np.int32)
-    pads_end = np.array([2, 3], dtype=np.int32)
-
-    input_param = ov.parameter((3, 4), name="input", dtype=np.int32)
-    model = ov.pad(input_param, pads_begin, pads_end, "edge")
-
-    assert model.get_type_name() == "Pad"
-    assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == [5, 8]
-    assert model.get_output_element_type(0) == Type.i32
-
-
 def test_select():
     cond = np.array([[False, False], [True, False], [True, True]])
     then_node = np.array([[-1, 0], [1, 2], [3, 4]], dtype=np.int32)

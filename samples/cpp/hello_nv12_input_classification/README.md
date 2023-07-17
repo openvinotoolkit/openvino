@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models with images in NV12 color format using  
+                 Synchronous Inference Request (C++) API.
+
+
 This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API.
 
 The following C++ API is used in the application:
@@ -62,7 +68,7 @@ To run the sample, you need to specify a model and image:
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an uncompressed NV12 image using FFmpeg:
 
-.. code-block:: bash
+.. code-block:: sh
    
    ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 

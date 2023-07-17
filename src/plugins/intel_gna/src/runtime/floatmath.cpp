@@ -9,10 +9,6 @@
 #include <cstdint>
 #include <cstdio>
 
-#ifdef __cplusplus
-extern "C" {  // API uses C linkage so that it can be used by C and C++ applications
-#endif
-
 #ifdef _NO_MKL_
 void cblas_sgemm1(const CBLAS_LAYOUT Layout,
                   const CBLAS_TRANSPOSE TransA,
@@ -195,7 +191,3 @@ void sgemv_split(const uint32_t N,
         C[i] = sum;
     }
 }
-
-#ifdef __cplusplus
-}  // end extern "C"
-#endif

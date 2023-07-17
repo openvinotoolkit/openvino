@@ -8,13 +8,13 @@
 #include "ie_extension.h"
 #include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/runtime/core.hpp"
-#include "so_extension.hpp"
 
 using namespace ov::frontend;
 
@@ -177,6 +177,9 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
     EXPECT_NO_THROW(fe->convert(input_model));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+// Old API test
+
 namespace {
 class OldApiNode : public InferenceEngine::IExtension {
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
@@ -206,3 +209,5 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_mixed_legacy_and_new
     core.add_extension(new_api_ext);
     EXPECT_NO_THROW(core.read_model(input_model_path));
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END

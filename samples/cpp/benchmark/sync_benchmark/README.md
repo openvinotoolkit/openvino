@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to estimate performance of a model using Synchronous Inference Request (C++) API.
+
 This sample demonstrates how to estimate performance of a model using Synchronous Inference Request API. It makes sense to use synchronous inference only in latency oriented scenarios. Models with static input shapes are supported. Unlike :doc:`demos <omz_demos>` this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 The following C++ API is used in the application:
