@@ -4,10 +4,12 @@
 
 #include "openvino/core/dimension_tracker.hpp"
 
-void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
-    const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
-    bool l_known = dimension_table_of_equivalence.count(l_label),
-         r_known = dimension_table_of_equivalence.count(r_label);
+using namespace ov;
+
+void TableOfEquivalence::set_as_equal(const Dimension& lhs, const Dimension& rhs) {
+    const auto &l_label = DimensionTracker::get_label(lhs), r_label = DimensionTracker::get_label(rhs);
+    bool l_known = dimension_table_of_equivalence.count(l_label) && dimension_table_of_equivalence[l_label],
+         r_known = dimension_table_of_equivalence.count(r_label) && dimension_table_of_equivalence[r_label];
     if (l_known && r_known) {
         auto soup_l = dimension_table_of_equivalence[l_label];
         soup_l->insert(r_label);
@@ -16,7 +18,7 @@ void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Di
         soup_l->insert(soup_r->begin(), soup_r->end());
         soup_r->insert(soup_l->begin(), soup_l->end());
     } else {
-        auto soup = std::make_shared<std::set<ov::label_t>>();
+        auto soup = std::make_shared<std::set<label_t>>();
         if (l_known)
             soup = dimension_table_of_equivalence[l_label];
         else if (r_known)
@@ -28,32 +30,60 @@ void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Di
     }
 }
 
-const ov::ValTable& ov::TableOfEquivalence::get_value_equivalence_table() const {
+const ValTable& TableOfEquivalence::get_value_equivalence_table() const {
     return value_table_of_equivalence;
 }
 
-ov::label_t ov::TableOfEquivalence::get_next_label() {
+const EqTable& TableOfEquivalence::get_equivalence_table() const {
+    return dimension_table_of_equivalence;
+}
+
+label_t TableOfEquivalence::get_next_label() {
     return current_label++;
 }
 
-bool ov::TableOfEquivalence::are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
-    const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
+bool TableOfEquivalence::are_equal(const Dimension& lhs, const Dimension& rhs) {
+    const auto &l_label = DimensionTracker::get_label(lhs), r_label = DimensionTracker::get_label(rhs);
     if (l_label == r_label)
         return true;
-    if (dimension_table_of_equivalence.count(l_label))
+    if (dimension_table_of_equivalence.count(l_label) && dimension_table_of_equivalence[l_label])
         return dimension_table_of_equivalence[l_label]->count(r_label);
     return false;
 }
 
-bool ov::DimensionTracker::has_label(const ov::Dimension& d) {
+void DimensionTracker::set_label(Dimension& d, label_t label) {
+    OPENVINO_ASSERT(label != no_label, "Can not set zero as label for dimension -- it is reserved for no label");
+    d.m_label = label;
+}
+
+bool DimensionTracker::has_label(const Dimension& d) {
     return d.m_label != no_label;
 }
 
-void ov::DimensionTracker::reset_tracking_info(ov::Dimension& d) {
+label_t DimensionTracker::get_label(const Dimension& d) {
+    return d.m_label;
+}
+
+const std::shared_ptr<TableOfEquivalence>& DimensionTracker::get_table_of_equivalence(const Dimension& d) {
+    return d.m_table_of_equivalence;
+}
+
+void DimensionTracker::set_table_of_equivalence(Dimension& d) const {
+    OPENVINO_ASSERT(d.m_table_of_equivalence == nullptr, "Dimension is already being tracked");
+    OPENVINO_ASSERT(m_table_of_equivalence != nullptr, "Can not set nullptr as table of equivalence shared pointer");
+    d.m_table_of_equivalence = m_table_of_equivalence;
+}
+
+void DimensionTracker::reset_tracking_info(Dimension& d) {
     d.m_label = no_label;
     d.m_table_of_equivalence = nullptr;
 }
 
-void ov::DimensionTracker::set_up_for_tracking(ov::Dimension& d) {
+void DimensionTracker::set_up_for_tracking(Dimension& d) {
     set_up_for_tracking(d, m_table_of_equivalence->get_next_label());
+}
+
+void DimensionTracker::set_up_for_tracking(Dimension& d, label_t label) const {
+    set_label(d, label);
+    set_table_of_equivalence(d);
 }

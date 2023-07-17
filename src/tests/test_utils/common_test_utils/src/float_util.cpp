@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "float_util.hpp"
+#include "common_test_utils/float_util.hpp"
 
 std::string ngraph::test::bfloat16_to_bits(bfloat16 f) {
     std::stringstream ss;

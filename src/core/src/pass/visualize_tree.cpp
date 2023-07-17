@@ -140,15 +140,10 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     std::stringstream ss;
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
-        size_t output = 0;
-        stringstream label_edge;
-        label_edge << "[label=\" " << dst->input_value(arg_index).get_index() << " -> " << arg_index << " \"]";
-        ss << label_edge.str();
+        ss << "[label=\" " << dst->input_value(arg_index).get_index() << " -> " << arg_index << " \"]";
     } else if (getenv_bool("OV_VISUALIZE_TREE_EDGE_JUMP_DISTANCE")) {
         if (jump_distance > 1) {
-            stringstream label_edge;
-            label_edge << "[label=\"jump=" << jump_distance << "\"]";
-            ss << label_edge.str();
+            ss << "[label=\"jump=" << jump_distance << "\"]";
         }
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -377,9 +372,9 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements, bo
     return ss.str();
 }
 
-std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
-                      size_t max_elements,
-                      bool allow_obfuscate = false) {
+static std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
+                             size_t max_elements,
+                             bool allow_obfuscate = false) {
     std::stringstream ss;
     switch (constant->get_output_element_type(0)) {
     case element::Type_t::undefined:
@@ -418,6 +413,32 @@ std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
         break;
     }
     return ss.str();
+}
+
+static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) {
+    const auto& tensor = output.get_tensor();
+    const auto& lower = tensor.get_lower_value();
+    const auto& upper = tensor.get_upper_value();
+    const auto& value_label = tensor.get_value_label();
+
+    if (!lower && !upper && value_label.empty())
+        return "";
+
+    std::stringstream label;
+    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_label.size();
+    if (size == 0) {
+        label << "empty";
+    } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        label << " lower: "
+              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
+        label << " upper: "
+              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
+        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+    }
+    return label.str();
 }
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
@@ -483,35 +504,8 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                 if (nvtrti) {
                     label << get_attribute_values(output.get_rt_info());
                 }
-                if (ovpvl) {
-                    const auto& tensor = output.get_tensor();
-                    const auto& lower = tensor.get_lower_value();
-                    const auto& upper = tensor.get_upper_value();
-                    const auto& value_label = tensor.get_value_label();
-
-                    if (!lower && !upper && value_label.empty())
-                        continue;
-                    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_label.size();
-                    if (size == 0) {
-                        label << "empty";
-                    } else {
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
-                        OPENVINO_SUPPRESS_DEPRECATED_END
-                        label << " lower: "
-                              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower),
-                                                    const_max_elements,
-                                                    true)
-                                        : "NONE");
-                        label << " upper: "
-                              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper),
-                                                    const_max_elements,
-                                                    true)
-                                        : "NONE");
-                        label << " label: "
-                              << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
-                    }
-                }
+                if (ovpvl)
+                    label << get_bounds_and_label_info(output);
             }
         }
 
@@ -605,7 +599,7 @@ void pass::VisualizeTree::render() const {
     }
     ofstream out(dot_file);
     if (out) {
-        out << "digraph ov_graph\n{\n";
+        out << "digraph \n{\n";
         out << m_ss.str();
         out << "}\n";
         out.close();
