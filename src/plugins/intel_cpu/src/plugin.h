@@ -49,9 +49,8 @@ private:
 
     void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
-    Config ReadConfigAndGetPerformanceStreams(const std::map<std::string, std::string>& config,
-                                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                                              bool imported = false);
+    Config MergeConfig(const std::map<std::string, std::string>& config);
+    void CaculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& ngraphFunc, bool imported = false);
 
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
