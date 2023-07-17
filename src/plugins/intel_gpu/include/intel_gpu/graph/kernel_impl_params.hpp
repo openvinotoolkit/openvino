@@ -60,8 +60,6 @@ struct kernel_impl_params {
     std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
-    mutable tensor input1{};
-    mutable tensor input2{};
 
     kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
 
@@ -134,17 +132,6 @@ struct kernel_impl_params {
     bool is_type() const {
         return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
     }
-
-    void set_input1_tensors(tensor& tensor) const {
-        input1 = tensor;
-    }
-
-    void set_input2_tensors(tensor& tensor) const {
-        input2 = tensor;
-    }
-
-    tensor get_input1_tensors() const { return input1; }
-    tensor get_input2_tensors() const { return input2; }
 
 virtual primitive_type_id type() const { return desc->type; }
 
