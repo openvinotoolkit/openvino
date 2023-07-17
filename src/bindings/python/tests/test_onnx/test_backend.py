@@ -349,7 +349,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_82038,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_duplicate_indices_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_add_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_multiply_cpu",
     ),
@@ -551,8 +550,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99970,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_max_cpu",
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_min_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),

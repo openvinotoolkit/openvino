@@ -6,8 +6,8 @@
 #include <utility>
 #include <vector>
 
-#include "dev/make_tensor.hpp"
 #include "ie_blob.h"
+#include "openvino/runtime/make_tensor.hpp"
 #include "system_allocator.hpp"
 
 namespace InferenceEngine {

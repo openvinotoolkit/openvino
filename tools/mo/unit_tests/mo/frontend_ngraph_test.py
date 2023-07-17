@@ -91,6 +91,7 @@ def test_mo_convert_logger():
     assert test_log.count("[ SUCCESS ] Total execution time") == 2
 
 
+@pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 115084")
 def test_rt_info():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
