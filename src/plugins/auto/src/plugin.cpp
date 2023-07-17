@@ -532,11 +532,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
                                 std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
-    ov::SoPtr<ov::IRemoteContext> remote_context;
+    ov::SoPtr<ov::IRemoteContext> device_context;
     try {
         OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
-        remote_context = auto_s_context->m_hw_compiled_model->get_context();
-    } catch (ov::Exception&) {
+        device_context = auto_s_context->m_hw_compiled_model->get_context();
+        if (!device_context._so)
+            device_context._so = auto_s_context->m_hw_compiled_model._so;
+    } catch (ov::NotImplemented&) {
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     OPENVINO_SUPPRESS_DEPRECATED_START
     } catch (InferenceEngine::Exception&) {
@@ -544,9 +546,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), remote_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
     } else {
-        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), remote_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
     }
     return impl;
 }
