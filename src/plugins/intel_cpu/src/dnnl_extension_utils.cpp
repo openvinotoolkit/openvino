@@ -4,45 +4,43 @@
 
 #include "dnnl_extension_utils.h"
 
-#include "utils/general_utils.h"
 #include <oneapi/dnnl/dnnl.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/iml_type_mapper.h"
-#include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
-
-#include <vector>
 
 using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 
-uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
+uint8_t DnnlExtensionUtils::sizeOfDataType(memory::data_type dataType) {
     switch (dataType) {
-    case dnnl::memory::data_type::f32:
+    case memory::data_type::f64:
+    case memory::data_type::s64:
+        return 8;
+    case memory::data_type::f32:
+    case memory::data_type::s32:
         return 4;
-    case dnnl::memory::data_type::s32:
-        return 4;
-    case dnnl::memory::data_type::bf16:
+    case memory::data_type::bf16:
+    case memory::data_type::f16:
         return 2;
-    case dnnl::memory::data_type::s8:
+    case memory::data_type::s8:
+    case memory::data_type::u8:
+    case memory::data_type::bin:
         return 1;
-    case dnnl::memory::data_type::u8:
-        return 1;
-    case dnnl::memory::data_type::bin:
-        return 1;
-    case dnnl::memory::data_type::f16:
-        return 2;
-    case dnnl::memory::data_type::undef:
+    case memory::data_type::undef:
         return 0;
     default:
-        IE_THROW() << "Unsupported data type.";
+        IE_THROW() << "Unsupported data type: " << DataTypeToIEPrecision(dataType);
     }
 }
 
 memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
+        case InferenceEngine::Precision::FP64:
+            return memory::data_type::f64;
+        case InferenceEngine::Precision::I64:
+            return memory::data_type::s64;
         case InferenceEngine::Precision::FP32:
             return memory::data_type::f32;
         case InferenceEngine::Precision::I32:
@@ -68,6 +66,10 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
 
 InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
+        case memory::data_type::f64:
+            return InferenceEngine::Precision::FP64;
+        case memory::data_type::s64:
+            return InferenceEngine::Precision::I64;
         case memory::data_type::f32:
             return InferenceEngine::Precision::FP32;
         case memory::data_type::s32:
@@ -90,11 +92,11 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
     }
 }
 
-Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
+Dim DnnlExtensionUtils::convertToDim(const memory::dim &dim) {
     return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
-dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
-    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<dnnl::memory::dim>(dim);
+memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
+    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<memory::dim>(dim);
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
@@ -133,19 +135,19 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const memory::desc &desc) {
     return makeDescriptor(desc.get());
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc) {
-    if (desc->format_kind == dnnl::impl::format_kind_t::dnnl_blocked) {
+    if (desc->format_kind == impl::format_kind_t::dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
         return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
     }
 }
 
-size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
+size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const memory::desc& desc) {
     auto tmpDesc = desc;
 
     const auto offset0 = tmpDesc.get()->offset0;
@@ -167,8 +169,8 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
-    auto query = dnnl::convert_to_c(what);
+DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const query& what, int idx) {
+    auto query = convert_to_c(what);
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
     if (!cdesc)
