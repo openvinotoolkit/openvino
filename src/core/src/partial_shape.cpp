@@ -164,7 +164,7 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
                 str << ",";
             }
             if (const auto& l = ov::DimensionTracker::get_label(d))
-                str << "l<" << l << ">";
+                str << "<" << l << ">";
             str << d;
             first = false;
         }

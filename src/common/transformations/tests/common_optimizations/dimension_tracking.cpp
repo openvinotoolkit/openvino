@@ -300,7 +300,7 @@ TEST(partial_shape, cout_with_label) {
     ov::PartialShape shape{1, 2, 3, a};
     std::stringstream stream;
     stream << shape;
-    ASSERT_EQ(stream.str(), "[1,2,3,l<100500>5]");
+    ASSERT_EQ(stream.str(), "[1,2,3,<100500>5]");
 }
 
 TEST(partial_shape, cout_without_label) {
