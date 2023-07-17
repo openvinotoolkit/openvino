@@ -550,7 +550,7 @@ bool primitive_inst::update_impl() {
                 };
                 if (use_async_compilation()) {
                     auto& compilation_context = get_network().get_program()->get_compilation_context();
-                    compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
+                    compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
                         if (compilation_context.is_stopped())
                             return;
                         auto _program = get_network().get_program();
