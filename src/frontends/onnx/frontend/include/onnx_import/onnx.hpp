@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -11,6 +21,7 @@
 #include <string>
 
 #include "ngraph/function.hpp"
+#include "ngraph/deprecated.hpp"
 #include "onnx_importer_visibility.hpp"
 
 /// \brief              Top level nGraph namespace.
@@ -25,7 +36,7 @@ namespace onnx_import {
 /// \param[in]  domain    A domain to get the supported operators for.
 ///
 /// \return     The set containing names of supported operators.
-ONNX_IMPORTER_API
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
 std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain);
 
 /// \brief      Determines whether ONNX operator is supported.
@@ -36,7 +47,7 @@ std::set<std::string> get_supported_operators(std::int64_t version, const std::s
 ///                       If not set, the default domain "ai.onnx" is used.
 ///
 /// \return     true if operator is supported, false otherwise.
-ONNX_IMPORTER_API
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
 bool is_operator_supported(const std::string& op_name, std::int64_t version, const std::string& domain = "ai.onnx");
 
 /// \brief      Imports and converts an serialized ONNX model from the input stream
@@ -52,7 +63,7 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 /// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return     An nGraph function that represents a single output from the created graph.
-ONNX_IMPORTER_API
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
 std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                             const std::string& model_path = "",
                                             bool enable_mmap = false);
@@ -68,7 +79,7 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
 /// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return    An nGraph function that represents a single output from the created graph.
-ONNX_IMPORTER_API
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
 std::shared_ptr<Function> import_onnx_model(const std::string& file_path, bool enable_mmap = false);
 }  // namespace onnx_import
 

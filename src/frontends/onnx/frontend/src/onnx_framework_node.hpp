@@ -38,6 +38,7 @@ class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_RTTI("ONNXFrameworkNode", "0");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ONNXFrameworkNode(const onnx_import::Node& node)
         : ov::op::util::FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
           m_node(node) {}
@@ -45,6 +46,7 @@ public:
     ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     OutputVector get_ng_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
         OutputVector ng_nodes{graph->make_ng_nodes(m_node)};
@@ -66,18 +68,22 @@ public:
     }
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     onnx_import::Node m_node;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
 public:
     OPENVINO_RTTI("ONNXSubgraphFrameworkNode", "0");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ONNXSubgraphFrameworkNode(const onnx_import::Node& node,
                               const std::vector<std::shared_ptr<Function>>& functions,
                               const OutputVector& inputs)
         : ONNXFrameworkNode(node, inputs),
           m_functions(functions) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void infer_inputs_from_parent() {
         for (auto& subgraph : m_node.get_subgraphs())

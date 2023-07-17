@@ -28,7 +28,9 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return detail::import_onnx_model(model_proto, model_path, enable_mmap, std::move(extensions));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const bool enable_mmap) {
@@ -38,8 +40,9 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const 
         OPENVINO_THROW("Error during import of ONNX model expected to be in file: " + file_path +
                        ". Could not open the file.");
     };
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return import_onnx_model(model_stream, file_path, enable_mmap);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> get_supported_operators(std::int64_t version, const std::string& domain) {

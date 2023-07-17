@@ -204,7 +204,9 @@ OutputVector Node::Impl::get_ng_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ng_node_from_cache(name));
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             result.push_back(std::make_shared<NullNode>()->output(0));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;

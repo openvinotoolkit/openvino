@@ -62,6 +62,7 @@ bool common_node_for_all_outputs(const OutputVector& outputs) {
     return ret;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 OperatorsBridge register_extensions(OperatorsBridge& bridge,
                                     const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
@@ -83,6 +84,7 @@ OperatorsBridge register_extensions(OperatorsBridge& bridge,
     }
     return bridge;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     const auto legacy_conv_ext = std::find_if(std::begin(conversions),
@@ -233,6 +235,7 @@ Graph::Graph(const std::string& model_dir,
                  detail::to_string(unknown_operators));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void Graph::convert_to_ngraph_nodes() {
     const float total = static_cast<float>(m_model->get_graph().node().size());
     unsigned int completed = 0u;
@@ -251,6 +254,7 @@ void Graph::convert_to_ngraph_nodes() {
         m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void Graph::remove_dangling_parameters() {
     const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output,
@@ -297,6 +301,7 @@ std::shared_ptr<Function> Graph::convert() {
     return function;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
     std::shared_ptr<frontend::ONNXFrameworkNode> framework_node;
     if (onnx_node.has_subgraphs()) {
@@ -340,6 +345,7 @@ void Graph::decode_to_framework_nodes() {
         m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
@@ -370,6 +376,7 @@ Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) {
     return m_cache->get_node(name);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 OutputVector Graph::get_ng_outputs() {
     OutputVector results;
     for (const auto& output : m_model->get_graph().output()) {
@@ -464,13 +471,12 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
             ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
-            NGRAPH_SUPPRESS_DEPRECATED_START
             ov::descriptor::set_ov_tensor_legacy_name(ng_subgraph_outputs[i].get_tensor(),
                                                       onnx_node.output(static_cast<int>(i)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();

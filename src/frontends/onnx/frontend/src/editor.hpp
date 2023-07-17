@@ -4,12 +4,23 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <istream>
 #include <map>
 #include <memory>
 
 #include "editor_types.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -25,7 +36,7 @@ namespace onnx_editor {
 /// \note This class can be used to modify an ONNX model before it gets translated to
 ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
 ///       model's input types and shapes, extract a subgraph and more.
-class ONNX_IMPORTER_API ONNXModelEditor final {
+class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API ONNXModelEditor final {
 public:
     /// \brief Creates an editor from a model file located on a storage device. The file
     ///        is parsed and loaded into the m_model_proto member variable.

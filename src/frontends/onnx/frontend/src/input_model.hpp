@@ -8,6 +8,7 @@
 #include <fstream>
 #include <openvino/frontend/input_model.hpp>
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 
 namespace ov {
@@ -84,7 +85,9 @@ public:
         const std::vector<ov::frontend::Place::Ptr>& outputs);
 
 private:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;

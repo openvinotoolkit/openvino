@@ -10,7 +10,7 @@
 #include "onnx_import/onnx_utils.hpp"
 #include "util/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 

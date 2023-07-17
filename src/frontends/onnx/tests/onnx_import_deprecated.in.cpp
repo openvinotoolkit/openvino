@@ -26,6 +26,7 @@
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";

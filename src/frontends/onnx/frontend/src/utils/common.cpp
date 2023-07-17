@@ -8,7 +8,10 @@
 
 #include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
+#include "openvino/core/deprecated.hpp"
 
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace common {
@@ -144,3 +147,4 @@ bool is_optimized_out(const Output<ov::Node>& node_output) {
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

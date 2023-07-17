@@ -14,10 +14,12 @@
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
 #include "util/test_control.hpp"
+#include "openvino/core/deprecated.hpp"
 
 using namespace ov;
 using namespace ov::onnx_editor;
 using namespace ngraph::test;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
 

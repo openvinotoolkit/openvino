@@ -12,7 +12,7 @@
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
