@@ -26,6 +26,8 @@ class TRANSFORMATIONS_API SharedTileOptimization;
 class TRANSFORMATIONS_API SharedGatherElementsOptimization;
 class TRANSFORMATIONS_API SharedTransposeOptimization;
 class TRANSFORMATIONS_API SharedSliceOptimization;
+class TRANSFORMATIONS_API SharedConcatOptimization;
+class TRANSFORMATIONS_API SharedReshapeOptimization;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
 class TRANSFORMATIONS_API ChainedVariadicSplitOptimization;
@@ -35,6 +37,7 @@ class TRANSFORMATIONS_API ApplyTableOfEquivalence;
 class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
 class TRANSFORMATIONS_API DeReshapeMatMulWithComplications;
 class TRANSFORMATIONS_API LabelResolvingThroughSelect;
+class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;
 
 }  // namespace pass
 }  // namespace ov
@@ -121,6 +124,12 @@ public:
     ChainedVariadicSplitOptimization();
 };
 
+class ov::pass::ReshapeUpThroughBEAWithConstScalar : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ReshapeUpThroughBEAWithConstScalar", "0");
+    ReshapeUpThroughBEAWithConstScalar();
+};
+
 class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoEP_Optimization", "0");
@@ -136,6 +145,18 @@ public:
 class ov::pass::SharedTileOptimization : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedTileOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::SharedConcatOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedConcatOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::SharedReshapeOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedReshapeOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

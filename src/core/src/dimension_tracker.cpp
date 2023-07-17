@@ -38,6 +38,8 @@ ov::label_t ov::TableOfEquivalence::get_next_label() {
 
 bool ov::TableOfEquivalence::are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
+    if (l_label == r_label)
+        return true;
     if (dimension_table_of_equivalence.count(l_label))
         return dimension_table_of_equivalence[l_label]->count(r_label);
     return false;

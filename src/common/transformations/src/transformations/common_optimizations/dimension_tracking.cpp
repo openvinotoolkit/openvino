@@ -29,6 +29,7 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/fused_MHA_with_RPE.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
@@ -551,9 +552,18 @@ ov::pass::BroadcastOnes::BroadcastOnes() {
 }
 
 bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs) {
+    bool labels_exist_and_equal = false;
+
     auto lhs_label = ov::DimensionTracker::get_label(lhs);
     auto rhs_label = ov::DimensionTracker::get_label(rhs);
-    bool labels_exist_and_equal = lhs_label != 0 && lhs_label == rhs_label;
+    auto table_l = ov::DimensionTracker::get_table_of_equivalence(lhs);
+    auto table_r = ov::DimensionTracker::get_table_of_equivalence(rhs);
+    if (table_l)
+        labels_exist_and_equal = lhs_label != 0 && table_l->are_equal(lhs, rhs);
+    else if (table_r)
+        labels_exist_and_equal = lhs_label != 0 && table_r->are_equal(lhs, rhs);
+    else
+        labels_exist_and_equal = lhs_label != 0 && lhs_label == rhs_label;
     bool dims_are_static_and_equal = lhs.is_static() && lhs == rhs;
     return labels_exist_and_equal || dims_are_static_and_equal;
 }
@@ -632,6 +642,32 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
             return false;
         select_output.get_node_shared_ptr()->set_output_type(0, select_output.get_element_type(), select_output_pshape);
         value_map.at(softmax).get_node_shared_ptr()->validate_and_infer_types();
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::ReshapeUpThroughBEAWithConstScalar::ReshapeUpThroughBEAWithConstScalar() {
+    MATCHER_SCOPE(ReshapeUpThroughBEAWithConstScalar);
+    auto bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
+        {pattern::any_input(pattern::rank_equals(0)), pattern::any_input(pattern::rank_equals(0))},
+        pattern::consumers_count(1));
+    auto reshape = pattern::wrap_type<op::v1::Reshape>({bea, pattern::any_input()}, pattern::rank_equals(1));
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        const auto& node_map = m.get_pattern_map();
+        auto bea_node = node_map.at(bea);
+        auto reshape_node = node_map.at(reshape);
+        auto new_bea = bea_node->clone_with_new_inputs(
+            {op::util::make_try_fold<op::v1::Reshape>(bea_node->input_value(0),
+                                                      op::v0::Constant::create(element::i32, {1}, {1}),
+                                                      false),
+             op::util::make_try_fold<op::v1::Reshape>(bea_node->input_value(1),
+                                                      op::v0::Constant::create(element::i32, {1}, {1}),
+                                                      false)});
+        reshape_node->output(0).replace(new_bea->output(0));
         return true;
     };
 
@@ -757,16 +793,19 @@ ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_di
 ov::pass::DeReshapeMatMulWithComplications::DeReshapeMatMulWithComplications() {
     MATCHER_SCOPE(DeReshapeMatMulWithComplications);
 
-    auto reshape_0 =
+    // lhs of MatMul
+    auto lhs_reshape =
         pattern::wrap_type<op::v1::Reshape>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
             return reshape_keeps_last_two_dims(n);
         }));
-    auto reshape_1 =
+
+    // rhs of MatMul
+    auto rhs_reshape =
         pattern::wrap_type<op::v1::Reshape>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
             return reshape_keeps_last_two_dims(n);
         }));
-    auto concat_1 =
-        pattern::wrap_type<op::v0::Concat>({pattern::any_input(), reshape_1},
+    auto rhs_concat =
+        pattern::wrap_type<op::v0::Concat>({pattern::any_input(), rhs_reshape},
                                            pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
                                                auto output_pshape = n->get_output_partial_shape(0);
                                                if (output_pshape.rank().is_dynamic() || output_pshape.size() <= 2)
@@ -776,43 +815,38 @@ ov::pass::DeReshapeMatMulWithComplications::DeReshapeMatMulWithComplications() {
                                                    return false;
                                                return concat->get_concatenation_axis() >= output_pshape.size() - 2;
                                            }));
-    auto bea_1 = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
-        {concat_1, pattern::any_input([](ov::Output<Node> out) {
-             return out.get_partial_shape().is_static() && ov::shape_size(out.get_shape()) == 1;
-         })});
-    auto or_1 = std::make_shared<pattern::op::Or>(OutputVector{concat_1, bea_1});
+    auto rhs_reshape_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape, rhs_concat});
 
-    auto matmul = pattern::wrap_type<op::v0::MatMul>({reshape_0, or_1});
-    auto add = pattern::wrap_type<op::v1::Add>({matmul, pattern::any_input()});
-    auto or_2 = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
-    auto reshape_2 = pattern::wrap_type<op::v1::Reshape>({or_2, pattern::any_input()});
+    auto rhs_bea_scalar = pattern::any_input([](ov::Output<Node> out) {
+        return out.get_partial_shape().is_static() && ov::shape_size(out.get_shape()) == 1;
+    });
+    auto rhs_bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({rhs_reshape_or_concat, rhs_bea_scalar});
+    auto rhs_bea_or_concat = std::make_shared<pattern::op::Or>(OutputVector{rhs_reshape_or_concat, rhs_bea});
+
+    auto matmul = pattern::wrap_type<op::v0::MatMul>({lhs_reshape, rhs_bea_or_concat});
+
+    auto constant = pattern::wrap_type<op::v0::Constant>();
+    auto zero_dim_value = pattern::wrap_type<op::v1::Multiply>({constant, pattern::any_input()});
+    auto dimensions_concat =
+        pattern::wrap_type<op::v0::Concat>({zero_dim_value, pattern::any_input(), pattern::any_input()});
+    auto add_reshape = pattern::wrap_type<op::v1::Reshape>({pattern::any_input(), dimensions_concat});
+    auto add = pattern::wrap_type<op::v1::Add>({matmul, add_reshape});
+
+    auto matmul_or_add = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
+    auto final_reshape = pattern::wrap_type<op::v1::Reshape>({matmul_or_add, pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
         const auto& pattern_to_output = m.get_pattern_value_map();
+        std::vector<Node*> nodes_for_revalidation{pattern_to_node.at(matmul).get()};
 
-        auto reshape_0_node = pattern_to_node.at(reshape_0);
-        auto reshape_1_node = pattern_to_node.at(reshape_1);
-        auto reshape_2_node = pattern_to_node.at(reshape_2);
-        auto matmul_node = pattern_to_output.at(matmul).get_node_shared_ptr();
-
+        // reshapes check: BEGIN
+        // reshape_keeps_last_two_dims checks were already done in the pattern
+        auto reshape_0_node = pattern_to_node.at(lhs_reshape);
+        auto reshape_1_node = pattern_to_node.at(rhs_reshape);
         if (!batches_are_equal(reshape_0_node, reshape_1_node))
             return false;
-        auto concat_node = ov::as_type_ptr<op::v0::Concat>(pattern_to_node.at(concat_1));
-        if (!concat_node)
-            return false;
-        auto axis = concat_node->get_concatenation_axis();
-        if (axis < 0)
-            return false;
-        if (axis == concat_node->get_output_partial_shape(0).size() - 1)
-            axis = -1;
-        else
-            axis = -2;
-        if (pattern_to_node.count(add) || pattern_to_node.count(bea_1)) {
-            return false;
-        }
-        if (!reshape_keeps_last_two_dims(reshape_2_node))
-            return false;
+        auto reshape_2_node = pattern_to_node.at(final_reshape);
         if (!batches_are_equal(reshape_0_node->get_input_partial_shape(0),
                                reshape_2_node->get_output_partial_shape(0),
                                true) &&
@@ -820,35 +854,120 @@ ov::pass::DeReshapeMatMulWithComplications::DeReshapeMatMulWithComplications() {
                                reshape_2_node->get_output_partial_shape(0),
                                true))
             return false;
+        // reshapes check: END
 
-        // resolving Reshape on the branch with Concat
-        auto target_shape_of_input =
-            get_shape_from_sources(reshape_1_node->input_value(0), concat_node->input_value(0));
+        // checks for Add -- if we can optimally delete Reshapes
+        if (pattern_to_node.count(add) && pattern_to_node.count(add_reshape)) {
+            auto add_reshape_node = pattern_to_node.at(add_reshape);
+            auto output_rank = add_reshape_node->get_output_partial_shape(0).rank();
+            auto reshape_rank = reshape_0_node->get_input_partial_shape(0).rank();
+            auto input_shape = reshape_0_node->get_input_partial_shape(0);
+            auto pattern_concat = add_reshape_node->get_input_node_shared_ptr(1);
+            if (output_rank.is_dynamic() || output_rank != 3 || reshape_rank != 4 ||
+                !as_type_ptr<op::v0::Concat>(pattern_concat) || input_shape.rank().is_dynamic() ||
+                input_shape.rank() != 4)
+                return false;
 
-        auto input_reshape =
-            std::make_shared<op::v1::Reshape>(concat_node->input_value(0), target_shape_of_input, false);
-        reshape_1_node->output(0).replace(reshape_1_node->input_value(0));
+            int64_t constant_dim_of_batch = -1;
+            int64_t constant_dim_idx = -1;
+            if (input_shape[0].is_static()) {
+                constant_dim_of_batch = input_shape[0].get_length();
+                constant_dim_idx = 0;
+            } else if (input_shape[1].is_static()) {
+                constant_dim_of_batch = input_shape[1].get_length();
+                constant_dim_idx = 1;
+            }
+            if (constant_dim_of_batch == -1 || constant_dim_idx == -1)
+                return false;
+            if (pattern_concat->input_value(0).get_shape() != Shape{1})
+                return false;
+            if (!as_type_ptr<op::v1::Multiply>(pattern_concat->get_input_node_shared_ptr(0)))
+                return false;
+            int64_t const_val = -1;
+            if (auto constant = ov::as_type_ptr<op::v0::Constant>(
+                    pattern_concat->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0))) {
+                const_val = constant->cast_vector<int64_t>()[0];
+            } else if (auto constant = ov::as_type_ptr<op::v0::Constant>(
+                           pattern_concat->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+                const_val = constant->cast_vector<int64_t>()[0];
+            }
+            if (const_val == -1 || constant_dim_of_batch != const_val)
+                return false;
 
-        auto new_concat = concat_node->clone_with_new_inputs({input_reshape->output(0), concat_node->input_value(1)});
-        ov::as_type_ptr<ov::op::v0::Concat>(new_concat)->set_axis(axis);
-        ov::as_type_ptr<ov::op::v0::Concat>(new_concat)->set_concatenation_axis(axis);
-        new_concat->validate_and_infer_types();
-        auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), new_concat->output(0));
-        auto output_reshape = std::make_shared<op::v1::Reshape>(new_concat->output(0), target_shape_of_output, false);
-        concat_node->output(0).replace(output_reshape->output(0));
-        output_reshape->set_friendly_name(concat_node->get_friendly_name());
+            auto mm_output_shape = pattern_to_output.at(matmul).get_partial_shape();
+            auto final_reshape_shape = pattern_to_output.at(final_reshape).get_partial_shape();
+            if (!last_two_dims_are_equal(mm_output_shape, final_reshape_shape))
+                return false;
 
+            const auto& add_output_shape = pattern_to_node.at(add)->get_output_partial_shape(0);
+            auto add_dim = add_output_shape[output_rank.get_length() - 1];
+            auto table = ov::DimensionTracker::get_table_of_equivalence(add_dim);
+            if (!table)
+                return false;
+            table->set_as_equal(add_dim, mm_output_shape[output_rank.get_length() - 1]);
+            if (!reshape_keeps_last_two_dims(reshape_2_node))
+                return false;
+
+            auto concat_inputs = pattern_concat->input_values();
+            std::vector<int64_t> new_batch_constant_val = {(constant_dim_idx == 0 ? constant_dim_of_batch : -1),
+                                                           (constant_dim_idx == 0 ? -1 : constant_dim_of_batch)};
+            concat_inputs[0] =
+                op::v0::Constant::create(concat_inputs[0].get_element_type(), Shape{2}, new_batch_constant_val);
+            auto new_shape_concat = std::make_shared<op::v0::Concat>(concat_inputs, 0);
+            // TODO: take cate of -1s and 0s in the input of this reshape
+            auto new_add_reshape = std::make_shared<op::v1::Reshape>(add_reshape_node, new_shape_concat, false);
+            pattern_to_node.at(add)
+                ->input(!bool(pattern_to_node.at(matmul)->output(0).get_target_inputs().begin()->get_index()))
+                .replace_source_output(new_add_reshape);
+            nodes_for_revalidation.push_back(pattern_to_node.at(add).get());
+        } else {
+            if (!reshape_keeps_last_two_dims(reshape_2_node))
+                return false;
+        }
+        // resolving Reshape on the rhs branch with Concat
+        if (auto concat_node = ov::as_type_ptr<op::v0::Concat>(pattern_to_node.at(rhs_concat))) {
+            auto axis = concat_node->get_concatenation_axis();
+            if (axis == concat_node->get_output_partial_shape(0).size() - 1)
+                axis = -1;
+            else
+                axis = -2;
+            auto target_shape_of_input =
+                get_shape_from_sources(reshape_1_node->input_value(0), concat_node->input_value(0));
+            auto input_reshape =
+                std::make_shared<op::v1::Reshape>(concat_node->input_value(0), target_shape_of_input, false);
+            reshape_1_node->output(0).replace(reshape_1_node->input_value(0));
+            auto new_concat =
+                concat_node->clone_with_new_inputs({input_reshape->output(0), concat_node->input_value(1)});
+            ov::as_type_ptr<ov::op::v0::Concat>(new_concat)->set_axis(axis);
+            ov::as_type_ptr<ov::op::v0::Concat>(new_concat)->set_concatenation_axis(axis);
+            new_concat->validate_and_infer_types();
+            auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), new_concat->output(0));
+            auto output_reshape =
+                std::make_shared<op::v1::Reshape>(new_concat->output(0), target_shape_of_output, false);
+            if (pattern_to_node.count(rhs_bea)) {
+                auto bea = pattern_to_node.at(rhs_bea);
+                auto idx_of_non_scalar_data = bea->input_value(0) == pattern_to_output.at(rhs_bea_scalar) ? 1 : 0;
+                bea->input(idx_of_non_scalar_data).replace_source_output(new_concat);
+                nodes_for_revalidation.push_back(bea.get());
+            } else {
+                auto rhs_idx = 1;
+                pattern_to_node.at(matmul)->input(rhs_idx).replace_source_output(new_concat);
+            }
+            concat_node->output(0).replace(output_reshape->output(0));
+            output_reshape->set_friendly_name(concat_node->get_friendly_name());
+        }
+
+        // resolving Reshape on the lhs branch
         reshape_0_node->output(0).replace(reshape_0_node->input_value(0));
-        matmul_node->input(1).replace_source_output(new_concat->output(0));
+
         reshape_2_node->output(0).replace(reshape_2_node->input_value(0));
 
-        std::vector<Node*> nodes_for_revalidation{matmul_node.get()};
         for (auto& node : nodes_for_revalidation)
             node->validate_and_infer_types();
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reshape_2, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(final_reshape, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -1117,12 +1236,13 @@ ov::pass::Fused_RPE_MHA_Replacer::Fused_RPE_MHA_Replacer() {
 }
 
 template <class T>
-bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs,
-                                                                  const std::shared_ptr<T>& rhs) {
+bool inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs,
+                                                    const std::shared_ptr<T>& rhs,
+                                                    const size_t& max_const_size = 10) {
     if (lhs->get_input_size() != rhs->get_input_size())
         return false;
     size_t input_size = lhs->get_input_size();
-    for (size_t i = 1; i < input_size; ++i) {
+    for (size_t i = 0; i < input_size; ++i) {
         if (lhs->input_value(i) == rhs->input_value(i))
             continue;
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -1131,21 +1251,30 @@ bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::sha
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!lhs_constant || !rhs_constant)
             return false;
-        if (lhs_constant->template cast_vector<int64_t>() != rhs_constant->template cast_vector<int64_t>())
+        if (lhs_constant->get_shape() != rhs_constant->get_shape() ||
+            ov::shape_size(lhs_constant->get_shape()) > max_const_size)
             return false;
+        if (lhs_constant->get_element_type() != rhs_constant->get_element_type() ||
+            !lhs_constant->get_element_type().is_integral())
+            return false;
+        return lhs_constant->template cast_vector<int64_t>() == rhs_constant->template cast_vector<int64_t>();
     }
     return true;
 }
 
 bool gather_elements_perform_same(const std::shared_ptr<ov::op::v6::GatherElements>& lhs,
-                                  const std::shared_ptr<ov::op::v6::GatherElements>& rhs) {
+                                  const std::shared_ptr<ov::op::v6::GatherElements>& rhs,
+                                  const size_t& max_const_size) {
     // 0 input value is already checked -- it is the same, we only need to check input with idx 1 and axis value
-    return lhs->get_axis() == rhs->get_axis() && lhs->input_value(1) == rhs->input_value(1);
+    return lhs->get_axis() == rhs->get_axis() &&
+           inputs_from_same_source_or_equal_int_constants(lhs, rhs, max_const_size);
 }
 
 template <class T>
 bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
-                                     bool (*are_equal)(const std::shared_ptr<T>&, const std::shared_ptr<T>&)) {
+                                     bool (*are_equal)(const std::shared_ptr<T>&,
+                                                       const std::shared_ptr<T>&,
+                                                       const size_t&)) {
     // only works for 0 index inputs
     bool graph_rewritten = false;
 
@@ -1158,7 +1287,12 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
             }
         }
         if (auto op = ov::as_type_ptr<T>(node)) {
-            source_to_typed_op[op->input_value(0)].push_back(op);
+            for (const auto& input : op->input_values()) {
+                if (!ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
+                    source_to_typed_op[input].push_back(op);
+                    break;
+                }
+            }
         }
     }
     for (auto& pair : source_to_typed_op) {
@@ -1166,7 +1300,7 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
             continue;
         auto root_op = pair.second[0];
         for (auto& child_op : pair.second) {
-            if (root_op->get_instance_id() != child_op->get_instance_id() && are_equal(root_op, child_op)) {
+            if (root_op->get_instance_id() != child_op->get_instance_id() && are_equal(root_op, child_op, 10)) {
                 graph_rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
             }
         }
@@ -1176,9 +1310,7 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
 
 bool ov::pass::SharedTileOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTileOptimization);
-    return shared_node_optimization_helper<ov::op::v0::Tile>(
-        model,
-        all_secondary_inputs_from_same_source_or_equal_int_constants);
+    return shared_node_optimization_helper<ov::op::v0::Tile>(model, inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -1188,16 +1320,23 @@ bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_
 
 bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
-    return shared_node_optimization_helper<ov::op::v1::Transpose>(
-        model,
-        all_secondary_inputs_from_same_source_or_equal_int_constants);
+    return shared_node_optimization_helper<ov::op::v1::Transpose>(model,
+                                                                  inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedSliceOptimization);
-    return shared_node_optimization_helper<ov::op::v8::Slice>(
-        model,
-        all_secondary_inputs_from_same_source_or_equal_int_constants);
+    return shared_node_optimization_helper<ov::op::v8::Slice>(model, inputs_from_same_source_or_equal_int_constants);
+}
+
+bool ov::pass::SharedConcatOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(SharedConcatOptimization);
+    return shared_node_optimization_helper<ov::op::v0::Concat>(model, inputs_from_same_source_or_equal_int_constants);
+}
+
+bool ov::pass::SharedReshapeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(SharedReshapeOptimization);
+    return shared_node_optimization_helper<ov::op::v1::Reshape>(model, inputs_from_same_source_or_equal_int_constants);
 }
 
 struct SliceAttrs {
@@ -1544,6 +1683,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
     REGISTER_PASS(pre_symbolic_manager, SharedSliceOptimization)
     REGISTER_PASS(pre_symbolic_manager, GroupedSliceToVSplitOptimization)
+    REGISTER_PASS(pre_symbolic_manager, ReshapeUpThroughBEAWithConstScalar)
+    REGISTER_PASS(pre_symbolic_manager, NopElimination)
     pre_symbolic_manager.run_passes(m);
 
     ov::pass::Manager manager(get_pass_config());
@@ -1569,6 +1710,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager_1, DeReshapeMatMulWithComplications)
     REGISTER_PASS(manager_1, ApplyTableOfEquivalence)
     REGISTER_PASS(manager_1, OptimizeLabelsUsedAsValues)
+    REGISTER_PASS(manager_1, SharedConcatOptimization)
+    REGISTER_PASS(manager_1, SharedReshapeOptimization)
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
     manager_1.run_passes(m);
