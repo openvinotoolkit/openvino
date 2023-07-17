@@ -4,8 +4,8 @@
 
 #include <onnx/onnx_pb.h>
 
+#include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "util/test_control.hpp"
 
 using namespace ngraph;
 
