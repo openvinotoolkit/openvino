@@ -418,8 +418,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
-        node.is_type_conversion_only())
+        !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
@@ -1196,7 +1196,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 
     if (use_onednn_impls) {
         auto& user = node.get_users().front();
-        if (user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
+        if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
             expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
         } else {
             expected = format::any;
@@ -1285,10 +1285,12 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_padding = node.get_dependencies().front().first->get_output_layout().data_padding;
+    auto input_layout = node.get_dependencies().front().first->get_output_layout();
+    auto in_padding = input_layout.data_padding;
     auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        // Check spatial padding
         bool no_spatial_padding = true;
         for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
             no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
@@ -1302,18 +1304,24 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
             no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
         }
+
+        // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
         bool no_batch_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        auto out_fmt = node.get_output_layout().format;
+        if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
+            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+            }
         }
         return (no_spatial_padding && no_batch_padding);
     }
@@ -1633,11 +1641,25 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (allow_new_shape_infer) {
+        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
+        auto out_lay_rank = node.get_output_layout(false).get_rank();
+        auto has_reshape_user = [&](const program_node& node) -> bool {
+            for (auto& user_node : node.get_users()) {
+                if (user_node->is_type<reshape>())
+                    return true;
+            }
+            return false;
+        };
+
+        // Return default format for output layout rank when user node is reshape
+        // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
+        // It is only applied for the dynamic shape with static input shape
+        if (!node.is_dynamic() &&  has_reshape_user(node))
+            return format::get_default_format(out_lay_rank);
+
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());
 
-        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
-        auto out_lay_rank = node.get_output_layout(false).get_rank();
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_input_layout(i).get_rank();
@@ -1647,12 +1669,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required output rank
+                // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
-                    format::adjust_to_rank(fmt, out_lay_rank);
+                    format::adjust_to_rank(fmt, in_lay_rank);
                 } catch (ov::Exception&) {
-                    fmt = format::get_default_format(out_lay_rank);
+                    fmt = format::get_default_format(in_lay_rank);
                 }
                 node.set_preferred_input_fmt(i, fmt);
             }
@@ -1726,6 +1748,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
+        }
+
+        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
+            auto& fc_node = node.as<fully_connected>();
+            auto input_layout = fc_node.input().get_output_layout();
+            if (input_layout.format.dimension() > 4) {
+                expected = format::bfyx;
+                node.set_preferred_input_fmt(0, format::bfyx);
+            }
         }
     }
 
