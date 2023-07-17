@@ -67,6 +67,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         IE_THROW() << "Unable to get API version. Core is unavailable";
     m_cfg.isLegacyApi = !core->is_new_api();
 
+#if 0
     bool support_all_precision = true;
     auto get_graph_supported_precisions = [&]() -> std::set<ov::element::Type_t> {
         std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
@@ -116,6 +117,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         std::cout << "graph output port: name = " << port_name << ", precision = " << out.get_element_type()
                   << ", shape =" << out.get_partial_shape().to_string() << std::endl;
     }
+#else
+    m_graph_model = m_model;
+#endif
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
