@@ -1033,7 +1033,6 @@ void Graph::PullOutputData(BlobMap &out) {
         }
 
         DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()));
-        DEBUG_LOG("precision ", parentEdge->getDesc().getPrecision().name());
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();

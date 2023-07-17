@@ -828,7 +828,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                         auto a = std::make_pair(tensor_ptr, data); // as no method to get Tensor from Blob
                         outputsTensor2BlobMap[name] = a;
 
-                        DEBUG_LOG(name, ", blob ", data, ", tensor ", tensor_ptr, ", memmngr ", mem_ptr->getMemoryMngr());
+                        DEBUG_LOG(name, ", blob ", data, ", tensor ", tensor_ptr, ", memmngr ", mem_ptr->getMemoryMngr(), "memory object ", mem_ptr.get());
                     } else {
                         dims = shape.to_shape();
 
@@ -885,6 +885,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         IE_THROW() << "Cannot find blob with name: " << name;
     }
 
+    DEBUG_LOG(name, ", blob ", data, ", ", static_cast<void*>(data->buffer()));
     return data;
 }
 

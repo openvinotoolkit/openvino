@@ -17,9 +17,7 @@ void ProxyMemoryMngr::reset(std::shared_ptr<IMemoryMngr> _pMngr) {
 
     // WA: unconditionally resize to last size
     if (_validated) {
-        auto res = m_pMngr->resize(m_size);
-        DEBUG_LOG(this, ", ", m_pMngr, " size ", m_size, " -> ", m_size, " resized? ", res, " RawPtr ", getRawPtr());
-
+        m_pMngr->resize(m_size);
         notifyUpdate();
     }
 }

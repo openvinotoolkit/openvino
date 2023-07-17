@@ -30,7 +30,6 @@ void Tensor::set_shape(ov::Shape new_shape) {
 
     auto desc = m_memptr->getDescPtr();
     const auto newdesc = desc->cloneWithNewDims(new_shape, true);
-    DEBUG_LOG("precision ", desc->getPrecision().name(), " -> ", newdesc->getPrecision().name());
     m_memptr->redefineDesc(newdesc);
 }
 

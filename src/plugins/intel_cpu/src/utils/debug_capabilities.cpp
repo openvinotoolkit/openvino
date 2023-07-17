@@ -254,7 +254,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     } else {
         // no SPD yet, use orginal shapes
         comma = "";
-        for (int i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
+        for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
             prec_name = node.getOriginalOutputPrecisionAtPort(i).name();
