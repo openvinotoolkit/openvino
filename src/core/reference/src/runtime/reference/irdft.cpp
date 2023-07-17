@@ -56,7 +56,12 @@ std::vector<complex_type> extend_to_hermitian_symmetric(const std::vector<float>
     const auto reversed_ext_input_data_shape =
         fft_common::reverse_shape_of_emulated_complex_tensor(shape_of_extended_input_data);
     const auto reversed_ext_input_strides = fft_common::compute_strides(reversed_ext_input_data_shape);
-    const auto outer_extended_shape = remove_from_position(shape_of_extended_input_data, axes_data.back());
+    Shape outer_extended_shape = shape_of_extended_input_data;
+    if (shape_of_extended_input_data.size() == 2) {
+        outer_extended_shape[axes_data.back()] = 1;
+    } else {
+        outer_extended_shape = remove_from_position(shape_of_extended_input_data, axes_data.back());
+    }
     const auto reversed_outer_extended_shape =
         fft_common::reverse_shape_of_emulated_complex_tensor(outer_extended_shape);
     const auto outer_extended_shape_strides = fft_common::compute_strides(reversed_outer_extended_shape);
