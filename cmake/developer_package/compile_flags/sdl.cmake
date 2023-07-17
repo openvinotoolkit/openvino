@@ -18,6 +18,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
 
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
 
+    if(NOT MINGW)
+        set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
+    endif()
     if(CMAKE_COMPILER_IS_GNUCXX)
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
@@ -28,9 +31,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
         if (NOT ENABLE_SANITIZER)
             # Remove all symbol table and relocation information from the executable
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -s")
-        endif()
-        if(NOT MINGW)
-            set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
         endif()
     elseif(OV_COMPILER_IS_CLANG)
         if(EMSCRIPTEN)
@@ -44,7 +44,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wl,--strip-all")
         endif()
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fstack-protector-strong")
-        set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
