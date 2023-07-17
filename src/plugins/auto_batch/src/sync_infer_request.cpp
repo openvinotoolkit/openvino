@@ -47,23 +47,20 @@ SyncInferRequest::SyncInferRequest(
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
                                                       const std::set<std::string>& batched_outputs) {
     for (const auto& it : get_inputs()) {
+        auto name = ov::op::util::get_ie_output_name(it);
         ov::SoPtr<ov::ITensor> res;
-        res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                                                     ov::op::util::get_ie_output_name(it),
-                                                     batched_inputs,
-                                                     m_batch_id,
-                                                     m_batch_size);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
+        res = create_shared_tensor_on_batched_tensor(batched_tensor, name, batched_inputs, m_batch_id, m_batch_size);
         set_tensor(it, res);
     }
 
     for (const auto& it : get_outputs()) {
         auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
         ov::SoPtr<ov::ITensor> res;
-        res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                                                     name,
-                                                     batched_outputs,
-                                                     m_batch_id,
-                                                     m_batch_size);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
+        res = create_shared_tensor_on_batched_tensor(batched_tensor, name, batched_outputs, m_batch_id, m_batch_size);
         set_tensor(it, res);
     }
 }
