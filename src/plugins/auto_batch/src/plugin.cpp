@@ -16,7 +16,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_START
-#include "ie_ngraph_utils.hpp"
+#include "ie_layouts.h"
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace ov {
