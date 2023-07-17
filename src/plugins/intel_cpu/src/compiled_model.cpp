@@ -91,6 +91,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             support_all_precision = false;
     }
 
+    support_all_precision = true;
     if (!support_all_precision) {
         m_graph_model = m_model->clone();
         Transformations graph_transformations(m_graph_model,
