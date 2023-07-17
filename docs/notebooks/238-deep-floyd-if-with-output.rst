@@ -75,16 +75,11 @@ vector in embedded space.
    1024x1024 pixel resolution. It is not released yet, so we will use a
    conventional Super Resolution network to get hir-res results.
 
-   **NOTE**: - *This example requires the download of roughly 27 GB of
-   model checkpoints, which could take some time depending on your
-   internet connection speed. Additionally, the converted models will
-   consume another 27 GB of disk space.* - *Please be aware that a
-   minimum of 32 GB of RAM is necessary to convert and run inference on
-   the models. There may be instances where the notebook appears to
-   freeze or stop responding.* - *To access the model checkpoints,
-   you’ll need a Hugging Face account. You’ll also be prompted to
-   explicitly accept the*\ `model
-   license <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__\ *.*
+   .. note::
+
+      - *This example requires the download of roughly 27 GB of model checkpoints, which could take some time depending on your internet connection speed. Additionally, the converted models will consume another 27 GB of disk space.*
+      - *Please be aware that a minimum of 32 GB of RAM is necessary to convert and run inference on the models. There may be instances where the notebook appears to freeze or stop responding.*
+      - *To access the model checkpoints,you'll need a Hugging Face account. You'll also be prompted to explicitly accept the* `model license <https://huggingface.co/DeepFloyd/IF-I-M-v10>`__
 
 Prerequisites
 -------------
@@ -148,12 +143,11 @@ authentication token.
 
 If you already have a token, you can input it into the provided form in
 the next cell. If not, please proceed according to the following
-instructions: 1. Make sure to have a `Hugging
-Face <https://huggingface.co/>`__ account and be logged in 2. Accept the
-license on the model card of
-`DeepFloyd/IF-I-M-v1.0 <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__
-3. To generate a token, proceed to `this
-page <https://huggingface.co/settings/tokens>`__
+instructions: 
+
+1. Make sure to have a `Hugging Face <https://huggingface.co/>`__ account and be logged in
+2. Accept the license on the model card of `DeepFloyd/IF-I-M-v1.0 <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__
+3. To generate a token, proceed to `this page <https://huggingface.co/settings/tokens>`__
 
 Uncheck the ``Add token as git credential?`` box.
 
