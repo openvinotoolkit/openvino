@@ -21,30 +21,45 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
             continue;
         }
         cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));
+        model_map.insert({ op->get_friendly_name(), cloned_op });
+    }
+
+    for (const auto& op : nodes) {
+        if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
+            ov::op::util::is_output(op) || op == start_node) {
+            continue;
+        }
         auto op_name = op->get_friendly_name();
+        cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
         ov::OutputVector in_out_vector(inputs_size);
+        bool is_input_filled = false;
         for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
+            bool is_this_input_filled = false;
             auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
             for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
-                bool is_input_filled = false;
                 for (const auto& target_input : in_node->output(in_out_idx).get_target_inputs()) {
                     auto out_in_node = target_input.get_node()->shared_from_this();
                     if (out_in_node == op) {
                         auto in_node_name = in_node->get_friendly_name();
                         in_out_vector[in_idx] = model_map.count(in_node_name) ?
-                                            model_map.at(in_node_name)->output(in_out_idx) :
-                                            cloned_op->get_input_node_ptr(in_idx)->output(0);
-                        is_input_filled = true;
+                                                model_map.at(in_node_name)->output(in_out_idx) :
+                                                cloned_op->get_input_node_ptr(in_idx)->output(0);
+                        is_this_input_filled = true;
                         break;
                     }
                 }
-                if (is_input_filled) {
+                if (is_this_input_filled) {
+                    is_input_filled = true;
                     break;
                 }
             }
         }
-        model_map.insert({ op_name, cloned_op->clone_with_new_inputs(in_out_vector) });
+        if (!is_input_filled && op_name != start_node->get_friendly_name()) {
+            model_map.erase(op_name);
+        } else {
+            model_map[op_name] = cloned_op->clone_with_new_inputs(in_out_vector);
+        }
     }
     return model_map;
 }
