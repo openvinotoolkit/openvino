@@ -89,7 +89,7 @@ private:
 };
 
 // helper to get byte strides from strides.
-inline ov::Strides byteStrides(const ov::Strides& strides, const ov::element::Type& type) {
+static ov::Strides byteStrides(const ov::Strides& strides, const ov::element::Type& type) {
     ov::Strides byte_strides(strides.size());
     for (size_t i = 0; i < strides.size(); ++i)
         byte_strides[i] = strides[i] * type.size();
