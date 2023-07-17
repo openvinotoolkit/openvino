@@ -49,7 +49,7 @@ to minimum. For outputs this feature creates numpy views on data. Example usage:
    "Shared Memory" on inputs is enabled by default in ``CompiledModel.__call__``. 
    For other methods, like ``InferRequest.infer`` or ``InferRequest.start_async``, 
    it is required to set the flag to ``True`` manually.
-   "Shared Memory" on outputs is disabled by default in all sequential inference methods. It is required to set the flag to ``True`` manually.
+   "Shared Memory" on outputs is disabled by default in all sequential inference methods (``CompiledModel.__call__`` and ``InferRequest.infer``). It is required to set the flag to ``True`` manually.
 
 .. warning:: 
 
