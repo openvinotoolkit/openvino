@@ -162,7 +162,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L70
     int chg = 6;
     if (m_mmap_enabled) {
-        auto srcPtr = static_cast<char*>(shard->second.mmap->get_ptr(entry.offset() + chg));
+        auto srcPtr = static_cast<char*>(shard->second.mmap->data() + entry.offset() + chg);
         std::copy(srcPtr, srcPtr + entry.size() - chg, data.data());
     } else {
         shard->second.stream->seekg(entry.offset() + chg);

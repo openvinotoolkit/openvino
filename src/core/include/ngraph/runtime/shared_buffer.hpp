@@ -37,10 +37,6 @@ public:
         m_byte_size = 0;
     }
 
-    T get_shared_object(void) const {
-        return _shared_object;
-    }
-
 private:
     T _shared_object;
 };

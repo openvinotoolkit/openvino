@@ -7,6 +7,7 @@
 #include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "tensor_bundle.pb.h"
@@ -35,11 +36,21 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
                              size == static_cast<google::protobuf::int64>(entry.size() / sizeof(T)),
                              "[TensorFlow Frontend] Internal error: Available data size isn't equal to calculated.");
     if (var_index->is_mmap_enabled()) {
-        auto fs = var_index->get_data_buffer(entry.shard_id());
-        if (!fs.get()) {
+        auto mapped_memory = var_index->get_data_mmap(entry.shard_id());
+        if (!mapped_memory.get()) {
             TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
         }
-        return get_mmap_constant(ov_type, shape, fs, entry.offset(), entry.size());
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
+            "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
+        return std::make_shared<Constant>(
+            ov_type,
+            shape,
+            std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(
+                mapped_memory->data() + entry.offset(),
+                entry.size(),
+                mapped_memory));
     } else {
         std::vector<T> var_data;
         var_data.resize(size);
