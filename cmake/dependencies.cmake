@@ -372,10 +372,10 @@ if (ENABLE_CPU_EXTENSIONS)
 
     if(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(CPU_EXTENSIONS
-                ARCHIVE "cpu_extensions.2023.2.tgz"
+                ARCHIVE_LIN "cpu_extensions_20230719_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                SHA256 "A0CD827A518931CF051AE8314902BAFC41093E0B4007A997AAC75B3B4292FE4C"
+                SHA256 "c1d41df6a9adf4b11ff827cfc3cf760cbcfdcc8a749c606c37e6de6bfd4b4774"
                 USE_NEW_LOCATION TRUE)
     else()
         message(FATAL_ERROR "cpu_extensions is not available on current platform (OS = ${CMAKE_SYSTEM_NAME}, glibc ${OV_GLIBC_VERSION})")
