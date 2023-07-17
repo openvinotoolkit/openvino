@@ -122,7 +122,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             auto reqs_iter = device_info.config.find(ov::hint::num_requests.name());
             auto ireq_iter = std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), name);
             if (ireq_iter != actual_dev_supported_properties.end()) {
-                real = m_context->m_ov_core->get_property(device_info.device_name, ov::optimal_number_of_infer_requests);
+                real = m_context->m_ov_core->get_property(device_info.device_name,
+                                                          ov::optimal_number_of_infer_requests,
+                                                          device_info.config);
             }
             if (real > 0) {
                 if (is_supported_num_request && reqs_iter != device_info.config.end()) {
