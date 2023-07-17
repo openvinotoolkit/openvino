@@ -68,7 +68,19 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto full_properties = remote_properties;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (it == full_properties.end())
+        it = full_properties.find(ov::device::priorities.name());
+    if (it == full_properties.end())
+        OPENVINO_THROW("Value for ov::device::priorities is not set");
+
+    auto val = it->second.as<std::string>();
+    auto metaDevice = parse_meta_device(val, ov::AnyMap());
+    full_properties.erase(it);
+    return get_core()->create_context(metaDevice.device_name, full_properties);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -358,7 +370,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto it = remote_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (it == remote_properties.end())
+        it = remote_properties.find(ov::device::priorities.name());
+    if (it == remote_properties.end())
+        OPENVINO_THROW("Value for ov::device::priorities is not set");
+
+    auto val = it->second.as<std::string>();
+    auto metaDevice = parse_meta_device(val, ov::AnyMap());
+    return get_core()->get_default_context(metaDevice.device_name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
