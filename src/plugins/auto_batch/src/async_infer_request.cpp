@@ -10,7 +10,7 @@ namespace ov {
 namespace autobatch_plugin {
 
 AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& request,
-                                     ov::SoPtr<ov::IAsyncInferRequest> request_without_batch,
+                                     const ov::SoPtr<ov::IAsyncInferRequest>& request_without_batch,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, nullptr, callback_executor),
       m_sync_request(request),

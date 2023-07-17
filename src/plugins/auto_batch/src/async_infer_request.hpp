@@ -13,7 +13,7 @@ namespace autobatch_plugin {
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
     AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& request,
-                      ov::SoPtr<ov::IAsyncInferRequest> request_without_batch,
+                      const ov::SoPtr<ov::IAsyncInferRequest>& request_without_batch,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     void infer_thread_unsafe() override;
