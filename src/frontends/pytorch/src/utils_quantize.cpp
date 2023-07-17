@@ -150,6 +150,40 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                     quantization_type);
 }
 
+ov::Output<ov::Node> quantize(const NodeContext& context,
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> quantized_node) {
+    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
+    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr()))) {
+        return quantize(context,
+                        input.get_node_shared_ptr(),
+                        quantized_pt_node->get_scale(),
+                        quantized_pt_node->get_zero_point(),
+                        quantized_pt_node->get_axis(),
+                        quantized_pt_node->get_dtype(),
+                        quantized_pt_node->get_type());
+    }
+    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
+}
+
+ov::Output<ov::Node> quantize(const NodeContext& context,
+                              ov::Output<ov::Node> input,
+                              ov::Output<ov::Node> scale,
+                              ov::Output<ov::Node> zero_point,
+                              ov::Output<ov::Node> quantized_node) {
+    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
+    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr()))) {
+        return quantize(context,
+                        input.get_node_shared_ptr(),
+                        scale.get_node_shared_ptr(),
+                        zero_point.get_node_shared_ptr(),
+                        quantized_pt_node->get_axis(),
+                        quantized_pt_node->get_dtype(),
+                        quantized_pt_node->get_type());
+    }
+    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
+}
+
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(ov::Output<Node> node) {
     auto quant_node = std::dynamic_pointer_cast<QuantizedPtNode>(node.get_node_shared_ptr());
     if (!quant_node) {
