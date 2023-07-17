@@ -18,13 +18,9 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Configuration& cfg,
-                  bool loaded_from_cache = false);
+                  const Configuration& cfg);
 
-    CompiledModel(std::istream& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const Configuration& cfg,
-                  bool loaded_from_cache = false);
+    CompiledModel(std::istream& model, const std::shared_ptr<const ov::IPlugin>& plugin, const Configuration& cfg);
 
     void export_model(std::ostream& model) const override;
 
@@ -62,7 +58,6 @@ private:
 
     struct CompiledModelDesc {
         std::string device;
-        std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;

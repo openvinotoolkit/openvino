@@ -142,8 +142,6 @@ std::vector<std::string> disabledTestPatterns() {
 #ifdef PROXY_PLUGIN_ENABLED
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-            // Issue because meta plugins use OLD API and wrap proxy which work with new API
-            R"(.*OVHoldersTest.*LoadedTensor.*HETERO.*)",
 #endif
     };
 }
