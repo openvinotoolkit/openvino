@@ -58,7 +58,8 @@ struct kernel_impl_params {
     std::vector<std::shared_ptr<program>> inner_progs = {};
     std::vector<std::shared_ptr<network>> inner_nets = {};
     std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
-
+    std::vector<size_t> output_size;
+    std::vector<size_t> img_size;
     mutable tensor input1{};
     mutable tensor input2{};
 

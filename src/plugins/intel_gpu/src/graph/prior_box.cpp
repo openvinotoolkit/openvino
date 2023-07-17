@@ -462,28 +462,27 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
 
         const_data.emplace(0, make_host_tensor(output_size_mem->get_layout(), output_size_lock.data()));
 
+        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
         if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
             auto output_height = reinterpret_cast<int64_t*>(output_size_lock.data())[0];
             auto output_width = reinterpret_cast<int64_t*>(output_size_lock.data())[1];
             auto img_height = reinterpret_cast<int64_t*>(img_size_lock.data())[0];
             auto img_width = reinterpret_cast<int64_t*>(img_size_lock.data())[1];
 
-            cldnn::tensor output_size_tensor{cldnn::spatial(static_cast<int32_t>(output_width), static_cast<int32_t>(output_height))};
-            cldnn::tensor img_size_tensor{cldnn::spatial(static_cast<int32_t>(img_width), static_cast<int32_t>(img_height))};
-
-            impl_param.set_input1_tensors(output_size_tensor);
-            impl_param.set_input2_tensors(img_size_tensor);
+            p_param->output_size.push_back(static_cast<size_t>(output_width));
+            p_param->output_size.push_back(static_cast<size_t>(output_height));
+            p_param->img_size.push_back(static_cast<size_t>(img_width));
+            p_param->img_size.push_back(static_cast<size_t>(img_height));
         } else { //int32_t
             auto output_height = reinterpret_cast<int32_t*>(output_size_lock.data())[0];
             auto output_width = reinterpret_cast<int32_t*>(output_size_lock.data())[1];
             auto img_height = reinterpret_cast<int32_t*>(img_size_lock.data())[0];
             auto img_width = reinterpret_cast<int32_t*>(img_size_lock.data())[1];
 
-            cldnn::tensor output_size_tensor{cldnn::spatial(output_width, output_height)};
-            cldnn::tensor img_size_tensor{cldnn::spatial(img_width, img_height)};
-
-            impl_param.set_input1_tensors(output_size_tensor);
-            impl_param.set_input2_tensors(img_size_tensor);
+            p_param->output_size.push_back(static_cast<size_t>(output_width));
+            p_param->output_size.push_back(static_cast<size_t>(output_height));
+            p_param->img_size.push_back(static_cast<size_t>(img_width));
+            p_param->img_size.push_back(static_cast<size_t>(img_height));
         }
     }
 

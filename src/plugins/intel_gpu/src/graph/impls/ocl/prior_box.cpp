@@ -33,12 +33,10 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         auto image_height = primitive->img_size.spatial[1];
 
         if (width == 0 || height == 0 || image_width == 0 || image_height == 0) {
-            auto output_size = impl_param.get_input1_tensors();
-            auto img_size = impl_param.get_input2_tensors();
-            width = output_size.spatial[0];
-            height = output_size.spatial[1];
-            image_width = img_size.spatial[0];
-            image_height = img_size.spatial[1];
+            width = impl_param.output_size[0];
+            height = impl_param.output_size[1];
+            image_width = impl_param.img_size[0];
+            image_height = impl_param.img_size[0];
         }
         params.min_size = primitive->min_sizes;
         params.max_size = primitive->max_sizes;
