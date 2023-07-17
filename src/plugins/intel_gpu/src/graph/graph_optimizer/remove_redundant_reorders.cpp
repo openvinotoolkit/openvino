@@ -59,9 +59,6 @@ void remove_redundant_reorders::run(program& p) {
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
-            if (node.is_output())
-                continue;
-
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
@@ -126,7 +123,8 @@ void remove_redundant_reorders::run(program& p) {
 
             node.can_be_optimized(true);
             LOG_NODE_REMOVAL(node.id());
-            p.extract_and_remove(node);
+            if (!node.is_output())
+                p.extract_and_remove(node);
 
             for (auto rl : recalc_list) {
                 rl->recalc_output_layout(true);
