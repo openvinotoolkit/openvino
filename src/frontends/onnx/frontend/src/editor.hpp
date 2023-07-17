@@ -19,8 +19,8 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/deprecated.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"

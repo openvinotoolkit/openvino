@@ -14,19 +14,19 @@
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
 #    include <onnx_import/onnx_utils.hpp>
 #endif
-#include "openvino/core/deprecated.hpp"
-
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "openvino/core/deprecated.hpp"
 
 using namespace TemplateExtension;
 
 //! [extension:ctor]
 Extension::Extension() {
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::onnx_import::register_operator(Operation::get_type_info_static().name,
                                            1,
                                            "custom_domain",
@@ -45,7 +45,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
                                                return {std::make_shared<FFTOp>(ng_inputs.at(0), inverse)};
                                            });
 #    endif
-OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 #endif
 }
 //! [extension:ctor]
@@ -53,13 +53,13 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 //! [extension:dtor]
 Extension::~Extension() {
 #ifdef OPENVINO_ONNX_FRONTEND_ENABLED
-OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::onnx_import::unregister_operator(Operation::get_type_info_static().name, 1, "custom_domain");
 #    ifdef OPENCV_IMPORT_ENABLED
     ngraph::onnx_import::unregister_operator(FFTOp::get_type_info_static().name, 1, "custom_domain");
 #    endif  // OPENCV_IMPORT_ENABLED
-OPENVINO_SUPPRESS_DEPRECATED_END
-#endif      // OPENVINO_ONNX_FRONTEND_ENABLED
+    OPENVINO_SUPPRESS_DEPRECATED_END
+#endif  // OPENVINO_ONNX_FRONTEND_ENABLED
 }
 //! [extension:dtor]
 

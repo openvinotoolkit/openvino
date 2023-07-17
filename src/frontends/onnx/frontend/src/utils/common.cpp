@@ -10,7 +10,6 @@
 #include "ngraph/graph_util.hpp"
 #include "openvino/core/deprecated.hpp"
 
-
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {

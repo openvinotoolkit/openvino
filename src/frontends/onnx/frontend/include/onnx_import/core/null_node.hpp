@@ -16,18 +16,15 @@
 
 #include <memory>
 
+#include "ngraph/deprecated.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 #include "openvino/op/op.hpp"
-#include "ngraph/deprecated.hpp"
 
 namespace ngraph {
 namespace op {
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
-bool is_null(const ngraph::Node* node);
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
-bool is_null(const std::shared_ptr<ngraph::Node>& node);
-NGRAPH_API_DEPRECATED ONNX_IMPORTER_API
-bool is_null(const Output<ngraph::Node>& output);
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const ngraph::Node* node);
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const std::shared_ptr<ngraph::Node>& node);
+NGRAPH_API_DEPRECATED ONNX_IMPORTER_API bool is_null(const Output<ngraph::Node>& output);
 }  // namespace op
 namespace onnx_import {
 /// \brief Represents a missing optional input or output of an ONNX node

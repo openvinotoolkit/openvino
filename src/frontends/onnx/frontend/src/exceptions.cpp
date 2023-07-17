@@ -3,9 +3,10 @@
 //
 
 #include "exceptions.hpp"
-#include "openvino/core/deprecated.hpp"
 
 #include <sstream>
+
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {

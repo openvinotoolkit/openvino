@@ -13,8 +13,8 @@
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
-#include "util/test_control.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "util/test_control.hpp"
 
 using namespace ov;
 using namespace ov::onnx_editor;

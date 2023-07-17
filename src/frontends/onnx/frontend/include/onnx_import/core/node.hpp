@@ -17,10 +17,10 @@
 #include <cstddef>
 #include <string>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/deprecated.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE {

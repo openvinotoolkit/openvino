@@ -11,8 +11,8 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/node.hpp"
-#include "utils/common.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph {
 namespace onnx_import {

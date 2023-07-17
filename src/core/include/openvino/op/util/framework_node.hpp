@@ -70,7 +70,7 @@ private:
     std::string m_type_name;
     std::string m_opset_name;
 
-    std::unordered_map<std::string, std::string> m_attrs; //ov::Any
+    std::unordered_map<std::string, std::string> m_attrs;
 };
 
 class OPENVINO_API FrameworkNode : public MultiSubGraphOp {

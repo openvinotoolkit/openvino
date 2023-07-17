@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
