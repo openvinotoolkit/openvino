@@ -54,6 +54,7 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -395,6 +396,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL2Decomposition);
+
+    if (enable_i64) {
+        // This transformation is the cause of the overhead in integer eltwise emitter.
+        // It converts SUB to MUL(-1) + ADD.
+        CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSubtract);
+    }
 
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::NormalizeL2Decomposition);
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::ConvertInterpolate1ToInterpolate4);

@@ -20,8 +20,9 @@ const auto basicCases3D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(emptyPluginConfig),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3D()))
 );
 
@@ -33,8 +34,9 @@ const auto basicCases4D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(emptyPluginConfig),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams4D()))
 );
 
@@ -46,8 +48,9 @@ const auto basicCases5D = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypes())),
     ::testing::ValuesIn(netPrc()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(emptyPluginConfig),
     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5D()))
 );
 
@@ -58,8 +61,9 @@ const auto dynamicMathBasicCases = ::testing::Combine(
     ::testing::Values(activationShapes()),
     ::testing::ValuesIn(ov::test::utils::combineParams(activationTypesDynamicMath())),
     ::testing::ValuesIn(netPrecisions()),
-    ::testing::Values(Precision::FP32),
-    ::testing::Values(Precision::FP32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(ElementType::f32),
+    ::testing::Values(emptyPluginConfig),
     ::testing::ValuesIn(cpuParamsDynamicMath())
 );
 

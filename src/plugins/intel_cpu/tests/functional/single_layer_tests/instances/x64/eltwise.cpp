@@ -3,15 +3,10 @@
 //
 
 #include "single_layer_tests/classes/eltwise.hpp"
-#include "shared_test_classes/single_layer/eltwise.hpp"
-#include "test_utils/cpu_test_utils.hpp"
-#include "test_utils/fusing_test_utils.hpp"
 #include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
 using namespace ov::test;
 
 
@@ -556,6 +551,186 @@ const auto params_5D_dyn_param_Blocked_Blocked = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param_Blocked_Blocked, EltwiseLayerCPUTest, params_5D_dyn_param_Blocked_Blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
+
+
+//// ========================================= 4D INT_64 ============================================
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_1D_Constant_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64, ElementType::u64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_1D_Parameter_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                        ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_1D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64, ElementType::u64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode())),
+        ::testing::Values(emptyFusingSpec)), EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_MemOrder_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::ValuesIn(secondaryInputTypes()),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_MemOrder_Blocked_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_Blocked_Planar_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_Blocked_Planar())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_MemOrder_dyn_const_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(inShapes_4D_dyn_const()),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_MemOrder_dyn_param_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(inShapes_4D_dyn_param()),
+                        ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+//// ========================================= 5D INT_64 ============================================
+
+INSTANTIATE_TEST_SUITE_P(smoke_5D_1D_Constant_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64, ElementType::u64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_5D_1D_Parameter_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D_1D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64, ElementType::u64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_5D_MemOrder_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::ValuesIn(secondaryInputTypes()),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_5D_MemOrder_Blocked_Blocked_I64, EltwiseLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_5D())),
+                        ::testing::ValuesIn(eltwiseOpTypesBinInp()),
+                        ::testing::ValuesIn(secondaryInputTypes()),
+                        ::testing::ValuesIn(opTypes()),
+                        ::testing::Values(ElementType::i64),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(ov::element::undefined),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                        ::testing::Values(cpuI64PluginConfig)),
+                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Blocked())),
+                ::testing::Values(emptyFusingSpec)),
+        EltwiseLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace Eltwise

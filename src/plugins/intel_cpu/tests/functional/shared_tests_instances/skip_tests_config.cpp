@@ -188,6 +188,8 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // Need to enable reorder for Int64.
+        R"(.*EltwiseLayerCPUTest.*(i64|u64).*(nhwc|ndhwc|nChw8c|nCdhw8c|nChw16c|nCdhw16c).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

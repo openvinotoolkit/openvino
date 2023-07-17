@@ -186,10 +186,12 @@ template<class T>
 void inline
 fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, double_t start_from = 0, const int32_t k = 1,
                  const int seed = 1) {
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
     if (range == 0) {
-        for (std::size_t i = 0; i < size; i++) {
-            pointer[i] = static_cast<T>(start_from);
-        }
+        auto val = static_cast<T>(start_from);
+        std::fill(pointer, pointer + size, val);
         return;
     }
 
@@ -197,11 +199,37 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, double
     const uint32_t k_range = k * range; // range with respect to k
     random.Generate(k_range);
 
-    if (start_from < 0 && !std::is_signed<T>::value) {
-        start_from = 0;
-    }
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+    }
+}
+
+template<class T>
+void inline
+fill_data_random(T *pointer, std::size_t size, const uint64_t range = 10lu, int64_t start_from = 0l, const int64_t k = 1l,
+                 const int64_t seed = 1l) {
+    if (start_from < 0l && !std::is_signed<T>::value) {
+        start_from = 0l;
+    }
+    if (range == 0l) {
+        auto val = static_cast<T>(start_from);
+        std::fill(pointer, pointer + size, val);
+        return;
+    }
+
+    uint64_t buff[2] = {0, 1};
+    auto gen = [&]() {
+        uint64_t s1 = buff[0];
+        uint64_t s0 = buff[1];
+        uint64_t result = s0 + s1;
+        buff[0] = s0;
+        s1 ^= s1 << 23;
+        buff[1] = s1 ^ s0 ^ (s1 >> 18) ^ (s0 >> 5);
+        return result;
+    };
+
+    for (std::size_t i = 0lu; i < size; i++) {
+        pointer[i] = static_cast<T>(start_from + gen() % range);
     }
 }
 

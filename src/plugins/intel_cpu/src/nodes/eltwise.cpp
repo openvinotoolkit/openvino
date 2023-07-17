@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -10,7 +9,6 @@
 
 #include <ie_parallel.hpp>
 
-#include "cpu_types.h"
 #include "utils/bfloat16.hpp"
 #include "ie_ngraph_utils.hpp"
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
@@ -18,8 +16,6 @@
 
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include "fake_quantize.h"
-#include "pooling.h"
 #include "input.h"
 #include "common/cpu_convert.h"
 
@@ -29,11 +25,9 @@
 #include "emitters/x64/jit_bf16_emitters.hpp"
 #include <selective_build.h>
 #include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 
-#include "ngraph/ngraph.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset12.hpp>
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
@@ -43,9 +37,9 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
-#include <map>
 #include <functional>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "executors/eltwise_list.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -73,7 +67,7 @@ struct EltwiseEmitterContext {
     jit_generator *host;
     cpu_isa_t host_isa;
     const Eltwise::EltwiseData& opData;
-    InferenceEngine::Precision exec_prc;
+    Precision exec_prc;
 };
 
 template<typename T>
@@ -107,6 +101,19 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
     }
 };
 
+template<>
+struct EltwiseEmitter<jit_divide_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        auto div_emitter = std::make_shared<jit_divide_emitter>(ctx.host, ctx.host_isa, ctx.exec_prc);
+        if (ctx.opData.alpha == 1.f) {
+            div_emitter->round_type = jit_emitter::RoundType::floor;
+        } else {
+            div_emitter->round_type = jit_emitter::RoundType::truncation;
+        }
+        ctx.emitter = div_emitter;
+    }
+};
+
 static void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
                       const std::set<std::vector<element::Type>>& precisions2,
                       std::set<std::vector<element::Type>>& intersection) {
@@ -137,7 +144,7 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
 
     // for element-wise operations all inputs must to have the same precisions
     auto has_same_precision = [](const std::vector<element::Type>& precisions) {
-        return std::all_of(precisions.begin(), precisions.end(), [&precisions](const element::Type precision) {
+        return std::all_of(precisions.begin(), precisions.end(), [&precisions](const element::Type& precision) {
             return precision == precisions[0];
         });
     };
@@ -165,15 +172,17 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
             element::i16,
             element::bf16,
             element::i32,
+            element::i64,
             element::f32
     };
 
     for (const auto prc : exec_precisions_priority) {
         if (std::any_of(
-            supported_precision_intersection.begin(),
-            supported_precision_intersection.end(),
-            [&prc](const std::vector<element::Type>& precisions) { return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
-            exec_prc = InferenceEngine::details::convertPrecision(prc);
+                    supported_precision_intersection.begin(),
+                    supported_precision_intersection.end(),
+                    [&prc](const std::vector<element::Type>& precisions) {
+                        return std::find(precisions.begin(), precisions.end(), prc) != precisions.end(); })) {
+            exec_prc = details::convertPrecision(prc);
             break;
         }
     }
@@ -182,6 +191,24 @@ InferenceEngine::Precision eltwise_precision_helper::get_precision(const size_t 
         if (src_prc[i] != exec_prc) {
             exec_prc = Precision::FP32;
             break;
+        }
+    }
+
+    bool allInpI64 = true;
+    for (size_t i = 0lu; i < inputs_number; i++) {
+        if (src_prc[i] != Precision::I64) {
+            allInpI64 = false;
+            break;
+        }
+    }
+    if (allInpI64) {
+        for (const auto &prcs : supported_precision_intersection) {
+            if (prcs[0] == element::i64) {
+                exec_prc = Precision::I64;
+                break;
+            } else if (prcs[0] == element::f64) {
+                exec_prc = Precision::FP64;
+            }
         }
     }
 
@@ -203,7 +230,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
@@ -340,12 +367,12 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         mov(reg_post_op_ptrs, ptr[reg_const_params + GET_OFF(post_op_data)]);
 
-        Xbyak::Label unroll_loop_label;
-        Xbyak::Label unroll_loop_end_label;
-        Xbyak::Label main_loop_label;
-        Xbyak::Label main_loop_end_label;
-        Xbyak::Label tail_loop_label;
-        Xbyak::Label tail_loop_end_label;
+        Label unroll_loop_label;
+        Label unroll_loop_end_label;
+        Label main_loop_label;
+        Label main_loop_end_label;
+        Label tail_loop_label;
+        Label tail_loop_end_label;
 
         if (isa == x64::avx512_core)
             vpxord(vmm_zero, vmm_zero, vmm_zero);
@@ -577,7 +604,7 @@ private:
         OV_CASE(Algorithm::EltwiseTanh, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseAbs, jit_dnnl_aux_emitter),
-        OV_CASE(Algorithm::EltwiseSqrt, jit_dnnl_aux_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSoftRelu, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_dnnl_aux_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_dnnl_aux_emitter),
@@ -682,17 +709,40 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc, bool broadcast) {
+    inline void load_vector(const Vmm &vmm_src, const Address &op, const Precision &src_prc, const Precision &dst_prc, bool broadcast) {
         Xmm xmm_src = Xmm(vmm_src.getIdx());
+        Ymm ymm_src = Ymm(vmm_src.getIdx());
 
         if (broadcast) {
-            load_scalar(xmm_src, op, src_prc, dst_prc);
-            uni_vbroadcastss(vmm_src, xmm_src);
+                load_scalar(xmm_src, op, src_prc, dst_prc);
+                if (src_prc.size() == 8) {
+                    uni_vbroadcastsd(vmm_src, xmm_src);
+                } else {
+                    uni_vbroadcastss(vmm_src, xmm_src);
+                }
         } else {
             switch (src_prc) {
+                case Precision::I64:
+                    if (dst_prc == Precision::I64 || dst_prc == Precision::I32) {
+                        uni_vmovups(vmm_src, op);
+                    } else if (dst_prc == Precision::FP64) {
+                        if (x64::mayiuse(x64::avx512_core)) {
+                            vcvtqq2pd(vmm_src, op);
+                        } else {
+                            // Do conversion inside the emitter.
+                            uni_vmovups(vmm_src, op);
+                        }
+                    }
+                    break;
                 case Precision::FP32:
+                    if (dst_prc == Precision::FP32) {
+                        uni_vmovups(vmm_src, op);
+                    }
+                    break;
                 case Precision::I32:
-                    uni_vmovups(vmm_src, op);
+                    if (dst_prc == Precision::I32) {
+                        uni_vmovups(vmm_src, op);
+                    }
                     break;
                 case Precision::BF16:
                     vpmovzxwd(vmm_src, op);
@@ -714,29 +764,53 @@ private:
                     uni_vpmovzxbd(vmm_src, op);
                     break;
                 default:
-                    assert(!"unknown src_prc");
+                    IE_THROW() << "Unknown src_prc: " << src_prc;
             }
 
             switch (dst_prc) {
                 case Precision::FP32:
-                    if (!src_prc.is_float())
+                    if (src_prc == Precision::I64) {
+                        vcvtqq2ps(ymm_src, op);
+                    } else if (one_of(src_prc, Precision::U8, Precision::I8, Precision::I16, Precision::U16)) {
                         uni_vcvtdq2ps(vmm_src, vmm_src);
+                    } else if (src_prc == Precision::I32) {
+                        uni_vcvtdq2ps(vmm_src, op);
+                    }
                     break;
                 case Precision::I32:
-                    if (src_prc.is_float())
-                        uni_vcvtps2dq(vmm_src, vmm_src);
+                    if (src_prc == Precision::I64) {
+                        vpmovsqd(ymm_src, vmm_src);
+                    } else if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16) {
+                        uni_vcvtps2dq(vmm_src, op);
+                    }
+                    break;
+                case Precision::I64:
+                case Precision::FP64:
                     break;
                 default:
-                    assert(!"unknown dst_prc");
+                    IE_THROW() << "Unsupported destination precision: " << dst_prc;
             }
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc) {
+    inline void load_scalar(const Xmm &xmm_src, const Address &op, const Precision &src_prc, const Precision &dst_prc, bool broadcast = false) {
+        Address srcAdrBcst(op.getBit(), true, op.getRegExp());
         switch (src_prc) {
+            case Precision::I64:
+                if (dst_prc == Precision::I64) {
+                    uni_vmovsd(xmm_src, op);
+                } else if (dst_prc == Precision::FP64) {
+                    if (x64::mayiuse(x64::avx512_core)) {
+                        vcvtqq2pd(xmm_src, srcAdrBcst);
+                    } else {
+                        // Do conversion inside the emitter.
+                        uni_vmovsd(xmm_src, op);
+                    }
+                }
+                break;
             case Precision::FP32:
             case Precision::I32:
-                uni_vmovss(xmm_src, op);
+                uni_vmovss(xmm_src, op); // TODO: AVX512 uni_vcvtdq2ps with bct
                 break;
             case Precision::BF16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -762,44 +836,87 @@ private:
                 uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
-                assert(!"unknown src_prc");
+                IE_THROW() << "Unkown source precision '" << src_prc << "'";
         }
 
         switch (dst_prc) {
             case Precision::FP32:
-                if (!src_prc.is_float())
+                if (src_prc == Precision::I64) {
+                    vcvtqq2ps(xmm_src, xmm_src);
+                } else if (src_prc != Precision::FP32 && src_prc != Precision::BF16 && src_prc != Precision::FP16) {
                     uni_vcvtdq2ps(xmm_src, xmm_src);
+                }
                 break;
             case Precision::I32:
-                if (src_prc.is_float())
+                if (src_prc == Precision::I64) {
+                    vpmovsqd(xmm_src, xmm_src);
+                } else if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16) {
                     uni_vcvtps2dq(xmm_src, xmm_src);
+                }
+                break;
+            case Precision::I64:
+            case Precision::FP64:
                 break;
             default:
-                assert(!"unknown dst_prc");
+                IE_THROW() << "Unsupported destination precision: " << dst_prc;
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision src_prc, Precision dst_prc) {
+    inline void store_vector(const Address &op, const Vmm &vmm_dst, const Precision &src_prc, const Precision &dst_prc) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
         switch (src_prc) {
+            case Precision::FP64:
+                if (dst_prc == Precision::FP32) {
+                    uni_vcvtpd2ps(x64::mayiuse(x64::avx512_core) ? ymm_dst : xmm_dst, vmm_dst);
+                } else if (dst_prc == Precision::I64) {
+                    if (x64::mayiuse(x64::avx512_core)) {
+                        vcvtpd2qq(vmm_dst, vmm_dst);
+                    } else {
+                        // Do conversion inside the emitter.
+                    }
+                } else if (dst_prc == Precision::I32) {
+                    vcvtpd2dq(ymm_dst, vmm_dst);
+                }
+                break;
             case Precision::FP32:
-                if (!dst_prc.is_float())
+                if (dst_prc == Precision::I64) {
+                    vcvtps2qq(vmm_dst, ymm_dst);
+                } else if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16 && dst_prc != Precision::FP16) {
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
+                }
                 break;
             case Precision::I32:
-                if (dst_prc.is_float())
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
+            case Precision::I64:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16) {
+                    vcvtqq2ps(ymm_dst, vmm_dst);
+                }
+                break;
             default:
-                assert(!"unknown src_prc");
+                IE_THROW() << "Unsupported source precision: " << src_prc;
         }
 
         switch (dst_prc) {
             case Precision::FP32:
-            case Precision::I32:
+                if (src_prc == Precision::I64) {
+                    uni_vmovups(op, ymm_dst);
+                } else {
+                    uni_vmovups(op, vmm_dst);
+                }
+                break;
+            case Precision::I64:
                 uni_vmovups(op, vmm_dst);
+                break;
+            case Precision::I32:
+                if (src_prc == Precision::I64) {
+                    vpmovsqd(op, vmm_dst);
+                } else {
+                    uni_vmovups(op, vmm_dst);
+                }
                 break;
             case Precision::BF16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
@@ -837,7 +954,11 @@ private:
                 break;
             case Precision::I8:
                 if (isa == x64::avx512_core) {
-                    vpmovsdb(op, vmm_dst);
+                    if (src_prc == Precision::I64) {
+                        vpmovsqb(xmm_dst, vmm_dst);
+                    } else {
+                        vpmovsdb(op, vmm_dst);
+                    }
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
                     if (isa != x64::sse41)
@@ -851,8 +972,12 @@ private:
                 break;
             case Precision::U8:
                 if (isa == x64::avx512_core) {
-                    vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovusdb(op, vmm_dst);
+                    if (src_prc == Precision::I64) {
+                        vpmovusqb(xmm_dst, vmm_dst);
+                    } else {
+                        vpmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                        vpmovusdb(op, vmm_dst);
+                    }
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
                     if (isa != x64::sse41)
@@ -865,25 +990,52 @@ private:
                 }
                 break;
             default:
-                assert(!"unknown dst_prc");
+                IE_THROW() << "Unsupported destination precision: " << dst_prc;
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
+    inline void store_scalar(const Address &op, const Xmm &xmm_dst, const Precision &src_prc, const Precision &dst_prc) {
         switch (src_prc) {
+            case Precision::FP64:
+                if (dst_prc == Precision::FP32) {
+                    uni_vcvtpd2ps(xmm_dst, xmm_dst);
+                } else if (dst_prc == Precision::I64) {
+                    if (x64::mayiuse(x64::avx512_core)) {
+                        vcvtpd2qq(xmm_dst, xmm_dst);
+                    } else {
+                        // Do conversion inside the emitter.
+                    }
+                } else if (dst_prc == Precision::I32) {
+                    uni_vcvtpd2dq(xmm_dst, xmm_dst);
+                }
+                break;
             case Precision::FP32:
-                if (!dst_prc.is_float())
+                if (dst_prc == Precision::I64) {
+                    vcvtps2qq(xmm_dst, xmm_dst);
+                } else if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16) {
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
+                }
                 break;
             case Precision::I32:
-                if (dst_prc.is_float())
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
+            case Precision::I64:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16) {
+                    vcvtqq2ps(xmm_dst, xmm_dst);
+                } else if (dst_prc == Precision::I32) {
+                    vpmovsqd(xmm_dst, xmm_dst);
+                }
+                break;
             default:
-                assert(!"unknown src_prc");
+                IE_THROW() << "Unsupported source precision: " << src_prc;
         }
 
         switch (dst_prc) {
+            case Precision::FP64:
+            case Precision::I64:
+                uni_vmovsd(op, xmm_dst);
+                break;
             case Precision::FP32:
             case Precision::I32:
                 uni_vmovss(op, xmm_dst);
@@ -914,13 +1066,10 @@ private:
                 mov(op, reg_tmp_8);
                 break;
             case Precision::U8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                uni_vpextrb(op, xmm_dst, 0);
                 break;
             default:
-                assert(!"unknown dst_prc");
+                IE_THROW() << "Unsupported destination precision: " << dst_prc;
         }
     }
 };
@@ -985,10 +1134,10 @@ public:
 
 }   // namespace
 
-Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op) {
-    const auto const1 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
-    const auto const2 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-    int constPort = -1;
+Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op) {
+    const auto const1 = ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(0));
+    const auto const2 = ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    size_t constPort;
     if (const2) {
         constPort = 1;
     } else if (const1) {
@@ -998,48 +1147,50 @@ Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shar
     }
 
     auto const_shape = op->get_input_shape(constPort);
-    if (ngraph::shape_size(const_shape) == 1)
+    if (ov::shape_size(const_shape) == 1)
         return PerTensor;
     else
         return PerChannel;
 }
 
-const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::initializers = {
-    {ngraph::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::initializers = {
+    {op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseAdd;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
     }},
-    {ngraph::op::v1::Subtract::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Subtract::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSubtract;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
     }},
-    {ngraph::op::v1::Multiply::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Multiply::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseMultiply;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
     }},
-    {ngraph::op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        auto divOp = ov::as_type_ptr<op::v1::Divide>(op);
         node.algorithm = Algorithm::EltwiseDivide;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
+        node.alpha = divOp->is_pythondiv() ? 1.f : 0.f; // Attribute m_pythondiv.
     }},
-    {ngraph::op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSquaredDifference;
     }},
-    {ngraph::op::v1::Maximum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Maximum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseMaximum;
     }},
-    {ngraph::op::v1::Minimum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Minimum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseMinimum;
     }},
-    {ngraph::op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseMod;
     }},
-    {ngraph::op::v1::FloorMod::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::FloorMod::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseFloorMod;
     }},
-    {ngraph::op::v1::Power::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Power::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwisePowerDynamic;
     }},
-    {PowerStaticNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {PowerStaticNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
         node.algorithm = Algorithm::EltwisePowerStatic;
         node.alpha = powerStatic->get_power();
@@ -1047,100 +1198,100 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.gamma = powerStatic->get_shift();
         node.broadcastingPolicy = PerTensor;
     }},
-    {ngraph::op::v1::Equal::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Equal::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseEqual;
     }},
-    {ngraph::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseNotEqual;
     }},
-    {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+    {op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseIsFinite;
     }},
-    {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+    {op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseIsInf;
-        const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+        const auto& attributes = ov::as_type_ptr<op::v10::IsInf>(op)->get_attributes();
         node.alpha = attributes.detect_negative;
         node.beta  = attributes.detect_positive;
     }},
-    {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+    {op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseIsNaN;
     }},
-    {ngraph::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGreater;
     }},
-    {ngraph::op::v1::GreaterEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::GreaterEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGreaterEqual;
     }},
-    {ngraph::op::v1::Less::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Less::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLess;
     }},
-    {ngraph::op::v1::LessEqual::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::LessEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLessEqual;
     }},
-    {ngraph::op::v1::LogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::LogicalAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLogicalAnd;
     }},
-    {ngraph::op::v1::LogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::LogicalOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLogicalOr;
     }},
-    {ngraph::op::v1::LogicalXor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::LogicalXor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLogicalXor;
     }},
-    {ngraph::op::v1::LogicalNot::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::LogicalNot::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLogicalNot;
     }},
-    {ngraph::op::v0::Relu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Relu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseRelu;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
     }},
-    {LeakyReluNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {LeakyReluNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
         node.algorithm = Algorithm::EltwiseRelu;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
         node.alpha = leakyRelu->get_slope();
         node.beta = 0.0f;
     }},
-    {ngraph::op::v0::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Gelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseGeluErf;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
     }},
-    {ngraph::op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(op);
-        ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ngraph::op::GeluApproximationMode::ERF) {
+    {op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        auto gelu = getNgraphOpAs<op::v7::Gelu>(op);
+        op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+        if (approximationMode == op::GeluApproximationMode::ERF) {
             node.algorithm = Algorithm::EltwiseGeluErf;
             node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
-        } else if (approximationMode == ngraph::op::GeluApproximationMode::TANH) {
+        } else if (approximationMode == op::GeluApproximationMode::TANH) {
             node.algorithm = Algorithm::EltwiseGeluTanh;
             node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
         } else {
             IE_THROW(NotImplemented) << "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
         }
     }},
-    {ngraph::op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto eluOp = getNgraphOpAs<ngraph::op::v0::Elu>(op);
+    {op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        auto eluOp = getNgraphOpAs<op::v0::Elu>(op);
         node.alpha = static_cast<float>(eluOp->get_alpha());
         node.algorithm = Algorithm::EltwiseElu;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_elu;
     }},
-    {ngraph::op::v0::Tanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Tanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseTanh;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_tanh;
     }},
-    {ngraph::op::v0::Sigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Sigmoid::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSigmoid;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_logistic;
     }},
-    {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseAbs;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_abs;
     }},
-    {ngraph::op::v0::Sqrt::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Sqrt::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSqrt;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_sqrt;
     }},
-    {ngraph::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto clampOp = getNgraphOpAs<ngraph::op::v0::Clamp>(op);
+    {op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        auto clampOp = getNgraphOpAs<op::v0::Clamp>(op);
 
         float alpha_ = static_cast<float>(clampOp->get_min());
         float beta_ = static_cast<float>(clampOp->get_max());
@@ -1154,64 +1305,64 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.algorithm = Algorithm::EltwiseClamp;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
     }},
-    {ngraph::op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseExp;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_exp;
     }},
-    {SwishNode::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {SwishNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         auto swishOp = getNgraphOpAs<SwishNode>(op);
         node.algorithm = Algorithm::EltwiseSwish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_swish;
         node.alpha = swishOp->get_alpha();
     }},
-    {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
         node.alpha = 1.f / 6.f;
         node.beta = 0.5f;
         node.algorithm = Algorithm::EltwiseHswish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
     }},
-    {ngraph::op::v4::Mish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v4::Mish::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseMish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_mish;
     }},
-    {ngraph::op::v5::HSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v5::HSigmoid::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseHsigmoid;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_hsigmoid;
     }},
-    {ngraph::op::v5::Round::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        auto roundOp = getNgraphOpAs<ngraph::op::v5::Round>(op);
+    {op::v5::Round::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+        auto roundOp = getNgraphOpAs<op::v5::Round>(op);
 
         switch (roundOp->get_mode()) {
-            case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN:
+            case op::v5::Round::RoundMode::HALF_TO_EVEN:
                 node.algorithm = Algorithm::EltwiseRoundHalfToEven;
                 node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_to_even;
                 break;
-            case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+            case op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
                 node.algorithm = Algorithm::EltwiseRoundHalfAwayFromZero;
                 node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_away_from_zero;
                 break;
         }
     }},
-    {ngraph::op::v0::PRelu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::PRelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwisePrelu;
         node.broadcastingPolicy = determineBroadcastingPolicy(op);
     }},
-    {ngraph::op::v0::Erf::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Erf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseErf;
     }},
-    {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftRelu;
         node.alpha = 1.f;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
     }},
-    {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftSign;
     }},
-    {ngraph::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSelect;
     }},
-    {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+    {op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseLog;
     }},
 };
@@ -1224,8 +1375,8 @@ struct EltwiseKey {
     VectorDims outBlkDims;
     VectorDims outOrder;
     std::vector<VectorDims> inpDims;
-    std::vector<InferenceEngine::Precision> inpPrc;
-    InferenceEngine::Precision outPrc;
+    std::vector<Precision> inpPrc;
+    Precision outPrc;
     dnnl::post_ops postOps;
     EltwiseImplType implType;
 
@@ -1323,8 +1474,8 @@ public:
                        const VectorDims& outBlkDims,
                        const VectorDims& outOrder,
                        std::vector<VectorDims> inpDims,
-                       const std::vector<InferenceEngine::Precision>& inpPrc,
-                       const InferenceEngine::Precision& outPrc,
+                       const std::vector<Precision>& inpPrc,
+                       const Precision& outPrc,
                        const dnnl::post_ops& post_ops,
                        bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
@@ -1543,6 +1694,7 @@ public:
                                args.indexes[2] = i2;
                                args.indexes[3] = i3;
                                args.indexes[4] = i4;
+
 
                                (*_pKernel)(&args_ptrs, &args);
                            });
@@ -1834,23 +1986,23 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
     return execPtr;
 }
 
-bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (initializers.find(op->get_type_info()) == initializers.end()) {
             errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
             return false;
         }
-        if (const auto binOp = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
-            if (binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NONE &&
-                binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-                errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(binOp->get_autob().m_type);
+        if (const auto binOp = ov::as_type_ptr<const op::util::BinaryElementwiseArithmetic>(op)) {
+            if (binOp->get_autob().m_type != op::AutoBroadcastType::NONE &&
+                binOp->get_autob().m_type != op::AutoBroadcastType::NUMPY) {
+                errorMessage = "Doesn't support broadcast type: " + ov::as_string(binOp->get_autob().m_type);
                 return false;
             }
         }
-        if (const auto select = ov::as_type_ptr<const ov::op::v1::Select>(op)) {
-            if (select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
-                select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-                errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(select->get_autob().m_type);
+        if (const auto select = ov::as_type_ptr<const op::v1::Select>(op)) {
+            if (select->get_auto_broadcast().m_type != op::AutoBroadcastType::NONE &&
+                select->get_auto_broadcast().m_type != op::AutoBroadcastType::NUMPY) {
+                errorMessage = "Doesn't support broadcast type: " + ov::as_string(select->get_autob().m_type);
                 return false;
             }
         }
@@ -1860,8 +2012,8 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-    Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
+Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) :
+        Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1953,7 +2105,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             Precision::I16,
             Precision::BF16,
             Precision::FP16,
-            Precision::I32
+            Precision::I32,
+            Precision::I64
     };
 
     if (!supportedPrimitiveDescriptors.empty())
@@ -1984,7 +2137,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
                            << " (actual = " << getParentEdges().size() << ")";
 
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+    std::vector<Precision> inputPrecisions;
     for (const auto &prec : getOriginalInputPrecisions()) {
         inputPrecisions.push_back(prec);
     }
@@ -2006,7 +2159,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
 
-    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
+    Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
@@ -2025,8 +2178,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-            if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
+            if (prc == Precision::U32) {
                 return Precision(Precision::I32);
+            } else if (prc == Precision::U64) {
+                return Precision(Precision::I64);
             } else {
                 IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
             }
@@ -2746,8 +2901,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     return false;
 }
 
-InferenceEngine::Precision Eltwise::getRuntimePrecision() const {
-    std::vector<InferenceEngine::Precision> inputPrecisions;
+Precision Eltwise::getRuntimePrecision() const {
+    std::vector<Precision> inputPrecisions;
     // Don't take bias precision into account
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);

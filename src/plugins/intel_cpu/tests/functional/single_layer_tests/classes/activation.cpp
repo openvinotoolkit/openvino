@@ -3,10 +3,9 @@
 //
 
 #include "activation.hpp"
-#include "gtest/gtest.h"
-#include "test_utils/cpu_test_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include "shared_test_classes/single_layer/activation.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ngraph::helpers;
 using namespace ov::test;
@@ -14,12 +13,13 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions  {
 
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-    std::vector<ov::test::InputShape> inputShapes;
+    std::vector<InputShape> inputShapes;
     std::vector<size_t> activationShapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    InferenceEngine::Precision netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
+    std::pair<ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+    ElementType netPrecision, inPrecision, outPrecision;
+    CPUSpecificParams cpuParams;
+    ov::AnyMap config;
+    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, config, cpuParams) = obj.param;
 
     std::ostringstream result;
     result << LayerTestsDefinitions::activationNames[activationTypeAndConstValue.first] << "_";
@@ -39,20 +39,29 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     }
     result << "AS=" << ov::test::utils::vec2str(activationShapes) << "_";
     result << "ConstantsValue=" << ov::test::utils::vec2str(activationTypeAndConstValue.second) << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrecision.name() << "_";
-    result << "outPRC=" << outPrecision.name() << "_";
-    result << CPUTestUtils::CPUTestsBase::getTestCaseName(cpuParams);
+    result << "netPRC=" << netPrecision << "_";
+    result << "inPRC=" << inPrecision << "_";
+    result << "outPRC=" << outPrecision << "_";
+    result << CPUTestsBase::getTestCaseName(cpuParams);
+
+    if (!config.empty()) {
+        result << "_PluginConf{";
+        for (const auto& configItem : config) {
+            result << "_" << configItem.first << "=";
+            configItem.second.print(result);
+        }
+        result << "}";
+    }
 
     return result.str();
 }
 
-void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     int32_t startFrom = 0;
     uint32_t range = 0;
     int32_t resolution = 0;
 
-    if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
+    if (activationType == ActivationTypes::Exp && netPrecision == ElementType::bf16) {
         startFrom = 0;
         range = 2;
         resolution = 32768;
@@ -78,10 +87,10 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
+            tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
                                                              range, startFrom, resolution);
         } else {
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
@@ -90,41 +99,41 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
 void ActivationLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
 
-    std::vector<ov::test::InputShape> inputShapes;
+    std::vector<InputShape> inputShapes;
     std::vector<size_t> activationShapes;
-    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    InferenceEngine::Precision inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
+    std::pair<ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+    CPUSpecificParams cpuParams;
+
+    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inType, outType, configuration, cpuParams) = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
 
-    inType  = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrecision);
-    outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
-    selectedType = getPrimitiveType() + "_" + netPrecision.name();
-
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    selectedType = getPrimitiveType() + "_" + netPrecision.name();
 #    if defined(OPENVINO_ARCH_ARM)
-    if (activationType == ngraph::helpers::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
+    if (activationType == ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.name();
 #    endif
-    if (activationType == ngraph::helpers::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
-        activationType == ngraph::helpers::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
+    if (activationType == ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
+        activationType == ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with ngraph transformation
         inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.name();
 #else
-    if (activationType == ngraph::helpers::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
-        selectedType = std::string("ref_") + netPrecision.name();
+    selectedType = getPrimitiveType();
+    if (activationType == ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
+        selectedType = std::string("ref");
+
+    selectedType = makeSelectedTypeStr(selectedType, netPrecision, configuration);
 #endif
 
     init_input_shapes(inputShapes);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
+    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes.front()});
+    auto activation = ngraph::builder::makeActivation(params[0], netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
+    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params, "Activation");
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
@@ -160,8 +169,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>>& activationType
     return activationTypes;
 }
 
-const std::vector<Precision>& netPrc() {
-    static const std::vector<Precision> netPrc{Precision::FP32};
+const std::vector<ElementType>& netPrc() {
+    static const std::vector<ElementType> netPrc{ElementType::f32};
 
     return netPrc;
 }
@@ -245,9 +254,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>>& activationType
     return activationTypesDynamicMath;
 }
 
-const std::vector<Precision>& netPrecisions() {
-    static const std::vector<Precision> netPrecisions {
-        InferenceEngine::Precision::FP32
+const std::vector<ElementType>& netPrecisions() {
+    static const std::vector<ElementType> netPrecisions {
+        ElementType::f32
     };
 
     return netPrecisions;

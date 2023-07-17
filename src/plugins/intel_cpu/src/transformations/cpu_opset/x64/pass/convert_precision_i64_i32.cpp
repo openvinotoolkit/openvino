@@ -15,8 +15,23 @@ namespace intel_cpu {
 // Returns list of operations that support i64.
 bool ConvertPrecisionI64ToI32::isNativelySupported(const ov::Node::type_info_t& type) const {
     static const std::unordered_set<ov::Node::type_info_t> i64Ops = {
+        opset12::Add::get_type_info_static(),
+        opset12::Ceiling::get_type_info_static(),
+        opset12::Constant::get_type_info_static(),
+        opset12::Divide::get_type_info_static(),
+        opset12::Equal::get_type_info_static(),
+        opset12::Floor::get_type_info_static(),
+        opset12::FloorMod::get_type_info_static(),
+        opset12::Greater::get_type_info_static(),
+        opset12::Less::get_type_info_static(),
+        opset12::Maximum::get_type_info_static(),
+        opset12::Minimum::get_type_info_static(),
+        opset12::Multiply::get_type_info_static(),
         opset12::Parameter::get_type_info_static(),
         opset12::Result::get_type_info_static(),
+        opset12::Sqrt::get_type_info_static(),
+        opset12::SquaredDifference::get_type_info_static(),
+        opset12::Subtract::get_type_info_static(),
         opset12::Transpose::get_type_info_static()
     };
 
