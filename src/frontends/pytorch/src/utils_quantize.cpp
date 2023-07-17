@@ -5,18 +5,12 @@
 #include "utils_quantize.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/round.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
 
@@ -154,40 +148,6 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                     axis.get_node_shared_ptr(),
                     dtype,
                     quantization_type);
-}
-
-ov::Output<ov::Node> quantize(const NodeContext& context,
-                              ov::Output<ov::Node> input,
-                              ov::Output<ov::Node> quantized_node) {
-    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
-    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr()))) {
-        return quantize(context,
-                        input.get_node_shared_ptr(),
-                        quantized_pt_node->get_scale(),
-                        quantized_pt_node->get_zero_point(),
-                        quantized_pt_node->get_axis(),
-                        quantized_pt_node->get_dtype(),
-                        quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
-}
-
-ov::Output<ov::Node> quantize(const NodeContext& context,
-                              ov::Output<ov::Node> input,
-                              ov::Output<ov::Node> scale,
-                              ov::Output<ov::Node> zero_point,
-                              ov::Output<ov::Node> quantized_node) {
-    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
-    if ((quantized_pt_node = cast_quantized_fw_node(quantized_node.get_node_shared_ptr()))) {
-        return quantize(context,
-                        input.get_node_shared_ptr(),
-                        scale.get_node_shared_ptr(),
-                        zero_point.get_node_shared_ptr(),
-                        quantized_pt_node->get_axis(),
-                        quantized_pt_node->get_dtype(),
-                        quantized_pt_node->get_type());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
 }
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(ov::Output<Node> node) {
