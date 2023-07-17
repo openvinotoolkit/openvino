@@ -855,13 +855,6 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_type, factory);
     };
 
-    /* When custom implementation priorities are NOT defined it is enough to
-     * just use the first implementation from the priority list.
-     * When custom implementation priorities are defined, all the implementations should be considered,
-     * since custom implementations can be not available at all, so a fallback to the default ones must happen
-     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
-     * since oneDNN primitive is mutating while iterating */
-
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
         const bool first_match = customImplPriorities.empty();
@@ -874,8 +867,6 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                                                         addSupportedPrimitiveDescriptor(desc);
                                                     });
 
-        // fallback. if none of the primitive types is present in the priority list just add first implementation
-        // @todo this fallback is not necessary if primitive priority list is filled correctly
         if (supportedPrimitiveDescriptors.empty())
             addSupportedPrimitiveDescriptor(first_desc);
     }
