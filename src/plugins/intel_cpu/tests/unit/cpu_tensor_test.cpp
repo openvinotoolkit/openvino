@@ -89,7 +89,7 @@ private:
 };
 
 // helper to get byte strides from strides.
-static ov::Strides byteStrides(const ov::Strides& strides, const ov::element::Type& type) {
+static ov::Strides byte_strides(const ov::Strides& strides, const ov::element::Type& type) {
     ov::Strides byte_strides(strides.size());
     for (size_t i = 0; i < strides.size(); ++i)
         byte_strides[i] = strides[i] * type.size();
@@ -167,7 +167,7 @@ TEST_F(CPUTensorTest, canCreateTensor) {
         ASSERT_EQ(elem_type, t->get_element_type());
         ASSERT_EQ(ov_shape, t->get_shape());
         ASSERT_NE(ov_shape, t->get_strides());
-        ASSERT_EQ(byteStrides(ov::Strides({6, 2, 1}), t->get_element_type()), t->get_strides());
+        ASSERT_EQ(byte_strides(ov::Strides({6, 2, 1}), t->get_element_type()), t->get_strides());
         ASSERT_EQ(elem_type.size() * totalSize, t->get_byte_size());
         ASSERT_THROW(t->data(ov::element::i64), ov::Exception);
         ASSERT_THROW(t->data<std::int32_t>(), ov::Exception);
@@ -214,7 +214,7 @@ TEST_F(CPUTensorTest, canSetShape) {
         ASSERT_EQ(t->get_shape(), ov_origShape);
         ASSERT_NO_THROW(t->set_shape(ov_newShape));
         ASSERT_EQ(ov_newShape, t->get_shape());
-        ASSERT_EQ(byteStrides(ov::row_major_strides(ov_newShape), t->get_element_type()), t->get_strides());
+        ASSERT_EQ(byte_strides(ov::row_major_strides(ov_newShape), t->get_element_type()), t->get_strides());
         ASSERT_NE(orig_data, t->data());
     }
 
@@ -238,7 +238,7 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
 
     ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-    ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+    ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
@@ -253,6 +253,6 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
         auto desc2 = memptr->getDescPtr()->cloneWithNewDims(newShape.getStaticDims(), true);
         memptr->redefineDesc(desc2);
         ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-        ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+        ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
     }
 }
