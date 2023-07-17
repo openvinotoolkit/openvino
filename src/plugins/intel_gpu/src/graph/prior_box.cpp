@@ -453,9 +453,9 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
 
     auto& memory_deps = impl_param.memory_deps;
 
-    if (constant_mem.count(0) && constant_mem.count(1)) {
-        auto output_size_mem = constant_mem.at(0);
-        auto img_size_mem = constant_mem.at(1);
+    if (memory_deps.count(0) && memory_deps.count(1)) {
+        auto output_size_mem = memory_deps.at(0);
+        auto img_size_mem = memory_deps.at(1);
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
         cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
