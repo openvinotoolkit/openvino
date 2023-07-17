@@ -180,7 +180,15 @@ void primitive_inst::set_external_output_memory(memory::ptr mem_new, bool check,
 }
 
 void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
+    _external_output_memory = false;
     auto& eng = _network.get_engine();
+    // reset output memory
+    if (!mem_new) {
+        OPENVINO_ASSERT(get_network().is_dynamic(), "[GPU] Unexpected attepmpt to reset output memory for static primitive");
+         _outputs[idx] = nullptr;
+         return;
+    }
+
     // skip all the buzz if no action actually required
     if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
         return;

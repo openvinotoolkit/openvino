@@ -23,6 +23,23 @@
 
 using namespace ::testing;
 
+namespace {
+std::shared_ptr<ov::Model> get_remote_tensor_test_model(ov::PartialShape input_shape = {1, 2, 32, 32}) {
+    auto model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
+    std::map<size_t, ov::PartialShape> target_shape = {{0, input_shape}};
+    model->reshape(target_shape);
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(model);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+
+    model = p.build();
+
+    return model;
+}
+}  // namespace
+
 class OVRemoteTensor_Test : public CommonTestUtils::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
@@ -42,7 +59,9 @@ enum class RemoteTensorSharingType {
     USER_USM_DEVICE_TENSOR = 3,
     PLUGIN_USM_HOST_TENSOR = 4,
     PLUGIN_USM_DEVICE_TENSOR = 5,
-    PLUGIN_HOST_TENSOR = 6
+    PLUGIN_HOST_TENSOR = 6,
+    USER_HOST_TENSOR = 7,
+    NONE = 8
 };
 
 std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_type) {
@@ -54,6 +73,8 @@ std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_t
     case RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR: stream << "PLUGIN_USM_HOST_TENSOR"; break;
     case RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR: stream << "PLUGIN_USM_DEVICE_TENSOR"; break;
     case RemoteTensorSharingType::PLUGIN_HOST_TENSOR: stream << "PLUGIN_HOST_TENSOR"; break;
+    case RemoteTensorSharingType::USER_HOST_TENSOR: stream << "USER_HOST_TENSOR"; break;
+    case RemoteTensorSharingType::NONE: stream << "NONE"; break;
     }
 
     return stream;
@@ -326,6 +347,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
 
             break;
         }
+        default: GTEST_SKIP();
     }
 
     auto output_tensor_shared = inf_req_shared.get_tensor(output);
@@ -374,8 +396,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input_shape);
 
     inf_req_regular.set_tensor(input, fakeImageData);
-
     inf_req_regular.infer();
+
     auto output_tensor_regular = inf_req_regular.get_tensor(output);
 
     // inference using remote tensor
@@ -599,8 +621,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
             }
             break;
         }
+        default: GTEST_SKIP();
     }
-
 
     // compare results
     {
@@ -627,6 +649,230 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(ov_with_auto_batching),
         ::testing::ValuesIn(ov_dynamic)),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
+
+
+TEST(OVRemoteTensorTest, CanInferRegularMemAfterShared) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto ie = ov::Core();
+    bool is_dynamic = true;
+
+    auto model = get_remote_tensor_test_model(ov::PartialShape::dynamic(4));
+    auto compiled_model = ie.compile_model(model, CommonTestUtils::DEVICE_GPU);
+
+    ov::Shape input_shape{1, 2, 32, 32};
+    ov::Shape output_shape{1, 2, 32, 32};
+    // regular inference
+    auto inf_req_regular = compiled_model.create_infer_request();
+    auto input = model->get_parameters().at(0);
+    auto output = model->get_results().at(0);
+
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input_shape);
+
+
+    // inference using remote tensor
+    auto inf_req_shared = compiled_model.create_infer_request();
+    auto cldnn_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context;
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    if (!ocl_instance->supports_usm())
+        GTEST_SKIP();
+
+    auto allocated_out_shape = output_shape;
+    if (is_dynamic) {
+        // In dynamic case we allocate more than required to check that out tensor is reshaped correctly
+        allocated_out_shape[1]++;
+    }
+
+    auto in_size = ov::shape_size(input_shape);
+    auto out_size = ov::shape_size(output_shape) * output->get_output_element_type(0).bitwidth() / 8;
+    auto allocated_out_size = ov::shape_size(allocated_out_shape) * output->get_output_element_type(0).bitwidth() / 8;
+    auto output_tensor_shared = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output_shape);
+
+
+    {
+        void* shared_input_buffer = ocl_instance->allocate_usm_device_buffer(in_size);
+        void* shared_output_buffer = ocl_instance->allocate_usm_device_buffer(allocated_out_size);
+        {
+            void* buffer = fakeImageData.data();
+            err = ocl_instance->memcpy(ocl_instance->_queue, shared_input_buffer, buffer, in_size, true, nullptr, nullptr);
+            if (err != CL_SUCCESS)
+                FAIL() << "Failed to copy data from host buffer to USM device";
+        }
+
+        auto input_remote_tensor = cldnn_context.create_tensor(input->get_element_type(), input_shape, shared_input_buffer);
+        auto output_remote_tensor = cldnn_context.create_tensor(output->get_output_element_type(0), allocated_out_shape, shared_output_buffer);
+        inf_req_shared.set_tensor(input, input_remote_tensor);
+        inf_req_shared.set_tensor(output, output_remote_tensor);
+        inf_req_shared.infer();
+
+        {
+            void* buffer = output_tensor_shared.data();
+            auto out_tensor = inf_req_shared.get_output_tensor();
+            ASSERT_EQ(out_tensor.get_shape(), output_shape);
+            err = ocl_instance->memcpy(ocl_instance->_queue, buffer, shared_output_buffer, out_size, true, nullptr, nullptr);
+            if (err != CL_SUCCESS)
+                FAIL() << "Failed to copy data from USM device to host buffer";
+        }
+
+
+        ocl_instance->free_mem(shared_input_buffer);
+        ocl_instance->free_mem(shared_output_buffer);
+    }
+
+
+    // Different order ensures that input/output tensors from previous inference are not reused
+    inf_req_regular.set_tensor(input, fakeImageData);
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(output);
+
+    // compare results
+    {
+        ASSERT_EQ(output->get_element_type(), ov::element::f32);
+        ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_NO_THROW(output_tensor_regular.data());
+        ASSERT_NO_THROW(output_tensor_shared.data());
+        FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+    }
+}
+
+TEST(OVRemoteTensorTest, CantInferOnSmallerRemoteOutputTensor) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto ie = ov::Core();
+    bool is_dynamic = true;
+
+    auto model = get_remote_tensor_test_model(ov::PartialShape::dynamic(4));
+    auto compiled_model = ie.compile_model(model, CommonTestUtils::DEVICE_GPU);
+
+    ov::Shape input_shape{1, 2, 32, 32};
+    ov::Shape output_shape{1, 2, 32, 32};
+    // regular inference
+    auto inf_req_regular = compiled_model.create_infer_request();
+    auto input = model->get_parameters().at(0);
+    auto output = model->get_results().at(0);
+
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input_shape);
+
+
+    // inference using remote tensor
+    auto inf_req_shared = compiled_model.create_infer_request();
+    auto cldnn_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context;
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    if (!ocl_instance->supports_usm())
+        GTEST_SKIP();
+
+    auto allocated_out_shape = output_shape;
+    if (is_dynamic) {
+        // In dynamic case we allocate more than required to check that out tensor is reshaped correctly
+        allocated_out_shape[1]--;
+    }
+
+    auto in_size = ov::shape_size(input_shape);
+    auto allocated_out_size = ov::shape_size(allocated_out_shape) * output->get_output_element_type(0).bitwidth() / 8;
+    auto output_tensor_shared = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output_shape);
+
+
+    {
+        void* shared_input_buffer = ocl_instance->allocate_usm_device_buffer(in_size);
+        void* shared_output_buffer = ocl_instance->allocate_usm_device_buffer(allocated_out_size);
+        {
+            void* buffer = fakeImageData.data();
+            err = ocl_instance->memcpy(ocl_instance->_queue, shared_input_buffer, buffer, in_size, true, nullptr, nullptr);
+            if (err != CL_SUCCESS)
+                FAIL() << "Failed to copy data from host buffer to USM device";
+        }
+
+        auto input_remote_tensor = cldnn_context.create_tensor(input->get_element_type(), input_shape, shared_input_buffer);
+        auto output_remote_tensor = cldnn_context.create_tensor(output->get_output_element_type(0), allocated_out_shape, shared_output_buffer);
+        inf_req_shared.set_tensor(input, input_remote_tensor);
+        inf_req_shared.set_tensor(output, output_remote_tensor);
+        OV_EXPECT_THROW(inf_req_shared.infer(), ov::Exception, HasSubstr("can't reallocate memory to the new size"));
+
+        ocl_instance->free_mem(shared_input_buffer);
+        ocl_instance->free_mem(shared_output_buffer);
+    }
+}
+
+
+TEST(OVRemoteTensorTest, CanInferRequestsWithDifferentMemoryTypesAndSizes) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto ie = ov::Core();
+    auto model = get_remote_tensor_test_model(ov::PartialShape::dynamic(4));
+    auto compiled_model = ie.compile_model(model, CommonTestUtils::DEVICE_GPU);
+
+    auto input = model->get_parameters().at(0);
+    auto output = model->get_results().at(0);
+
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = gpu_context;
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+
+    if (!ocl_instance->supports_usm())
+        GTEST_SKIP();
+
+    std::vector<std::tuple<ov::Shape, RemoteTensorSharingType, ov::Shape, RemoteTensorSharingType>> in_out_params {
+        {{1, 2, 32, 32}, RemoteTensorSharingType::USER_HOST_TENSOR, {1, 2, 32, 32}, RemoteTensorSharingType::USER_HOST_TENSOR},
+        {{1, 2, 31, 31}, RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR, {1, 2, 32, 32}, RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR},
+        {{1, 2, 31, 31}, RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR, {1, 2, 31, 31}, RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR},
+        {{1, 2, 33, 33}, RemoteTensorSharingType::USER_HOST_TENSOR, {1, 2, 33, 33}, RemoteTensorSharingType::USER_HOST_TENSOR},
+    };
+    // regular inference
+    std::vector<ov::InferRequest> infer_requests = { compiled_model.create_infer_request(), compiled_model.create_infer_request() };
+
+    for (size_t i = 0; i < in_out_params.size() * 10; i++) {
+        auto& iteration_params = in_out_params[i % in_out_params.size()];
+        ov::Shape in_shape;
+        ov::Shape out_shape;
+        RemoteTensorSharingType in_type;
+        RemoteTensorSharingType out_type;
+
+        std::tie(in_shape, in_type, out_shape, out_type) = iteration_params;
+        auto request = infer_requests[i % infer_requests.size()];
+
+
+        switch (in_type) {
+            case RemoteTensorSharingType::USER_HOST_TENSOR: {
+                auto input_tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), in_shape);
+                request.set_tensor(input, input_tensor);
+                break;
+            }
+            case RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR: {
+                auto input_tensor = gpu_context.create_tensor(input->get_element_type(), in_shape);
+                request.set_tensor(input, input_tensor);
+                break;
+            }
+            default: FAIL() << "Unsupported params";
+        }
+
+        switch (out_type) {
+            case RemoteTensorSharingType::USER_HOST_TENSOR: {
+                auto output_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), out_shape);
+                request.set_tensor(output, output_tensor);
+                break;
+            }
+            case RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR: {
+                auto output_tensor = gpu_context.create_tensor(output->get_output_element_type(0), out_shape);
+                request.set_tensor(output, output_tensor);
+                break;
+            }
+            default: FAIL() << "Unsupported params";
+        }
+
+        ASSERT_NO_THROW(request.infer());
+
+    }
+}
 
 class OVRemoteTensor_TestsWithContext : public OVRemoteTensor_Test, public testing::WithParamInterface<bool> {
 protected:

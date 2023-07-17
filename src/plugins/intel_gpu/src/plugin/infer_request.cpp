@@ -236,14 +236,16 @@ void InferRequest::set_output(const std::string& name, const Blob::Ptr& data) {
     bool is_remote = remote_ptr != nullptr;
 
     auto node = findOutputByNodeName(name);
-    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
+    bool is_dynamic = node && node->get_output_partial_shape(0).is_dynamic();
 
     if (is_remote) {
         _deviceOutputs[name] = data;
     } else {
-        if (!isDynamic) {
+        if (!is_dynamic) {
             if (data->buffer() == nullptr)
                 OPENVINO_THROW(str_output_not_allocated, " Output name: \'", name, "\'");
+        } else {
+            _deviceOutputs.erase(name);
         }
     }
     _outputs[name] = data;
@@ -484,6 +486,7 @@ void InferRequest::wait() {
     if (internal_outputs.empty()) {
         OPENVINO_THROW("Inference was not started!\n");
     }
+    auto network = m_graph->GetNetwork(0);
     // wait for completion & collect outputs as requested by the model
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
@@ -493,6 +496,10 @@ void InferRequest::wait() {
         auto outputLayout = internal_outputs.at(outputID).get_layout();
         if (outputMemory)
             outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
+
+        if (network->is_dynamic()) {
+            network->reset_output_memory(outputID);
+        }
 
         bool need_output_update = false;
 
