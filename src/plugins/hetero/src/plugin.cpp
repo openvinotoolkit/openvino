@@ -52,7 +52,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
     auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config);
     return compiled_model;
 }
 
@@ -62,9 +62,8 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     DeviceProperties device_properties;
     for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
-        if (device_properties.end() == properties_it) {
+        if (device_properties.end() == properties_it)
             device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
-        }
     }
     return device_properties;
 }
@@ -90,11 +89,9 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
 
     ov::SupportedOpsMap res;
-    for (const auto& device_name : device_names) {
-        for (auto&& layer_query_result : query_results[device_name]) {
+    for (const auto& device_name : device_names)
+        for (const auto& layer_query_result : query_results[device_name])
             res.emplace(layer_query_result);
-        }
-    }
 
     return res;
 }

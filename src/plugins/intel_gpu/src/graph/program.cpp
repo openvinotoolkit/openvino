@@ -218,7 +218,7 @@ void program::init_program() {
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
-        get_compilation_context().remove_keys({item.first.hash()});
+        get_compilation_context().remove_keys({item.first});
     });
 }
 
