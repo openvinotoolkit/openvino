@@ -27,14 +27,13 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     return cldnn::prior_box_code_type::corner;
 }
 
-static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
-    validate_inputs_count(op, {3});
+static void CreateCommonDetectionOutputOp(Program& p,
+                                          const std::shared_ptr<ngraph::Node>& op,
+                                          const ov::op::util::DetectionOutputBase::AttributesBase& attrs,
+                                          int num_classes) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto attrs = op->get_attrs();
-
-    uint32_t num_classes            = attrs.num_classes;
     bool share_location             = attrs.share_location;
     int background_label_id         = attrs.background_label_id;
     float nms_threshold             = attrs.nms_threshold;
@@ -81,7 +80,21 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
     p.add_primitive(*op, detectionPrim);
 }
 
+static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
+    validate_inputs_count(op, {3});
+
+    auto attrs = op->get_attrs();
+    CreateCommonDetectionOutputOp(p, op, attrs, attrs.num_classes);
+}
+
+static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v8::DetectionOutput>& op) {
+    validate_inputs_count(op, {3, 5});
+
+    CreateCommonDetectionOutputOp(p, op, op->get_attrs(), -1);
+}
+
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);
+REGISTER_FACTORY_IMPL(v8, DetectionOutput);
 
 }  // namespace intel_gpu
 }  // namespace ov

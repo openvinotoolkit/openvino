@@ -62,7 +62,7 @@ struct detection_output : public primitive_base<detection_output> {
                      const input_info& input_location,
                      const input_info& input_confidence,
                      const input_info& input_prior_box,
-                     const uint32_t num_classes,
+                     const int32_t num_classes,
                      const uint32_t keep_top_k,
                      const bool share_location = true,
                      const int background_label_id = 0,
@@ -106,7 +106,7 @@ struct detection_output : public primitive_base<detection_output> {
     }
 
     /// @brief Number of classes to be predicted.
-    const uint32_t num_classes;
+    const int num_classes;
     /// @brief Number of total bounding boxes to be kept per image after NMS step.
     const int keep_top_k;
     /// @brief If true, bounding box are shared among different classes.
@@ -217,7 +217,7 @@ struct detection_output : public primitive_base<detection_output> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<detection_output>::load(ib);
-        ib >> *const_cast<uint32_t*>(&num_classes);
+        ib >> *const_cast<int32_t*>(&num_classes);
         ib >> *const_cast<int*>(&keep_top_k);
         ib >> *const_cast<bool*>(&share_location);
         ib >> *const_cast<int*>(&background_label_id);
