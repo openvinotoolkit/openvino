@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.tools.ovc.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
-    parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
+from openvino.tools.ovc.cli_parser import get_placeholder_shapes, \
+    check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
@@ -383,68 +383,6 @@ class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
 
     def test_input_without_values(self):
         self.assertRaises(Error, parse_tuple_pairs, "input1,input2")
-
-
-class TestSingleTupleParsing(UnitTestWithMockedTelemetry):
-    def test_get_values_ideal(self):
-        values = "(1.11, 22.22, 333.333)"
-        result = get_tuple_values(values)
-        exp_res = ['1.11, 22.22, 333.333']
-        self.assertEqual(exp_res, result)
-
-    def test_get_values_ideal_spaces(self):
-        values = "(1    , 22 ,333)"
-        result = get_tuple_values(values)
-        exp_res = ['1    , 22 ,333']
-        self.assertEqual(exp_res, result)
-
-    def test_get_values_ideal_square(self):
-        values = "[1,22,333]"
-        result = get_tuple_values(values)
-        exp_res = ['1,22,333']
-        self.assertEqual(exp_res, result)
-
-    def test_get_values_ideal_square_spaces(self):
-        values = "[1    , 22 ,333]"
-        result = get_tuple_values(values)
-        exp_res = ['1    , 22 ,333']
-        self.assertEqual(exp_res, result)
-
-    def test_get_neg_values_ideal(self):
-        values = "(-1,-22,-333)"
-        result = get_tuple_values(values)
-        exp_res = ['-1,-22,-333']
-        self.assertEqual(exp_res, result)
-
-    def test_get_neg_values_minus(self):
-        values = "(-1,--22,-3-33)"
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_unbalanced(self):
-        values = "(1,22,333]"
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_unbalanced2(self):
-        values = "[1,22,333)"
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_exactly_3(self):
-        values = "[1,22,333,22]"
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_exactly_3_1(self):
-        values = "[1,22]"
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_empty(self):
-        values = ""
-        self.assertRaises(Error, get_tuple_values, values)
-
-    def test_get_values_empty_tuple(self):
-        values = ()
-        result = get_tuple_values(values)
-        exp_res = ()
-        self.assertEqual(exp_res, result)
 
 
 class TestShapesParsing(UnitTestWithMockedTelemetry):

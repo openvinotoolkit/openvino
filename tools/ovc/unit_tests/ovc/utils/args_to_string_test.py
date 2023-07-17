@@ -5,27 +5,12 @@ import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 from openvino.runtime import InputCutInfo, LayoutMap
-from openvino.tools.ovc.cli_parser import mean_scale_value_to_str, \
-    transform_param_to_str, str_list_to_str, source_target_layout_to_str, layout_param_to_str
+from openvino.tools.ovc.cli_parser import transform_param_to_str, str_list_to_str, \
+    source_target_layout_to_str, layout_param_to_str
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
 class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
-    def test_mean_scale_value_to_str(self):
-        values = [0.5, 1.3, 0.67]
-        self.assertTrue(mean_scale_value_to_str(values) == "[0.5,1.3,0.67]")
-
-        values = {"input": [0.5, 1.3, 0.67]}
-        self.assertTrue(mean_scale_value_to_str(values) == "input[0.5,1.3,0.67]")
-
-        values = {"input1": [0.5, 1.3, 0.67], "input2": [4.2, 6.7, 3.15], "input3": [0.757, 4.6, 7.3]}
-        self.assertTrue(mean_scale_value_to_str(values) ==
-                        "input1[0.5,1.3,0.67],input2[4.2,6.7,3.15],input3[0.757,4.6,7.3]")
-
-        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": {("a", "b"): [0.5, 1.3, 0.67]}})
-        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": {"name": Dimension(1)}})
-        self.assertRaises(Exception, mean_scale_value_to_str, **{"value": Dimension(1)})
-
     def test_transform_param_to_str(self):
         transform = 'MakeStateful'
         self.assertTrue(transform_param_to_str(transform) == "MakeStateful")
