@@ -13,7 +13,7 @@ namespace {
 using TensorType = ngraph::element::Type_t;
 using TensorShape = ngraph::Shape;
 
-class EliminateUnsqueezeGatherTest : public CommonTestUtils::TestsCommon,
+class EliminateUnsqueezeGatherTest : public ov::test::TestsCommon,
                                      public testing::WithParamInterface<std::tuple<TensorType, TensorShape, size_t>> {
 public:
     void SetUp() override {

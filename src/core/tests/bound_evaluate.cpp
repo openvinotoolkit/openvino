@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "type_prop.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

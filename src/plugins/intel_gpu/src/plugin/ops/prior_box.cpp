@@ -125,9 +125,8 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
 
     const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
     const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!(output_size_constant && image_size_constant)) {
-        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(output_size_constant && image_size_constant,
+                    "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     const auto output_size = output_size_constant->cast_vector<int64_t>();
     const auto width = output_size[0];
