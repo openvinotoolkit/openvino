@@ -29,7 +29,6 @@ inline std::string get_node_version(const std::shared_ptr<ov::Node>& node, const
 }  // namespace test
 }  // namespace ov
 
-
 namespace LayerTestsUtils {
 
 struct ModelInfo {

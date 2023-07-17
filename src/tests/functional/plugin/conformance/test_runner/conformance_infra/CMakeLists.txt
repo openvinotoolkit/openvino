@@ -9,7 +9,7 @@ addIeTarget(
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
-                ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         INCLUDES
             PUBLIC
