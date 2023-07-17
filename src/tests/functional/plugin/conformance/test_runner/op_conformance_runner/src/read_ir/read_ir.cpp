@@ -309,7 +309,7 @@ void ReadIRTest::SetUp() {
             pgLink->set_refuse_result();
         }
 
-        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        auto splittedFilename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
         std::reverse(splittedFilename.begin(), splittedFilename.end());
 
         // Try to resolve missing info

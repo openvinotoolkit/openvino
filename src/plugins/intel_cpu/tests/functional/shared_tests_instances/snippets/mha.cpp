@@ -260,7 +260,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWithExtractedReshape, MHAWithExtracte
                                  ::testing::ValuesIn({true}), // False is not supported for graph builder in tests
                                  ::testing::Values(3), // Extracted Add + Extracted Reshape + MHA
                                  ::testing::Values(2), // Extracted Add + MHA
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values(std::map<std::string, std::string>{})),
                          MHA::getTestCaseName);
 

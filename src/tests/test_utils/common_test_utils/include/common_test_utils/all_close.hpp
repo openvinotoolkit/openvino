@@ -130,6 +130,7 @@ template <typename T>
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 ::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol = 1e-5f, float atol = 1e-8f);
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
