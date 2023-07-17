@@ -389,7 +389,7 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset12
-    _OV_OP_SHAPE_INFER_MASK_REG(opset12::Pad, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset12::Pad, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset12::ScatterElementsUpdate, ShapeInferTA, util::bit::mask(3)),
     // opset11
     _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2)),
@@ -492,7 +492,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MatMul, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::OneHot, ShapeInferTA, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Pad, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Pad, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::PriorBox, ShapeInferTA, util::bit::mask(0)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::PriorBoxClustered, ShapeInferTA, util::bit::mask(0)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferTA, util::bit::mask()),

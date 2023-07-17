@@ -79,7 +79,7 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     op.set_mode(desc->mode);
     op.set_sort_type(desc->sort);
 
-    std::vector<ShapeType> output_shapes;
+    std::vector<ShapeType> output_shapes = {ShapeType{}, ShapeType{}};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         ShapeType{}

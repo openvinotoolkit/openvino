@@ -306,8 +306,8 @@ private:
 template <class T>
 typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type operator<<(std::ostream& out, const T& shape) {
     out << '{';
-    std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
     if (!shape.empty()) {
+        std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
         out << shape[shape.size() - 1];
     }
     out << '}';
