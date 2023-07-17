@@ -37,6 +37,12 @@ public:
                   size_t dev_index,
                   bool has_index,
                   bool is_new_api);
+
+    RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
+                  const std::string& dev_name,
+                  size_t dev_index,
+                  bool has_index,
+                  bool is_new_api);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
@@ -56,7 +62,7 @@ private:
     std::string m_name;
     std::string m_tensor_name;
 
-    std::string get_tensor_name() const;
+    void init_context(const std::string& dev_name, size_t dev_index, bool has_index, bool is_new_api);
 };
 
 }  // namespace proxy

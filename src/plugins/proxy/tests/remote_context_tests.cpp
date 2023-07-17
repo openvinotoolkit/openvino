@@ -116,3 +116,16 @@ TEST_F(ProxyTests, create_custom_context_from_second_dev) {
     auto rem_comp_context = comp_context.as<PluginRemoteContext>();
     EXPECT_FALSE(rem_comp_context.is_default());
 }
+
+TEST_F(ProxyTests, get_context_from_the_model) {
+    const std::string dev_name = "MOCK.3";
+    auto model = create_model_with_subtract();
+
+    auto compiled_model = core.compile_model(model, dev_name);
+    auto comp_context = compiled_model.get_context();
+    EXPECT_EQ(dev_name, comp_context.get_device_name());
+    EXPECT_NE(core.get_default_context("MOCK").get_device_name(), comp_context.get_device_name());
+    ASSERT_TRUE(comp_context.is<PluginRemoteContext>());
+    auto rem_comp_context = comp_context.as<PluginRemoteContext>();
+    EXPECT_TRUE(rem_comp_context.is_default());
+}
