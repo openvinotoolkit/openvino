@@ -10,20 +10,30 @@ To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of
 Linux
 ##########
 
-To use a GPU device for OpenVINO inference, you must meet the following prerequisites:
+To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-- Use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
-- Install ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the `installation documentation <https://dgpu-docs.intel.com/driver/installation.html>`__
-- Install GPU Runtime packages:
+- If you use a discrete GPU (for example Arc 770), you must also use a supported Linux kernel as per the `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
+- For Arc GPU, kernel 6.2 or higher is recommended. 
+- For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>` or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
-  - `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
-  - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
-  - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
-  - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
+Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/tag/23.22.26516.18>`__ and its dependencies: 
 
-Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
+- `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
+- `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
+- `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
 .. tab-set::
+
+   .. tab-item:: Ubuntu 22.04 LTS
+      :sync: ubuntu-22
+
+      Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
+      
+      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
+      
+      .. code-block:: sh
+      
+         apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
 
    .. tab-item:: Ubuntu 20.04 LTS
       :sync: ubuntu-20
@@ -86,18 +96,19 @@ Additional info
 
 For your reference, the following versions of Intel® Graphics Driver were used in the OpenVINO internal validation:
 
-
-+------------------+-------------------------------------------------------------------------------------+
-| Operation System | Driver version                                                                      |
-+==================+=====================================================================================+
-| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__ |
-+------------------+-------------------------------------------------------------------------------------+
-| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__ |
-+------------------+-------------------------------------------------------------------------------------+
-| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__ |
-+------------------+-------------------------------------------------------------------------------------+
-| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__ |
-+------------------+-------------------------------------------------------------------------------------+
++------------------+-------------------------------------------------------------------------------------------+
+| Operation System | Driver version                                                                            |
++==================+===========================================================================================+
+| Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
++------------------+-------------------------------------------------------------------------------------------+
+| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__       |
++------------------+-------------------------------------------------------------------------------------------+
 
 @endsphinxdirective
 
