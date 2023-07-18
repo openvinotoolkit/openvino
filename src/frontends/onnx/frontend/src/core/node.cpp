@@ -103,6 +103,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
@@ -371,6 +372,7 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     }
     return *found_attr;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {
