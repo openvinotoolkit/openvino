@@ -73,6 +73,10 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         proposals_shape
     };
 
+    for (size_t i = 3; i < impl_param.input_layouts.size(); ++i) {
+        input_shapes.push_back(impl_param.input_layouts[i].get<ShapeType>());
+    }
+
     if (desc->num_classes == -1) {
         ov::op::v8::DetectionOutput op;
         ov::op::util::DetectionOutputBase::AttributesBase attrs;
@@ -81,8 +85,9 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         attrs.keep_top_k = { desc->keep_top_k };
         attrs.share_location = desc->share_location;
         attrs.normalized = desc->prior_is_normalized;
-        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
         op.set_attrs(attrs);
+
+        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
     } else {
         ov::op::v0::DetectionOutput op;
         ov::op::v0::DetectionOutput::Attributes attrs;
@@ -93,6 +98,7 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         attrs.share_location = desc->share_location;
         attrs.normalized = desc->prior_is_normalized;
         op.set_attrs(attrs);
+
         ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
     }
 
@@ -155,6 +161,7 @@ std::string detection_output_inst::to_string(detection_output_node const& node) 
     detec_out_info.add("decrease_label_id", decrease_label_id);
     detec_out_info.add("clip_before_nms", clip_before_nms);
     detec_out_info.add("clip_after_nms", clip_after_nms);
+    detec_out_info.add("objectness_score", desc->objectness_score);
     detec_out_info.dump(primitive_description);
 
     node_info->add("dection output info", detec_out_info);
@@ -233,9 +240,7 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     // argument (struct detection_output)
     ob << argument->id;
-    ob << argument->input[0].pid;
-    ob << argument->input[1].pid;
-    ob << argument->input[2].pid;
+    ob << argument->input;
     ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
@@ -255,15 +260,14 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << argument->decrease_label_id;
     ob << argument->clip_before_nms;
     ob << argument->clip_after_nms;
+    ob << argument->objectness_score;
 }
 
 void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     parent::load(ib);
 
     primitive_id id;
-    primitive_id input_location;
-    primitive_id input_confidence;
-    primitive_id input_prior_box;
+    std::vector<input_info> input;
     uint32_t num_classes;
     uint32_t keep_top_k;
     bool share_location;
@@ -282,13 +286,11 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     bool decrease_label_id;
     bool clip_before_nms;
     bool clip_after_nms;
-    // primitive_id ext_prim_id;
+    float objectness_score;
     padding output_padding;
 
     ib >> id;
-    ib >> input_location;
-    ib >> input_confidence;
-    ib >> input_prior_box;
+    ib >> input;
     ib >> make_data(&output_padding, sizeof(output_padding));
     ib >> num_classes;
     ib >> keep_top_k;
@@ -308,12 +310,12 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> decrease_label_id;
     ib >> clip_before_nms;
     ib >> clip_after_nms;
+    ib >> objectness_score;
 
     argument = std::make_shared<detection_output>(
-        id, input_info(input_location), input_info(input_confidence), input_info(input_prior_box),
-        num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k, eta, code_type,
-        variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
-        prior_is_normalized, input_width, input_height, decrease_label_id, clip_before_nms, clip_after_nms,
-        output_padding);
+        id, input, num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k,
+        eta, code_type, variance_encoded_in_target, confidence_threshold, prior_info_size,
+        prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id,
+        clip_before_nms, clip_after_nms, objectness_score, output_padding);
 }
 }  // namespace cldnn

@@ -49,15 +49,14 @@ static void CreateCommonDetectionOutputOp(Program& p,
     bool clip_before_nms            = attrs.clip_before_nms;
     bool clip_after_nms             = attrs.clip_after_nms;
     bool decrease_label_id          = attrs.decrease_label_id;
+    float objectness_score          = attrs.objectness_score;
 
     cldnn::prior_box_code_type cldnnCodeType = PriorBoxCodeFromString(code_type);
     int32_t prior_info_size = normalized != 0 ? 4 : 5;
     int32_t prior_coordinates_offset = normalized != 0 ? 0 : 1;
 
     auto detectionPrim = cldnn::detection_output(layerName,
-                                                 inputs[0],
-                                                 inputs[1],
-                                                 inputs[2],
+                                                 inputs,
                                                  num_classes,
                                                  keep_top_k,
                                                  share_location,
@@ -75,7 +74,8 @@ static void CreateCommonDetectionOutputOp(Program& p,
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms);
+                                                 clip_after_nms,
+                                                 objectness_score);
 
     p.add_primitive(*op, detectionPrim);
 }
@@ -88,7 +88,7 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
 }
 
 static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v8::DetectionOutput>& op) {
-    validate_inputs_count(op, {3, 5});
+    validate_inputs_count(op, {3});
 
     CreateCommonDetectionOutputOp(p, op, op->get_attrs(), -1);
 }
