@@ -104,7 +104,7 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
     if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
         return;
     }
@@ -115,23 +115,23 @@ static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config
     auto core_type = config._threadPreferredCoreType;
 
     int num_cores = total_num_cores;
-    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
         num_cores = total_num_big_cores;
-    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
         num_cores = total_num_little_cores;
     }
 
     config._streams = std::min(config._streams, num_cores);
 }
 
-static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
+static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+    ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
 
@@ -140,15 +140,15 @@ static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(con
     return task_executor_config;
 }
 
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
-    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+std::shared_ptr<ov::threading::IStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
+    ov::threading::IStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    return std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
 }
 
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
-                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
@@ -175,7 +175,7 @@ program::program(engine& engine_ref,
 program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
-                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
@@ -218,7 +218,7 @@ void program::init_program() {
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
-        get_compilation_context().remove_keys({item.first.hash()});
+        get_compilation_context().remove_keys({item.first});
     });
 }
 
@@ -246,7 +246,7 @@ kernels_cache& program::get_kernels_cache() const {
 program::ptr program::build_program(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
-                                    InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
@@ -265,7 +265,7 @@ program::ptr program::build_program(engine& engine,
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
 }

@@ -33,12 +33,12 @@
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

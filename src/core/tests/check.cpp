@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace std;
 
@@ -84,4 +86,14 @@ TEST(check, ngraph_check_with_explanation) {
     }
 
     EXPECT_TRUE(check_failure_thrown);
+}
+
+TEST(check, ov_throw_exception_check_relative_path_to_source) {
+    using namespace testing;
+    const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"});
+    const auto exp_native_slash = "Exception from " + path + ":";
+    const auto exp_fwd_slash = "Exception from src/core/tests/check.cpp:";
+    OV_EXPECT_THROW(OPENVINO_THROW("Test message"),
+                    ov::Exception,
+                    AnyOf(StartsWith(exp_native_slash), StartsWith(exp_fwd_slash)));
 }
