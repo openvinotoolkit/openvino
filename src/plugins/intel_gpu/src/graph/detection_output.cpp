@@ -4,6 +4,7 @@
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
+#include "detection_output_shape_inference.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -54,6 +55,52 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
     return {input_layout.data_type, cldnn::format::bfyx,
             cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, desc->keep_top_k * input_layout.batch())};
 }
+
+template<typename ShapeType>
+std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<detection_output>();
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto box_logits_shape = input0_layout.get<ShapeType>();
+    auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
+    auto output_format = input0_layout.format;
+
+    ShapeType class_preds_shape = impl_param.get_input_layout(1).get<ShapeType>();
+    ShapeType proposals_shape = impl_param.get_input_layout(2).get<ShapeType>();
+    std::vector<ShapeType> output_shapes = { ShapeType() };
+    std::vector<ShapeType> input_shapes = {
+        box_logits_shape,
+        class_preds_shape,
+        proposals_shape
+    };
+
+    if (desc->num_classes == -1) {
+        ov::op::v8::DetectionOutput op;
+        ov::op::util::DetectionOutputBase::AttributesBase attrs;
+        attrs.top_k = desc->top_k;
+        attrs.variance_encoded_in_target = desc->variance_encoded_in_target;
+        attrs.keep_top_k = { desc->keep_top_k };
+        attrs.share_location = desc->share_location;
+        attrs.normalized = desc->prior_is_normalized;
+        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
+        op.set_attrs(attrs);
+    } else {
+        ov::op::v0::DetectionOutput op;
+        ov::op::v0::DetectionOutput::Attributes attrs;
+        attrs.num_classes = desc->num_classes;
+        attrs.top_k = desc->top_k;
+        attrs.variance_encoded_in_target = desc->variance_encoded_in_target;
+        attrs.keep_top_k = { desc->keep_top_k };
+        attrs.share_location = desc->share_location;
+        attrs.normalized = desc->prior_is_normalized;
+        op.set_attrs(attrs);
+        ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    }
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> detection_output_inst::calc_output_layouts<ov::PartialShape>(detection_output_node const& node,
+                                                                                          const kernel_impl_params& impl_param);
 
 std::string detection_output_inst::to_string(detection_output_node const& node) {
     auto node_info = node.desc_to_json();
@@ -121,6 +168,9 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
     auto location_layout = node.location().get_output_layout();
     auto confidence_layout = node.confidence().get_output_layout();
     auto prior_box_layout = node.prior_box().get_output_layout();
+    if (location_layout.is_dynamic() || confidence_layout.is_dynamic() || prior_box_layout.is_dynamic())
+        return;
+
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "Location memory format",
                                   location_layout.format.value,
