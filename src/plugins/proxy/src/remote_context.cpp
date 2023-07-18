@@ -11,18 +11,34 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "remote_tensor.hpp"
 
-ov::proxy::RemoteContext::RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
-                                        const std::string& dev_name,
-                                        size_t dev_index,
-                                        bool has_index,
-                                        bool is_new_api)
-    : m_context(std::move(ctx)) {
+void ov::proxy::RemoteContext::init_context(const std::string& dev_name,
+                                            size_t dev_index,
+                                            bool has_index,
+                                            bool is_new_api) {
+    OPENVINO_ASSERT(m_context);
     m_tensor_name = dev_name + "." + std::to_string(dev_index);
     // New API always has full name, in legacy API we can have device name without index
     if (is_new_api || has_index)
         m_name = m_tensor_name;
     else
         m_name = dev_name;
+}
+ov::proxy::RemoteContext::RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
+                                        const std::string& dev_name,
+                                        size_t dev_index,
+                                        bool has_index,
+                                        bool is_new_api)
+    : m_context(std::move(ctx)) {
+    init_context(dev_name, dev_index, has_index, is_new_api);
+}
+
+ov::proxy::RemoteContext::RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
+                                        const std::string& dev_name,
+                                        size_t dev_index,
+                                        bool has_index,
+                                        bool is_new_api)
+    : m_context(ctx) {
+    init_context(dev_name, dev_index, has_index, is_new_api);
 }
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
