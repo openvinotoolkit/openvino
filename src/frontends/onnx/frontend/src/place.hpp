@@ -4,13 +4,11 @@
 
 #pragma once
 
+#include <editor.hpp>
 #include <memory>
+#include <openvino/frontend/place.hpp>
 #include <sstream>
 
-#include "editor.hpp"
-#include "openvino/frontend/place.hpp"
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -141,4 +139,3 @@ private:
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END

@@ -14,7 +14,7 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 InputModel::InputModel(const std::string& path, const bool enable_mmap, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, enable_mmap, std::move(extensions))} {}
@@ -41,8 +41,6 @@ InputModel::InputModel(std::istream& model_stream,
                        frontend::ExtensionHolder extensions)
     : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();

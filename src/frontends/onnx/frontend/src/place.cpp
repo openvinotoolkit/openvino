@@ -9,7 +9,6 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 PlaceInputEdge::PlaceInputEdge(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge},
       m_editor{std::move(editor)},
@@ -454,4 +453,3 @@ void PlaceOp::set_name(const std::string& new_name) {
     m_editor->set_node_name(m_node, new_name);
     m_node.m_node_name = new_name;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
