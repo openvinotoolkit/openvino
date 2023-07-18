@@ -10,7 +10,6 @@
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
-#include "matchers/subgraph/repeat_pattern.hpp"
 
 namespace ov {
 namespace tools {
