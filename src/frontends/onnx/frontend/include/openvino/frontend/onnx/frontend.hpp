@@ -20,10 +20,12 @@ public:
     using Ptr = std::shared_ptr<FrontEnd>;
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
     void convert(const std::shared_ptr<ov::Model>& partially_converted) const override;
+    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override;
     std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
+    void normalize(const std::shared_ptr<ov::Model>& model) const override;
 
 protected:
     InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;

@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_framework_node.hpp>
+#include "onnx_framework_node.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -24,6 +24,25 @@ std::shared_ptr<Node> ONNXFrameworkNode::clone_with_new_inputs(const OutputVecto
 
 std::shared_ptr<Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const {
     return std::make_shared<ONNXSubgraphFrameworkNode>(m_node, m_functions, inputs);
+}
+
+std::shared_ptr<Node> NotSupportedONNXNode::clone_with_new_inputs(const OutputVector& inputs) const {
+    const auto& attrs = get_attrs();
+    std::string error_message = attrs.at(failed_conversion_key);
+    return std::make_shared<NotSupportedONNXNode>(inputs,
+                                                  get_output_size(),
+                                                  attrs.get_opset_name(),
+                                                  attrs.get_type_name(),
+                                                  error_message);
+}
+
+bool NotSupportedONNXNode::visit_attributes(AttributeVisitor& visitor) {
+    const auto& attrs = get_attrs();
+    auto domain = attrs.get_opset_name();
+    auto op_type = attrs.get_type_name();
+    visitor.on_attribute("ONNX_META_domain", domain);
+    visitor.on_attribute("ONNX_META_type", op_type);
+    return true;
 }
 
 }  // namespace frontend
