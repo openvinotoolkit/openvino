@@ -166,12 +166,12 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.0, as of June 01, 2023.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.0, as of July 07, 2023.
 
-* OpenVINO Model Server performance results are based on release 2022.3, as of December 13, 2022.
+* OpenVINO Model Server performance results are based on release 2023.0, as of June 01, 2023.
 
 The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration 
-and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer. 
+and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
 
 See configuration disclosure for details. No product can be absolutely secure.
 Performance varies by use, configuration and other factors. Learn more at `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
@@ -180,4 +180,3 @@ Intel optimizations, for Intel compilers or other products, may not optimize to 
 
 
 @endsphinxdirective
-
