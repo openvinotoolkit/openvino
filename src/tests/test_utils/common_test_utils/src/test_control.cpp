@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
 #include <fstream>
 #include <unordered_map>
