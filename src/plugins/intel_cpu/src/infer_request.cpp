@@ -696,10 +696,10 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             curBuffIndex = !curBuffIndex;   // flip double-buffer
 
             // WA reset outputs
-            for (const auto entry : outputsTensor2BlobMap) {
+            for (const auto& entry : outputsTensor2BlobMap) {
                 auto output = _outputs.find(entry.first);
                 if (output != _outputs.end()) {
-                    output->second = std::get<1>(outputsTensor2BlobMap[entry.first][curBuffIndex]);
+                    output->second = std::get<1>(entry.second[curBuffIndex]);
                 }
             }
         }
