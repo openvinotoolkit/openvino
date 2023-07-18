@@ -8,7 +8,7 @@ import os
 
 import numpy as np
 from common.constants import test_device, test_precision
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape

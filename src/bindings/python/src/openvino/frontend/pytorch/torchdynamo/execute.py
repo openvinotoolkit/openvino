@@ -11,7 +11,7 @@ from torch.fx import GraphModule
 from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.decoder import TorchFXPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino.runtime import Core, Type, PartialShape
@@ -127,7 +127,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
     global partitioned_modules
-    
+
     allow_single_op_fusion = executor_parameters.get(
         "allow_single_op_fusion",
         DEFAULT_OPENVINO_PYTHON_CONFIG["allow_single_op_fusion"],
