@@ -824,7 +824,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version, backend='ga4')
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

@@ -5,9 +5,9 @@
 Input data for inference can be different from the training dataset and requires
 additional preprocessing before inference. To accelerate the whole pipeline including
 preprocessing and inference, model conversion API provides special parameters such as ``mean_values``,
+``scale_values``, ``reverse_input_channels``, and ``layout``. 
 
-``scale_values``, ``reverse_input_channels``, and ``layout``. Based on these
-parameters, model conversion API generates OpenVINO IR with additionally inserted sub-graphs
+Based on these parameters, model conversion API generates OpenVINO IR with additionally inserted sub-graphs
 to perform the defined preprocessing. This preprocessing block can perform mean-scale
 normalization of input data, reverting data along channel dimension, and changing
 the data layout. See the following sections for details on the parameters, or the
