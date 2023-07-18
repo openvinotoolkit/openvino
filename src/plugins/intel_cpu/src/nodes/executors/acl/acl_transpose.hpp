@@ -45,6 +45,10 @@ public:
                       srcDescs[0]->getShape().getRank());
             return false;
         }
+        if (srcDescs[0]->getPrecision() == InferenceEngine::Precision::FP16) {
+            DEBUG_LOG("NEPermute FP16 implementation has performance issues");
+            return false;
+        }
         return true;
     }
 
