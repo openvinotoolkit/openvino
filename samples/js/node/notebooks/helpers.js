@@ -12,6 +12,7 @@ exports.transform = transform;
 exports.downloadFile = downloadFile;
 exports.extractValues = extractValues;
 exports.setShape = setShape;
+exports.exp = exp;
 
 function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
@@ -136,8 +137,6 @@ function mul(array) {
 }
 
 function setShape(flatArray, shape) {
-  console.log({ shape, l: flatArray.length })
-
   if (mul(shape) !== flatArray.length)
     throw new Error('Shape doesn\'t according to array length');
 
@@ -302,6 +301,7 @@ function arange(count) {
 }
 
 exports.exp = exp;
+exports.sum = sum;
 exports.sumRows = sumRows;
 exports.reshape = reshape;
 exports.getShape = getShape;

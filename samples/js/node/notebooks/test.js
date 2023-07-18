@@ -6,8 +6,9 @@ const {
   triu,
   tril,
   argMax,
-  arange,
   downloadFile,
+  exp,
+  sum,
 } = require('./helpers.js');
 const tokens = require('./tokens_bert.js');
 const ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
@@ -19,17 +20,30 @@ async function main() {
 
   const modelName = 'bert-small-uncased-whole-word-masking-squad-int8-0002';
   const modelXMLName = `${modelName}.xml`;
-  const modelBINName = `${modelName}.bin`;
 
   const modelXMLPath = baseArtifactsDir + '/' + modelXMLName;
 
   const baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/';
 
-  // await downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);
-  // await downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);
+  await downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);
+  await downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);
 
   const core = new ov.Core();
   const model = core.read_model(modelXMLPath);
+
+  new ov.PrePostProcessor(model)
+        .setInputElementType(0, ov.element.f32)
+        .build();
+  new ov.PrePostProcessor(model)
+        .setInputElementType(1, ov.element.f32)
+        .build();
+  new ov.PrePostProcessor(model)
+        .setInputElementType(2, ov.element.f32)
+        .build();
+  new ov.PrePostProcessor(model)
+        .setInputElementType(3, ov.element.f32)
+        .build();
+
   const compiledModel = core.compile_model(model, 'CPU');
 
   const inputs = compiledModel.inputs;
@@ -92,23 +106,21 @@ async function main() {
     return [maxScore, maxS, maxE];
   }
 
-
   function getScore(logits) {
     const out = exp(logits);
-    const summedRows = sumRows(out);
+    const summedRows = sum(out);
 
-    return out.map(row => row.map((colEl, i) => colEl/summedRows[i]));
+    return out.map(i => i/summedRows);
   }
 
   // Based on https://github.com/openvinotoolkit/open_model_zoo/blob/bf03f505a650bafe8da03d2747a8b55c5cb2ef16/demos/common/python/openvino/model_zoo/model_api/models/bert.py#L163
   function postprocess(outputStart, outputEnd, questionTokens, contextTokensStartEnd, padding, startIdx) {
-    console.log('== postprocess');
     // Get start-end scores for the context.
     const scoreStart = getScore(outputStart);
     const scoreEnd = getScore(outputEnd);
 
     // An index of the first context token in a tensor.
-    const contextStartIdx = questionTokens.length;
+    const contextStartIdx = questionTokens.length + 2;
     // An index of the last+1 context token in a tensor.
     const contextEndIdx = inputSize - padding - 1;
 
@@ -122,7 +134,7 @@ async function main() {
     maxStart = contextTokensStartEnd[maxStart + startIdx][0];
     maxEnd = contextTokensStartEnd[maxEnd + startIdx][1];
 
-    return maxScore, maxStart, maxEnd;
+    return [maxScore, maxStart, maxEnd];
   }
 
   // A function to add padding.
@@ -142,8 +154,6 @@ async function main() {
 
   // A generator of a sequence of inputs.
   function* prepareInput(questionTokens, contextTokens) {
-    console.log('== prepareInput');
-
     // A length of question in tokens.
     const questionLen = questionTokens.length;
     // The context part size.
@@ -157,11 +167,7 @@ async function main() {
     // Take parts of the context with overlapping by 0.5.
     const max = Math.max(1, contextTokens.length - contextLen);
 
-    console.log('== here');
-
     for (let start = 0; start < max; start += parseInt(contextLen / 2)) {
-      console.log('== here');
-
       // A part of the context.
       const partContextTokens = contextTokens.slice(start, start + contextLen);
       // The input: a question and the context separated by special tokens.
@@ -178,15 +184,15 @@ async function main() {
 
       // Create an input to feed the model.
       const inputDict = {
-        'input_ids': new Int32Array(inputIds),
-        'attention_mask': new Int32Array(attentionMask),
-        'token_type_ids': new Int32Array(tokenTypeIds),
+        'input_ids': new Float32Array(inputIds),
+        'attention_mask': new Float32Array(attentionMask),
+        'token_type_ids': new Float32Array(tokenTypeIds),
       };
 
       // Some models require additional position_ids.
       if (inputLayerNames.includes('position_ids')) {
         positionIds = inputIds.map((_, index) => index);
-        inputDict['position_ids'] = new Int32Array(positionIds);
+        inputDict['position_ids'] = new Float32Array(positionIds);
       }
 
       yield [inputDict, padNumber, start];
@@ -202,38 +208,43 @@ async function main() {
     const results = [];
     // Iterate through different parts of the context.
     for ([networkInput, padding, startIdx] of prepareInput(questionTokens, contextTokens)) {
-      // console.log({ networkInput, padding, startIdx });
-
       // Get output layers.
       const outputStartKey = compiledModel.output('output_s');
       const outputEndKey = compiledModel.output('output_e');
 
       // OpenVINO inference.
       const inferRequest = compiledModel.create_infer_request();
-      // FIXME: implement supporting of multiinput model
 
-      inferRequest.set_input_tensor(networkInput);
-      inferRequest.infer();
+      const transformedInput = {
+        'input_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['input_ids']),
+        'attention_mask': new ov.Tensor(ov.element.f32, [1, 384], networkInput['attention_mask']),
+        'token_type_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['token_type_ids']),
+        'position_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['position_ids']),
+      }
 
-      const resultStart = inferRequest.getTensor(outputStartKey);
-      const resultEnd = inferRequest.getTensor(outputEndKey);
+      inferRequest.infer(transformedInput);
+      inferRequest.getOutputTensors();
+
+      const resultStart = inferRequest.getTensor(outputStartKey).data;
+      const resultEnd = inferRequest.getTensor(outputEndKey).data;
 
       // Postprocess the result, getting the score and context range for the answer.
-      const scoreStartEnd = postprocess(resultStart[0], // ???
-                                    resultEnd[0],         // ???
+      const scoreStartEnd = postprocess(resultStart,
+                                    resultEnd,
                                     questionTokens,
                                     contextTokensStartEnd,
                                     padding,
                                     startIdx);
-      results.append(scoreStartEnd);
+      results.push(scoreStartEnd);
     }
 
-    console.log({ results });
-
     // Find the highest score.
-    const answer = Math.max(results);
+    const scores = results.map(r => r[0]);
+    const maxIndex = scores.indexOf(Math.max(scores));
+
+    const answer = results[maxIndex];
     // Return the part of the context, which is already an answer.
-    return context.slice(answer[1], answer[2]), answer[0];
+    return [context.slice(answer[1], answer[2]), answer[0]];
   }
 
   function runQuestionAnswering(sources, exampleQuestion) {
@@ -244,9 +255,9 @@ async function main() {
         return console.log('Error: Empty context or outside paragraphs');
 
     if (exampleQuestion) {
-        const startTime = process.hrtime();
+        const startTime = process.hrtime.bigint();
         const [answer, score] = getBestAnswer(exampleQuestion, context);
-        const execTime = process.hrtime(startTime);
+        const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;
 
         console.log(`Question: ${exampleQuestion}`);
         console.log(`Answer: ${answer}`);
@@ -255,13 +266,13 @@ async function main() {
     }
   }
 
-  const textSources = ["Bert is a yellow Muppet character on the long running PBS and HBO children's television show Sesame Street. Bert was originally performed by Frank Oz."];
+  const textSources = ["Bert is a Cat. His brother is yellow Muppet character on the long running PBS and HBO children's television show Sesame Street. Bert was originally performed by Frank Oz."];
 
-  try {
-    const result = runQuestionAnswering(textSources, 'Who is Bert?');
+  const sources = ["Computational complexity theory is a branch of the theory of computation in theoretical computer " +
+           "science that focuses on classifying computational problems according to their inherent difficulty, " +
+           "and relating those classes to each other. A computational problem is understood to be a task that " +
+           "is in principle amenable to being solved by a computer, which is equivalent to stating that the " +
+           "problem may be solved by mechanical application of mathematical steps, such as an algorithm."]
 
-    console.log(result);
-  } catch(e) {
-    console.log(e);
-  }
+  runQuestionAnswering(sources, 'What is the term for a task that generally lends itself to being solved by a computer?');
 }
