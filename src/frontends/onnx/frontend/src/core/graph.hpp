@@ -17,6 +17,7 @@
 #include "onnx_import/core/operator_set.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -92,6 +93,7 @@ private:
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::string m_model_dir;
     bool m_enable_mmap;
+    OperatorsBridge m_ops_bridge;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.

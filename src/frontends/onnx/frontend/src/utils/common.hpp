@@ -153,6 +153,9 @@ void mark_as_optimized_out(Output<ov::Node>& node_output);
 
 /// \brief Checks if a given output was marked as optimized out byt the function above.
 bool is_optimized_out(const Output<ov::Node>& node_output);
+
+/// \brief Collect unsupported operators after convert_partially and all exceptions from translation process.
+std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted);
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
