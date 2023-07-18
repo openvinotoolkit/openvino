@@ -61,7 +61,10 @@ protected:
 
     // keep until api 2.0 adopted,
     // as there is no way to get the wrapped Tensor from Blob.
-    std::unordered_map<std::string, std::pair<std::shared_ptr<Tensor>, InferenceEngine::Blob::Ptr>> outputsTensor2BlobMap;
+    // note: we need implement double-buffer mechanism for each output as an output memory might be input of next iteration.
+    std::unordered_map<std::string, std::vector<std::pair<std::shared_ptr<Tensor>, InferenceEngine::Blob::Ptr>>> outputsTensor2BlobMap;
+    size_t curBuffIndex = 0;           // double-buffer index, either 0 or 1.
+    size_t reset_flag = 0;
 
 private:
     void PushStates();
