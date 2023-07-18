@@ -11,6 +11,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                        {InstanceMethod("set_input_tensor", &InferRequestWrap::set_input_tensor),
                         InstanceMethod("infer", &InferRequestWrap::infer),
                         InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
+                        InstanceMethod("getOutputTensors", &InferRequestWrap::get_output_tensors),
                         InstanceMethod("get_output_tensor", &InferRequestWrap::get_output_tensor)});
 }
 
@@ -46,7 +47,25 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
-    _infer_request.infer();
+    if (info.Length() == 0)
+        _infer_request.infer();
+    else if (info.Length() == 1 && info[0].IsObject()) {
+        const auto inputs = info[0].As<Napi::Object>();
+        auto keys = inputs.GetPropertyNames();
+
+        for (size_t i = 0; i < keys.Length(); i++) {
+            auto tensor_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+            auto tensor_obj = inputs.Get(tensor_name).As<Napi::Object>();
+
+            auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_obj);
+            auto tensor = tensorWrap->get_tensor();
+
+            _infer_request.set_tensor(tensor_name, tensor);
+        }
+        _infer_request.infer();
+    } else {
+        reportError(info.Env(), "Inference error.");
+    }
     return Napi::Value();
 }
 
@@ -61,4 +80,16 @@ Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
 Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) {
     ov::Tensor tensor = _infer_request.get_output_tensor();
     return TensorWrap::Wrap(info.Env(), tensor);
+}
+
+Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
+    auto compiled_model = _infer_request.get_compiled_model().outputs();
+    auto outputs_obj = Napi::Object::New(info.Env());
+
+    for (auto& node : compiled_model) {
+        auto tensor = _infer_request.get_tensor(node);
+        outputs_obj.Set(node.get_any_name(), TensorWrap::Wrap(info.Env(), tensor));
+    }
+
+    return outputs_obj;
 }

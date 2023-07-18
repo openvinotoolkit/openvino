@@ -78,7 +78,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         else
             buf = elem.As<Napi::Int32Array>();
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
-        std::vector<size_t> vector(data_ptr, data_ptr + 4);
+        std::vector<size_t> vector(data_ptr, data_ptr + buf.ElementLength());
         return vector;
     }
 }
@@ -102,8 +102,8 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
             if (!arrayItem.IsString()) {
                 throw std::invalid_argument(std::string("Passed array must contain only strings."));
             }
-            Napi::String num = arrayItem.As<Napi::String>();
-            nativeArray.insert(num.Utf8Value());
+            Napi::String str = arrayItem.As<Napi::String>();
+            nativeArray.insert(str.Utf8Value());
         }
         return nativeArray;
     }

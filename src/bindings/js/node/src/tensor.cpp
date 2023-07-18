@@ -59,7 +59,6 @@ void TensorWrap::set_tensor(const ov::Tensor& tensor) {
 }
 
 Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
-    Napi::HandleScope scope(env);
     auto obj = GetClassConstructor(env).New({});
     auto t = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     t->set_tensor(tensor);
@@ -73,11 +72,11 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     return arr;
 }
 
-Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info){
+Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
     auto shape = _tensor.get_shape();
     return Shape::Wrap(info.Env(), shape);
 }
 
-Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info){
+Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }
