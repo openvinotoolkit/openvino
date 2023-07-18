@@ -27,7 +27,9 @@
 OpenVINO Runtime without any prior conversion. For a guide on how to run inference on ONNX, PaddlePaddle, or TensorFlow,
 see how to :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
 
-**MXNet, Caffe, Kaldi** - formats supported indirectly, which means they need to be converted to OpenVINO IR before running inference. The conversion is done with Model Conversion API and in some cases may involve intermediate steps.
+**MXNet, Caffe, Kaldi** - legacy formats that need to be converted to OpenVINO IR before running inference. 
+The model conversion in some cases may involve intermediate steps. OpenVINO is currently proceeding 
+**to deprecate these formats** and **remove their support entirely in the future**.
 
 Refer to the following articles for details on conversion for different formats and models:
 
