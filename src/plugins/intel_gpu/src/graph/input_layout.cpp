@@ -45,7 +45,15 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
         _outputs[0] = mem;
         ev = get_network().get_stream().create_user_event(true);
     } else {
-        ev = _outputs[0]->copy_from(get_network().get_stream(), *mem, false);
+        if ((mem->get_allocation_type() == allocation_type::usm_host) ||
+            (mem->get_allocation_type() == allocation_type::usm_device)) {
+            ev = _outputs[0]->copy_from(get_network().get_stream(), *mem, false);
+        } else {
+            mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
+            mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
+            std::copy(src.begin(), src.end(), dst.begin());
+            ev = get_network().get_stream().create_user_event(true);
+        }
     }
     _has_valid_input = true;
     _output_changed = true;
