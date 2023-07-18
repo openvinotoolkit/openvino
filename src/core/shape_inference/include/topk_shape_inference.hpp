@@ -59,12 +59,13 @@ std::vector<TRShape> shape_infer(const util::TopKBase* op,
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          input_rank.is_dynamic() || input_rank.get_length() > 0,
-                          "Input rank must be greater than 0.");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_rank.is_dynamic() || input_rank.get_length() > 0,
+                           "Input rank must be greater than 0.");
 
     const auto& k_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     TRShape output_shape = input_shape;
     if (input_shape.rank().is_static()) {
