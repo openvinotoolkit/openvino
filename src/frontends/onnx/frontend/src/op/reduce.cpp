@@ -14,6 +14,7 @@
 #include "op/identity.hpp"
 #include "utils/common.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -152,3 +153,4 @@ OutputVector reduce_sum_square(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

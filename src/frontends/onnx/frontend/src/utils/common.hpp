@@ -18,6 +18,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -130,8 +131,10 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 /// \param node ONNX node
 ///
 /// \return     OutputVector with binary op
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 OutputVector handle_opset6_binary_op(const Node& node);
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// \brief  Creates a "dummy" constant to be used in place of an invalid initializer
 ///         encountered in the original model.

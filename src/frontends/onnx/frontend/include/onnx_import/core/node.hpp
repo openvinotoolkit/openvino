@@ -4,9 +4,20 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <cstddef>
 #include <string>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
@@ -39,7 +50,7 @@ class Tensor;
 class SparseTensor;
 class Attribute;
 
-class ONNX_IMPORTER_API Node {
+class NGRAPH_API_DEPRECATED ONNX_IMPORTER_API Node {
 public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
@@ -282,9 +293,11 @@ ONNX_IMPORTER_API std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_c
                                                                                         int64_t default_value,
                                                                                         element::Type type) const;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline std::ostream& operator<<(std::ostream& outs, const Node& node) {
     return (outs << "<Node(" << node.op_type() << "): " << node.get_description() << ">");
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace onnx_import
 

@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 class Node;
@@ -39,3 +41,4 @@ using CreatorFunction = std::function<OutputVector(const ngraph::onnx_import::No
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
+OPENVINO_SUPPRESS_DEPRECATED_END

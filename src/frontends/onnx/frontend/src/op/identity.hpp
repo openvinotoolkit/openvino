@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 #include <memory>
 
 #include "default_opset.hpp"
@@ -29,3 +32,4 @@ inline OutputVector identity(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -16,7 +16,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "onnx_import/onnx.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;

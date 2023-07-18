@@ -16,6 +16,7 @@
 #include "ngraph/enum_names.hpp"
 #include "onnx_import/core/null_node.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace recurrent {
@@ -119,3 +120,4 @@ OpAttributes::OpAttributes(const Node& node)
 }  // namespace recurrent
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

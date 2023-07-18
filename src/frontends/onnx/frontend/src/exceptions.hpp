@@ -9,6 +9,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "utils/tensor_external_data.hpp"
 
@@ -16,14 +17,17 @@ namespace ngraph {
 namespace onnx_import {
 namespace error {
 namespace detail {
+OPENVINO_SUPPRESS_DEPRECATED_START
 std::string get_error_msg_prefix(const Node& node);
-}
+OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace detail
 
 class OnnxNodeValidationFailure : public ov::AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const Node& node,
-                                    const std::string& explanation);
+    OPENVINO_SUPPRESS_DEPRECATED_START [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                                                       const Node& node,
+                                                                       const std::string& explanation);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     explicit OnnxNodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}

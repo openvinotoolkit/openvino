@@ -8,6 +8,7 @@
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -44,3 +45,4 @@ OutputVector bitshift(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

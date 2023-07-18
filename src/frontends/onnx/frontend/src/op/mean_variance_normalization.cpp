@@ -13,6 +13,7 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -47,3 +48,4 @@ OutputVector mean_variance_normalization(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

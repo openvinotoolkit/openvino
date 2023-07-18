@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 #include <cmath>
 
 #include "ngraph/node.hpp"
