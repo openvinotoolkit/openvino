@@ -67,7 +67,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         .WillByDefault(Return(12));
     std::vector<std::string> cpuCability =  {"FP32", "FP16", "INT8", "BIN"};
     std::vector<std::string> gpuCability =  {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
-    std::vector<std::string> vpuxCability =  {"INT8"};
     std::vector<std::string> othersCability =  {"FP32", "FP16"};
     std::string igpuArchitecture = "GPU: vendor=0x8086 arch=0";
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
@@ -77,8 +76,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                    StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
     ON_CALL(*core, get_property(HasSubstr("GPU"),
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
-    ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
-                StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
     ON_CALL(*core, get_property(StrEq("OTHERS"),
                    StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(othersCability));
     ON_CALL(*core, get_property(StrEq("GPU"),
@@ -106,7 +103,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
     ON_CALL(*core, get_property(StrEq("GPU.1"),
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
-    const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
+    const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
     ON_CALL(*plugin, parse_meta_devices)
     .WillByDefault(
