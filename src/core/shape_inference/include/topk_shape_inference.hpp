@@ -58,12 +58,13 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          input_rank.is_dynamic() || input_rank.get_length() > 0,
-                          "Input rank must be greater than 0.");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_rank.is_dynamic() || input_rank.get_length() > 0,
+                           "Input rank must be greater than 0.");
 
     const auto& k_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
@@ -73,12 +74,13 @@ std::vector<TShape> shape_infer(const util::TopKBase* op,
         auto& dim_axis = output_shape[normalized_axis];
 
         if (auto k_as_shape = get_input_const_data_as_shape<TShape>(op, 1, constant_data, GetK<TDimValue>(op))) {
-            NODE_VALIDATION_CHECK(op,
-                                  k_as_shape->size() == 1,
-                                  "Only one value (scalar) should be provided as the 'K' input to TopK",
-                                  " (got ",
-                                  k_as_shape->size(),
-                                  " elements).");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   k_as_shape->size() == 1,
+                                   "Only one value (scalar) should be provided as the 'K' input to TopK",
+                                   " (got ",
+                                   k_as_shape->size(),
+                                   " elements).");
 
             const auto& k = (*k_as_shape)[0];
             if (k.is_static()) {
