@@ -26,5 +26,5 @@ else()
     add_library(ittapi::ittnotify ALIAS ittnotify)
 
     openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittapi::ittnotify)
-    ov_install_static_lib(ittapi::ittnotify ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(ittnotify ${OV_CPACK_COMP_CORE})
 endif()

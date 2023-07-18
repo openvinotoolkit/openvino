@@ -83,10 +83,6 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# developer package
-
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
-
 # install
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE} OPTIONAL)
