@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ov;
 using namespace ov::opset11;

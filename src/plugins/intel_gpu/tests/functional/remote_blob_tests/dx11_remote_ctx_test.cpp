@@ -48,7 +48,7 @@
 
 using namespace ::testing;
 
-struct DX11RemoteCtx_Test : public CommonTestUtils::TestsCommon {
+struct DX11RemoteCtx_Test : public ov::test::TestsCommon {
     virtual ~DX11RemoteCtx_Test() = default;
 
 protected:

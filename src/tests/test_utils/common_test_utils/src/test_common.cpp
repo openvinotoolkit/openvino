@@ -6,7 +6,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-#include <threading/ie_executor_manager.hpp>
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -27,7 +27,8 @@
 #    include "common_test_utils/postgres_link.hpp"
 #endif
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
 
 inline size_t getVmSizeInKB() {
 #ifdef _WIN32
@@ -40,7 +41,8 @@ inline size_t getVmSizeInKB() {
         // This assumes that a digit will be found and the line ends in " Kb".
         size_t i = strlen(line);
         const char *p = line;
-        while (*p < '0' || *p > '9') p++;
+        while (*p < '0' || *p > '9')
+            p++;
         line[i - 3] = '\0';
         i = (size_t) atoi(p);
         return i;
@@ -64,7 +66,7 @@ inline size_t getVmSizeInKB() {
 }
 
 TestsCommon::~TestsCommon() {
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     delete PGLink;
@@ -81,7 +83,7 @@ TestsCommon::TestsCommon()
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 }
 
 std::string TestsCommon::GetTimestamp() {
@@ -107,4 +109,18 @@ std::string TestsCommon::GetFullTestName() const {
     return suite_name + "_" + test_name;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace test
+std::shared_ptr<SharedRTInfo> ModelAccessor::get_shared_info() const {
+    if (auto f = m_function.lock()) {
+        return f->m_shared_rt_info;
+    }
+    OPENVINO_THROW("Original model is not available");
+}
+
+std::set<std::shared_ptr<SharedRTInfo>> NodeAccessor::get_shared_info() const {
+    if (auto node = m_node.lock()) {
+        return node->m_shared_rt_info;
+    }
+    OPENVINO_THROW("Original node is not available");
+}
+}  // namespace ov
