@@ -255,7 +255,10 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
         {{ov::hint::inference_precision.name(), ov::element::bf16}},
+// ARM doesn't support FP16 for now
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         {{ov::hint::inference_precision.name(), ov::element::f16}},
+#endif
     };
     return additionalConfig;
 }
