@@ -7,19 +7,29 @@
 
 using namespace ov::intel_cpu;
 
-void ProxyMemoryMngr::reset(std::shared_ptr<IMemoryMngr> _pMngr) {
-    auto _validated = (_pMngr != m_pMngr);
-    if (_pMngr) {
-        m_pMngr = _pMngr;
-    } else {
-        m_pMngr = m_pOrigMngr;
+void ProxyMemoryMngr::setMemMngr(std::shared_ptr<IMemoryMngr> pMngr) {
+    OPENVINO_ASSERT(pMngr, "Attempt to set null memory manager to a ProxyMemoryMngr object");
+    if (m_pMngr == pMngr) {
+        return;
     }
 
-    // WA: unconditionally resize to last size
-    if (_validated) {
-        m_pMngr->resize(m_size);
-        notifyUpdate();
+    m_pMngr = pMngr;
+    m_pMngr->resize(m_size);
+    notifyUpdate();
+}
+
+void ProxyMemoryMngr::reset() {
+    if (!m_pOrigMngr) {
+        m_pOrigMngr = std::make_shared<MemoryMngrWithReuse>();
     }
+
+    if (m_pMngr == m_pOrigMngr) {
+        return;
+    }
+
+    m_pMngr = m_pOrigMngr;
+    m_pMngr->resize(m_size);
+    notifyUpdate();
 }
 
 void* ProxyMemoryMngr::getRawPtr() const noexcept {

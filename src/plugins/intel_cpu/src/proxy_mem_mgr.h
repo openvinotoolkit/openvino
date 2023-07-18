@@ -14,8 +14,8 @@ namespace intel_cpu {
  */
 class ProxyMemoryMngr : public IMemoryMngrObserver {
 public:
-    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>())), m_pMngr(m_pOrigMngr) {}
-    explicit ProxyMemoryMngr(std::shared_ptr<IMemoryMngr> pMngr) : ProxyMemoryMngr() {
+    ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<MemoryMngrWithReuse>()), m_pMngr(m_pOrigMngr) {}
+    explicit ProxyMemoryMngr(std::shared_ptr<IMemoryMngr> pMngr) {
         OPENVINO_ASSERT(pMngr, "Memory manager is uninitialized");
         m_pMngr = pMngr;
     }
@@ -28,15 +28,17 @@ public:
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
-    void reset(std::shared_ptr<IMemoryMngr> _pMngr);
+    void setMemMngr(std::shared_ptr<IMemoryMngr> pMngr);
+    void reset();
 
 private:
     void notifyUpdate();
 
     // We keep the original MemMngr as may fallback to copy output.
-    const MemoryMngrPtr m_pOrigMngr;
-    std::unordered_set<Memory*> m_setMemPtrs;
+    std::shared_ptr<IMemoryMngr> m_pOrigMngr;
     std::shared_ptr<IMemoryMngr> m_pMngr;
+
+    std::unordered_set<Memory*> m_setMemPtrs;
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory manager changes.

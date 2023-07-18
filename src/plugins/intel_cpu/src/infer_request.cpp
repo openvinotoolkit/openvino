@@ -302,12 +302,12 @@ void InferRequestBase::changeDefaultPtr() {
                     controlBlock.nextMemMngr() :
                     controlBlock.currentMemMngr();
 
-                outputMemMngr->reset(memMngr);
+                outputMemMngr->setMemMngr(memMngr);
                 DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
                 DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
             } else {
                 if (outputMemMngr) {
-                    outputMemMngr->reset(nullptr);
+                    outputMemMngr->reset();
                 }
             }
             continue;

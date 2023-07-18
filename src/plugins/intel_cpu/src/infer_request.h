@@ -92,7 +92,7 @@ protected:
         }
 
         void update() {
-            m_proxyMemMngr->reset(currentMemMngr());
+            m_proxyMemMngr->setMemMngr(currentMemMngr());
         }
 
     private:
