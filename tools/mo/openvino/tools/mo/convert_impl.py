@@ -443,8 +443,8 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
     # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
-    enable_mmap = False
-    function = fe.convert(fe.load(path_to_xml, enable_mmap))
+    share_weights = False
+    function = fe.convert(fe.load(path_to_xml, share_weights))
     return function
 
 
