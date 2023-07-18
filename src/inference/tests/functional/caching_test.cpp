@@ -1893,7 +1893,6 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
     }
 }
 
-#if defined(ENABLE_HETERO)
 TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .Times(AnyNumber())
@@ -1918,9 +1917,10 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
-        for (auto& net : networks) {
-            EXPECT_CALL(*net, Export(_)).Times(0);
-        }
+        m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+            EXPECT_CALL(net, Export(_)).Times(0);
+            EXPECT_CALL(net, GetExecGraphInfo()).Times(0);
+        });
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
@@ -2156,7 +2156,6 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
         });
     }
 }
-#endif  // define(ENABLE_HETERO)
 
 #if defined(ENABLE_AUTO)
 // AUTO-DEVICE test
