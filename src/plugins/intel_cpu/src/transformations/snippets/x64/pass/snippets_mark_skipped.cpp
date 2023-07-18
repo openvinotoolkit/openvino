@@ -7,6 +7,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
+#include <transformations/utils/utils.hpp>
 #include <utils/general_utils.h>
 #include <utils/cpu_utils.hpp>
 
@@ -396,6 +397,27 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
 }
+bool isSuitableMatMulCompressedWeights(const std::shared_ptr<Node>& node) {
+    std::shared_ptr<Node> multiply;
+    if (ov::is_type<ov::opset1::Multiply>(node)) {
+        multiply = node;
+    } else {
+        const auto consumers = node->get_output_target_inputs(0);
+        if (consumers.size() != 1)
+            return false;
+        const auto consumer = consumers.begin()->get_node()->shared_from_this();
+        if (ov::is_type<ov::opset1::Multiply>(consumer)) {
+            multiply = consumer;
+        }
+    }
+    if (!multiply)
+        return false;
+    const auto consumers = multiply->get_output_target_inputs(0);
+    if (consumers.size() != 1)
+        return false;
+    const auto consumer = consumers.begin()->get_node()->shared_from_this();
+    return ov::is_type<ov::opset1::MatMul>(consumer) && ov::op::util::is_constfoldable(multiply);
+}
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node> &node, NodeFusingType nodeType) {
@@ -497,6 +519,8 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
         } else if (enableBF16 && isSuitableConvert(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
+        } else if (isSuitableMatMulCompressedWeights(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
         } else {
             for (const auto fusingChainType : getContinuableChains(node)) {
                 if (fusingChainType == NodeFusingType::FusedWithReduce) {
