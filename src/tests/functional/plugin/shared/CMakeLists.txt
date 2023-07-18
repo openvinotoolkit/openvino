@@ -63,8 +63,8 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
-                funcTestUtils
                 common_test_utils
+                func_test_utils
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
