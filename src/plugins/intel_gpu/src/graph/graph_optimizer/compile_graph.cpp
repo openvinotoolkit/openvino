@@ -9,6 +9,7 @@
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
+#include "proposal_inst.h"
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -73,7 +74,7 @@ void compile_graph::run(program& p) {
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
 
-        if (node->is_type<condition>())
+        if (node->is_type<condition>() || node->is_type<proposal>())
             can_select_impl = true;
 
         if (can_select_impl) {
