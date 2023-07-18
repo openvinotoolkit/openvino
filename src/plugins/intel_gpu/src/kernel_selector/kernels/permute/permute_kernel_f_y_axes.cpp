@@ -24,10 +24,7 @@ size_t GetDivisor(const size_t input_size) {
         return input_size % i == 0;
     };
     auto result = std::find_if(begin(v), end(v), is_divided);
-    if (result != end(v)) {
-        return *result;
-    }
-    return 1;
+    return *result;
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
@@ -193,14 +190,14 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
     return dispatchData;
 }
 
-bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) {
+bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o) const {
+    if (!Parent::Validate(p, o)) {
         return false;
     }
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
         // Target transform: Swap feature with y
-        // OV order:    0 2 1 3 => bfyx -> byfx
+        // IE order:    0 2 1 3 => bfyx -> byfx
         // cldnn order: 0 3 2 1 => bfxy -> byxf
         if (order.size() != 4) {
             return false;
@@ -241,7 +238,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     return true;
 }
 
-KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority PermuteKernel_f_y_axes::GetKernelsPriority(const Params& /*params*/,
+                                                           const optional_params& /*options*/) const {
     return FORCE_PRIORITY_3;
 }
 
