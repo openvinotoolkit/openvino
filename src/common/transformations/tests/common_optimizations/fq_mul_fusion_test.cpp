@@ -26,7 +26,7 @@ using FQMulFusionParams = std::tuple<ngraph::Shape,   // FQ data shape
                                      ngraph::Shape,   // Mul constant shape
                                      ngraph::Shape>;  // Expected shape of the new out_* constants
 
-class FQMulFusion : public testing::WithParamInterface<FQMulFusionParams>, public CommonTestUtils::TestsCommon {
+class FQMulFusion : public testing::WithParamInterface<FQMulFusionParams>, public ov::test::TestsCommon {
 public:
     void SetUp() override {
         ngraph::Shape data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape;
