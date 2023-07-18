@@ -572,12 +572,13 @@ void Transformations::MainSnippets(void) {
         return;
 
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
-    // At the moment Snippets supports Transposes in MHA pattern only in FP32 case since
-    //      - ConvertSaturation[BF16->FP32] will be inserted after Parameters and before Transposes in canonicalization stage
-    //      - ConvertSaturation[FP32->BF16] will be inserted after Transposes and before Brgemm in precision propagation stage
-    // Because of that Transposes won't be fused into Brgemm
-    // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
-    tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
+    // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between MatMul and Result.
+    // However there may be Convert [f32->bf16] before Result since:
+    //  - bf16 Brgemm has f32 output;
+    //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
+    // To avoid sitations when Transpose is not alone node between MatMul and Result,
+    // Plugin disables Transpose tokenization on output
+    tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
     tokenization_config.minimal_concurrency = parallel_get_num_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback

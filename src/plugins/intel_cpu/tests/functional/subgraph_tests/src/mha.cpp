@@ -290,15 +290,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
-// Snippets doesn't support Transpose tokenization when inference_precision = bf16
 INSTANTIATE_TEST_SUITE_P(smoke_MHA_BF16, MHATest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
                                  ::testing::Values(std::vector<ElementType>{ ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16 }),
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
-                                 ::testing::Values(ExpectedNodes{{"Subgraph", 2},    // MHA + Decomposed Transpose
-                                                                 {"Transpose", 3}}),
+                                 ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+                                                                 {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
                                  ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
