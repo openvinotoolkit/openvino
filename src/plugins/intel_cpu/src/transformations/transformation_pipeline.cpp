@@ -118,6 +118,16 @@
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+
+#include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
+#include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
+#include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
+#include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+
+#endif // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64
+
 namespace ov {
 namespace intel_cpu {
 
