@@ -46,7 +46,6 @@ PoolingFactory::PoolingFactory(const Node& node)
     m_padding_above = Shape{std::begin(padding_above), std::end(padding_above)};
     m_storage_order = static_cast<StorageOrder>(node.get_attribute_value<int64_t>("storage_order", 0));
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 OutputVector PoolingFactory::make_avg_pool() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
@@ -59,6 +58,7 @@ OutputVector PoolingFactory::make_avg_pool() const {
                                                      m_rounding_type,
                                                      m_auto_pad)};
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 OutputVector PoolingFactory::make_max_pool() const {
     return {std::make_shared<op::v1::MaxPool>(m_inputs.at(0),
