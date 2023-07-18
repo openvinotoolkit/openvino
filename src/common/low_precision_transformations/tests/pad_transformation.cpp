@@ -45,7 +45,7 @@ public:
 
 typedef std::tuple <
     ov::PartialShape, // input Shape
-    std::pair<std::vector<uint64_t>, std::vector<uint64_t>>, // pads begin, pads end
+    std::pair<std::vector<int64_t>, std::vector<int64_t>>, // pads begin, pads end
     ngraph::op::PadMode, // pads mode
     float, // pads value (used if mode == CONSTANT)
     PadTransformationTestValues> PadTransformationParams;
@@ -127,9 +127,9 @@ const std::vector<ov::PartialShape> inputShapes = {
     {-1, 3, 6, -1}
 };
 
-const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsBySpatialDimensions = {
-    {0, 0, 2, 1},
-    {0, 0, 1, 2}
+const std::vector<std::pair<std::vector<int64_t>, std::vector<int64_t>>> padsBySpatialDimensions = {
+    {{0, 0, 2, 1}, {0, 0, 1, 2}},
+    {{0, 0, -1, -1}, {0, 0, -1, -1}}
 };
 
 // test-cases with common logic for all modes
@@ -247,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(commonInputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::ValuesIn(allModes),
         ::testing::Values(0.f),
         ::testing::ValuesIn(deqWithoutSub)),
@@ -345,7 +345,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::ValuesIn(modesInWhichSubPropagated),
         ::testing::Values(0.f),
         ::testing::ValuesIn(deqWithSub)),
@@ -414,7 +414,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
@@ -470,7 +470,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
         ::testing::Values(1.f),
         ::testing::ValuesIn(testValuesForConstantMode2)),
@@ -478,7 +478,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testCasesForConstantModeWithNonZeroValues
 
 namespace testCasesForConstantModeAndUniquePadDimension {
-const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsByUniqueDimension = {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsByUniqueDimension = {
     {0, 0, 2, 0},
     {0, 0, 1, 0}
 };
@@ -541,7 +541,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testCasesForConstantModeAndUniquePadDimension
 
 namespace testCasesForNonZeroConstantModeAndUniquePadDimension {
-const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsByUniqueDimension = {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsByUniqueDimension = {
     {0, 0, 2, 0},
     {0, 0, 1, 0}
 };
@@ -633,7 +633,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::EDGE),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForEdgeMode)),
@@ -670,7 +670,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::REFLECT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForReflectMode)),
@@ -707,7 +707,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::SYMMETRIC),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForSymetricMode)),
@@ -760,7 +760,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::ValuesIn(padsBySpatialDimensions),
         ::testing::ValuesIn(allModes),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForDynamicRank)),
