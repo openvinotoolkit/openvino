@@ -97,7 +97,7 @@ private:
     std::vector<std::shared_ptr<Function>> m_functions;
 };
 
-// Be aware with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
+// Be careful with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
     static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";

@@ -107,7 +107,8 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    // Register expected transformations
+    // Here, you can register transformations as a second step of importing process
+    // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     // ov::pass::Manager manager;
     // manager.run_passes(model);
 }
