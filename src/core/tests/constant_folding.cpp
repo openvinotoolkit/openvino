@@ -6,7 +6,9 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -14,8 +16,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;

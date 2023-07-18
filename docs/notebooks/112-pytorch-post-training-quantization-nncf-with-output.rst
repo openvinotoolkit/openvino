@@ -88,10 +88,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:46:53.036679: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:46:53.070884: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-11 22:44:00.778229: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-11 22:44:00.812197: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:46:53.615742: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-11 22:44:01.354577: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -104,8 +104,8 @@ Settings
 
 .. code:: ipython3
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using {device} device")
+    torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using {torch_device} device")
     
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
@@ -142,7 +142,7 @@ Settings
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
 
 
 
@@ -291,13 +291,13 @@ Validation function
         # Switch to evaluate mode.
         if not isinstance(model, CompiledModel):
             model.eval()
-            model.to(device)
+            model.to(torch_device)
     
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(val_loader):
-                images = images.to(device)
-                target = target.to(device)
+                images = images.to(torch_device)
+                target = target.to(torch_device)
     
                 # Compute the output.
                 if isinstance(model, CompiledModel):
@@ -342,7 +342,7 @@ values.
         # Update the last FC layer for Tiny ImageNet number of classes.
         NUM_CLASSES = 200
         model.fc = torch.nn.Linear(in_features=2048, out_features=NUM_CLASSES, bias=True)
-        model.to(device)
+        model.to(torch_device)
         if model_path.exists():
             checkpoint = torch.load(str(model_path), map_location="cpu")
             model.load_state_dict(checkpoint["state_dict"], strict=True)
@@ -421,15 +421,15 @@ I. Evaluate the loaded model
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.292 (0.292)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.234 (0.243)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [ 0/79]	Time 0.253 (0.253)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.238 (0.240)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
     Test: [20/79]	Time 0.235 (0.239)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.233 (0.239)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.233 (0.238)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.284 (0.239)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.236 (0.240)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.233 (0.239)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 18.662
+    Test: [30/79]	Time 0.234 (0.238)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.235 (0.238)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.232 (0.240)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.251 (0.240)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.237 (0.240)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 18.698
     Test accuracy of FP32 model: 60.740
 
 
@@ -498,16 +498,16 @@ Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.427 (0.427)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.420 (0.421)	Acc@1 55.47 (67.33)	Acc@5 87.50 (87.86)
-    Test: [20/79]	Time 0.417 (0.419)	Acc@1 67.97 (64.32)	Acc@5 88.28 (87.69)
-    Test: [30/79]	Time 0.421 (0.420)	Acc@1 52.34 (62.53)	Acc@5 78.91 (85.56)
-    Test: [40/79]	Time 0.422 (0.420)	Acc@1 67.97 (61.01)	Acc@5 90.62 (84.76)
-    Test: [50/79]	Time 0.421 (0.421)	Acc@1 58.59 (60.85)	Acc@5 87.50 (84.60)
-    Test: [60/79]	Time 0.423 (0.421)	Acc@1 66.41 (60.50)	Acc@5 87.50 (83.94)
-    Test: [70/79]	Time 0.422 (0.421)	Acc@1 50.00 (60.22)	Acc@5 78.12 (83.45)
-     * Acc@1 60.730 Acc@5 84.060 Total time: 32.959
-    Accuracy of initialized INT8 model: 60.730
+    Test: [ 0/79]	Time 0.438 (0.438)	Acc@1 81.25 (81.25)	Acc@5 90.62 (90.62)
+    Test: [10/79]	Time 0.428 (0.429)	Acc@1 57.81 (67.26)	Acc@5 86.72 (87.36)
+    Test: [20/79]	Time 0.430 (0.429)	Acc@1 67.97 (64.21)	Acc@5 85.94 (87.43)
+    Test: [30/79]	Time 0.429 (0.429)	Acc@1 52.34 (62.45)	Acc@5 75.78 (85.28)
+    Test: [40/79]	Time 0.429 (0.429)	Acc@1 68.75 (60.88)	Acc@5 89.84 (84.47)
+    Test: [50/79]	Time 0.429 (0.429)	Acc@1 59.38 (60.81)	Acc@5 87.50 (84.34)
+    Test: [60/79]	Time 0.428 (0.429)	Acc@1 66.41 (60.49)	Acc@5 85.94 (83.68)
+    Test: [70/79]	Time 0.434 (0.429)	Acc@1 54.69 (60.27)	Acc@5 78.91 (83.24)
+     * Acc@1 60.810 Acc@5 83.880 Total time: 33.587
+    Accuracy of initialized INT8 model: 60.810
 
 
 It should be noted that the inference time for the quantized PyTorch
@@ -549,18 +549,43 @@ command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
       output = g.op(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
+
+
+Select inference device for OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
 
 
 Evaluate the FP32 and INT8 models.
@@ -568,44 +593,44 @@ Evaluate the FP32 and INT8 models.
 .. code:: ipython3
 
     core = Core()
-    fp32_compiled_model = core.compile_model(model_ir)
+    fp32_compiled_model = core.compile_model(model_ir, device.value)
     acc1 = validate(val_loader, fp32_compiled_model)
     print(f"Accuracy of FP32 IR model: {acc1:.3f}")
 
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.200 (0.200)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.140 (0.145)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.140 (0.143)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.140 (0.142)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.138 (0.141)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.140 (0.141)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.140 (0.141)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.138 (0.141)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 11.002
+    Test: [ 0/79]	Time 0.205 (0.205)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.137 (0.143)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.145 (0.141)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.137 (0.140)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.137 (0.140)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.139 (0.140)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.135 (0.139)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.139 (0.139)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 10.882
     Accuracy of FP32 IR model: 60.740
 
 
 .. code:: ipython3
 
-    int8_compiled_model = core.compile_model(quantized_model_ir)
+    int8_compiled_model = core.compile_model(quantized_model_ir, device.value)
     acc1 = validate(val_loader, int8_compiled_model)
     print(f"Accuracy of INT8 IR model: {acc1:.3f}")
 
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.186 (0.186)	Acc@1 82.03 (82.03)	Acc@5 92.97 (92.97)
-    Test: [10/79]	Time 0.083 (0.095)	Acc@1 57.81 (67.90)	Acc@5 86.72 (88.28)
-    Test: [20/79]	Time 0.079 (0.088)	Acc@1 67.19 (64.88)	Acc@5 85.16 (87.72)
-    Test: [30/79]	Time 0.081 (0.085)	Acc@1 52.34 (62.80)	Acc@5 78.12 (85.61)
-    Test: [40/79]	Time 0.082 (0.084)	Acc@1 67.97 (61.32)	Acc@5 89.84 (84.60)
-    Test: [50/79]	Time 0.081 (0.084)	Acc@1 60.16 (61.09)	Acc@5 87.50 (84.47)
-    Test: [60/79]	Time 0.079 (0.083)	Acc@1 67.97 (60.71)	Acc@5 88.28 (83.80)
-    Test: [70/79]	Time 0.079 (0.082)	Acc@1 53.12 (60.35)	Acc@5 80.47 (83.37)
-     * Acc@1 60.880 Acc@5 83.950 Total time: 6.438
-    Accuracy of INT8 IR model: 60.880
+    Test: [ 0/79]	Time 0.187 (0.187)	Acc@1 81.25 (81.25)	Acc@5 90.62 (90.62)
+    Test: [10/79]	Time 0.082 (0.091)	Acc@1 57.81 (66.90)	Acc@5 85.94 (87.78)
+    Test: [20/79]	Time 0.080 (0.086)	Acc@1 67.97 (64.06)	Acc@5 83.59 (87.31)
+    Test: [30/79]	Time 0.081 (0.084)	Acc@1 52.34 (62.17)	Acc@5 78.12 (85.36)
+    Test: [40/79]	Time 0.079 (0.083)	Acc@1 67.97 (60.80)	Acc@5 89.84 (84.38)
+    Test: [50/79]	Time 0.077 (0.082)	Acc@1 60.16 (60.71)	Acc@5 87.50 (84.30)
+    Test: [60/79]	Time 0.079 (0.082)	Acc@1 67.19 (60.43)	Acc@5 87.50 (83.72)
+    Test: [70/79]	Time 0.082 (0.081)	Acc@1 53.12 (60.17)	Acc@5 80.47 (83.31)
+     * Acc@1 60.730 Acc@5 83.930 Total time: 6.353
+    Accuracy of INT8 IR model: 60.730
 
 
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
@@ -629,6 +654,19 @@ throughput (frames per second) values.
 
 .. code:: ipython3
 
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     def parse_benchmark_output(benchmark_output: str):
         """Prints the output from benchmark_app in human-readable format"""
         parsed_output = [line for line in benchmark_output if 'FPS' in line]
@@ -636,46 +674,47 @@ throughput (frames per second) values.
     
     
     print('Benchmark FP32 model (OpenVINO IR)')
-    benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d CPU -api async -t 15 -shape "[1, 3, 512, 512]"
+    benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
     
     print('Benchmark INT8 model (OpenVINO IR)')
-    benchmark_output = ! benchmark_app -m "$int8_ir_path" -d CPU -api async -t 15 -shape "[1, 3, 512, 512]"
+    benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
     
     print('Benchmark FP32 model (OpenVINO IR) synchronously')
-    benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d CPU -api sync -t 15 -shape "[1, 3, 512, 512]"
+    benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
     
     print('Benchmark INT8 model (OpenVINO IR) synchronously')
-    benchmark_output = ! benchmark_app -m "$int8_ir_path" -d CPU -api sync -t 15 -shape "[1, 3, 512, 512]"
+    benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
 
 
 .. parsed-literal::
 
     Benchmark FP32 model (OpenVINO IR)
-    [ INFO ] Throughput:   37.97 FPS
+    [ INFO ] Throughput:   37.61 FPS
     Benchmark INT8 model (OpenVINO IR)
-    [ INFO ] Throughput:   157.50 FPS
+    [ INFO ] Throughput:   159.33 FPS
     Benchmark FP32 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   39.17 FPS
+    [ INFO ] Throughput:   39.06 FPS
     Benchmark INT8 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   140.62 FPS
+    [ INFO ] Throughput:   140.24 FPS
 
 
-Show CPU Information for reference:
+Show device Information for reference:
 
 .. code:: ipython3
 
-    ie = Core()
-    ie.get_property("CPU", "FULL_DEVICE_NAME")
-
-
+    core = Core()
+    devices = core.available_devices
+    
+    for device_name in devices:
+        device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
+        print(f"{device_name}: {device_full_name}")
 
 
 .. parsed-literal::
 
-    'Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz'
-
+    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 

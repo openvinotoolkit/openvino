@@ -1741,8 +1741,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     if (desc.GetType() == KernelType::ELTWISE) {
         auto p = desc.GetOpParams<eltwise_fuse_params>();
-        if (!p)
-            IE_THROW() << "[clDNN] Eltwise fuse params can't be nullptr";
+        OPENVINO_ASSERT(p != nullptr, "[GPU] Eltwise fuse params can't be nullptr");
 
         if (p->mode == kernel_selector::EltwiseMode::DIV) {
             if (p->m_pythondiv)
