@@ -16,7 +16,8 @@ namespace intel_cpu {
 bool ConvertPrecisionI64ToI32::isNativelySupported(const ov::Node::type_info_t& type) const {
     static const std::unordered_set<ov::Node::type_info_t> i64Ops = {
         opset12::Parameter::get_type_info_static(),
-        opset12::Result::get_type_info_static()
+        opset12::Result::get_type_info_static(),
+        opset12::Transpose::get_type_info_static()
     };
 
     return i64Ops.find(type) != i64Ops.end();

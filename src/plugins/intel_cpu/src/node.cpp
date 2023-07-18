@@ -3,59 +3,28 @@
 //
 
 #include "node.h"
+
 #include "edge.h"
-#include "extension_mngr.h"
 #include "partitioned_mem_mgr.h"
-#include "itt.h"
 
 #include "caseless.hpp"
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
-#include <limits>
-#include <cstdint>
 #include <unordered_map>
 
-#include "nodes/concat.h"
-#include "nodes/conv.h"
-#include "nodes/deconv.h"
 #include "nodes/eltwise.h"
-#include "nodes/matmul.h"
-#include "nodes/fullyconnected.h"
-#include "nodes/generic.h"
 #include "nodes/if.h"
 #include "nodes/input.h"
-#include "nodes/lrn.h"
-#include "nodes/pooling.h"
 #include "nodes/reorder.h"
-#include "nodes/reshape.h"
-#include "nodes/softmax.h"
-#include "nodes/tile.h"
 #include "nodes/split.h"
-#include "nodes/pad.h"
-#include "nodes/transpose.h"
-#include "nodes/memory.hpp"
-#include "nodes/mvn.h"
 #include "nodes/normalize.h"
-#include "nodes/reduce.h"
-#include "nodes/tensoriterator.h"
-#include "nodes/scatter_update.h"
-#include "nodes/interpolate.h"
-#include "nodes/depth_to_space.h"
-#include "nodes/space_to_depth.h"
-#include "nodes/strided_slice.h"
-#include "nodes/shuffle_channels.h"
 #include "nodes/reference.h"
-#include "nodes/fake_quantize.h"
 #include "dnnl_extension_utils.h"
 
-#include "nodes/common/cpu_memcpy.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/opsets/opset1.hpp>
 
-#include <dnnl_types.h>
-#include <dnnl_debug.h>
 #include <ie_ngraph_utils.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
@@ -66,6 +35,7 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 
+using namespace InferenceEngine;
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
@@ -80,8 +50,8 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op,
-           const GraphContext::CPtr ctx,
+Node::Node(const std::shared_ptr<ov::Node>& op,
+           const GraphContext::CPtr& ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
@@ -95,8 +65,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
       profiling(op->get_friendly_name()) {
-    const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
-
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
@@ -104,11 +72,11 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         }
 
         bool isScalar = shape.rank().get_length() == 0;
-        inputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+        inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
         originalInputPrecisions.emplace_back(details::convertPrecision(op->get_input_element_type(i)));
     }
 
-    if (typeStr != "Result" && typeStr != "Assign") {
+    if (type != Type::Output && type != Type::MemoryOutput) {
         if (op->get_output_size() == 0) {
             IE_THROW() << "Node with type '" << typeStr << "' and name '" << name << "' does not have any outputs.";
         }
@@ -119,7 +87,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
             }
 
             bool isScalar = shape.rank().get_length() == 0;
-            outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+            outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
@@ -184,7 +152,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr& ctx)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
@@ -1274,7 +1242,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

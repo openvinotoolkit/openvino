@@ -352,6 +352,23 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     return implString;
 }
 
+std::string CPUTestsBase::makeSelectedTypeStr(const std::string& implString, ov::element::Type_t elType, const ov::AnyMap& config) {
+    std::string result;
+    if (elType == ov::element::i64 || elType == ov::element::u64) {
+        auto i64It = config.find(InferenceEngine::PluginConfigInternalParams::KEY_CPU_NATIVE_I64);
+        if (i64It == config.end() || i64It->second == InferenceEngine::PluginConfigParams::NO) {
+            result = makeSelectedTypeStr(implString, ov::element::i32);
+        } else {
+            result = makeSelectedTypeStr(implString, ov::element::i64);
+        }
+    } else if (elType == ov::element::boolean) {
+        result = makeSelectedTypeStr(implString, ov::element::i8);
+    } else {
+        result = makeSelectedTypeStr(implString, elType);
+    }
+    return result;
+}
+
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
     auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (auto& format : formats) {

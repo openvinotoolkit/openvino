@@ -3,24 +3,19 @@
 //
 
 #include "transpose.hpp"
+#include "ngraph_functions/builders.hpp"
 
-#include "gtest/gtest.h"
-#include "test_utils/cpu_test_utils.hpp"
-
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
-using namespace ngraph::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj) {
-    Precision netPrecision;
+    ElementType netPrecision;
     InputShape inputShapes;
     std::vector<size_t> inputOrder;
-    std::string targetDevice;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = obj.param;
+    ov::AnyMap config;
+    std::tie(inputShapes, inputOrder, netPrecision, config, cpuParams) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -30,39 +25,44 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
     }
     result << ")_";
     result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
-    result << "trgDev=" << targetDevice;
+    result << "netPRC=" << netPrecision;
     result << CPUTestsBase::getTestCaseName(cpuParams);
+
+    if (!config.empty()) {
+        result << "_PluginConf";
+        for (const auto& configItem : config) {
+            result << "_" << configItem.first << "=";
+            configItem.second.print(result);
+        }
+    }
+
     return result.str();
 }
 
 void TransposeLayerCPUTest::SetUp() {
-    Precision netPrecision;
+    targetDevice = CommonTestUtils::DEVICE_CPU;
+
     InputShape inputShapes;
     std::vector<size_t> inputOrder;
     CPUSpecificParams cpuParams;
-    std::map<std::string, std::string> additionalConfig;
-    std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(inputShapes, inputOrder, inType, configuration, cpuParams) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    selectedType = makeSelectedTypeStr("unknown", inType);
+    selectedType = makeSelectedTypeStr("unknown", inType, configuration);
 
     init_input_shapes({inputShapes});
 
-    auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes[0]});
+    auto params = ngraph::builder::makeDynamicParams(inType, { inputDynamicShapes[0] });
 
-    const auto inputOrderOp =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({inputOrder.size()}), inputOrder);
+    const auto inputOrderOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                     ov::Shape({inputOrder.size()}),
+                                                                     inputOrder);
     const auto transpose = std::make_shared<ov::op::v1::Transpose>(params[0], inputOrderOp);
     transpose->get_rt_info() = getCPUInfo();
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
 
-    function = std::make_shared<ngraph::Function>(results, params, "TransposeLayerCPUTest");
+    function = std::make_shared<ov::Model>(results, params, "TransposeLayerCPUTest");
     functionRefs = ngraph::clone_function(*function);
 }
 
@@ -72,8 +72,8 @@ TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
 }
 
 namespace Transpose {
-const std::vector<InferenceEngine::Precision>& netPrecisionsPerChannels() {
-    static const std::vector<InferenceEngine::Precision> netPrecisionsPerChannels = {Precision::I8, Precision::FP32};
+const std::vector<ElementType>& netPrecisionsPerChannels() {
+    static const std::vector<ElementType> netPrecisionsPerChannels = {ElementType::i8, ElementType::f32};
     return netPrecisionsPerChannels;
 }
 
