@@ -5,7 +5,6 @@ import unittest
 
 import numpy as np
 
-from generator import generator, generate
 
 from openvino.tools.mo.front.tf.WhereDecomposition import WhereDecomposition
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -64,21 +63,22 @@ ref_graph_edges = [
 ]
 
 
-@generator
 class TFWhereDecompositionTest(unittest.TestCase):
-    @generate(*[[1, 100, 120, 150], [16, 125, 14]])
-    def test_1(self, input_shape):
-        in_shape = int64_array(input_shape)
-        graph = build_graph(graph_node_attrs,
-                            graph_edges,
-                            update_attributes={
-                                'placeholder_data': {'shape': in_shape}
-                            })
-        WhereDecomposition().find_and_replace_pattern(graph)
-        ref_graph = build_graph(ref_graph_node_attrs,
-                                ref_graph_edges,
-                                update_attributes={
-                                    'placeholder_data': {'shape': in_shape}
-                                })
-        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
-        self.assertTrue(flag, resp)
+    def test_1(self):
+        test_cases=[[1, 100, 120, 150], [16, 125, 14]]
+        for idx, (input_shape) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                in_shape = int64_array(input_shape)
+                graph = build_graph(graph_node_attrs,
+                                    graph_edges,
+                                    update_attributes={
+                                        'placeholder_data': {'shape': in_shape}
+                                    })
+                WhereDecomposition().find_and_replace_pattern(graph)
+                ref_graph = build_graph(ref_graph_node_attrs,
+                                        ref_graph_edges,
+                                        update_attributes={
+                                            'placeholder_data': {'shape': in_shape}
+                                        })
+                (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+                self.assertTrue(flag, resp)
