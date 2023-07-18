@@ -696,7 +696,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             curBuffIndex = !curBuffIndex;   // flip double-buffer
 
             // WA reset outputs
-            for (const auto entry: outputsTensor2BlobMap) {
+            for (const auto entry : outputsTensor2BlobMap) {
                 auto output = _outputs.find(entry.first);
                 if (output != _outputs.end()) {
                     output->second = std::get<1>(outputsTensor2BlobMap[entry.first][curBuffIndex]);
@@ -839,13 +839,15 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                         dims = InferenceEngine::SizeVector(shape.rank().get_length(), 0);
 
                         for (int i = 0; i < 2; i++) {
-                            auto mem_ptr = create_memory(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)), Shape(dims));
+                            auto mem_ptr = create_memory(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
+                            Shape(dims));
                             const auto &tensor_ptr = std::make_shared<Tensor>(mem_ptr);
                             const auto tensor_blob = tensor_to_blob({tensor_ptr, nullptr});
                             auto a = std::make_pair(tensor_ptr, tensor_blob); // as no method to get Tensor from Blob
                             outputsTensor2BlobMap[name][i] = a;
 
-                            DEBUG_LOG(name, ", blob ", tensor_blob, ", tensor ", tensor_ptr, ", memmngr ", mem_ptr->getMemoryMngr(), "memory object ", mem_ptr.get());
+                            DEBUG_LOG(name, ", blob ", tensor_blob, ", tensor ", tensor_ptr, ", memmngr ",
+                            mem_ptr->getMemoryMngr(), "memory object ", mem_ptr.get());
                         }
 
                         data = std::get<1>(outputsTensor2BlobMap[name][curBuffIndex]);
