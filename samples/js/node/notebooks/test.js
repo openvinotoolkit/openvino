@@ -1,14 +1,14 @@
 const {
-  reshape,
-  getShape,
-  extractValues,
-  matrixMultiplication,
-  triu,
-  tril,
-  argMax,
-  downloadFile,
   exp,
   sum,
+  tril,
+  triu,
+  argMax,
+  reshape,
+  getShape,
+  downloadFile,
+  extractValues,
+  matrixMultiplication,
 } = require('./helpers.js');
 const tokens = require('./tokens_bert.js');
 const ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
