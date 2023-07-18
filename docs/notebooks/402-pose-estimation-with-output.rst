@@ -97,7 +97,7 @@ desired device.
     ie_core = Core()
     # Read the network from a file.
     model = ie_core.read_model(model_path)
-    # Let the AUTO device decide where to load the model (you can use CPU, GPU or MYRIAD as well).
+    # Let the AUTO device decide where to load the model (you can use CPU or GPU).
     compiled_model = ie_core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "LATENCY"})
     
     # Get the input and output names of nodes.

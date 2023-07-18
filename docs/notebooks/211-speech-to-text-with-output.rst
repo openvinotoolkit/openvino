@@ -393,7 +393,7 @@ Now, you can read and load the network.
     ie = Core()
 
 You may run the network on multiple devices. By default, it will load
-the model on CPU (you can choose manually CPU, GPU, MYRIAD, etc.) or let
+the model on CPU (you can choose manually CPU, GPU, etc.) or let
 the engine choose the best available device (AUTO).
 
 To list all available devices that can be used, run

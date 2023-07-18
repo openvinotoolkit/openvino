@@ -164,7 +164,7 @@ results.
     # Read the network and corresponding weights from IR Model.
     model = ie_core.read_model(model=ir_path)
     
-    # Compile the model for CPU (or change to GPU, MYRIAD etc. for other devices)
+    # Compile the model for CPU (or change to GPU, etc. for other devices)
     # or let OpenVINO select the best available device with AUTO.
     compiled_model = ie_core.compile_model(model=model, device_name="AUTO")
     

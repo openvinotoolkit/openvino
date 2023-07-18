@@ -209,7 +209,7 @@ created to infer the compiled model.
     ie_core = Core()
     # read the network and corresponding weights from file
     model = ie_core.read_model(model=ir_model_path, weights=model_weights_path)
-    # load the model on the CPU (you can use GPU or MYRIAD as well)
+    # load the model on the CPU (you can also use GPU)
     compiled_model = ie_core.compile_model(model=model, device_name="CPU")
     infer_request = compiled_model.create_infer_request()
     input_tensor_name = model.inputs[0].get_any_name()
