@@ -40,15 +40,8 @@ def convert_model(
     Framework-agnostic parameters:
         :param input_model:
             Model object in original framework (PyTorch, Tensorflow) or path to model file.
-            Tensorflow*: a file with a pre-trained model (binary or text .pb file after freezing).
-            Caffe*: a model proto file with model weights
 
             Supported formats of input model:
-
-            PaddlePaddle
-            paddle.hapi.model.Model
-            paddle.fluid.dygraph.layers.Layer
-            paddle.fluid.executor.Executor
 
             PyTorch
             torch.nn.Module
@@ -67,6 +60,11 @@ def convert_model(
             tf.function
             tf.Module
             tf.train.checkpoint
+
+            PaddlePaddle
+            paddle.hapi.model.Model
+            paddle.fluid.dygraph.layers.Layer
+            paddle.fluid.executor.Executor
 
         :param input:
             Input can be set by passing a list of InputCutInfo objects or by a list

@@ -706,11 +706,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     mo_convert_params = get_mo_convert_params()
     mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
 
+    from openvino.tools.ovc.version import VersionChecker
+
     # Command line tool specific params
     common_group.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
     common_group.add_argument('--compress_to_fp16', action='store_true',
                               help='Compress weights in output IR .xml/bin files to FP16.')
+    common_group.add_argument('--version', action='version',
+                              help='Print ovc version and exit.',
+                              version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
     add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
@@ -739,9 +744,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     -------
         ArgumentParser instance
     """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
     mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
@@ -757,10 +759,6 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     -------
         ArgumentParser instance
     """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
     return parser
 
 
@@ -772,7 +770,7 @@ def get_all_cli_parser():
     -------
         ArgumentParser instance
     """
-    parser = argparse.ArgumentParser(usage='%(prog)s [options]')
+    parser = argparse.ArgumentParser()
 
     get_common_cli_parser(parser=parser)
     get_tf_cli_parser(parser=parser)

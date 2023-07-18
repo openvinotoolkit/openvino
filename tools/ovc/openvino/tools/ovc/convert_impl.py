@@ -149,6 +149,9 @@ def prepare_ir(argv: argparse.Namespace):
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model
 
+    if not argv.input_model:
+        raise Error('No input model is provided')
+
     raise Error('Cannot recognize input model.')
 
 
@@ -523,10 +526,13 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 log.error("-------------------------------------------------")
                 log.error("----------------- INTERNAL ERROR ----------------")
                 log.error("Unexpected exception happened.")
-                log.error("Please contact Model Conversion API developers and forward the following information:")
+                log.error("Please verify parameters and environment.")
+                log.error("If you think this is a bug, please create new ticket here: ")
+                log.error("https://github.com/openvinotoolkit/openvino/issues.")
+                log.error("-------------- DETAILED INFORMATION -------------")
                 log.error(str(e))
                 log.error(traceback.format_exc())
-                log.error("---------------- END OF BUG REPORT --------------")
+                log.error("----------------- END OF REPORT -----------------")
                 log.error("-------------------------------------------------")
 
         send_conversion_result('fail')
