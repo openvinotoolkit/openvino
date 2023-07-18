@@ -40,9 +40,6 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (op->get_output_element_type(0) != ngraph::element::i32) {
-        IE_THROW() << errorPrefix << "doesn't support demanded output precision";
-    }
 }
 
 void NonZero::getSupportedDescriptors() {
