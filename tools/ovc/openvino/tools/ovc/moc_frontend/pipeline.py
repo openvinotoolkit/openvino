@@ -46,19 +46,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
     input_checkpoint = getattr(argv, 'input_checkpoint', None)
-    enable_mmap = getattr(argv, 'enable_mmap', True)
+    share_weights = getattr(argv, 'share_weights', True)
     if argv.input_model and input_checkpoint:
         # frozen format with v1 checkpoints
-        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], enable_mmap)
+        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], share_weights)
     elif argv.input_model:
-        input_model = moc_front_end.load(argv.input_model, enable_mmap)
+        input_model = moc_front_end.load(argv.input_model, share_weights)
     elif argv.saved_model_dir:
         if argv.saved_model_tags:
-            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], enable_mmap)
+            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], share_weights)
         else:
-            input_model = moc_front_end.load(argv.saved_model_dir, enable_mmap)
+            input_model = moc_front_end.load(argv.saved_model_dir, share_weights)
     elif argv.input_meta_graph:
-        input_model = moc_front_end.load(argv.input_meta_graph, enable_mmap)
+        input_model = moc_front_end.load(argv.input_meta_graph, share_weights)
         if argv.output:
             # Simulate original behavior with freezing model
             # While freezing we do a cutting of model, to keep similar behavior we
