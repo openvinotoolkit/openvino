@@ -21,7 +21,7 @@ except ImportError:
 
 
 def init_mo_telemetry():
-    _ = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=get_rt_version())
+    _ = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=get_rt_version(), backend='ga4')
 
 
 def send_framework_info(framework: str):
