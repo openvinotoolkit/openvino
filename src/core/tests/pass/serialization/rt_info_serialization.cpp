@@ -12,7 +12,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
-class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
+class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
     std::string m_out_xml_path;
     std::string m_out_bin_path;

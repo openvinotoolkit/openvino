@@ -29,7 +29,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             device_priorities = value.as<std::string>();
         } else if (ov::internal::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-            // property should be passed to underlying devices as part of `GetDeviceProperties()`
+            // property should be passed to underlying devices as part of `get_device_properties()`
             device_properties.emplace(key, value);
         } else {
             if (throwOnUnsupported)
