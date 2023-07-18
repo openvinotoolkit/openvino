@@ -335,6 +335,19 @@ constexpr typename std::enable_if<is_static_shape_adapter<T>() && is_static_shap
  */
 template <>
 void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
-                                   std::pair<const ov::Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
+                                   std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
+                                   const std::string& explanation);
+
+/**
+ * @brief Specialization to throw the `NodeValidationFailure` for shape inference using `StaticShapeRef`
+ *
+ * @param check_loc_info Exception location details to print.
+ * @param ctx            NodeValidationFailure context which got pointer to node and input shapes used for shape
+ * inference.
+ * @param explanation    Exception explanation string.
+ */
+template <>
+void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                   std::pair<const Node*, const std::vector<intel_cpu::StaticShapeRef>*>&& ctx,
                                    const std::string& explanation);
 }  // namespace ov
