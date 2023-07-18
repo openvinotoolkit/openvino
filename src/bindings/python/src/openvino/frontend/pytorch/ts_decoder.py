@@ -14,8 +14,6 @@ import typing
 from packaging.version import parse
 import torch
 import numpy as np
-import inspect
-import ctypes
 
 class TorchScriptPythonDecoder (Decoder):
     def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None):
@@ -101,8 +99,17 @@ class TorchScriptPythonDecoder (Decoder):
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
                 if "quantize" in n.kind():
+                    # do not freeze quantized models
                     skip_freeze = True
                     break
+                elif "aten::to" in n.kind():
+                    first_input = next(n.inputs())
+                    if first_input.node().kind() == "prim::Constant":
+                        ivalue = first_input.toIValue()
+                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8, torch.bfloat16, torch.float16]:
+                            # do not freeze models with compressed constants
+                            skip_freeze = True
+                            break
             if not skip_freeze:
                 f_model = torch.jit.freeze(scripted)
             else:
