@@ -33,7 +33,7 @@ struct TransposeFQReduceParams {
     std::vector<int32_t> ex_transpose_order;
 };
 
-class TransposeSinkingFQ : public CommonTestUtils::TestsCommon,
+class TransposeSinkingFQ : public ov::test::TestsCommon,
                            public testing::WithParamInterface<std::tuple<TransposeFQReduceParams>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -157,7 +157,7 @@ struct TransposeReduceParams {
     std::vector<int32_t> ex_transpose_order;
 };
 
-class TransposeSinking : public CommonTestUtils::TestsCommon,
+class TransposeSinking : public ov::test::TestsCommon,
                          public testing::WithParamInterface<std::tuple<TransposeReduceParams, ngraph::NodeTypeInfo>> {
 public:
     std::shared_ptr<Function> f, f_ref;
