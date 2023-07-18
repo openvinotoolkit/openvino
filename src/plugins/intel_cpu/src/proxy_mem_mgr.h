@@ -15,7 +15,7 @@ namespace intel_cpu {
 class ProxyMemoryMngr : public IMemoryMngrObserver {
 public:
     ProxyMemoryMngr() : m_pOrigMngr(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>())), m_pMngr(m_pOrigMngr) {}
-    explicit ProxyMemoryMngr(MemoryMngrPtr pMngr) : ProxyMemoryMngr() {
+    explicit ProxyMemoryMngr(std::shared_ptr<IMemoryMngr> pMngr) : ProxyMemoryMngr() {
         OPENVINO_ASSERT(pMngr, "Memory manager is uninitialized");
         m_pMngr = pMngr;
     }

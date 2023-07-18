@@ -184,9 +184,13 @@ void InferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
 
-    graph->PullOutputData(_outputs);
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        for (auto&& item : outputControlBlocks) {
+            item.second.update();
+        }
+    }
 
-    reset_flag = 1;
+    graph->PullOutputData(_outputs);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestBase::GetPerformanceCounts() const {
@@ -205,131 +209,139 @@ static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr
     memMngr->setExtBuff(blob->buffer(), size);
 }
 
-inline MemoryPtr create_memory(InferenceEngine::Precision prc, const Shape& shape) {
-    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-    CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(prc, shape);
-    return std::make_shared<Memory>(eng, desc);
-}
-
 void InferRequestBase::changeDefaultPtr() {
+    const auto& inputNodesMap = graph->GetInputNodesMap();
+    const auto& outputNodesMap = graph->GetOutputNodesMap();
     for (auto& it : externalPtr) {
-        const auto& inputNodesMap = graph->GetInputNodesMap();
         auto input = inputNodesMap.find(it.first);
-        if (input != inputNodesMap.end()) {
-            NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
-                continue;
-            auto& childEdges = inputNodePtr->getChildEdges();
-            // Perform checks that the user's memory will not be modified
-            bool canBeInPlace = true;
-            for (auto& childEdge : childEdges) {
-                auto ce = childEdge.lock();
-                if (!ce)
+        if (inputNodesMap.end() == input) {
+            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob: ", it.first);
+            continue;
+        }
+        NodePtr inputNodePtr = input->second;
+        if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
+            continue;
+        auto& childEdges = inputNodePtr->getChildEdges();
+        // Perform checks that the user's memory will not be modified
+        bool canBeInPlace = true;
+        for (auto& childEdge : childEdges) {
+            auto ce = childEdge.lock();
+            if (!ce)
+                IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+
+            auto& child = ce->getChild();
+
+            if (child->isConstant()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            // the input memory should be referenced by the children, otherwise it should be written to a
+            // specific location
+            if (ce->inPlace(Edge::LOOK_DOWN)) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (auto result = ce->modifiedInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+        }
+        if (canBeInPlace) {
+            for (auto& edge : childEdges) {
+                auto e = edge.lock();
+                if (!e)
                     IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
 
-                auto& child = ce->getChild();
-
-                if (child->isConstant()) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                // the input memory should be referenced by the children, otherwise it should be written to a
-                // specific location
-                if (ce->inPlace(Edge::LOOK_DOWN)) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                if (auto result = ce->modifiedInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                if (child->getType() == Type::Concatenation && child->isInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
+                changeEdgePtr(e, it.second);
             }
-            if (canBeInPlace) {
-                for (auto& edge : childEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+        }
+    }
 
-                    changeEdgePtr(e, it.second);
+    for (auto& it : externalPtr) {
+        const auto& name = it.first;
+        auto output = outputNodesMap.find(name);
+        if (outputNodesMap.end() == output) {
+            continue;
+        }
+        auto parentEdge = output->second->getParentEdgeAt(0);
+        const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
+        auto outMemMngrItr = outMemMngrMap.find(name);
+        if (Graph::Status::ReadyDynamic == graph->getStatus() &&
+            outMemMngrItr != outMemMngrMap.end()) {
+            bool enableMemSharing = true;
+            // TODO: filter
+
+            // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
+            ProxyMemoryMngrPtr outputMemMngr;
+            outputMemMngr = outMemMngrItr->second;
+            OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
+
+            auto controlBlockItr = outputControlBlocks.find(name);
+
+            if (enableMemSharing && controlBlockItr != outputControlBlocks.end()) {
+                //avoid cyclic memory use
+                auto parentNode = parentEdge->getParent();
+                const auto& parentNodeInpEdges = parentNode->getParentEdges();
+                std::unordered_set<const void*> parentInputPtrs(parentNodeInpEdges.size());
+                for (auto&& edge : parentNodeInpEdges) {
+                    if (auto edgePtr = edge.lock()) {
+                        parentInputPtrs.insert(edgePtr->getMemoryPtr()->getData());
+                    }
+                }
+
+                auto&& controlBlock = controlBlockItr->second;
+
+                std::shared_ptr<IMemoryMngr> memMngr = parentInputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
+                    controlBlock.nextMemMngr() :
+                    controlBlock.currentMemMngr();
+
+                outputMemMngr->reset(memMngr);
+                DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
+                DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
+            } else {
+                if (outputMemMngr) {
+                    outputMemMngr->reset(nullptr);
                 }
             }
             continue;
         }
 
-        const auto& outputNodesMap = graph->GetOutputNodesMap();
-        auto output = outputNodesMap.find(it.first);
-        if (output != outputNodesMap.end()) {
-            auto parentEdge = output->second->getParentEdgeAt(0);
-            if (Graph::Status::ReadyDynamic == graph->getStatus()) {
-                bool canBeInPlace = true;
-                // TODO: filter
+        if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
+            continue;
 
-                // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
-                ProxyMemoryMngrPtr outputMemMngr;
-                const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
-                auto itr = outMemMngrMap.find(it.first);
-                if (itr != outMemMngrMap.end()) {
-                    outputMemMngr = itr->second;
-                    OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", it.first, " is empty.");
-                } else {
-                    canBeInPlace = false;
-                    DEBUG_LOG("no proxy mem manager for output ", it.first, " !");
-                }
-
-                if (canBeInPlace) {
-                    auto tt = std::get<0>(outputsTensor2BlobMap[it.first][curBuffIndex]);  // there is no way to get tensor from blob.
-                    auto memptr = tt->get_memory();
-                    outputMemMngr->reset(memptr->getMemoryMngr());
-                    DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", memptr->getMemoryMngr(), " graph ", graph, " inferrequest ", this);
-                    DEBUG_LOG(it.first, ", blob ", std::get<1>(outputsTensor2BlobMap[it.first][curBuffIndex]), ", tensor ", tt);
-                } else {
-                    if (outputMemMngr) {
-                        outputMemMngr->reset(nullptr);
-                    }
-                }
-
-                continue;
+        bool canBeInPlace = true;
+        void* defaultPtr = parentEdge->getMemory().getData();
+        // Cannot be in-place after concat because concat is using different ptrs without offsets
+        auto parent = parentEdge->getParent();
+        NodePtr previousParent;
+        do {
+            previousParent = parent;
+            if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
+                canBeInPlace = false;
+                break;
             }
 
-            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
-                continue;
+            auto& parentEdges = parent->getParentEdges();
+            for (auto& edge : parentEdges) {
+                auto e = edge.lock();
+                if (!e)
+                    IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-            bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().getData();
-            // Cannot be in-place after concat because concat is using different ptrs without offsets
-            auto parent = parentEdge->getParent();
-            NodePtr previousParent;
-            do {
-                previousParent = parent;
-                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
-                    canBeInPlace = false;
+                if (e->getMemory().getData() == defaultPtr) {
+                    parent = e->getParent();
                     break;
                 }
-
-                auto& parentEdges = parent->getParentEdges();
-                for (auto& edge : parentEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
-
-                    if (e->getMemory().getData() == defaultPtr) {
-                        parent = e->getParent();
-                        break;
-                    }
-                }
-            } while (previousParent != parent);
-            if (canBeInPlace)
-                changeEdgePtr(parentEdge, it.second);
-            continue;
-        }
-        IE_THROW() << "Cannot find input/output blob: " << it.first;
+            }
+        } while (previousParent != parent);
+        if (canBeInPlace)
+            changeEdgePtr(parentEdge, it.second);
     }
 }
 
@@ -691,19 +703,6 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
     const auto &blobDesc = data->getTensorDesc();
 
     if (isInput) {
-        if (reset_flag) {
-            reset_flag = 0;
-            curBuffIndex = !curBuffIndex;   // flip double-buffer
-
-            // WA reset outputs
-            for (const auto& entry : outputsTensor2BlobMap) {
-                auto output = _outputs.find(entry.first);
-                if (output != _outputs.end()) {
-                    output->second = std::get<1>(entry.second[curBuffIndex]);
-                }
-            }
-        }
-
         const auto netInPrc = InferenceEngine::details::convertPrecision(inputNodeItr->second->get_output_element_type(0));
         if (netInPrc != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
@@ -740,6 +739,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         _inputs[name] = data;
         _batched_inputs.erase(name);
     } else {
+        outputControlBlocks.erase(name); // now the memory is under user's control
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "Can't set compound blob: supported only for input pre-processing";
         }
@@ -834,23 +834,16 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                 if (!data) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
-                        outputsTensor2BlobMap[name].resize(2);  // double-buffering
+                        outputControlBlocks.emplace(
+                            std::make_pair(name, OutputControlBlock{outputNode->second->get_input_element_type(0), shape}));
 
-                        dims = InferenceEngine::SizeVector(shape.rank().get_length(), 0);
+                        DEBUG_LOG(name,
+                            ", blob ", outputControlBlocks.at(name).blob(),
+                            ", tensor ", outputControlBlocks.at(name).tensor(),
+                            ", memmngr ", outputControlBlocks.at(name).tensor()->get_memory()->getMemoryMngr(),
+                            "memory object ", outputControlBlocks.at(name).tensor()->get_memory().get());
 
-                        for (int i = 0; i < 2; i++) {
-                            auto mem_ptr = create_memory(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
-                            Shape(dims));
-                            const auto &tensor_ptr = std::make_shared<Tensor>(mem_ptr);
-                            const auto tensor_blob = tensor_to_blob({tensor_ptr, nullptr});
-                            auto a = std::make_pair(tensor_ptr, tensor_blob); // as no method to get Tensor from Blob
-                            outputsTensor2BlobMap[name][i] = a;
-
-                            DEBUG_LOG(name, ", blob ", tensor_blob, ", tensor ", tensor_ptr, ", memmngr ",
-                            mem_ptr->getMemoryMngr(), "memory object ", mem_ptr.get());
-                        }
-
-                        data = std::get<1>(outputsTensor2BlobMap[name][curBuffIndex]);
+                        data = outputControlBlocks.at(name).blob();
                     } else {
                         dims = shape.to_shape();
 
@@ -933,6 +926,23 @@ void InferRequest::PushInputData() {
 
         pushInput(inputName, input.second, normToInputSupportedPrec(input));
     }
+}
+
+InferRequestBase::OutputControlBlock::OutputControlBlock(const ov::element::Type& precision, const ov::PartialShape& shape) {
+    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+    m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
+
+    Shape memShape = shape.is_dynamic() ?
+        Shape{VectorDims(shape.rank().get_length(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
+        Shape{shape};
+
+    CpuBlockedMemoryDescPtr desc =
+        std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::details::convertPrecision(precision), memShape);
+
+    auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
+    m_tensor = std::make_shared<Tensor>(memory);
+    m_blob = tensor_to_blob({m_tensor, nullptr});
 }
 
 }   // namespace intel_cpu

@@ -53,18 +53,61 @@ protected:
     InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const;
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
+protected:
+    class OutputControlBlock {
+    public:
+        using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
+
+    public:
+        OutputControlBlock(const ov::element::Type& precision, const ov::PartialShape& shape);
+
+        OutputControlBlock(const OutputControlBlock&) = delete;
+        OutputControlBlock& operator=(const OutputControlBlock&) = delete;
+
+        OutputControlBlock(OutputControlBlock&&) = default;
+        OutputControlBlock& operator=(OutputControlBlock&&) = default;
+
+        InferenceEngine::Blob::Ptr blob() const {
+            return m_blob;
+        }
+
+        std::shared_ptr<Tensor> tensor() const {
+            return m_tensor;
+        }
+
+        const void* rawPtr() const {
+            return m_tensor->get_memory()->getData();
+        }
+
+        MemMngrPtr currentMemMngr() const {
+            return m_buffers[m_buffIndx];
+        }
+
+        MemMngrPtr nextMemMngr() {
+            m_buffIndx ^= 0x1;
+            return m_buffers[m_buffIndx];
+        }
+
+        void update() {
+            m_proxyMemMngr->reset(currentMemMngr());
+        }
+
+    private:
+        std::shared_ptr<Tensor> m_tensor = nullptr;
+        InferenceEngine::Blob::Ptr m_blob = nullptr;
+        ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
+        std::array<MemMngrPtr, 2> m_buffers;
+        int m_buffIndx = 0;
+    };
+
+protected:
     virtual void initBlobs() = 0;
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
     std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
 
-    // keep until api 2.0 adopted,
-    // as there is no way to get the wrapped Tensor from Blob.
-    // note: we need implement double-buffer mechanism for each output as an output memory might be input of next iteration.
-    std::unordered_map<std::string, std::vector<std::pair<std::shared_ptr<Tensor>, InferenceEngine::Blob::Ptr>>> outputsTensor2BlobMap;
-    size_t curBuffIndex = 0;           // double-buffer index, either 0 or 1.
-    size_t reset_flag = 0;
+    std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
 private:
     void PushStates();
