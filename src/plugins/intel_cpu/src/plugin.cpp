@@ -299,7 +299,7 @@ Config Engine::MergeConfig(const std::map<std::string, std::string>& config) {
     return conf;
 }
 
-void Engine::CaculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& function, bool imported) {
+void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& function, bool imported) {
     // import config props from caching model
     if (imported && !is_cpu_map_available()) {
         if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
@@ -498,7 +498,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     // update the props after the perf mode translated to configs
     Config conf = MergeConfig(config);
-    CaculateStreams(conf, nGraphFunc);
+    CalculateStreams(conf, nGraphFunc);
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
@@ -789,7 +789,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     auto function = cnnnetwork.getFunction();
 
     Config conf = MergeConfig(config);
-    CaculateStreams(conf, function, true);
+    CalculateStreams(conf, function, true);
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 
