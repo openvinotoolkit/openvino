@@ -15,7 +15,7 @@ from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
 
 def get_pytorch_decoder(model, input_shape, example_inputs, args):
     try:
-        from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e

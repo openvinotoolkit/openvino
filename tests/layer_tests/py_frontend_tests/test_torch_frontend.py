@@ -30,7 +30,7 @@ def get_scripted_model(model):
 
 
 def test_pytorch_fe_set_input_shape():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
@@ -45,7 +45,7 @@ def test_pytorch_fe_set_input_shape():
 
 
 def test_pytorch_fe_set_input_type():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
@@ -59,7 +59,7 @@ def test_pytorch_fe_set_input_type():
 
 
 def test_pytorch_fe_set_input_value():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
@@ -75,7 +75,7 @@ def test_pytorch_fe_set_input_value():
 
 
 def test_conversion_extension():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class Model(torch.nn.Module):
         def __init__(self):
@@ -185,7 +185,7 @@ def get_builtin_extensions_path():
 
 
 def test_op_extension():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class Elu(torch.nn.Module):
         def __init__(self, alpha):
@@ -216,7 +216,7 @@ def test_op_extension():
 
 def test_pytorch_telemetry():
     from openvino.frontend import TelemetryExtension
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class MockTelemetry:
         def __init__(self, stat):

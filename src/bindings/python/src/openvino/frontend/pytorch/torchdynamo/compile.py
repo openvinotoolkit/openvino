@@ -11,7 +11,7 @@ import torch.overrides
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.decoder import TorchFXPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.runtime import Core, Type, PartialShape
 
 from typing import Callable, Optional

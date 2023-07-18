@@ -16,7 +16,7 @@ from torch.fx.experimental.proxy_tensor import make_fx
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute
 
