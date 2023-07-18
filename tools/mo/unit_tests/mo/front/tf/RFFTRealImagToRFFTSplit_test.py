@@ -4,7 +4,6 @@
 
 import unittest
 
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.RFFTRealImagToRFFTSplit import RFFTRealImagToRDFTSplit
@@ -85,21 +84,22 @@ ref_graph_edges = [
 ]
 
 
-@generator
 class RFFTRealImagToRFFTSplitTest(unittest.TestCase):
-    @generate(*[1, 2, 3])
-    def test_replacement(self, num_of_dims):
-        graph = build_graph(nodes_attrs=graph_node_attrs,
-                            edges=graph_edges,
-                            update_attributes={
-                                'rfft': {'num_of_dimensions': num_of_dims}
-                            })
-        graph.stage = 'front'
-        RFFTRealImagToRDFTSplit().find_and_replace_pattern(graph)
-        ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs,
-                                edges=ref_graph_edges,
-                                update_attributes={
-                                    'rfft': {'num_of_dimensions': num_of_dims}
-                                })
-        (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+    def test_replacement(self):
+        test_cases=[1, 2, 3]
+        for idx, (num_of_dims) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph(nodes_attrs=graph_node_attrs,
+                                    edges=graph_edges,
+                                    update_attributes={
+                                        'rfft': {'num_of_dimensions': num_of_dims}
+                                    })
+                graph.stage = 'front'
+                RFFTRealImagToRDFTSplit().find_and_replace_pattern(graph)
+                ref_graph = build_graph(nodes_attrs=ref_graph_node_attrs,
+                                        edges=ref_graph_edges,
+                                        update_attributes={
+                                            'rfft': {'num_of_dimensions': num_of_dims}
+                                        })
+                (flag, resp) = compare_graphs(graph, ref_graph, 'output', check_op_attrs=True)
+                self.assertTrue(flag, resp)
