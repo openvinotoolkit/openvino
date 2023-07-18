@@ -85,6 +85,9 @@ protected:
 
         MemMngrPtr nextMemMngr() {
             m_buffIndx ^= 0x1;
+            if (!m_buffers[m_buffIndx]) {
+                m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+            }
             return m_buffers[m_buffIndx];
         }
 
