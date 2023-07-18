@@ -12,6 +12,8 @@ import numpy as np
 import inspect
 import ctypes
 
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+
 def maybe_convert_max_int(value : int):
     # FIXME: This is a convertion from 64-bit positive max integer value
     # to 32-bit positive max integer value. Find a better way to handle this.
