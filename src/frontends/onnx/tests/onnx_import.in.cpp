@@ -36,12 +36,12 @@
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -3538,6 +3538,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_optional_constant) {
     test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
     test_case.add_expected_output<float>(Shape{3, 4},
                                          {0.f, 0.f, 1.f, 1.2f, 0.f, 0.f, 2.3f, 3.4f, 0.f, 0.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant_negative_begin_end) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/pad_negative_begin_end.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_input<int64_t>({-1, -1, -1, -1});
+    test_case.add_expected_output<int32_t>(Shape{1, 2}, {6, 7});
 
     test_case.run();
 }
