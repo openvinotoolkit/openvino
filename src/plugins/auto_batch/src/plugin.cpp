@@ -343,12 +343,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ov::SoPtr<ov::IRemoteContext> device_context;
     if (!context) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         try {
             device_context = compiled_model_without_batch->get_context();
             if (!device_context._so)
                 device_context._so = compiled_model_without_batch._so;
         } catch (const ov::NotImplemented&) {
+        } catch (const InferenceEngine::NotImplemented&) {
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         device_context = context;
     }
