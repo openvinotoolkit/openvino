@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs, get_edge_attribute_between_nodes, \
     set_edge_attribute_between_nodes
@@ -364,7 +363,6 @@ class TestGraphShapeChecker(unittest.TestCase):
             graph.check_shapes_consistency()
 
 
-@generator
 class TestGraphPortsChecker(unittest.TestCase):
     nodes = {
         '0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
@@ -380,33 +378,35 @@ class TestGraphPortsChecker(unittest.TestCase):
         '3_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
-    @generate(*[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)])
-    def test_check_shape_consistency_1(self, node_id: str, port_type: str, port_idx: int):
-        #
-        #               ,->2-->2_data---,->3-->3_data
-        #   0-->0_data-/-->1-->1_data--/
-        #
-        graph = build_graph(self.nodes, [
-            ('0', '0_data'),
-            ('1', '1_data'),
-            ('2', '2_data'),
-            ('3', '3_data'),
+    def test_check_shape_consistency_1(self):
+        test_cases=[('0', 'in', 1), ('0', 'out', 2), ('1', 'in', 2), ('3', 'out', 2)]
+        for idx, (node_id, port_type, port_idx) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                #
+                #               ,->2-->2_data---,->3-->3_data
+                #   0-->0_data-/-->1-->1_data--/
+                #
+                graph = build_graph(self.nodes, [
+                    ('0', '0_data'),
+                    ('1', '1_data'),
+                    ('2', '2_data'),
+                    ('3', '3_data'),
 
-            ('0_data', '1'),
-            ('0_data', '2'),
-            ('1_data', '3'),
-            ('2_data', '3'),
-        ])
+                    ('0_data', '1'),
+                    ('0_data', '2'),
+                    ('1_data', '3'),
+                    ('2_data', '3'),
+                ])
 
-        node = Node(graph, node_id)
-        if port_type == 'in':
-            node.add_input_port(idx=port_idx)
-        else:
-            node.add_output_port(idx=port_idx)
+                node = Node(graph, node_id)
+                if port_type == 'in':
+                    node.add_input_port(idx=port_idx)
+                else:
+                    node.add_output_port(idx=port_idx)
 
-        with self.assertRaisesRegex(Error, "Node {} has not consecutive {} ports indexes:.*".format(node_id,
-                                                                                                    port_type)):
-            graph.check_nodes_ports_are_consecutive()
+                with self.assertRaisesRegex(Error, "Node {} has not consecutive {} ports indexes:.*".format(node_id,
+                                                                                                            port_type)):
+                    graph.check_nodes_ports_are_consecutive()
 
 
 class TestNewGraphAPIMiddle(unittest.TestCase):
