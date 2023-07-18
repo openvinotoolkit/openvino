@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const cv2 = require('opencv.js');\nconst { getImageData, displayImage, downloadFile } = require('./helpers.js');\n// Later user would be able to download ov_node_addon using npm\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');  "
+                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('./helpers.js');\n// Later user would be able to download ov_node_addon using npm\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');  "
             ],
             "outputs": []
         },
@@ -72,7 +72,7 @@
         {
             "language": "javascript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/coco224x224.jpg');\n\n// Use OpenCV.js to preprocess image.\nconst originalImage = cv2.matFromImageData(imgData);\nconst image = new cv2.Mat();\n// The MobileNet model expects images in RGB format.\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\n// Resize to MobileNet image shape.\ncv2.resize(image, image, new cv2.Size(224, 224));\n\ndisplayImage(imgData);"
+                "const imgData = await getImageData('../../assets/images/coco224x224.jpg');\n\n// Use OpenCV.js to preprocess image.\nconst originalImage = cv2.matFromImageData(imgData);\nconst image = new cv2.Mat();\n// The MobileNet model expects images in RGB format.\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\n// Resize to MobileNet image shape.\ncv2.resize(image, image, new cv2.Size(224, 224));\n\ndisplayImage(imgData, display);"
             ],
             "outputs": [
                 {

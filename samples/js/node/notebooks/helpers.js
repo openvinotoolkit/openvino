@@ -1,7 +1,6 @@
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-// const { display } = require('node-kernel');
 const { createCanvas, createImageData, loadImage, Image, ImageData } = require('canvas');
 
 exports.arrayToImageData = arrayToImageData;
@@ -34,7 +33,7 @@ function displayImage(imageOrImageData, display) {
   display.image(buffer);
 }
 
-function displayArrayAsImage(arr, width, height) {
+function displayArrayAsImage(arr, width, height, display) {
   const alpha = 255;
   const componentsPerPixel = arr.length/(width*height);
 
@@ -63,7 +62,7 @@ function displayArrayAsImage(arr, width, height) {
 
   const imageData = arrayToImageData(arr, width, height);
 
-  displayImage(imageData);
+  displayImage(imageData, display);
 }
 
 async function getImageData(path) {
