@@ -12,6 +12,7 @@
 // Returns list of operations that support i64.
 bool isNativelySupported(const ov::Node::type_info_t &type) {
     static const std::unordered_set<ov::Node::type_info_t> i64Ops = {
+        ov::opset12::Transpose::get_type_info_static()
     };
 
     return i64Ops.find(type) != i64Ops.end();
