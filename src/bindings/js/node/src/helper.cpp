@@ -102,8 +102,8 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
             if (!arrayItem.IsString()) {
                 throw std::invalid_argument(std::string("Passed array must contain only strings."));
             }
-            Napi::String num = arrayItem.As<Napi::String>();
-            nativeArray.insert(num.Utf8Value());
+            Napi::String str = arrayItem.As<Napi::String>();
+            nativeArray.insert(str.Utf8Value());
         }
         return nativeArray;
     }

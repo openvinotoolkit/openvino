@@ -60,6 +60,9 @@ public:
     /// @return A Javascript output tensor for the model. If model has several outputs, an error occurs.
     Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
 
+    /// @return A Javascript object with model outputs.
+    Napi::Value get_output_tensors(const Napi::CallbackInfo& info);
+
 private:
     ov::InferRequest _infer_request;
 };

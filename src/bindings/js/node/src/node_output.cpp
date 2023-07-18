@@ -45,7 +45,7 @@ Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value Output<ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
-    auto arr = Napi::Uint32Array::New(info.Env(), shape.size());
+    auto arr = Napi::Array::New(info.Env(), shape.size());
     for (size_t i = 0; i < shape.size(); i++)
         arr[i] = shape[i];
 
@@ -110,7 +110,7 @@ Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value Output<const ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
-    auto arr = Napi::Uint32Array::New(info.Env(), shape.size());
+    auto arr = Napi::Array::New(info.Env(), shape.size());
     for (size_t i = 0; i < shape.size(); i++)
         arr[i] = shape[i];
 
