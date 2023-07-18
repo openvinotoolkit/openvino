@@ -67,7 +67,8 @@ public:
     MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
 
     MOCK_CONST_METHOD0(is_new_api, bool());
-    MOCK_CONST_METHOD2(create_context, ov::RemoteContext(const std::string& deviceName, const ov::AnyMap& params));
+    MOCK_CONST_METHOD2(create_context,
+                       ov::SoPtr<ov::IRemoteContext>(const std::string& deviceName, const ov::AnyMap& params));
     MOCK_CONST_METHOD0(get_available_devices, std::vector<std::string>());
     MOCK_CONST_METHOD3(query_model,
                        ov::SupportedOpsMap(const std::shared_ptr<const ov::Model>&,
@@ -81,7 +82,7 @@ public:
                                                      const ov::AnyMap&));
     MOCK_CONST_METHOD3(compile_model,
                        ov::SoPtr<ov::ICompiledModel>(const std::shared_ptr<const ov::Model>&,
-                                                     const ov::RemoteContext&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
                                                      const ov::AnyMap&));
     MOCK_CONST_METHOD3(compile_model,
                        ov::SoPtr<ov::ICompiledModel>(const std::string&, const std::string&, const ov::AnyMap&));
@@ -90,9 +91,13 @@ public:
         ov::SoPtr<ov::ICompiledModel>(const std::string&, const ov::Tensor&, const std::string&, const ov::AnyMap&));
     MOCK_CONST_METHOD3(read_model, std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&, bool));
     MOCK_CONST_METHOD2(read_model, std::shared_ptr<ov::Model>(const std::string&, const std::string&));
-    MOCK_CONST_METHOD1(get_default_context, ov::RemoteContext(const std::string&));
+    MOCK_CONST_METHOD1(get_default_context, ov::SoPtr<ov::IRemoteContext>(const std::string&));
     MOCK_CONST_METHOD3(import_model,
-                       ov::SoPtr<ov::ICompiledModel>(std::istream&, const ov::RemoteContext&, const ov::AnyMap&));
+                       ov::SoPtr<ov::ICompiledModel>(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&));
+    MOCK_CONST_METHOD1(device_supports_model_caching, bool(const std::string&));
+    MOCK_METHOD2(set_property, void(const std::string& device_name, const ov::AnyMap& properties));
 
     ~MockICore() = default;
 };

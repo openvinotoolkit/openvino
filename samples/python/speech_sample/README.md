@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to infer an acoustic model based on Kaldi 
+                 neural networks and speech feature vectors using Asynchronous 
+                 Inference Request (Python) API.
+
+
 This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural models and speech feature vectors.
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
@@ -102,7 +108,7 @@ Running
 
 Run the application with the ``-h`` option to see the usage message:
 
-.. code-block:: bash
+.. code-block:: sh
    
    python speech_sample.py -h
 

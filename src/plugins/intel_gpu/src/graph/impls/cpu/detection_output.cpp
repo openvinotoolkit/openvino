@@ -41,7 +41,7 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
 
 public:
     enum NMSType {CAFFE, MXNET};
-    NMSType nms_type;
+    NMSType nms_type = NMSType::CAFFE;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -56,7 +56,7 @@ public:
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<detection_output>());
+        OPENVINO_ASSERT(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
     }

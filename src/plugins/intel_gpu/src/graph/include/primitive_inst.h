@@ -232,10 +232,10 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
-
-    void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false);
+    bool has_inner_networks() const;
+    void allocate_internal_buffers(bool reset = true);
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
+            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -257,6 +257,9 @@ public:
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
     }
+    void set_inner_networks(const std::vector<network::ptr> inner_nets) {
+        _impl_params->inner_nets = inner_nets;
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -273,6 +276,7 @@ protected:
     layout _node_output_layout;
 
     bool update_shape_done_by_other = false;
+    bool allocation_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
@@ -336,7 +340,7 @@ protected:
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx);
+    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

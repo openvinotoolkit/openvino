@@ -9,8 +9,7 @@ import openvino.runtime as ov
 import pytest
 import torch
 import unittest
-from openvino.runtime import PartialShape, Dimension, Model, Type
-from openvino.tools.mo import InputCutInfo
+from openvino.runtime import PartialShape, Dimension, Model, Type, InputCutInfo
 
 from common.mo_convert_test_class import CommonMOConvertTest
 
@@ -62,6 +61,27 @@ def make_pt_model_two_inputs():
     return NeuralNetwork()
 
 
+def make_pt_model_with_optional_input():
+    from torch import nn
+
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x, y=None, z=None):
+            if y is None:
+                logits = self.linear_relu_stack(x + z)
+            if z is None:
+                logits = self.linear_relu_stack(x * y)
+            return logits
+
+    return NeuralNetwork()
+
+
 def make_ref_pt_model_one_input(shape, dtype=np.float32):
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
@@ -86,7 +106,30 @@ def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
         param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
         param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
     mul = ov.opset8.multiply(param1, param2)
-    relu = ov.opset8.relu(mul)    
+    relu = ov.opset8.relu(mul)
+    if dtype != np.float32:
+        relu = ov.opset8.convert(relu, np.float32)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
+def make_ref_pt_model_with_optional_inputs(shape, dtype=np.float32, z_exist=False):
+    if len(shape) == 2:
+        param1 = ov.opset8.parameter(PartialShape(
+            shape[0]), name="input_0", dtype=dtype)
+        param2 = ov.opset8.parameter(PartialShape(
+            shape[1]), name="input_1", dtype=dtype)
+    else:
+        shape = PartialShape(shape)
+        param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
+        param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
+
+    op = ov.opset8.multiply(
+        param1, param2) if not z_exist else ov.opset8.add(param1, param2)
+    relu = ov.opset8.relu(op)
     if dtype != np.float32:
         relu = ov.opset8.convert(relu, np.float32)
     sigm = ov.opset8.sigmoid(relu)
@@ -98,14 +141,13 @@ def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
 
 def create_pytorch_nn_module_case1(tmp_dir):
     pt_model = make_pt_model_two_inputs()
-    ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1])
+    ref_model = make_ref_pt_model_two_inputs([-1, -1, -1, -1])
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = sample_input1, sample_input2
 
-    return pt_model, ref_model, {'input': [([-1, 3, -1, -1], np.float32), ([-1, 3, -1, -1], np.float32)],
-                                 'example_input': sample_input}
+    return pt_model, ref_model, {'example_input': sample_input}
 
 
 def create_pytorch_nn_module_case2(tmp_dir):
@@ -117,7 +159,18 @@ def create_pytorch_nn_module_case2(tmp_dir):
     sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                 'input': [np.float32, np.float32],
+                                 'example_input': sample_input}
+
+
+def create_pytorch_nn_module_with_scalar_input(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([[], [-1, 3, -1, -1]])
+
+    sample_input1 = torch.tensor(0.66)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'input_shape': ["[]", PartialShape([-1, 3, -1, -1])],
                                  'example_input': sample_input}
 
 
@@ -130,7 +183,6 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input = tuple([sample_input1, sample_input2])
 
     return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]",
-                                 'input': [np.float32, np.float32],
                                  'example_input': sample_input}
 
 
@@ -139,10 +191,9 @@ def create_pytorch_nn_module_case4(tmp_dir):
 
     sample_input = torch.zeros(1, 3, 10, 10)
 
-    ref_model = make_ref_pt_model_one_input(PartialShape.dynamic())
+    ref_model = make_ref_pt_model_one_input(PartialShape([1, 3, 20, 20]))
 
-    return pt_model, ref_model, {'input': [np.float32],
-                                 'example_input': sample_input}
+    return pt_model, ref_model, {'example_input': sample_input, "input_shape": [1, 3, 20, 20]}
 
 
 def create_pytorch_nn_module_case5(tmp_dir):
@@ -163,6 +214,17 @@ def create_pytorch_nn_module_case6(tmp_dir):
     return pt_model, ref_model, {'input': (shape, np.float32)}
 
 
+def create_pytorch_nn_module_case7(tmp_dir):
+    pt_model = make_pt_model_one_input()
+
+    sample_input = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
+
+    ref_model = make_ref_pt_model_one_input(
+        PartialShape([1, 3, 20, 20]), dtype=np.int32)
+
+    return pt_model, ref_model, {'example_input': sample_input, "input": ([1, 3, 20, 20], np.int32)}
+
+
 def create_pytorch_nn_module_torch_size(tmp_dir):
     pt_model = make_pt_model_one_input()
     ref_model = make_ref_pt_model_one_input([1, 3, 2, 10])
@@ -176,7 +238,7 @@ def create_pytorch_nn_module_sample_input_int32(tmp_dir):
 
     sample_input = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
 
-    ref_model = make_ref_pt_model_one_input(shape, dtype=numpy.int32)
+    ref_model = make_ref_pt_model_one_input(shape, dtype=np.int32)
 
     return pt_model, ref_model, {'example_input': sample_input,
                                  'input': (shape, np.int32)}
@@ -216,8 +278,7 @@ def create_pytorch_jit_script_function(tmp_dir):
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
     ref_model = make_ref_pt_model_two_inputs(inp_shape)
-    return scripted_fn, ref_model, {'input': [(inp_shape, np.float32), (inp_shape, np.float32)]}
-
+    return scripted_fn, ref_model, {'input': [(inp_shape), (inp_shape)]}
 
 
 def create_pytorch_nn_module_layout_list(tmp_dir):
@@ -232,8 +293,7 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
-        'input': [np.float32, np.float32]
-        }
+    }
 
 
 def create_pytorch_nn_module_layout_list_case2(tmp_dir):
@@ -247,8 +307,7 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')), 
-        'input': [np.float32, np.float32]}
+        'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc'))}
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -270,8 +329,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False, 
-        'input': [np.float32, np.float32]}
+        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
@@ -293,7 +351,7 @@ def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'input': [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]]}
 
 
 def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
@@ -315,8 +373,8 @@ def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 
-        'compress_to_fp16': False, 'input': [np.float32, np.float32]}
+        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+        'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -337,7 +395,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False, 'input': [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
@@ -359,7 +417,7 @@ def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'input': [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]]}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
@@ -370,9 +428,11 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     param1 = ov.opset8.parameter(shape)
     param2 = ov.opset8.parameter(shape)
     const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const1_decompressed = ov.opset8.convert(
+        const1, destination_type=np.float32)
     const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
-    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    const2_decompressed = ov.opset8.convert(
+        const2, destination_type=np.float32)
     mul1 = ov.opset8.multiply(param1, const1_decompressed)
     mul2 = ov.opset8.multiply(param2, const2_decompressed)
     mul3 = ov.opset8.multiply(mul1, mul2)
@@ -382,7 +442,7 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'input': [np.float32, np.float32],
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'compress_to_fp16': True}
 
 
@@ -390,7 +450,7 @@ def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], 'input': [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]]}
 
 
 def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
@@ -415,7 +475,7 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'input': [np.float32, np.float32]}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
@@ -433,14 +493,14 @@ def create_pytorch_nn_module_shapes_list_dynamic_via_input(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input': [(inp_shapes[0], np.float32), (inp_shapes[1], np.float32)]}
+    return pt_model, ref_model, {'input': [(inp_shapes[0],), (inp_shapes[1],)]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'input': np.float32}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir):
@@ -454,7 +514,7 @@ def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[1, 3, 20, 20]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'input': np.float32}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input_via_input(tmp_dir):
@@ -548,8 +608,7 @@ def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
     return scripted_model, ref_model,  {
-        "example_input": {"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))},
-        'input': [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
+        "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))]}
 
 
 def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
@@ -567,8 +626,7 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
     sigm = ov.opset10.sigmoid(relu)
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return scripted_model, ref_model,  {"example_input": example_input, 'input': [
-        InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]}
+    return scripted_model, ref_model,  {"example_input": example_input}
 
 
 def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
@@ -595,6 +653,79 @@ def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
     return net, ref_model, {}
 
 
+def create_pytorch_module_with_optional_inputs_case1(tmp_dir):
+    net = make_pt_model_with_optional_input()
+    example_input = {"x": torch.zeros(
+        (1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10))}
+    ref_model = make_ref_pt_model_with_optional_inputs([-1, -1, -1, -1])
+    return net, ref_model, {"example_input": example_input}
+
+
+def create_pytorch_module_with_optional_inputs_case2(tmp_dir):
+    net = make_pt_model_with_optional_input()
+    example_input = {"x": torch.zeros(
+        (1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))}
+    ref_model = make_ref_pt_model_with_optional_inputs(
+        [-1, -1, -1, -1], z_exist=True)
+    return net, ref_model, {"example_input": example_input}
+
+
+def create_pytorch_module_with_optional_inputs_case3(tmp_dir):
+    net = make_pt_model_with_optional_input()
+    example_input = {"x": torch.zeros(
+        (1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))}
+    ref_model = make_ref_pt_model_with_optional_inputs(
+        [3, 3, 3, 3], z_exist=True)
+    return net, ref_model, {"example_input": example_input, "input_shape": [[3, 3, 3, 3], [3, 3, 3, 3]]}
+
+
+def create_pytorch_module_with_optional_inputs_case4(tmp_dir):
+    net = make_pt_model_with_optional_input()
+    ref_model = make_ref_pt_model_with_optional_inputs(
+        [3, 3, 3, 3], z_exist=True)
+    return net, ref_model, {"input": [("x", [3, 3, 3, 3]), ("z", [3, 3, 3, 3])]}
+
+
+def create_pytorch_module_with_optional_inputs_case5(tmp_dir):
+    net = make_pt_model_with_optional_input()
+    ref_model = make_ref_pt_model_with_optional_inputs(
+        [1, 3, -1, -1], z_exist=True)
+    return net, ref_model, {"input": ["x", "z"], "input_shape": [[1, 3, -1, -1], [1, 3, -1, -1]]}
+
+
+def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
+    import torch
+    import torch.nn.functional as F
+
+    class Int8Model(torch.nn.Module):
+        def __init__(self):
+            super(Int8Model, self).__init__()
+            self.weights = torch.randint(-127, 128,
+                                         [1, 3, 3, 3], dtype=torch.int8)
+
+        def forward(self, x):
+            cast = self.weights.to(torch.float32)
+            sub = cast - 0.5
+            mul = sub * 0.02
+            return F.conv2d(x, mul)
+
+    net = Int8Model()
+    example_input = (torch.rand((1, 3, 10, 10)),)
+    traced_model = torch.jit.trace(net, example_input)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape, dtype=np.float32)
+    weights = ov.opset10.constant(net.weights.numpy(force=True))
+    cast1 = ov.opset10.convert(weights, np.float32)
+    sub1 = ov.opset10.subtract(cast1, np.float32(0.5).reshape(1, 1, 1, 1))
+    mul1 = ov.opset10.multiply(sub1, np.float32(0.02).reshape(1, 1, 1, 1))
+    conv = ov.opset10.convolution(param1, mul1, strides=[1, 1],
+                                  pads_begin=[0, 0], pads_end=[0, 0],
+                                  dilations=[1, 1])
+    ref_model = Model([conv], [param1], "test")
+    return traced_model, ref_model,  {"example_input": example_input}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -603,6 +734,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_case4,
         create_pytorch_nn_module_case5,
         create_pytorch_nn_module_case6,
+        create_pytorch_nn_module_case7,
         create_pytorch_nn_module_torch_size,
         create_pytorch_nn_module_sample_input_int32,
         create_pytorch_nn_module_sample_input_int32_two_inputs,
@@ -630,7 +762,14 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_convert_pytorch_frontend4,
         create_pytorch_jit_script_module_convert_pytorch_frontend,
         create_pytorch_jit_trace_module_convert_pytorch_frontend,
-        create_pytorch_module_convert_pytorch_frontend_oob
+        create_pytorch_module_convert_pytorch_frontend_oob,
+        create_pytorch_module_with_optional_inputs_case1,
+        create_pytorch_module_with_optional_inputs_case2,
+        create_pytorch_module_with_optional_inputs_case3,
+        create_pytorch_module_with_optional_inputs_case4,
+        create_pytorch_module_with_optional_inputs_case5,
+        create_pytorch_nn_module_with_scalar_input,
+        create_pytorch_module_with_compressed_int8_constant,
     ]
 
     @ pytest.mark.parametrize("create_model", test_data)
@@ -666,7 +805,7 @@ def create_pt_model_with_custom_op():
 
 class ConvertRaises(unittest.TestCase):
     def test_example_inputs(self):
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
         pytorch_model = create_pt_model_with_custom_op()
 
         # Check that mo raises error message of wrong argument.

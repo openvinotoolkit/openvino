@@ -138,10 +138,10 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
 
     // Create a simple function
     {
-        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{param});
@@ -178,10 +178,10 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunctionConstantResultOnly) {
 
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(constant);
+        auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{});
@@ -385,10 +385,10 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) 
 
     // Create a simple function
     {
-        auto param = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto param = std::make_shared<ov::op::v0::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param->set_friendly_name("param");
         param->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(param);
+        auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         function->set_friendly_name("ParamResult");
@@ -427,10 +427,10 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetworkConstantResultOnly) {
 
     // Create a simple function
     {
-        auto constant = std::make_shared<ov::opset8::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        auto constant = std::make_shared<ov::op::v0::Constant>(elementType, ngraph::Shape({1, 3, 24, 24}));
         constant->set_friendly_name("constant");
         constant->output(0).get_tensor().set_names({"data"});
-        auto result = std::make_shared<ov::opset8::Result>(constant);
+        auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                       ngraph::ParameterVector{});

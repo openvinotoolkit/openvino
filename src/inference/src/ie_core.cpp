@@ -36,6 +36,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -44,7 +45,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -74,7 +74,6 @@ std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& net
     }
     return {res, errMsg.str()};
 }
-
 }  // namespace
 
 namespace InferenceEngine {
@@ -204,7 +203,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
     auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -234,7 +233,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     networkModel.seekg(currentPos, networkModel.beg);
 
     auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -252,10 +251,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
-                    .import_model(networkModel,
-                                  ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
-                                  parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+                    .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
@@ -338,7 +335,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName, {});
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {

@@ -6,16 +6,17 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
-#include "so_extension.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -24,6 +25,7 @@
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
+#include "transforms/dequantize_node_remover.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
@@ -33,8 +35,11 @@
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
+#include "transforms/quantized_node_remover.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/tuple_unpack_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -155,6 +160,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
@@ -170,11 +177,15 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleParameters>();
     manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::DequantizeNodeRemover>();
+    manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
 

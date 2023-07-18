@@ -583,5 +583,10 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
         return Limitations::kMaxLayersCountGNA3_X;
     }
 }
+
+bool GNADeviceHelper::isHwAvailable() {
+    return target->get_detected_device_version() != DeviceVersion::SoftwareEmulation &&
+           target->get_detected_device_version() != DeviceVersion::NotSet;
+}
 }  // namespace intel_gna
 }  // namespace ov

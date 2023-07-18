@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Gather-8 - a data movement operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name**: *Gather-8*
 
 **Category**: *Data movement*
@@ -14,7 +18,7 @@ support of negative indices.
 
 **Detailed description**
 
-.. code-block::
+.. code-block:: sh
 
    output[p_0, p_1, ..., p_{axis-1}, i_b, ..., i_{M-1}, p_{axis+1}, ..., p_{N-1}] =
       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, i_b, ..., i_{M-1}], p_{axis+1}, ..., p_{N-1}]
@@ -40,7 +44,7 @@ range output data for corresponding index will be filled with zeros (Example 7).
 
 Example 1 with default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 0
    axis = 0
@@ -51,7 +55,7 @@ Example 1 with default *batch_dims* value:
 
 Example 2 with non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    axis = 1
@@ -71,7 +75,7 @@ Example 2 with non-default *batch_dims* value:
 
 Example 3 with non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 2
    axis = 2
@@ -99,7 +103,7 @@ Example 3 with non-default *batch_dims* value:
 
 Example 4 with *axis* > *batch_dims*:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    axis = 2
@@ -133,7 +137,7 @@ Example 4 with *axis* > *batch_dims*:
 
 Example 5 with negative *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = -1  <-- normalized value will be indices.rank + batch_dims = 2 - 1 = 1
    axis = 1
@@ -153,7 +157,7 @@ Example 5 with negative *batch_dims* value:
 
 Example 6 with negative indices:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 0
    axis = 0
@@ -165,7 +169,7 @@ Example 6 with negative indices:
 
 Example 7 with indices out of the range:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 0
    axis = 0
@@ -199,7 +203,8 @@ of the output tensor is ``data.shape[:axis] + indices.shape[batch_dims:] + data.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Gather" version="opset8">
        <data batch_dims="1" />

@@ -26,12 +26,16 @@ This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch YOLOv8 with OpenVINO. We consider the steps required
 for object detection and instance segmentation scenarios.
 
-The tutorial consists of the following steps: - Prepare the PyTorch
-model. - Download and prepare a dataset. - Validate the original model.
-- Convert the PyTorch model to OpenVINO IR. - Validate the converted
-model. - Prepare and run optimization pipeline. - Compare performance of
-the FP32 and quantized models. - Compare accuracy of the FP32 and
-quantized models.
+The tutorial consists of the following steps:
+
+- Prepare the PyTorch model.
+- Download and prepare a dataset.
+- Validate the original model.
+- Convert the PyTorch model to OpenVINO IR.
+- Validate the converted model.
+- Prepare and run optimization pipeline.
+- Compare performance of the FP32 and quantized models.
+- Compare accuracy of the FP32 and quantized models.
 
 Get Pytorch model
 -----------------
@@ -43,10 +47,11 @@ the YOLOv8 nano model (also known as ``yolov8n``) pre-trained on a COCO
 dataset, which is available in this
 `repo <https://github.com/ultralytics/ultralytics>`__. Similar steps are
 also applicable to other YOLOv8 models. Typical steps to obtain a
-pre-trained model: 1. Create an instance of a model class. 2. Load a
-checkpoint state dict, which contains the pre-trained model weights. 3.
-Turn the model to evaluation for switching some operations to inference
-mode.
+pre-trained model:
+
+1. Create an instance of a model class.
+2. Load a checkpoint state dict, which contains the pre-trained model weights.
+3. Turn the model to evaluation for switching some operations to inference mode.
 
 In this case, the creators of the model provide an API that enables
 converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
@@ -59,7 +64,24 @@ Install necessary packages.
 
 .. code:: ipython3
 
-    !pip install "ultralytics==8.0.43"
+    !pip install -q 'openvino-dev>=2023.0.0' 'nncf>=2.5.0'
+    !pip install -q 'ultralytics==8.0.43' onnx
+
+Import required utility functions. The lower cell will download the
+``notebook_utils`` Python module from GitHub.
+
+.. code:: ipython3
+
+    from pathlib import Path
+    
+    # Fetch the notebook utils script from the openvino_notebooks repo
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
+    from notebook_utils import download_file, VideoPlayer
 
 Define utility functions for drawing results
 
@@ -123,7 +145,27 @@ Define utility functions for drawing results
 
 .. code:: ipython3
 
-    IMAGE_PATH = "../data/image/coco_bike.jpg"
+    # Download a test sample
+    IMAGE_PATH = Path('./data/coco_bike.jpg')
+    download_file(
+        url='https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg',
+        filename=IMAGE_PATH.name,
+        directory=IMAGE_PATH.parent
+    ) 
+
+
+.. parsed-literal::
+
+    'data/coco_bike.jpg' already exists.
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/home/idavidyu/openvino_notebooks/notebooks/230-yolov8-optimization/data/coco_bike.jpg')
+
+
 
 Instantiate model
 -----------------
@@ -142,6 +184,11 @@ method for drawing.
 
 Let us consider the examples:
 
+.. code:: ipython3
+
+    models_dir = Path('./models')
+    models_dir.mkdir(exist_ok=True)
+
 Object detection
 ~~~~~~~~~~~~~~~~
 
@@ -151,7 +198,7 @@ Object detection
     
     DET_MODEL_NAME = "yolov8n"
     
-    det_model = YOLO(f'{DET_MODEL_NAME}.pt')
+    det_model = YOLO(models_dir / f'{DET_MODEL_NAME}.pt')
     label_map = det_model.model.names
     
     res = det_model(IMAGE_PATH)
@@ -160,16 +207,16 @@ Object detection
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.0.43 🚀 Python-3.8.10 torch-1.13.1+cpu CPU
+    Ultralytics YOLOv8.0.43 🚀 Python-3.10.6 torch-2.0.1+cu117 CUDA:0 (NVIDIA GeForce RTX 3090, 24260MiB)
     YOLOv8n summary (fused): 168 layers, 3151904 parameters, 0 gradients, 8.7 GFLOPs
     
-    image 1/1 /home/ea/work/openvino_notebooks/notebooks/data/image/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 1 dog, 45.4ms
-    Speed: 0.6ms preprocess, 45.4ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /home/idavidyu/openvino_notebooks/notebooks/230-yolov8-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 1 dog, 61.5ms
+    Speed: 1.4ms preprocess, 61.5ms inference, 1.2ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_8_1.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_12_1.png
 
 
 
@@ -180,23 +227,25 @@ Instance Segmentation:
 
     SEG_MODEL_NAME = "yolov8n-seg"
     
-    seg_model = YOLO(f'{SEG_MODEL_NAME}.pt')
+    seg_model = YOLO(models_dir / f'{SEG_MODEL_NAME}.pt')
     res = seg_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.0.43 🚀 Python-3.8.10 torch-1.13.1+cpu CPU
+    Ultralytics YOLOv8.0.43 🚀 Python-3.10.6 torch-2.0.1+cu117 CUDA:0 (NVIDIA GeForce RTX 3090, 24260MiB)
     YOLOv8n-seg summary (fused): 195 layers, 3404320 parameters, 0 gradients, 12.6 GFLOPs
     
-    image 1/1 /home/ea/work/openvino_notebooks/notebooks/data/image/coco_bike.jpg: 480x640 1 bicycle, 2 cars, 1 dog, 44.6ms
-    Speed: 0.6ms preprocess, 44.6ms inference, 1.7ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /home/idavidyu/openvino_notebooks/notebooks/230-yolov8-optimization/data/coco_bike.jpg: 480x640 1 bicycle, 2 cars, 1 dog, 19.3ms
+    Speed: 0.3ms preprocess, 19.3ms inference, 1.4ms postprocess per image at shape (1, 3, 640, 640)
+    /home/idavidyu/.virtualenvs/test/lib/python3.10/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
+      warnings.warn(
 
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_10_1.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_14_1.png
 
 
 
@@ -210,17 +259,15 @@ preserve dynamic shapes in the model.
 
 .. code:: ipython3
 
-    from pathlib import Path
-     
     # object detection model
-    det_model_path = Path(f"{DET_MODEL_NAME}_openvino_model/{DET_MODEL_NAME}.xml")
+    det_model_path = models_dir / f"{DET_MODEL_NAME}_openvino_model/{DET_MODEL_NAME}.xml"
     if not det_model_path.exists():
         det_model.export(format="openvino", dynamic=True, half=False)
 
 .. code:: ipython3
 
     # instance segmentation model
-    seg_model_path = Path(f"{SEG_MODEL_NAME}_openvino_model/{SEG_MODEL_NAME}.xml")
+    seg_model_path = models_dir / f"{SEG_MODEL_NAME}_openvino_model/{SEG_MODEL_NAME}.xml"
     if not seg_model_path.exists():
         seg_model.export(format="openvino", dynamic=True, half=False)
 
@@ -238,9 +285,12 @@ Preprocessing
 ~~~~~~~~~~~~~
 
 Model input is a tensor with the ``[-1, 3, -1, -1]`` shape in the
-``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
-size) \* ``C`` - image channels \* ``H`` - image height \* ``W`` - image
-width
+``N, C, H, W`` format, where
+
+* ``N`` - number of images in batch (batch size)
+* ``C`` - image channels
+* ``H`` - image height
+* ``W`` - image width
 
 The model expects images in RGB channels format and normalized in [0, 1]
 range. Although the model supports dynamic input shape with preserving
@@ -372,9 +422,13 @@ size.
 The instance segmentation model, additionally, has an output that
 contains proto mask candidates for instance segmentation. It should be
 decoded by using box coordinates. It is a tensor with the
-``[-1 32, -1, -1]`` shape in the ``B,C H,W`` format, where: - ``B`` -
-batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
-- mask width
+``[-1 32, -1, -1]`` shape in the ``B,C H,W`` format, where:
+
+- ``B`` - batch size
+- ``C`` - number of candidates
+- ``H`` - mask height
+- ``W`` - mask width
+
 
 .. code:: ipython3
 
@@ -488,7 +542,7 @@ First, object detection:
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_20_0.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_24_0.png
 
 
 
@@ -513,7 +567,7 @@ Then, instance segmentation:
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_22_0.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_26_0.png
 
 
 
@@ -535,16 +589,13 @@ in the YOLOv8 repo, we also need to download annotations in the format
 used by the author of the model, for use with the original model
 evaluation function.
 
-   **Note**: In the first time, dataset downloading could take some
-   minutes. Downloading speed depends on your internet connection.
+   **Note**: The initial dataset download may take a few minutes to
+   complete. The download speed will vary depending on the quality of
+   your internet connection.
 
 .. code:: ipython3
 
-    import sys
     from zipfile import ZipFile
-    
-    sys.path.append("../utils")
-    from notebook_utils import download_file
     
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
@@ -552,14 +603,18 @@ evaluation function.
     
     OUT_DIR = Path('./datasets')
     
-    download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    download_file(LABELS_URL, directory=OUT_DIR, show_progress=True)
-    download_file(CFG_URL, directory=OUT_DIR, show_progress=True)
+    DATA_PATH = OUT_DIR / "val2017.zip"
+    LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
+    CFG_PATH = OUT_DIR / "coco.yaml"
+    
+    download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
+    download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
+    download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
     
     if not (OUT_DIR / "coco/labels").exists():
-        with ZipFile(OUT_DIR / 'coco2017labels-segments.zip' , "r") as zip_ref:
+        with ZipFile(LABELS_PATH , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
-        with ZipFile(OUT_DIR / 'val2017.zip' , "r") as zip_ref:
+        with ZipFile(DATA_PATH , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR / 'coco/images')
 
 
@@ -567,7 +622,12 @@ evaluation function.
 
     'datasets/val2017.zip' already exists.
     'datasets/coco2017labels-segments.zip' already exists.
-    'datasets/coco.yaml' already exists.
+
+
+
+.. parsed-literal::
+
+    datasets/coco.yaml:   0%|          | 0.00/1.25k [00:00<?, ?B/s]
 
 
 Define validation function
@@ -575,6 +635,7 @@ Define validation function
 
 .. code:: ipython3
 
+    from tqdm.notebook import tqdm
     from ultralytics.yolo.utils.metrics import ConfusionMatrix
     
     
@@ -597,7 +658,7 @@ Define validation function
         model.reshape({0: [1, 3, -1, -1]})
         num_outputs = len(model.outputs)
         compiled_model = core.compile_model(model)
-        for batch_i, batch in enumerate(data_loader):
+        for batch_i, batch in enumerate(tqdm(data_loader, total=num_samples)):
             if num_samples is not None and batch_i == num_samples:
                 break
             batch = validator.preprocess(batch)
@@ -657,7 +718,7 @@ validator class instance.
     from ultralytics.yolo.data.utils import check_det_dataset
     
     args = get_cfg(cfg=DEFAULT_CFG)
-    args.data = str(OUT_DIR / "coco.yaml")
+    args.data = str(CFG_PATH)
 
 .. code:: ipython3
 
@@ -676,8 +737,6 @@ validator class instance.
 
 .. code:: ipython3
 
-    from tqdm.notebook import tqdm
-    
     det_validator.is_coco = True
     det_validator.class_map = ops.coco80_to_coco91_class()
     det_validator.names = det_model.model.names
@@ -706,22 +765,28 @@ validator class instance.
 
 
 After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we can define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference.
+getting accuracy metrics.
+
+.. note::
+
+   Model evaluation is time consuming process and can take several minutes, depending on the hardware. For reducing calculation time, we define ``num_samples`` parameter with evaluation subset size, but in this case, accuracy can be noncomparable with originally reported by the authors of the model, due to validation subset difference. 
+
+
+*To validate the models on the full dataset set* ``NUM_TEST_SAMPLES = None``.
 
 .. code:: ipython3
 
-    fp_det_stats = test(det_ov_model, core, tqdm(det_data_loader), det_validator)
+    NUM_TEST_SAMPLES = 300
+
+.. code:: ipython3
+
+    fp_det_stats = test(det_ov_model, core, det_data_loader, det_validator, num_samples=NUM_TEST_SAMPLES)
 
 
 
 .. parsed-literal::
 
-      0%|          | 0/5000 [00:00<?, ?it/s]
+      0%|          | 0/500 [00:00<?, ?it/s]
 
 
 .. code:: ipython3
@@ -733,18 +798,18 @@ subset difference.
 
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.629       0.476       0.521        0.37
+                     all         500        3504       0.639       0.513       0.556       0.403
 
 
 .. code:: ipython3
 
-    fp_seg_stats = test(seg_ov_model, core, tqdm(seg_data_loader), seg_validator)
+    fp_seg_stats = test(seg_ov_model, core, seg_data_loader, seg_validator, num_samples=NUM_TEST_SAMPLES)
 
 
 
 .. parsed-literal::
 
-      0%|          | 0/5000 [00:00<?, ?it/s]
+      0%|          | 0/500 [00:00<?, ?it/s]
 
 
 .. code:: ipython3
@@ -756,9 +821,9 @@ subset difference.
 
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.621       0.479       0.516       0.363
+                     all         500        3504       0.632       0.527       0.559       0.402
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.617       0.456       0.489       0.304
+                     all         500        3504        0.62       0.506       0.539       0.347
 
 
 ``print_stats`` reports the following list of accuracy metrics:
@@ -783,10 +848,6 @@ advanced algorithms for Neural Networks inference optimization in
 OpenVINO with minimal accuracy drop. We will use 8-bit quantization in
 post-training mode (without the fine-tuning pipeline) to optimize
 YOLOv8.
-
-   **Note**: NNCF Post-training Quantization is available as a preview
-   feature in OpenVINO 2022.3 release. Fully functional support will be
-   provided in the next releases.
 
 The optimization process contains the following steps:
 
@@ -823,14 +884,7 @@ for both models is the same, we can reuse one dataset for both models.
 
 .. parsed-literal::
 
-    2023-02-23 17:10:19.882018: I tensorflow/core/util/util.cc:169] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    /home/ea/work/notebooks_env/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future, use `openvino.runtime.passes` instead!
-      warnings.warn(
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
 The ``nncf.quantize`` function provides an interface for model
@@ -871,7 +925,7 @@ point precision, using the ``ignored_scope`` parameter.
     
     # Detection model
     quantized_det_model = nncf.quantize(
-        det_ov_model, 
+        det_ov_model,
         quantization_dataset,
         preset=nncf.QuantizationPreset.MIXED,
         ignored_scope=ignored_scope
@@ -880,31 +934,34 @@ point precision, using the ``ignored_scope`` parameter.
 
 .. parsed-literal::
 
-    INFO:openvino.tools.pot.pipeline.pipeline:Inference Engine version:                2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Model Optimizer version:                 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Post-Training Optimization Tool version: 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
-    INFO:openvino.tools.pot.statistics.collector:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Start algorithm: DefaultQuantization
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithm : ActivationChannelAlignment
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithms : MinMaxQuantization,FastBiasCorrection
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Finished: DefaultQuantization
-     ===========================================================================
+    INFO:nncf:12 ignored nodes was found by name in the NNCFGraph
+    INFO:nncf:9 ignored nodes was found by types in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 128 /model.22/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 156 /model.22/dfl/conv/Conv
+    INFO:nncf:Not adding activation input quantizer for operation: 178 /model.22/Sub
+    INFO:nncf:Not adding activation input quantizer for operation: 179 /model.22/Add_10
+    INFO:nncf:Not adding activation input quantizer for operation: 205 /model.22/Div_1
+    INFO:nncf:Not adding activation input quantizer for operation: 193 /model.22/Sub_1
+    INFO:nncf:Not adding activation input quantizer for operation: 218 /model.22/Mul_5
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|███████████████████████████████████████████████████████████████████████████| 300/300 [00:26<00:00, 11.36it/s]
+    Biases correction: 100%|█████████████████████████████████████████████████████████████████████████████████| 63/63 [00:02<00:00, 29.82it/s]
 
 
 .. code:: ipython3
 
     from openvino.runtime import serialize
-    int8_model_det_path = Path(f'{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml')
+    int8_model_det_path = models_dir / f'{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml'
     print(f"Quantized detection model will be saved to {int8_model_det_path}")
     serialize(quantized_det_model, str(int8_model_det_path))
 
 
 .. parsed-literal::
 
-    Quantized detection model will be saved to yolov8n_openvino_int8_model/yolov8n.xml
+    Quantized detection model will be saved to models/yolov8n_openvino_int8_model/yolov8n.xml
 
 
 .. code:: ipython3
@@ -912,7 +969,7 @@ point precision, using the ``ignored_scope`` parameter.
     # Instance segmentation model
     
     quantized_seg_model = nncf.quantize(
-        seg_ov_model, 
+        seg_ov_model,
         quantization_dataset,
         preset=nncf.QuantizationPreset.MIXED,
         ignored_scope=ignored_scope
@@ -921,30 +978,33 @@ point precision, using the ``ignored_scope`` parameter.
 
 .. parsed-literal::
 
-    INFO:openvino.tools.pot.pipeline.pipeline:Inference Engine version:                2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Model Optimizer version:                 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Post-Training Optimization Tool version: 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
-    INFO:openvino.tools.pot.statistics.collector:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Start algorithm: DefaultQuantization
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithm : ActivationChannelAlignment
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithms : MinMaxQuantization,FastBiasCorrection
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Finished: DefaultQuantization
-     ===========================================================================
+    INFO:nncf:12 ignored nodes was found by name in the NNCFGraph
+    INFO:nncf:9 ignored nodes was found by types in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 140 /model.22/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 174 /model.22/dfl/conv/Conv
+    INFO:nncf:Not adding activation input quantizer for operation: 199 /model.22/Sub
+    INFO:nncf:Not adding activation input quantizer for operation: 200 /model.22/Add_10
+    INFO:nncf:Not adding activation input quantizer for operation: 233 /model.22/Div_1
+    INFO:nncf:Not adding activation input quantizer for operation: 217 /model.22/Sub_1
+    INFO:nncf:Not adding activation input quantizer for operation: 250 /model.22/Mul_5
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|███████████████████████████████████████████████████████████████████████████| 300/300 [00:31<00:00,  9.48it/s]
+    Biases correction: 100%|█████████████████████████████████████████████████████████████████████████████████| 75/75 [00:02<00:00, 30.19it/s]
 
 
 .. code:: ipython3
 
-    int8_model_seg_path = Path(f'{SEG_MODEL_NAME}_openvino_int8_model/{SEG_MODEL_NAME}.xml')
+    int8_model_seg_path = models_dir / f'{SEG_MODEL_NAME}_openvino_int8_model/{SEG_MODEL_NAME}.xml'
     print(f"Quantized segmentation model will be saved to {int8_model_seg_path}")
     serialize(quantized_seg_model, str(int8_model_seg_path))
 
 
 .. parsed-literal::
 
-    Quantized segmentation model will be saved to yolov8n-seg_openvino_int8_model/yolov8n-seg.xml
+    Quantized segmentation model will be saved to models/yolov8n-seg_openvino_int8_model/yolov8n-seg.xml
 
 
 Validate Quantized model inference
@@ -974,7 +1034,7 @@ Object detection:
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_49_0.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_54_0.png
 
 
 
@@ -995,7 +1055,7 @@ Instance segmentation:
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_51_0.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_56_0.png
 
 
 
@@ -1003,7 +1063,7 @@ Compare Performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -1031,18 +1091,18 @@ Compare performance object detection models
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 44.66 ms
+    [ INFO ] Read model took 17.85 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [?,3,?,?]
@@ -1051,40 +1111,46 @@ Compare performance object detection models
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 12.62 ms
+    [ INFO ] Reshape model took 9.98 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 196.97 ms
+    [ INFO ] Compile model took 213.37 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 9
-    [ INFO ]   NUM_STREAMS: 9
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   NUM_STREAMS: 12
     [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 36
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 9 inference requests, limits: 60000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 26.53 ms
+    [ INFO ] First inference took 32.22 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            10674 iterations
-    [ INFO ] Duration:         60083.64 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            11544 iterations
+    [ INFO ] Duration:         60045.35 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        49.96 ms
-    [ INFO ]    Average:       50.51 ms
-    [ INFO ]    Min:           39.71 ms
-    [ INFO ]    Max:           104.35 ms
-    [ INFO ] Throughput:   177.65 FPS
+    [ INFO ]    Median:        62.15 ms
+    [ INFO ]    Average:       62.22 ms
+    [ INFO ]    Min:           40.94 ms
+    [ INFO ]    Max:           83.81 ms
+    [ INFO ] Throughput:   192.25 FPS
 
 
 .. code:: ipython3
@@ -1099,34 +1165,34 @@ Compare performance object detection models
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 56.13 ms
+    [ INFO ] Read model took 25.95 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,84,3..]
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,84,21..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 15.65 ms
+    [ INFO ] Reshape model took 16.79 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 493.25 ms
+    [ INFO ] Compile model took 417.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -1137,22 +1203,28 @@ Compare performance object detection models
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 18 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 22.94 ms
+    [ INFO ] First inference took 24.13 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            6606 iterations
-    [ INFO ] Duration:         15033.16 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            7506 iterations
+    [ INFO ] Duration:         15053.56 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        40.55 ms
-    [ INFO ]    Average:       40.81 ms
-    [ INFO ]    Min:           24.67 ms
-    [ INFO ]    Max:           73.44 ms
-    [ INFO ] Throughput:   439.43 FPS
+    [ INFO ]    Median:        35.50 ms
+    [ INFO ]    Average:       35.90 ms
+    [ INFO ]    Min:           24.17 ms
+    [ INFO ]    Max:           51.86 ms
+    [ INFO ] Throughput:   498.62 FPS
 
 
 Instance segmentation
@@ -1169,28 +1241,28 @@ Instance segmentation
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 44.97 ms
+    [ INFO ] Read model took 19.62 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [?,3,?,?]
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [?,116,?]
-    [ INFO ]     output1 (node: output1) : f32 / [...] / [?,32,1..,1..]
+    [ INFO ]     output1 (node: output1) : f32 / [...] / [?,32,8..,8..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 13.95 ms
+    [ INFO ] Reshape model took 11.07 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -1198,33 +1270,39 @@ Instance segmentation
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,116,8400]
     [ INFO ]     output1 (node: output1) : f32 / [...] / [1,32,160,160]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 220.10 ms
+    [ INFO ] Compile model took 247.03 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 9
-    [ INFO ]   NUM_STREAMS: 9
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   NUM_STREAMS: 12
     [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 36
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 9 inference requests, limits: 15000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 34.41 ms
+    [ INFO ] First inference took 38.50 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            1998 iterations
-    [ INFO ] Duration:         15077.67 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            2256 iterations
+    [ INFO ] Duration:         15108.66 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        64.75 ms
-    [ INFO ]    Average:       67.73 ms
-    [ INFO ]    Min:           52.10 ms
-    [ INFO ]    Max:           139.10 ms
-    [ INFO ] Throughput:   132.51 FPS
+    [ INFO ]    Median:        79.61 ms
+    [ INFO ]    Average:       80.02 ms
+    [ INFO ]    Min:           41.17 ms
+    [ INFO ]    Max:           199.22 ms
+    [ INFO ] Throughput:   149.32 FPS
 
 
 .. code:: ipython3
@@ -1238,28 +1316,28 @@ Instance segmentation
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 60.39 ms
+    [ INFO ] Read model took 29.10 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,?,?]
     [ INFO ] Model outputs:
-    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,116,3..]
-    [ INFO ]     output1 (node: output1) : f32 / [...] / [1,32,1..,1..]
+    [ INFO ]     output0 (node: output0) : f32 / [...] / [1,116,21..]
+    [ INFO ]     output1 (node: output1) : f32 / [...] / [1,32,8..,8..]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 17.86 ms
+    [ INFO ] Reshape model took 15.28 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -1267,33 +1345,39 @@ Instance segmentation
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,116,8400]
     [ INFO ]     output1 (node: output1) : f32 / [...] / [1,32,160,160]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 432.89 ms
+    [ INFO ] Compile model took 478.74 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 9
-    [ INFO ]   NUM_STREAMS: 9
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   NUM_STREAMS: 12
     [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 36
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 9 inference requests, limits: 15000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 22.13 ms
+    [ INFO ] First inference took 25.31 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            4473 iterations
-    [ INFO ] Duration:         15039.00 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            5088 iterations
+    [ INFO ] Duration:         15055.01 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        29.59 ms
-    [ INFO ]    Average:       30.12 ms
-    [ INFO ]    Min:           23.53 ms
-    [ INFO ]    Max:           58.37 ms
-    [ INFO ] Throughput:   297.43 FPS
+    [ INFO ]    Median:        34.93 ms
+    [ INFO ]    Average:       35.32 ms
+    [ INFO ]    Min:           19.79 ms
+    [ INFO ]    Max:           105.41 ms
+    [ INFO ] Throughput:   337.96 FPS
 
 
 Validate quantized model accuracy
@@ -1309,13 +1393,13 @@ Object detection
 
 .. code:: ipython3
 
-    int8_det_stats = test(quantized_det_model, core, tqdm(det_data_loader), det_validator)
+    int8_det_stats = test(quantized_det_model, core, det_data_loader, det_validator, num_samples=NUM_TEST_SAMPLES)
 
 
 
 .. parsed-literal::
 
-      0%|          | 0/5000 [00:00<?, ?it/s]
+      0%|          | 0/500 [00:00<?, ?it/s]
 
 
 .. code:: ipython3
@@ -1332,11 +1416,11 @@ Object detection
     FP32 model accuracy
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.629       0.476       0.521        0.37
+                     all         500        3504       0.639       0.513       0.556       0.403
     INT8 model accuracy
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.631       0.467       0.515       0.357
+                     all         500        3504       0.637       0.505       0.548        0.39
 
 
 Instance segmentation
@@ -1344,13 +1428,13 @@ Instance segmentation
 
 .. code:: ipython3
 
-    int8_seg_stats = test(quantized_seg_model, core, tqdm(seg_data_loader), seg_validator)
+    int8_seg_stats = test(quantized_seg_model, core, seg_data_loader, seg_validator, num_samples=NUM_TEST_SAMPLES)
 
 
 
 .. parsed-literal::
 
-      0%|          | 0/5000 [00:00<?, ?it/s]
+      0%|          | 0/500 [00:00<?, ?it/s]
 
 
 .. code:: ipython3
@@ -1367,15 +1451,15 @@ Instance segmentation
     FP32 model accuracy
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.621       0.479       0.516       0.363
+                     all         500        3504       0.632       0.527       0.559       0.402
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.617       0.456       0.489       0.304
+                     all         500        3504        0.62       0.506       0.539       0.347
     INT8 model accuracy
     Boxes:
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.601       0.474       0.508       0.351
+                     all         500        3504       0.618       0.511       0.553       0.392
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.603       0.451       0.483         0.3
+                     all         500        3504       0.613       0.495       0.534       0.343
 
 
 Great! Looks like accuracy was changed, but not significantly and it
@@ -1404,19 +1488,22 @@ Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing
 libraries. The main advantage of Preprocessing API is that preprocessing
 steps will be integrated into the execution graph and will be performed
-on a selected device (CPU/GPU/VPU/etc.) rather than always being
-executed on CPU as part of an application. This will improve selected
-device utilization.
+on a selected device (CPU/GPU etc.) rather than always being executed on
+CPU as part of an application. This will improve selected device
+utilization.
 
 For more information, refer to the overview of `Preprocessing
-API <https://docs.openvino.ai/latest/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_Overview.html>`__.
 
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
 
-The integration process consists of the following steps: 1. Initialize a
-PrePostProcessing object. 2. Define the input data format. 3. Describe
-preprocessing steps. 4. Integrating Steps into a Model.
+The integration process consists of the following steps:
+
+1. Initialize a PrePostProcessing object.
+2. Define the input data format.
+3. Describe preprocessing steps.
+4. Integrating Steps into a Model.
 
 Initialize PrePostProcessing API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1454,10 +1541,11 @@ layout expected by model
 Describe preprocessing steps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Our preprocessing function contains the following steps: \* Convert the
-data type from ``U8`` to ``FP32``. \* Convert the data layout from
-``NHWC`` to ``NCHW`` format. \* Normalize each pixel by dividing on
-scale factor 255.
+Our preprocessing function contains the following steps:
+
+* Convert the data type from ``U8`` to ``FP32``.
+* Convert the data layout from ``NHWC`` to ``NCHW`` format.
+* Normalize each pixel by dividing on scale factor 255.
 
 ``ppp.input(input_id).preprocess()`` is used for defining a sequence of
 preprocessing steps:
@@ -1526,7 +1614,7 @@ device. Now, we can skip these preprocessing steps in detect function:
 
 
 
-.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_80_0.png
+.. image:: 230-yolov8-optimization-with-output_files/230-yolov8-optimization-with-output_85_0.png
 
 
 
@@ -1537,12 +1625,9 @@ The following code runs model inference on a video:
 
 .. code:: ipython3
 
-    import sys
     import collections
     import time
     from IPython import display
-    sys.path.append("../utils")
-    import notebook_utils as utils
     
     
     # Main processing function to run object detection.
@@ -1553,7 +1638,7 @@ The following code runs model inference on a video:
         compiled_model = core.compile_model(model, device)
         try:
             # Create a video player to play with target fps.
-            player = utils.VideoPlayer(
+            player = VideoPlayer(
                 source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames
             )
             # Start capturing.
@@ -1656,18 +1741,34 @@ set \ ``use_popup=True``.
 
    **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
-   server (for example, Binder), the webcam will not work. Popup mode
-   may not work if you run this notebook on a remote computer (for
-   example, Binder).
+   remote server (for example, in Binder or Google Colab service), the
+   webcam will not work. By default, the lower cell will run model
+   inferece on a video file. If you want to try live inference on your
+   webcam set ``WEBCAM_INFERENCE = True``
 
 Run the object detection:
 
 .. code:: ipython3
 
-    run_object_detection(source=0, flip=True, use_popup=False, model=det_ov_model, device="AUTO")
+    WEBCAM_INFERENCE = False
+    
+    if WEBCAM_INFERENCE:
+        VIDEO_SOURCE = 0  # Webcam
+    else:
+        VIDEO_SOURCE = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4'
+
+
+.. parsed-literal::
+
+    'data/people.mp4' already exists.
+
+
+.. code:: ipython3
+
+    run_object_detection(source=VIDEO_SOURCE, flip=True, use_popup=False, model=det_ov_model, device="AUTO")
 
 Run instance segmentation:
 
 .. code:: ipython3
 
-    run_object_detection(source=0, flip=True, use_popup=False, model=seg_ov_model, device="AUTO")
+    run_object_detection(source=VIDEO_SOURCE, flip=True, use_popup=False, model=seg_ov_model, device="AUTO")

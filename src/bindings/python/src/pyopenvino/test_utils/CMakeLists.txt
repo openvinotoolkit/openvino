@@ -25,7 +25,7 @@ endif()
 if(OpenVINODeveloperPackage_FOUND)
     list(APPEND link_libraries openvino::commonTestUtils)
 else()
-    list(APPEND link_libraries commonTestUtils)
+    list(APPEND link_libraries common_test_utils)
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
