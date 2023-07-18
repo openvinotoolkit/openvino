@@ -45,28 +45,28 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
 
     ################|| Downloading machine-translation-nar-en-de-0002 ||################
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_tgt/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/merges.txt
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/tokenizer_src/vocab.json
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP32/machine-translation-nar-en-de-0002.bin
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.xml
     
     
-    ========== Downloading /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
+    ========== Downloading /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/221-machine-translation/intel/machine-translation-nar-en-de-0002/FP16/machine-translation-nar-en-de-0002.bin
     
     
 

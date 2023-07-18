@@ -5,6 +5,7 @@
 #pragma once
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -30,14 +31,10 @@ public:
     static const int min_random = -200;
     static const int max_random = 200;
 
-    std::default_random_engine generator{0};
+    tests::random_generator rg;
 
     void SetUp() override {
-        std::string suite_name = std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-                                 std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
-        auto seed = std::hash<std::string>{}(suite_name);
-
-        generator = std::default_random_engine{static_cast<uint32_t>(seed)};
+        rg.set_seed(GET_SUITE_NAME);
         cfg_fused = get_test_default_config(engine);
         cfg_not_fused = get_test_default_config(engine);
 
@@ -114,63 +111,20 @@ public:
         }
     }
 
-    template<typename ReturnType>
-    std::vector<ReturnType> generate_random(size_t a, int min, int max, int k = 8) {
-        // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
-        std::vector<ReturnType> v(a);
-
-        for (size_t i = 0; i < a; ++i) {
-            v[i] = (ReturnType)distribution(this->generator);
-            v[i] /= k;
-        }
-        return v;
-    }
-
-    template<typename ReturnType>
-    std::vector<ReturnType> generate_random_norepetitions(size_t size, int min, int max, float bound = 0.45) {
-        // Rerurn repeatless vector with size = size in range(min, max)
-        std::uniform_int_distribution<int> distribution(min, max);
-        std::uniform_real_distribution<float> to_bound_dist(0, bound);
-        std::set<int> repeatless;
-        std::vector<float> v(size, 0);
-        std::vector<ReturnType> res(size);
-        int i = 0;
-        int temp;
-        if (max - min >= int(size) - 1){
-            while (repeatless.size() < size) {
-                temp = distribution(this->generator);
-                if (repeatless.find(temp) == repeatless.end()) {
-                    repeatless.insert(temp);
-                    v[i] = (float)temp;
-                    i++;
-                }
-            }
-            for (size_t k = 0; k < v.size(); k++) {
-                v[k] += to_bound_dist(this->generator);
-                res[k] = static_cast<ReturnType>(v[k]);
-            }
-        } else {
-            throw "Array size is bigger than size of range(min, max). Unable to generate array of unique integer numbers";
-        }
-        return res;
-    }
-
-
     cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random<int32_t>(s.count() / 32, min_random, max_random);
+            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random<uint8_t>(s.count(), min_random, max_random);
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = generate_random<uint16_t>(s.count(), -1, 1);
+            VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
-            VF<float> rnd_vec = generate_random<float>(s.count(), -1, 1);
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         }
 
@@ -206,17 +160,17 @@ public:
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_random_norepetitions<float>(s.count(), min, max);
+            VF<float> rnd_vec = rg.generate_random_norepetitions<float>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_random_norepetitions<FLOAT16>(s.count(), min, max);
+            VF<FLOAT16> rnd_vec = rg.generate_random_norepetitions<FLOAT16>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec = generate_random_norepetitions<int8_t>(s.count(), min, max);
+            VF<int8_t> rnd_vec = rg.generate_random_norepetitions<int8_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
         }
         else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_norepetitions<int32_t>(s.count(), min, max);
+            VF<int32_t> rnd_vec = rg.generate_random_norepetitions<int32_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
         }
 
@@ -227,19 +181,19 @@ public:
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
         if (l.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_random<float>(s.count(), min, max);
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<FLOAT16> rnd_vec = generate_random<FLOAT16>(s.count(), min, max);
+            VF<FLOAT16> rnd_vec = rg.generate_random_1d<FLOAT16>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec = generate_random<int8_t>(s.count(), min, max);
+            VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random<uint8_t>(s.count(), min, max);
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random<int32_t>(s.count() / 32, min, max);
+            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min, max);
             set_values(prim, rnd_vec);
         }
 
