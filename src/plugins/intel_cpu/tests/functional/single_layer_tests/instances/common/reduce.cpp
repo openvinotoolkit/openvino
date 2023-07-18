@@ -67,7 +67,8 @@ const auto params_OneAxis = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_OneAxis_dynamic = testing::Combine(
         testing::Combine(
@@ -80,7 +81,8 @@ const auto params_OneAxis_dynamic = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes_dynamic_3dims)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_MultiAxis_4D = testing::Combine(
         testing::Combine(
@@ -93,7 +95,8 @@ const auto params_MultiAxis_4D = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_MultiAxis_4D_dynamic = testing::Combine(
         testing::Combine(
@@ -106,7 +109,8 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes_dynamic_2dims)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_Int32 = testing::Combine(
         testing::Combine(
@@ -119,7 +123,8 @@ const auto params_Int32 = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes_Int32)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,

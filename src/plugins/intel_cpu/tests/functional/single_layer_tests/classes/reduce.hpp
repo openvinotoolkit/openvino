@@ -29,7 +29,8 @@ typedef std::tuple<
 typedef std::tuple<
         basicReduceParams,
         CPUSpecificParams,
-        fusingSpecificParams> ReduceLayerCPUTestParamSet;
+        fusingSpecificParams,
+        std::map<std::string, ov::element::Type>> ReduceLayerCPUTestParamSet;
 
 class ReduceCPULayerTest : public testing::WithParamInterface<ReduceLayerCPUTestParamSet>,
                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -52,6 +53,8 @@ const std::vector<std::vector<int>>& axesND();
 const std::vector<CommonTestUtils::OpType>& opTypes();
 const std::vector<ngraph::helpers::ReductionType>& reductionTypes();
 const std::vector<ElementType>& inpOutPrc();
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfig();
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32();
 const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32();
 
 } // namespace Reduce
