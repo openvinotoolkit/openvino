@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "cache/meta/input_info.hpp"
+#include "functional_test_utils/node_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 
 #include "openvino/openvino.hpp"
@@ -51,6 +52,48 @@ inline std::string get_node_type(const std::shared_ptr<ov::Node>& node) {
         }
     }
     return "static";
+}
+
+static std::map<std::string, std::string> get_max_ops_versions() {
+    std::map<std::string, std::set<std::string>> unique_ops = FuncTestUtils::get_unique_ops();
+    std::map<std::string, std::string> max_ops_versions;
+
+    size_t priority = 1;
+    for (auto op_info : unique_ops) {
+        std::vector<int> available_opsets;
+        for (auto opset : op_info.second) {
+            available_opsets.push_back(std::atoi(opset.c_str()));
+        }
+        int max_opset = *std::max_element(available_opsets.begin(), available_opsets.end());
+
+        max_ops_versions.insert({op_info.first, std::to_string(max_opset)});
+    }
+    return max_ops_versions;
+}
+
+//  { op_name, max_opset_version }
+static std::map<std::string, std::string> max_ops_versions = ov::tools::subgraph_dumper::get_max_ops_versions();
+
+inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node) {
+    size_t priority = 1;
+    auto type_info = node->get_type_info();
+    if (ov::tools::subgraph_dumper::max_ops_versions.count(type_info.name)) {
+        std::vector<int> available_opsets;
+
+        std::string version_id(type_info.version_id);
+        std::string opset_name = "opset";
+        std::string version(type_info.version_id);
+        auto pos = version.find(opset_name);
+        if (pos != std::string::npos) {
+            version_id = version.substr(pos + opset_name.size());
+        }
+
+        if (version_id == ov::tools::subgraph_dumper::max_ops_versions[type_info.name]) {
+            priority = 2;
+        }
+    }
+
+    return priority;
 }
 
 }  // namespace subgraph_dumper
