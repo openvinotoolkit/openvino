@@ -968,11 +968,12 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
     display: flex;
     justify-content: center;
     align-items: center;
+    background: rgba(255, 255, 255, .7);
 }
 
 .newsletter-shadow {
-    background: white;
-    box-shadow: 0 0 40px 40px rgba(255,255,255,1);
+    /* background: white;
+    box-shadow: 0 0 40px 40px rgba(255,255,255,1); */
     padding: 10px;
     max-width: 600px;
     width: 90%;
