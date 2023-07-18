@@ -36,6 +36,7 @@ def openvino_compile(gm: GraphModule, *args):
 
     dtype_mapping = {
         torch.float32: Type.f32,
+        torch.float64: Type.f64,
         torch.float16: Type.f16,
         torch.int64: Type.i64,
         torch.int32: Type.i32,

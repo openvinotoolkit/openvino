@@ -109,6 +109,7 @@ pt_to_ov_type_map = {
     "torch.float32": OVType.f32,
     torch.float32: OVType.f32,
     "torch.float64": OVType.f64,
+    torch.float64: OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
     "torch.int32": OVType.i32,
@@ -127,6 +128,7 @@ pt_to_ov_type_map = {
 
 ov_to_c_type_map = {
     OVType.f32: ctypes.c_float,
+    OVType.f64: ctypes.c_double,
     OVType.i32: ctypes.c_int,
     OVType.i64: ctypes.c_int64,
 }
