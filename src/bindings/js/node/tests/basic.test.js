@@ -2,29 +2,27 @@ const ov = require('../build/Release/ov_node_addon.node');
 const path = require('path');
 
 function getModelPath(isFP16=false) {
-  basePath = '../../python/tests/';
+  const basePath = '../../python/tests/';
   if (isFP16) {
-    test_xml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp16.xml');
-    test_bin = path.join(basePath, 'test_utils', 'utils', 'test_model_fp16.bin');
+    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp16.xml');
   } else {
-    test_xml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp32.xml');
-    test_bin = path.join(basePath, 'test_utils', 'utils', 'test_model_fp32.bin');
+    testXml = path.join(basePath, 'test_utils', 'utils', 'test_model_fp32.xml');
   }
 
-  return (test_xml, test_bin);
+  return testXml;
 }
 
-var test_xml, test_bin = getModelPath();
+var testXml = getModelPath();
 
 describe('Output class', () => {
 
   const core = new ov.Core();
-  const model = core.read_model(test_xml);
+  const model = core.read_model(testXml);
   const compiledModel = core.compile_model(model, 'CPU');
 
-  it.each([
-    [model],
-    [compiledModel],
+  test.each([
+    model,
+    compiledModel,
   ])('Mutual tests', (obj) => {
     expect(obj.output() && typeof obj.output() === 'object').toBe(true);
     expect(obj.outputs.length).toEqual(1);
@@ -59,7 +57,7 @@ describe('Output class', () => {
 
 describe('Input class for ov::Input<const ov::Node>', () => {
   const core = new ov.Core();
-  const model = core.read_model(test_xml);
+  const model = core.read_model(testXml);
   const compiledModel = core.compile_model(model, 'CPU');
 
   test('CompiledModel.input() method', () => {
@@ -95,18 +93,18 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
 describe('InferRequest', () => {
   const core = new ov.Core();
-  const model = core.read_model(test_xml);
+  const model = core.read_model(testXml);
   const compiledModel = core.compile_model(model, 'CPU');
   const inferRequest = compiledModel.create_infer_request();
 
   const tensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 3, 32, 32]),
-    Float32Array.from({length: 3072}, () => Math.random() )
+    Float32Array.from({ length: 3072 }, () => Math.random()),
   );
 
-  inferRequest.infer({'data': tensor});
-  result = inferRequest.getOutputTensors();
+  inferRequest.infer({ data: tensor });
+  const result = inferRequest.getOutputTensors();
 
   test('getOuputTensors() method', () => {
     expect(Object.keys(result)).toEqual(['fc_out']);
