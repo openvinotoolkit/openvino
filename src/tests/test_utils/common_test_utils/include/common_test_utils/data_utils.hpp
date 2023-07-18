@@ -6,16 +6,16 @@
 
 #include <cmath>
 #include <utility>
+#include <random>
 
-#include <gtest/gtest.h>
+#include "common_test_utils/common_utils.hpp"
+#include "gtest/gtest.h"
+#include "ie_blob.h"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/float16.hpp>
-#include "common_test_utils/common_utils.hpp"
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
 
-#include <ie_blob.h>
-#include <random>
 
 namespace CommonTestUtils {
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -287,9 +287,9 @@ fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start
     for (size_t i = 0; i < tensor.get_size(); i++) {
         auto value = static_cast<float>(distribution(random));
         value /= static_cast<float>(k);
-        if (DT == ov::element::f16) {
+        if (DT == ov::element::Type_t::f16) {
             rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (DT == ov::element::bf16) {
+        } else if (DT == ov::element::Type_t::bf16) {
             rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
         } else {
             rawBlobDataPtr[i] = static_cast<T>(value);

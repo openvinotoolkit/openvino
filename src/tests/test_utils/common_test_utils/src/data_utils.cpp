@@ -300,7 +300,7 @@ ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type prc
     ov::Tensor new_tensor(prc, tensor.get_shape());
 
 #define CASE(_PRC) case ov::element::_PRC: \
-        copy_with_convert<ov::element::f32, ov::element::_PRC> (tensor, new_tensor); break
+        copy_with_convert<ov::element::Type_t::f32, ov::element::Type_t::_PRC> (tensor, new_tensor); break
     switch (prc) {
         CASE(f32); CASE(f16); CASE(i64); CASE(u64); CASE(i32); CASE(u32); CASE(i16); CASE(u16); CASE(i8); CASE(u8);
         default: OPENVINO_THROW("Unsupported precision case");
