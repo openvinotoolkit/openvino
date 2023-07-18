@@ -116,7 +116,8 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
             USE_SOURCE_PERMISSIONS
-            PATTERN "test_utils" EXCLUDE)
+            PATTERN "test_utils" EXCLUDE
+            PATTERN "torchvision/requirements.txt" EXCLUDE)
 
     install(TARGETS ${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino
@@ -124,6 +125,7 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
     install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+            ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
             DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
             ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
