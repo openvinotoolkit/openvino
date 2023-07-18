@@ -18,6 +18,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -158,7 +159,7 @@ public:
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
                       const ov::AnyMap& config,
-                      const ov::RemoteContext& context)
+                      const ov::SoPtr<ov::IRemoteContext>& context)
         : ov::ICompiledModel(model, plugin),
           m_config(config),
           m_model(model),
@@ -189,7 +190,7 @@ public:
         return m_model;
     }
 
-    ov::RemoteContext get_context() const {
+    ov::SoPtr<ov::IRemoteContext> get_context() const {
         return m_context;
     }
 
@@ -201,7 +202,7 @@ private:
     ov::AnyMap m_config;
     std::shared_ptr<const ov::Model> m_model;
     bool m_has_context;
-    ov::RemoteContext m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
 };
 
 class MockInferRequest : public ov::ISyncInferRequest {
@@ -212,7 +213,7 @@ public:
         m_model = compiled_model->get_model();
         // Allocate input/output tensors
         for (const auto& input : get_inputs()) {
-            allocate_tensor(input, [this, input, compiled_model](ov::Tensor& tensor) {
+            allocate_tensor(input, [this, input, compiled_model](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
@@ -222,7 +223,7 @@ public:
             });
         }
         for (const auto& output : get_outputs()) {
-            allocate_tensor(output, [this, output, compiled_model](ov::Tensor& tensor) {
+            allocate_tensor(output, [this, output, compiled_model](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
@@ -237,15 +238,15 @@ public:
     void infer() override {
         ov::TensorVector input_tensors;
         for (const auto& input : get_inputs()) {
-            input_tensors.emplace_back(get_tensor(input));
+            input_tensors.emplace_back(ov::make_tensor(get_tensor(input)));
         }
         ov::TensorVector output_tensors;
         for (const auto& output : get_outputs()) {
-            output_tensors.emplace_back(get_tensor(output));
+            output_tensors.emplace_back(ov::make_tensor(get_tensor(output)));
         }
         m_model->evaluate(output_tensors, input_tensors);
     }
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
@@ -253,19 +254,19 @@ public:
     }
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor,
+    void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
                               const ov::element::Type& element_type,
                               const ov::Shape& shape,
                               bool has_context,
-                              ov::RemoteContext context) {
-        if (!tensor || tensor.get_element_type() != element_type) {
+                              ov::SoPtr<ov::IRemoteContext> context) {
+        if (!tensor || tensor->get_element_type() != element_type) {
             if (has_context) {
-                tensor = context.create_tensor(element_type, shape, {});
+                tensor = context->create_tensor(element_type, shape, {});
             } else {
-                tensor = ov::Tensor(element_type, shape);
+                tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(element_type, shape), nullptr);
             }
         } else {
-            tensor.set_shape(shape);
+            tensor->set_shape(shape);
         }
     }
     std::shared_ptr<const ov::Model> m_model;
@@ -318,11 +319,11 @@ public:
         return m_property;
     }
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
         auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
-        return remote_tensor;
+        return {remote_tensor, nullptr};
     }
 };
 
@@ -340,11 +341,11 @@ public:
         return m_property;
     }
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
         auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
-        return remote_tensor;
+        return {remote_tensor, nullptr};
     }
 };
 
@@ -368,7 +369,7 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
 
@@ -383,13 +384,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
             return std::make_shared<MockRemoteContext>(get_device_name());
         return std::make_shared<MockCustomRemoteContext>(get_device_name());
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         return std::make_shared<MockRemoteContext>(get_device_name());
     }
 
@@ -424,7 +425,7 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;
@@ -528,7 +529,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -548,6 +548,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -573,9 +576,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 return configs;
             } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
                 return true;
-            } else if (ov::caching_properties == name) {
+            } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::caching_properties)::value_type(caching_properties);
+                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
@@ -649,7 +652,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -667,6 +669,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -696,9 +701,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 return configs;
             } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
                 return true;
-            } else if (ov::caching_properties == name) {
+            } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::caching_properties)::value_type(caching_properties);
+                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
@@ -753,7 +758,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -771,6 +775,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::available_devices) {
                 return decltype(ov::available_devices)::value_type(device_ids);
             } else if (name == ov::device::capabilities) {

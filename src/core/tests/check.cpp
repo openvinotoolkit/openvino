@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace std;
 
@@ -84,4 +86,10 @@ TEST(check, ngraph_check_with_explanation) {
     }
 
     EXPECT_TRUE(check_failure_thrown);
+}
+
+TEST(check, ov_throw_exception_check_relative_path_to_source) {
+    const auto path = ov::util::path_join({"src", "core", "tests", "check.cpp"});
+    const auto exp_msg = "Exception from " + path + ":" + std::to_string(__LINE__ + 1) + ":\nTest message";
+    OV_EXPECT_THROW(OPENVINO_THROW("Test message"), ov::Exception, testing::HasSubstr(exp_msg));
 }

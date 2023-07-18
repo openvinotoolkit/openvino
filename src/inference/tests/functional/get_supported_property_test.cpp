@@ -8,6 +8,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
@@ -35,7 +36,7 @@ class MockPlugin : public ov::IPlugin {
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -53,17 +54,19 @@ class MockPlugin : public ov::IPlugin {
                 ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
                 ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
             return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type({});
         } else if (name == ov::num_streams.name()) {
             return decltype(ov::num_streams)::value_type(num_streams);
         }
         return "";
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -72,7 +75,7 @@ class MockPlugin : public ov::IPlugin {
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
