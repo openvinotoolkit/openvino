@@ -697,6 +697,26 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
+    auto print_model = [&](const std::shared_ptr<ov::Model>& model, std::string str) {
+        std::cout << str << std::endl;
+        for (auto& it : model->inputs()) {
+            auto names = it.get_names();
+            std::string name = names.size() > 0 ? it.get_any_name() : " ";
+            std::cout << "    input name = " << name
+                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
+                      << std::endl;
+        }
+        for (auto& it : model->outputs()) {
+            const auto node = it.get_node_shared_ptr();
+            std::string name = node->input_value(0).get_names().size() > 0 ? node->input_value(0).get_any_name() : " ";
+            std::cout << "    output name = " << name << ", " << name
+                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
+                      << std::endl;
+        }
+        std::cout << std::endl;
+    };
+    print_model(model->clone(), "Original model:");
+
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;

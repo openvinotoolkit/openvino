@@ -451,6 +451,23 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
         }
     }
 
+    auto print_model = [&](const std::shared_ptr<ov::Model>& model, std::string str) {
+        std::cout << str << std::endl;
+        for (auto& it : model->inputs()) {
+            std::cout << "    input name = " << ov::op::util::get_ie_output_name(it)
+                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
+                      << std::endl;
+        }
+        for (auto& it : model->outputs()) {
+            const auto node = it.get_node_shared_ptr();
+            auto name = ov::op::util::get_ie_output_name(node->input_value(0));
+            std::cout << "    output name = " << name << ", " << ov::op::util::get_ie_output_name(it)
+                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
+                      << std::endl;
+        }
+        std::cout << std::endl;
+    };
+
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
@@ -458,6 +475,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
+    print_model(cloned_model, "AddPreprocess model:");
 
     Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();

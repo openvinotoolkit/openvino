@@ -105,8 +105,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         m_graph_model = m_model;
     }
+#else
+    m_graph_model = m_model;
+#endif
 
-    std::cout << std::endl << "support_all_precision = " << support_all_precision << std::endl;
+    // std::cout << std::endl << "support_all_precision = " << support_all_precision << std::endl;
     for (const auto& in : m_graph_model->inputs()) {
         auto port_name = get_port_name(in, false);
         std::cout << "graph input port: name = " << port_name << ", precision = " << in.get_element_type()
@@ -117,9 +120,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         std::cout << "graph output port: name = " << port_name << ", precision = " << out.get_element_type()
                   << ", shape =" << out.get_partial_shape().to_string() << std::endl;
     }
-#else
-    m_graph_model = m_model;
-#endif
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
