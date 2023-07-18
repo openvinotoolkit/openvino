@@ -18,12 +18,12 @@ inline ov::SoPtr<ov::ITensor> create_shared_tensor_on_batched_tensor(ov::SoPtr<o
                                                                      size_t batch_id,
                                                                      size_t batch_num) {
     auto ptr = static_cast<uint8_t*>(batched_tensor->data());
-    auto sizePerBatch = batched_tensor->get_byte_size() / batch_num;
+    auto size_per_batch = batched_tensor->get_byte_size() / batch_num;
     auto batched_shape = batched_tensor->get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
     if (batched_names.count(name)) {
         batched_shape[0] = 1;
-        return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr + sizePerBatch * batch_id),
+        return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr + size_per_batch * batch_id),
                 batched_tensor._so};
     } else {
         return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr), batched_tensor._so};

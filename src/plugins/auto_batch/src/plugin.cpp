@@ -340,6 +340,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             meta_device.device_batch_size = 1;
         }
     }
+
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    if (!context) {
+        try {
+            device_context = compiled_model_without_batch->get_context();
+            if (!device_context._so)
+                device_context._so = compiled_model_without_batch._so;
+        } catch (const ov::NotImplemented&) {
+        }
+    } else {
+        device_context = context;
+    }
+
     return std::make_shared<CompiledModel>(model->clone(),
                                            shared_from_this(),
                                            compiled_model_config,
@@ -348,7 +361,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            batched_outputs,
                                            compiled_model_with_batch,
                                            compiled_model_without_batch,
-                                           context);
+                                           device_context);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
