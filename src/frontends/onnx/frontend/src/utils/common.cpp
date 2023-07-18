@@ -8,8 +8,8 @@
 
 #include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
