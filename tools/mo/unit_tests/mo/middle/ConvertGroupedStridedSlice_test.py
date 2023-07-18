@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
@@ -108,7 +107,6 @@ one_strided_slice_case_edges = [
 ]
 
 
-@generator
 class ConvertGroupedStridedSliceTests(unittest.TestCase):
     def test_1(self):
         graph = build_graph(nodes_attributes,
@@ -631,7 +629,8 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     # Test for the case when there is only 1 StridedSlice.
-    @generate(*[(np.array([1, 227, 227, 54]),
+    def test_9(self):
+        test_cases=[(np.array([1, 227, 227, 54]),
                  np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 18, 1)]),
                  np.array([1, 227, 227, 18])),
                 (np.array([57, 16, 100, 23]),
@@ -639,27 +638,28 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                  np.array([13, 16, 100, 23])),
                 (np.array([16, 800, 1024, 17]),
                  np.array([slice(0, 16, 1), slice(0, 800, 1), slice(13, 817, 1), slice(0, 17, 1)]),
-                 np.array([16, 800, 804, 17]))])
-    def test_9(self, input_shape, slices, output_shape):
-        graph = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
-                            edges=one_strided_slice_case_edges,
-                            update_attributes={
-                                'placeholder_data': {'shape': input_shape},
-                                'sslice': {'slices': slices},
-                                'sslice_data': {'shape': output_shape},
-                            })
-        graph.graph['layout'] = 'NHWC'
-        graph_ref = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
-                                edges=one_strided_slice_case_edges,
-                                update_attributes={
-                                    'placeholder_data': {'shape': input_shape},
-                                    'sslice': {'slices': slices},
-                                    'sslice_data': {'shape': output_shape},
-                                })
-        pattern = ConvertGroupedStridedSlice()
-        pattern.find_and_replace_pattern(graph)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+                 np.array([16, 800, 804, 17]))]
+        for idx, (input_shape, slices, output_shape) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
+                                    edges=one_strided_slice_case_edges,
+                                    update_attributes={
+                                        'placeholder_data': {'shape': input_shape},
+                                        'sslice': {'slices': slices},
+                                        'sslice_data': {'shape': output_shape},
+                                    })
+                graph.graph['layout'] = 'NHWC'
+                graph_ref = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
+                                        edges=one_strided_slice_case_edges,
+                                        update_attributes={
+                                            'placeholder_data': {'shape': input_shape},
+                                            'sslice': {'slices': slices},
+                                            'sslice_data': {'shape': output_shape},
+                                        })
+                pattern = ConvertGroupedStridedSlice()
+                pattern.find_and_replace_pattern(graph)
+                (flag, resp) = compare_graphs(graph, graph_ref, 'op_output', check_op_attrs=True)
+                self.assertTrue(flag, resp)
 
     # Test for case when
     # 1) There are 4 StridedSlice operations.
