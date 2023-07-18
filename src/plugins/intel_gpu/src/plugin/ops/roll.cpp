@@ -28,15 +28,11 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
     const auto default_rank = format.dimension();
 
     auto shift_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!shift_constant) {
-        IE_THROW() << "Unsupported parameter node type in " << op_friendly_name << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(shift_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op_friendly_name, " (", op->get_type_name(), ")");
     const auto shift_raw = shift_constant->cast_vector<int32_t>();
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
-    if (!axes_constant) {
-        IE_THROW() << "Unsupported parameter node type in " << op_friendly_name << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op_friendly_name, " (", op->get_type_name(), ")");
     auto axes_raw = axes_constant->cast_vector<int32_t>();
 
     // Normalize axes and sum shift
@@ -47,7 +43,7 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
             axis += rank;
         }
         if (axis < 0 || axis >= rank) {
-            IE_THROW() << op_friendly_name << " Incorrect axis value: " << axis;
+            OPENVINO_THROW(op_friendly_name, " Incorrect axis value: ", axis);
         }
         shift[axis] += shift_raw[a];
     }
