@@ -19,7 +19,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
 
     if(NOT MINGW)
-        set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
+        set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -Wl,-z,noexecstack,-z,relro,-z,now")
     endif()
     if(CMAKE_COMPILER_IS_GNUCXX)
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
