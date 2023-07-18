@@ -19,13 +19,15 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "functional_test_utils/test_model/test_model.hpp"
 #include "ie_core.hpp"
 #include "ie_metric_helpers.hpp"
 #include "ie_remote_context.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/logical_not.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
@@ -293,7 +295,9 @@ public:
         sharedObjectLoader = ov::util::load_shared_object(libraryPath.c_str());
         injectProxyEngine = make_std_function<void(IInferencePlugin*)>("InjectProxyEngine");
 
-        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::Serialize>(modelName, weightsName);
+        manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 227, 227}, ov::element::Type_t::f32));
     }
 
     void TearDown() override {

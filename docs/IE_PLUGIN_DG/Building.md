@@ -36,9 +36,9 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
   * Libraries for tests development:
 
     * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
-    * ``openvino::commonTestUtils`` - static library with common tests utilities 
-    * ``openvino::funcTestUtils`` - static library with functional tests utilities 
-    * ``openvino::unitTestUtils`` - static library with unit tests utilities 
+    * ``openvino::common_test_utils`` - static library with common tests utilities 
+    * ``openvino::func_test_utils`` - static library with functional tests utilities 
+    * ``openvino::unit_test_utils`` - static library with unit tests utilities 
     * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
     * ``openvino::funcSharedTests`` - static library with common functional tests
     * ``openvino::ngraph_reference`` - static library with operation reference implementations.

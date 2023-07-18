@@ -6,7 +6,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
-set(TARGET_NAME unitTestUtils)
+set(TARGET_NAME unit_test_utils)
 
 add_subdirectory(mocks/mock_engine)
 

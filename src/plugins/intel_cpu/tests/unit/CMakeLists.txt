@@ -49,7 +49,7 @@ addIeTargetTest(
             inference_engine_lp_transformations
             ov_shape_inference
             inference_engine_s
-            unitTestUtils
+            unit_test_utils
             ngraphFunctions
             snippetsNgraphFunctions
             snippets_test_utils

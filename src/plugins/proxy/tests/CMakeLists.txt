@@ -10,12 +10,11 @@ ov_add_test_target(
         DEPENDENCIES
             openvino::runtime
             mock_engine
-            funcTestUtils
         LINK_LIBRARIES
             openvino::runtime::dev
             gtest
             gtest_main
-            funcTestUtils
+            func_test_utils
         ADD_CLANG_FORMAT
         LABELS
         PROXY_PLUGIN

@@ -9,13 +9,13 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/src
-        EXCLUDED_SOURCE_PATHS 
+        EXCLUDED_SOURCE_PATHS
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/src/main.cpp
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include
         LINK_LIBRARIES
             PRIVATE
-                funcTestUtils
+                func_test_utils
                 openvino::runtime
                 openvino::pugixml
         ADD_CPPLINT

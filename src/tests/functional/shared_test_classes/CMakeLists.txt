@@ -18,7 +18,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                funcTestUtils
+                func_test_utils
                 ngraphFunctions
 )
 
