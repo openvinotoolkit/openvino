@@ -8,6 +8,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/extract_reshapes_from_mha.hpp"
 
 namespace ov {
 namespace test {
@@ -15,6 +16,7 @@ namespace snippets {
 
 void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(function);
+    manager.register_pass<ov::snippets::pass::ExtractReshapesFromMHA>();
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
@@ -84,6 +86,17 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     function = f.getOriginal();
     function_ref = f.getReference();
     config.minimal_concurrency = 16;
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
+    const auto& f = MHAWithExtractedReshapeFunction(std::vector<PartialShape>{{400, 196, 80},
+                                                                              {400, 80, 196},
+                                                                              {400, 14, 14, 14},
+                                                                              {400, 14, 14, 1, 14},
+                                                                              {400, 196, 80}}, true);
+    function = f.getOriginal();
+    function_ref = f.getReference();
     run();
 }
 
