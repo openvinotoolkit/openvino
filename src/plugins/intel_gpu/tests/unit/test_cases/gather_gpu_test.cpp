@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gather.hpp>
@@ -47,6 +48,7 @@ public:
     impl_types impl_type;
 
     void SetUp() override {
+        tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1], impl_type) = GetParam();
@@ -64,14 +66,14 @@ public:
         for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
 
-        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
+        auto dat = rg.generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0_layout =
             layout(ov::Shape(shape_in[0].begin(), shape_in[0].end()), T_dat_dt, format::get_default_format(shape_in[0].size()));
         auto input0 = engine.allocate_memory(input0_layout);
         set_values(input0, dat);
 
         auto ind =
-            generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
+            rg.generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1_layout =
             layout(ov::Shape(shape_in[1].begin(), shape_in[1].end()), T_ind_dt, format::get_default_format(shape_in[1].size()));
         auto input1 = engine.allocate_memory(input1_layout);

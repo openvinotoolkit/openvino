@@ -36,7 +36,7 @@ class MockPlugin : public ov::IPlugin {
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -62,11 +62,11 @@ class MockPlugin : public ov::IPlugin {
         return "";
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -75,7 +75,7 @@ class MockPlugin : public ov::IPlugin {
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
