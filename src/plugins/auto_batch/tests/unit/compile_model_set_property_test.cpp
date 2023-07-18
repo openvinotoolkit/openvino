@@ -39,6 +39,7 @@ public:
     // Mock execNetwork
     ov::SoPtr<MockICompiledModel> m_mock_compile_model;
     std::shared_ptr<MockICompiledModel> m_mock_i_compile_model;
+    std::shared_ptr<NiceMock<MockIPlugin>> m_hardware_plugin;
 
     std::shared_ptr<ov::ICompiledModel> m_auto_batch_compile_model;
 
@@ -74,7 +75,8 @@ public:
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
         m_plugin->set_core(m_core);
-        m_mock_i_compile_model = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_plugin);
+        m_hardware_plugin = std::shared_ptr<NiceMock<MockIPlugin>>(new NiceMock<MockIPlugin>());
+        m_mock_i_compile_model = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_hardware_plugin);
         m_mock_compile_model = {m_mock_i_compile_model, {}};
 
         ON_CALL(*m_core,
