@@ -11,12 +11,12 @@ using namespace ov::test::subgraph;
 namespace {
 
 const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::Type_t::f32,
-        ov::element::Type_t::i32,
-        ov::element::Type_t::f16,
-        ov::element::Type_t::i16,
-        ov::element::Type_t::u8,
-        ov::element::Type_t::i8,
+        ov::element::f32,
+        ov::element::i32,
+        ov::element::f16,
+        ov::element::i16,
+        ov::element::u8,
+        ov::element::i8,
 };
 
 const std::vector<ov::Shape> shapes = {

@@ -258,24 +258,24 @@ void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
     auto dst_ptr = tensor.data();
     auto src_ptr = values.data();
 
-    using ov::element::Type_t;
+    using namespace ov::element;
     switch (tensor.get_element_type()) {
-        case Type_t::u64:
-        case Type_t::i64:
+        case u64:
+        case i64:
             copy_7D<uint64_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Type_t::f32:
-        case Type_t::i32:
+        case f32:
+        case i32:
             copy_7D<uint32_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Type_t::i16:
-        case Type_t::u16:
-        case Type_t::f16:
-        case Type_t::bf16:
+        case i16:
+        case u16:
+        case f16:
+        case bf16:
             copy_7D<uint16_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Type_t::u8:
-        case Type_t::i8:
+        case u8:
+        case i8:
             copy_7D<uint8_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
         default:
@@ -296,11 +296,11 @@ void copy_with_convert(ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
     std::copy(src_ptr, src_ptr + src_size, dst_ptr);
 }
 
-ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type_t prc) {
+ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type prc) {
     ov::Tensor new_tensor(prc, tensor.get_shape());
 
-#define CASE(_PRC) case ov::element::Type_t::_PRC: \
-        copy_with_convert<ov::element::Type_t::f32, ov::element::Type_t::_PRC> (tensor, new_tensor); break
+#define CASE(_PRC) case ov::element::_PRC: \
+        copy_with_convert<ov::element::f32, ov::element::_PRC> (tensor, new_tensor); break
     switch (prc) {
         CASE(f32); CASE(f16); CASE(i64); CASE(u64); CASE(i32); CASE(u32); CASE(i16); CASE(u16); CASE(i8); CASE(u8);
         default: OPENVINO_THROW("Unsupported precision case");
@@ -316,9 +316,9 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
     auto prc = tensor.get_element_type();
 
     ov::Tensor values_tensor;
-    values_tensor = ov::Tensor(ov::element::Type_t::f32, value_dims, values.data());
+    values_tensor = ov::Tensor(ov::element::f32, value_dims, values.data());
 
-    if (prc != ov::element::Type_t::f32) {
+    if (prc != ov::element::f32) {
         values_tensor = make_with_precision_convert(values_tensor, prc);
     }
 
