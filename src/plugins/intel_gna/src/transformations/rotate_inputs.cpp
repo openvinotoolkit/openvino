@@ -38,14 +38,18 @@ InsertConvolutionTransposeHW::InsertConvolutionTransposeHW() {
             helper::GetConvData(conv, conv_data);
             auto validator = limitations::Limitations::get_instance()->get_cnn_validator();
 
-            return validator && !validator->ShouldUseOnlyConv2DGnaIface()
-                             && gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
+            return validator && !validator->ShouldUseOnlyConv2DGnaIface() &&
+                   gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
                                                                static_cast<uint32_t>(conv_data.input_width),
                                                                static_cast<uint32_t>(conv_data.input_channel_count),
                                                                static_cast<uint32_t>(conv_data.filter_height),
                                                                static_cast<uint32_t>(conv_data.filter_width),
                                                                static_cast<uint32_t>(conv_data.filter_stride_height),
-                                                               static_cast<uint32_t>(conv_data.filter_stride_width));
+                                                               static_cast<uint32_t>(conv_data.filter_stride_width)) &&
+                   gna_convolution_layer::should_transpose_h_w(static_cast<uint32_t>(conv_data.input_height),
+                                                               static_cast<uint32_t>(conv_data.filter_height),
+                                                               static_cast<uint32_t>(conv_data.input_channel_count),
+                                                               static_cast<uint32_t>(conv_data.filter_stride_height));
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
