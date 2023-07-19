@@ -81,7 +81,7 @@ OutputVector translate_quantized_convnd(const NodeContext& context) {
 
 OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     // "quantized::conv2d_relu.new(Tensor qx, __torch__.torch.classes.quantized.Conv2dPackedParamsBase packed_weight,
-    // float output_scale, int output_zero_point) -> Tensor"    auto sch = context.get_schema();
+    // float output_scale, int output_zero_point) -> Tensor"
     num_inputs_check(context, 4, 4);
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
