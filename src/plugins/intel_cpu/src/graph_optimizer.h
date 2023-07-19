@@ -25,7 +25,7 @@ private:
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);
     void MergeConvertAndScaleShift(Graph& graph);
-    void RemoveConvertF16ToF32(Graph& graph);
+    void RemoveConvertF16(Graph& graph);
     void FuseFullyConnectedAndSimpleOperation(Graph &graph);
     void FuseMatMulAndSimpleOperation(Graph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &graph);

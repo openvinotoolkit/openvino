@@ -155,13 +155,14 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        // Create new Convert
+        // Connect Convert to new input if needed
         if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
             convert->input(0).replace_source_output(fc_input_b);
             convert->validate_and_infer_types();
             fc_input_b = convert;
         }
+
         // Create FullyConnected
         auto output_rank = matmul->get_output_partial_shape(0).rank();
         auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,

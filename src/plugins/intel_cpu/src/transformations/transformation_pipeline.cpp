@@ -202,8 +202,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
-    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
 
     const bool useLpt = !defaultPrecisions.empty();
@@ -465,6 +463,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             ov::pass::ConvertQuantizeDequantize);
     }
 
+    /* In some cases, during the transformation pipeline, some MatMul nodes can be transformed into other nodes. For example, they can become part of
+       AUGRUCell node (see AUGRUCellFusion pass). In such cases, some constant paths will be unfolded, which can lead to crashes in the plugin. To avoid this,
+       we re-mark decompression converts again and finally do CF for those constant paths that are not inputs to MatMul node */
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
