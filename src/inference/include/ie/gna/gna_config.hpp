@@ -165,20 +165,23 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(AVX2);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
- * @brief The option to override the GNA HW execution target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
+ * @brief The option to override the GNA HW execution target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0,
+ * GNA_TARGET_3_5.
  * By default (in case of no value set) the behavior depends on GNA HW availability:
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
- * For the OV GNA Plugin 2022.1, the latest supported GNA HW generation corresponds to GNA_TARGET_3_0.
+ * For the OV GNA Plugin 2023.1, the latest supported GNA HW generation corresponds to GNA_TARGET_3_5.
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_KEY(EXEC_TARGET);
 
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(TARGET_2_0);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(TARGET_3_0);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(TARGET_3_5);
 
 /**
- * @brief The option to override the GNA HW compile target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0.
+ * @brief The option to override the GNA HW compile target. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0,
+ * GNA_TARGET_3_5.
  * By default the same as GNA_EXEC_TARGET.
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_KEY(COMPILE_TARGET);
