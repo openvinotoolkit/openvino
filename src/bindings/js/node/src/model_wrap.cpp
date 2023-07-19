@@ -12,6 +12,7 @@ Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
                         InstanceMethod("compile", &ModelWrap::compile_model),
                         InstanceMethod("infer", &ModelWrap::infer),
                         InstanceMethod("output", &ModelWrap::get_output),
+                        InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
@@ -122,6 +123,17 @@ Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Error while getting model outputs.");
         return Napi::Value();
     }
+}
+
+Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
+    auto cm_inputs = _model->inputs();  // Output<Node>
+    Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
+
+    size_t i = 0;
+    for (auto& input : cm_inputs)
+        js_inputs[i++] = Output<ov::Node>::Wrap(info.Env(), input);
+
+    return js_inputs;
 }
 
 Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
