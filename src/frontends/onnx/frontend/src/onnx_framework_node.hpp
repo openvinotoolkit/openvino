@@ -34,6 +34,7 @@ class Model;
 }
 
 namespace frontend {
+OPENVINO_SUPPRESS_DEPRECATED_START
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ONNXFrameworkNode", "util", ov::op::util::FrameworkNode);
@@ -96,6 +97,7 @@ public:
 private:
     std::vector<std::shared_ptr<Function>> m_functions;
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 // Be careful with using protobuf references (also onnx_import::Node) inside NotSupportedONNXNode
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.

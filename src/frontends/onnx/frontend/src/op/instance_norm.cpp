@@ -21,6 +21,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -91,3 +92,4 @@ OutputVector instance_norm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

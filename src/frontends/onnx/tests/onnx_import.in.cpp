@@ -43,7 +43,7 @@
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
