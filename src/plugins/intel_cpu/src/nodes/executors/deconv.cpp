@@ -9,7 +9,6 @@ namespace intel_cpu {
 
 using namespace InferenceEngine;
 
-DeconvExecutor::DeconvExecutor() {}
 
 size_t DeconvKey::hash() const {
     using namespace dnnl::impl;

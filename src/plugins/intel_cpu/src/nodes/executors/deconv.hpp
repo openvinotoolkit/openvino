@@ -64,7 +64,8 @@ struct DeconvAttrs {
 
 class DeconvExecutor {
 public:
-    DeconvExecutor();
+    explicit DeconvExecutor(const ExecutorContext::CPtr context) : context(context) {}
+
     virtual bool init(const DeconvAttrs& deconvAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -72,14 +73,13 @@ public:
 
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
-                      const void *post_ops_data_,
-                      const dnnl::stream &strm) = 0;
+                      const void *post_ops_data_) = 0;
     virtual ~DeconvExecutor() = default;
-
     virtual impl_desc_type getImplType() const = 0;
 
 protected:
     DeconvAttrs deconvAttrs;
+    ExecutorContext::CPtr context;
 };
 
 using DeconvExecutorPtr = std::shared_ptr<DeconvExecutor>;
@@ -89,7 +89,7 @@ class DeconvExecutorBuilder {
 public:
     ~DeconvExecutorBuilder() = default;
     virtual bool isSupported(const DeconvAttrs& convAttrs, const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual DeconvExecutorPtr makeExecutor() const = 0;
+    virtual DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using DeconvExecutorBuilderPtr = std::shared_ptr<DeconvExecutorBuilder>;

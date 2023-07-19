@@ -10,7 +10,6 @@ namespace intel_cpu {
 const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList() {
 static std::vector<DeconvExecutorDesc> descs = {
         OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclDeconvExecutorBuilder>())
-        OV_CPU_INSTANCE_DNNL(ExecutorType::Dnnl, std::make_shared<DNNLDeconvExecutorBuilder>())
 };
 
 return descs;

@@ -11,20 +11,64 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-//FIXME: add context
-AclDeconvExecutor::AclDeconvExecutor() : DeconvExecutor() {}
+AclDeconvExecutor::AclDeconvExecutor(const ExecutorContext::CPtr context) : DeconvExecutor(context) {}
+
+bool AclDeconvExecutor::customInit(const DeconvAttrs &deconvAttrs, const std::vector<MemoryDescPtr> &srcDescs,
+                                   const std::vector<MemoryDescPtr> &dstDescs) {
+    auto srcDims  = srcDescs[0]->getShape().getDims();
+    auto weiDims  = srcDescs[1]->getShape().getDims();
+    //swap input and output channels dimensions to be align with ACL
+    //weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
+    std::swap(weiDims[0], weiDims[1]);
+    auto dstDims  = dstDescs[0]->getShape().getDims();
+
+    VectorDims biasDims;
+    TensorInfo biasTensorInfo;
+    if (deconvAttrs.withBiases) {
+        biasDims = srcDescs[2]->getShape().getStaticDims();
+        //bias presicion is I32 but ACL requests bias precision as input ones
+        biasTensorInfo = TensorInfo(shapeCast(biasDims), 1,
+                                    precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[2]));
+    }
+
+    TensorInfo srcTensorInfo = TensorInfo(shapeCast(srcDims), 1,
+                                          precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[0]));
+    TensorInfo weiTensorInfo = TensorInfo(shapeCast(weiDims), 1,
+                                          precisionToAclDataType(srcDescs[1]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[1]));
+    TensorInfo dstTensorInfo = TensorInfo(shapeCast(dstDims), 1,
+                                          precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
+
+    unsigned int pad_l = deconvAttrs.paddingL.at(1);
+    unsigned int pad_r = deconvAttrs.paddingR.at(1);
+    unsigned int pad_t = deconvAttrs.paddingL.at(0);
+    unsigned int pad_b = deconvAttrs.paddingR.at(0);
+    unsigned int stride_x = deconvAttrs.stride.at(1);
+    unsigned int stride_y = deconvAttrs.stride.at(0);
+
+    arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
+    arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
+                                                                             &weiTensorInfo,
+                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                             &dstTensorInfo,
+                                                                             deconv_info);
+    if (!status) {
+        DEBUG_LOG("NEDeconvolutionLayer validation failed: ", status.error_description());
+        return false;
+    }
+    return true;
+}
 
 bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
                           const dnnl::primitive_attr &attr) {
     this->deconvAttrs = deconvAttrs;
-    auto srcDims  = srcDescs[0]->getShape().getStaticDims();
-    auto weiDims  = srcDescs[1]->getShape().getStaticDims();
+    auto srcDims  = srcDescs[0]->getShape().getDims();
+    auto weiDims  = srcDescs[1]->getShape().getDims();
     //swap input and output channels dimensions to be align with ACL
     //weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
     std::swap(weiDims[0], weiDims[1]);
-    auto dstDims  = dstDescs[0]->getShape().getStaticDims();
+    auto dstDims  = dstDescs[0]->getShape().getDims();
 
     VectorDims biasDims;
     TensorInfo biasTensorInfo;
@@ -96,8 +140,7 @@ static void transpose_to_1023(const MemoryCPtr& srcMemPtr, std::vector<float>& d
     });
 }
 
-void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst,
-                             const void *post_ops_data_, const dnnl::stream &strm) {
+void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
     //weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
     std::vector<float> weiBuffer(src[1]->getStaticDims()[0] *
                                  src[1]->getStaticDims()[1] *
