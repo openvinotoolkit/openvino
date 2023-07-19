@@ -51,7 +51,7 @@ namespace SubgraphTestsDefinitions {
 using MatMulDecompressConvertParams = std::tuple<
     std::vector<InputShape>, // input shapes
     std::pair<bool, bool>,   // transposeA, transposeB
-    element::Type            // input precision
+    std::map<std::string, std::string> // additional config
 >;
 
 class MatMulDecompressConvertTest : public testing::WithParamInterface<MatMulDecompressConvertParams>,
@@ -60,9 +60,9 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
         std::vector<InputShape> inputShapes;
         std::pair<bool, bool> transpose;
-        element::Type inputPrecision;
+        std::map<std::string, std::string> additionalConfig;
 
-        std::tie(inputShapes, transpose, inputPrecision) = obj.param;
+        std::tie(inputShapes, transpose, additionalConfig) = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
@@ -82,7 +82,11 @@ public:
         result << "transpose_a=" << transpose.first << "_";
         result << "transpose_b=" << transpose.second << "_";
 
-        result << "InPRC=" << inputPrecision;
+        result << "config=(";
+        for (const auto& configEntry : additionalConfig) {
+            result << configEntry.first << ", " << configEntry.second << ":";
+        }
+        result << ")";
 
         return result.str();
     }
@@ -117,9 +121,9 @@ protected:
 
         std::vector<InputShape> inputShapes;
         std::pair<bool, bool> transpose;
-        element::Type inputPrecision;
+        std::map<std::string, std::string> additionalConfig;
 
-        std::tie(inputShapes, transpose, inputPrecision) = this->GetParam();
+        std::tie(inputShapes, transpose, additionalConfig) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -142,17 +146,25 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+        ElementType netType = element::f32;
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+            inType = outType = netType = ElementType::bf16;
+        else
+            inType = outType = netType;
+
         std::string cpuNodeType = "FullyConnected";
 
-        auto params = builder::makeDynamicParams(inputPrecision, {inShapeA});
+        auto params = builder::makeDynamicParams(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = ngraph::builder::makeConstant<float16>(element::f16, inShapeB.get_shape(), {}, true);
-        auto convert = std::make_shared<ngraph::opset1::Convert>(matrixB, inputPrecision);
+        auto convert = std::make_shared<ngraph::opset1::Convert>(matrixB, inType);
         mark_as_decompression(convert);
         auto matMul = builder::makeMatMul(paramOuts[0], convert, transpA, transpB);
 
-        function = CPUTestsBase::makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
+        function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
 };
 
@@ -173,12 +185,20 @@ const std::vector<std::pair<bool, bool>> transposeParams = {
     {true, true},
 };
 
-const std::vector<element::Type> inputPrecisions = { element::f32, element::bf16 };
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
+    std::vector<std::map<std::string, std::string>> additionalConfig;
+    additionalConfig.push_back(std::map<std::string, std::string>{/* empty config */});
+    if (with_cpu_x86_avx512_core()) {
+        additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
+    }
+
+    return additionalConfig;
+}
 
 const auto testParams2D_smoke = ::testing::Combine(
         ::testing::Values(static_shapes_to_test_representation({{2, 3}, {3, 4}})),
         ::testing::ValuesIn(transposeParams),
-        ::testing::ValuesIn(inputPrecisions));
+        ::testing::ValuesIn(filterAdditionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest, testParams2D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
@@ -187,7 +207,7 @@ const auto testParams3D_smoke = ::testing::Combine(
         ::testing::Values(static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}),
                           static_shapes_to_test_representation({{2, 3}, {1, 3, 4}})),
         ::testing::ValuesIn(transposeParams),
-        ::testing::ValuesIn(inputPrecisions));
+        ::testing::ValuesIn(filterAdditionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulDecompressConvertTest, testParams3D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
