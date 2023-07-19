@@ -357,7 +357,7 @@ const auto params3InputsDynamic = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams3InDynamic),
         ::testing::ValuesIn(numberBatch),
-        ::testing::Values(0.0f),
+        ::testing::Values(objectnessScore),
         ::testing::Values(false, true),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
