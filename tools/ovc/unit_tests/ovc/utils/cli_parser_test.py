@@ -542,7 +542,8 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PaddlePaddle-specific parameters:' or param_name in ['--input_model']:
+                if group_name == 'PaddlePaddle-specific parameters:' or \
+                        param_name in ['--input_model', '--share_weights', '--example_input']:
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions
