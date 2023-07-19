@@ -210,7 +210,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         check_memory_to_set(*mem_new, ol);
 
     if (is_constant()) {
-        ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
+        ev = mem_new->copy_from(_network.get_stream(), *_outputs[idx], false);
     } else {
         ev = get_network().get_stream().create_user_event(true);
         _outputs[idx] = mem_new;
