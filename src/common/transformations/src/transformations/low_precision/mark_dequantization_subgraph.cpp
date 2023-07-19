@@ -54,7 +54,7 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
             return false;
         }
 
-        if (ov::op::util::is_constfoldable(input)) {
+        if (ov::op::util::is_on_constant_path(input)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
         }

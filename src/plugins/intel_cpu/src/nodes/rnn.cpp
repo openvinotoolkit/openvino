@@ -217,9 +217,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         if (one_of(op->get_type_info(), ov::op::v0::RNNCell::get_type_info_static(), ov::op::v3::GRUCell::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::op::util::is_constfoldable(op->input_value(2)) ||
-                !ov::op::util::is_constfoldable(op->input_value(3)) ||
-                (op->get_input_size() > 4 && !ov::op::util::is_constfoldable(op->input_value(4)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(2)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                (op->get_input_size() > 4 && !ov::op::util::is_on_constant_path(op->input_value(4)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -229,9 +229,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 ov::op::v5::GRUSequence::get_type_info_static(),
                 ov::op::v5::RNNSequence::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::op::util::is_constfoldable(op->input_value(3)) ||
-                !ov::op::util::is_constfoldable(op->input_value(4)) ||
-                (op->get_input_size() > 5 && !ov::op::util::is_constfoldable(op->input_value(5)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                (op->get_input_size() > 5 && !ov::op::util::is_on_constant_path(op->input_value(5)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -247,9 +247,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 return false;
             }
             // Plug-in does not support dynamism on weights.
-            if (!ov::op::util::is_constfoldable(op->input_value(4)) ||
-                !ov::op::util::is_constfoldable(op->input_value(5)) ||
-                !ov::op::util::is_constfoldable(op->input_value(6))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(5)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(6))) {
                 errorMessage = "Node expects static shaped W, R, B inputs.";
                 return false;
             }
