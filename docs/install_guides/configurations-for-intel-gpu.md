@@ -15,23 +15,23 @@ To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of
 Linux
 #####
 
-To use a GPU device for OpenVINO inference, you must meet the following prerequisites:
+To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-- Use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
-- Install ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the `installation documentation <https://dgpu-docs.intel.com/driver/installation.html>`__
-- Install GPU Runtime packages:
+If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
 
-  - `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
-  - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
-  - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
-  - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
+- For Arc GPU, kernel 6.2 or higher is recommended. 
+- For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
-Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
+Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install the `Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/tag/23.22.26516.18>`__ and its dependencies: 
+
+- `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
+- `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
+- `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
 .. tab-set::
 
    .. tab-item:: Ubuntu 22.04 LTS
-      :sync: ubuntu22
+      :sync: ubuntu-22
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
       
@@ -42,7 +42,7 @@ Depending on your operating system, there may be different methods to install th
          apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
 
    .. tab-item:: Ubuntu 20.04 LTS
-      :sync: ubuntu20
+      :sync: ubuntu-20
 
       Ubuntu 20.04 LTS is not updated with the latest driver versions. You can install the updated versions up to the version 22.43 from apt:
       
@@ -57,7 +57,7 @@ Depending on your operating system, there may be different methods to install th
       Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
 
    .. tab-item:: RedHat UBI 8
-      :sync: redhat8
+      :sync: redhat-8
 
       Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
       

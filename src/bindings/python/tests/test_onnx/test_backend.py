@@ -10,7 +10,6 @@ from tests import (
     skip_rng_tests,
     xfail_issue_33488,
     xfail_issue_33581,
-    xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -196,11 +195,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_expanded_cpu",
     ),
     (
-        xfail_issue_33595,
-        "OnnxBackendNodeModelTest.test_unique_sorted_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_3d_cpu",
-    ),
-    (
         xfail_issue_33651,
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_batch_onlybigrams_skip5_cpu",
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_levelempty_cpu",
@@ -367,7 +361,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_82038,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_duplicate_indices_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_add_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_multiply_cpu",
     ),
@@ -569,8 +562,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99970,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_max_cpu",
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_min_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),

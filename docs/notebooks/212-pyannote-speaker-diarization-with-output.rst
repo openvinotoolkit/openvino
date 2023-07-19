@@ -51,7 +51,7 @@ Prerequisites
     onnx 1.14.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.7.0.72 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.74 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
     
 
@@ -59,17 +59,19 @@ Prepare pipeline
 ----------------
 
 Traditional Speaker Diarization systems can be generalized into a five
-step process: \* **Feature extraction**: transform the raw waveform into
-audio features like mel spectrogram. \* **Voice activity detection**:
-identify the chunks in the audio where some voice activity was observed.
-As we are not interested in silence and noise, we ignore those
-irrelevant chunks. \* **Speaker change detection**: identify the speaker
-change points in the conversation present in the audio. \* **Speech turn
-representation**: encode each subchunk by creating feature
-representations. \* **Speech turn clustering**: cluster the subchunks
-based on their vector representation. Different clustering algorithms
-may be applied based on the availability of cluster count (k) and the
-embedding process of the previous step.
+step process:
+
+* **Feature extraction**: transform the raw waveform into audio features like 
+mel spectrogram.
+* **Voice activity detection**: identify the chunks in the audio where some voice 
+activity was observed. As we are not interested in silence and noise, we ignore 
+those irrelevant chunks. 
+* **Speaker change detection**: identify the speaker change points in the 
+conversation present in the audio.
+* **Speech turn representation**: encode each subchunk by creating feature representations.
+* **Speech turn clustering**: cluster the subchunks based on their vector 
+representation. Different clustering algorithms may be applied based on the 
+availability of cluster count (k) and the embedding process of the previous step.
 
 The final output will be the clusters of different subchunks from the
 audio stream. Each cluster can be given an anonymous identifier
@@ -203,7 +205,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.13 s
+    Diarization pipeline took 15.65 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -230,16 +232,16 @@ We can also print each time frame and corresponding speaker:
 
 .. parsed-literal::
 
-    start=6.7s stop=7.1s speaker_SPEAKER_02
-    start=7.6s stop=8.6s speaker_SPEAKER_02
-    start=8.6s stop=10.0s speaker_SPEAKER_01
-    start=9.8s stop=11.0s speaker_SPEAKER_02
-    start=10.6s stop=14.7s speaker_SPEAKER_01
-    start=14.3s stop=17.9s speaker_SPEAKER_00
-    start=17.9s stop=21.5s speaker_SPEAKER_01
-    start=18.3s stop=18.4s speaker_SPEAKER_00
-    start=21.7s stop=28.6s speaker_SPEAKER_00
-    start=27.8s stop=29.5s speaker_SPEAKER_01
+    start=6.7s stop=7.1s speaker_SPEAKER_00
+    start=7.6s stop=8.6s speaker_SPEAKER_00
+    start=8.6s stop=10.0s speaker_SPEAKER_02
+    start=9.8s stop=11.0s speaker_SPEAKER_00
+    start=10.6s stop=14.7s speaker_SPEAKER_02
+    start=14.3s stop=17.9s speaker_SPEAKER_01
+    start=17.9s stop=21.5s speaker_SPEAKER_02
+    start=18.3s stop=18.4s speaker_SPEAKER_01
+    start=21.7s stop=28.6s speaker_SPEAKER_01
+    start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
 Convert model to OpenVINO Intermediate Representation format
@@ -330,7 +332,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 14.63 s
+    Diarization pipeline took 14.98 s
 
 
 .. code:: ipython3
@@ -353,15 +355,15 @@ Run speaker diarization with OpenVINO
 .. parsed-literal::
 
     start=6.7s stop=7.1s speaker_SPEAKER_02
-    start=7.6s stop=8.7s speaker_SPEAKER_02
-    start=8.7s stop=10.0s speaker_SPEAKER_01
-    start=9.8s stop=11.0s speaker_SPEAKER_02
-    start=10.6s stop=14.7s speaker_SPEAKER_01
-    start=14.3s stop=17.9s speaker_SPEAKER_00
-    start=17.9s stop=21.5s speaker_SPEAKER_01
-    start=18.3s stop=18.4s speaker_SPEAKER_00
-    start=21.7s stop=28.6s speaker_SPEAKER_00
-    start=27.8s stop=29.5s speaker_SPEAKER_01
+    start=7.6s stop=8.3s speaker_SPEAKER_00
+    start=8.3s stop=10.0s speaker_SPEAKER_02
+    start=9.8s stop=11.0s speaker_SPEAKER_00
+    start=10.6s stop=14.7s speaker_SPEAKER_02
+    start=14.3s stop=17.9s speaker_SPEAKER_01
+    start=17.9s stop=21.5s speaker_SPEAKER_02
+    start=18.3s stop=18.4s speaker_SPEAKER_01
+    start=21.7s stop=28.6s speaker_SPEAKER_01
+    start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
 Nice! As we can see, the result preserves the same level of accuracy!

@@ -20,13 +20,13 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
    
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
       * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
@@ -66,7 +66,7 @@ Step 1: Install OpenVINO Core Components
    .. tab-set::
 
       .. tab-item:: x86, 64-bit
-         :sync: x86-64bit
+         :sync: x86-64
    
          .. code-block:: sh
    
@@ -75,7 +75,7 @@ Step 1: Install OpenVINO Core Components
             sudo mv m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
    
       .. tab-item:: ARM, 64-bit
-         :sync: arm-64bit
+         :sync: arm-64
    
          .. code-block:: sh
    

@@ -13,12 +13,14 @@ API, see this
 and
 `details <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Preprocessing_Details.html>`__
 
-This tutorial include following steps: - Downloading the model. - Setup
-preprocessing with ModelOptimizer, loading the model and inference with
-original image. - Setup preprocessing with Preprocessing API, loading
-the model and inference with original image. - Fitting image to the
-model input type and inference with prepared image. - Comparing results
-on one picture. - Comparing performance.
+This tutorial include following steps:
+
+- Downloading the model.
+- Setup preprocessing with ModelOptimizer, loading the model and inference with original image.
+- Setup preprocessing with Preprocessing API, loading the model and inference with original image.
+- Fitting image to the model input type and inference with prepared image.
+- Comparing results on one picture.
+- Comparing performance.
 
 Settings
 --------
@@ -41,10 +43,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:56:19.365436: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:56:19.399309: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-11 22:53:33.947684: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-11 22:53:33.981920: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:56:19.937411: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-11 22:53:34.528705: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Setup image and device
@@ -53,8 +55,29 @@ Setup image and device
 .. code:: ipython3
 
     image_path = "../data/image/coco.jpg"
-    device = "CPU"
-    # device = "GPU"
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 Downloading the model
 ~~~~~~~~~~~~~~~~~~~~~
@@ -88,7 +111,7 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-06-21 22:56:21.198595: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-07-11 22:53:35.902963: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -137,7 +160,7 @@ Check the original parameters of image
 
 
 
-.. image:: 118-optimize-preprocessing-with-output_files/118-optimize-preprocessing-with-output_11_1.png
+.. image:: 118-optimize-preprocessing-with-output_files/118-optimize-preprocessing-with-output_12_1.png
 
 
 Convert model to OpenVINO IR and setup preprocessing steps with Model Optimizer
@@ -157,11 +180,11 @@ of work on processing the input data before propagating it through the
 network. These conversions will be inserted as additional input
 pre-processing sub-graphs into the converted model.
 
-Setup the following conversions: - mean normalization with
-``mean_values`` parameter. - scale with ``scale_values``. - color
-conversion, the color format of example image will be ``BGR``, but the
-model required ``RGB`` format, so add ``reverse_input_channels=True`` to
-process the image into the desired format.
+Setup the following conversions:
+
+- mean normalization with ``mean_values`` parameter
+- scale with ``scale_values``
+- color conversion, the color format of example image will be ``BGR``, but the model required ``RGB`` format, so add ``reverse_input_channels=True`` to process the image into the desired format
 
 Also converting of layout could be specified with ``layout`` option.
 More information and parameters described in the `Embedding
@@ -227,7 +250,7 @@ Compile model and perform inerence
 
 .. code:: ipython3
 
-    compiled_model_mo_pp = core.compile_model(model=ov_model_mo_preprocess, device_name=device)
+    compiled_model_mo_pp = core.compile_model(model=ov_model_mo_preprocess, device_name=device.value)
     
     output_layer = compiled_model_mo_pp.output(0)
     
@@ -236,12 +259,11 @@ Compile model and perform inerence
 Setup preprocessing steps with Preprocessing API and perform inference
 ----------------------------------------------------------------------
 
-Intuitively, preprocessing API consists of the following parts: - Tensor
-- declares user data format, like shape, layout, precision, color format
-from actual user’s data. - Steps - describes sequence of preprocessing
-steps which need to be applied to user data. - Model - specifies model
-data format. Usually, precision and shape are already known for model,
-only additional information, like layout can be specified.
+Intuitively, preprocessing API consists of the following parts:
+
+- Tensor - declares user data format, like shape, layout, precision, color format from actual user’s data.
+- Steps - describes sequence of preprocessing steps which need to be applied to user data.
+- Model - specifies model data format. Usually, precision and shape are already known for model, only additional information, like layout can be specified.
 
 Graph modifications of a model shall be performed after the model is
 read from a drive and before it is loaded on the actual device.
@@ -300,10 +322,11 @@ the following
 `page <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
 for more information about parameters for overriding.
 
-Below is all the specified input information: - Precision is ``U8``
-(unsigned 8-bit integer). - Size is non-fixed, setup of one determined
-shape size can be done with ``.set_shape([1, 577, 800, 3])`` - Layout is
-``“NHWC”``. It means, for example: height=577, width=800, channels=3.
+Below is all the specified input information:
+
+- Precision is ``U8``(unsigned 8-bit integer).
+- Size is non-fixed, setup of one determined shape size can be done with ``.set_shape([1, 577, 800, 3])``.
+- Layout is ``“NHWC”``. It means, for example: height=577, width=800, channels=3.
 
 The height and width are necessary for resizing, and channels are needed
 for mean/scale normalization.
@@ -322,7 +345,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f97f45dc730>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7efb4037f5b0>
 
 
 
@@ -351,7 +374,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f97f462f770>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7efc3610ac70>
 
 
 
@@ -362,14 +385,12 @@ Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
 `here <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
 
-Perform the following: - Convert ``U8`` to ``FP32`` precision. - Resize
-to height/width of a model. Be aware that if a model accepts dynamic
-size, for example, ``{?, 3, ?, ?}`` resize will not know how to resize
-the picture. Therefore, in this case, target height/ width should be
-specified. For more details, see also the
-`PreProcessSteps.resize() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
-- Subtract mean from each channel. - Divide each pixel data to
-appropriate scale value.
+Perform the following:
+
+- Convert ``U8`` to ``FP32`` precision.
+- Resize to height/width of a model. Be aware that if a model accepts dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how to resize the picture. Therefore, in this case, target height/ width should be specified. For more details, see also the `PreProcessSteps.resize() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
+- Subtract mean from each channel.
+- Divide each pixel data to appropriate scale value.
 
 There is no need to specify conversion layout. If layouts are different,
 then such conversion will be added explicitly.
@@ -388,7 +409,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f97b8346af0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7efd2c4155b0>
 
 
 
@@ -429,7 +450,7 @@ Load model and perform inference
         return input_tensor
     
     
-    compiled_model_with_preprocess_api = core.compile_model(model=ppp_model, device_name=device)
+    compiled_model_with_preprocess_api = core.compile_model(model=ppp_model, device_name=device.value)
     
     ppp_output_layer = compiled_model_with_preprocess_api.output(0)
     
@@ -445,7 +466,7 @@ Load the model
 .. code:: ipython3
 
     model = core.read_model(model=ir_path)
-    compiled_model = core.compile_model(model=model, device_name=device)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
 
 Load image and fit it to model input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -600,7 +621,7 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0189 seconds per image, FPS: 52.77
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0153 seconds per image, FPS: 65.26
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0175 seconds per image, FPS: 57.09
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0200 seconds per image, FPS: 49.90
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0153 seconds per image, FPS: 65.52
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0187 seconds per image, FPS: 53.59
 

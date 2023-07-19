@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <functional>
-#include <lstm_cell_shape_inference.hpp>
 
 #include "itt.hpp"
+#include "lstm_cell_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"

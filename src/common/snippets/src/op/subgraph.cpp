@@ -87,8 +87,9 @@ void snippets::op::Subgraph::init_config() {
 auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
     // The count of potential unique Buffers - it's hidden virtual ports as well
     // We should go through Subgraph and calculate potential non-inplace Buffers count.
-    // These Buffers can be only around Loops (for example, around MatMul they may be inplace because MatMul doesn't change registers).
-    // So we should check for element type size of nodes which are used Buffer to get rating from above for unique Buffer count.
+    // These Buffers can be in 2 cases:
+    // 1. Around Loops: we should check for element type size of nodes which use Buffer to get rating from above for unique Buffer count.
+    // 2. Around MatMul: all buffers around Matmul must not be inplace because MatMul blocking implementation changes registers during computations.
     // The count is estimated because when we calculate this number, we have only original graph representation
     // and where will be Loops - we can just predict.
     // Note: The ops that create Buffers: MatMul, Transpose and Softmax (always FP32)
@@ -120,16 +121,16 @@ auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& op
             // They are inplace and the same so we can push precision size only once
             push_prc_size(ov::element::f32.size());
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
-            // First input check is enough because MatMul requires the same prc size on inputs
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)) ||
-                !ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1))) {
-                push_prc_size(matmul->get_input_element_type(0).size());
-            }
+            // Since all buffers around Matmul must be unique, we explicitely add values to the vector without any checks
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)))
+                used_precision_size.push_back(matmul->get_input_element_type(0).size());
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1)))
+                used_precision_size.push_back(matmul->get_input_element_type(1).size());
 
             const auto consumers = matmul->get_output_target_inputs(0);
             if (std::none_of(consumers.begin(), consumers.end(),
                              [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v0::Result>(in.get_node()); })) {
-                push_prc_size(matmul->get_element_type().size());
+                used_precision_size.push_back(matmul->get_element_type().size());
             }
         }
     }
