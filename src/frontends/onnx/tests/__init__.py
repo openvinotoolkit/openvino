@@ -22,7 +22,8 @@ MODEL_ZOO_XFAIL = False
 def xfail_test(reason="Mark the test as expected to fail", strict=True):
     return pytest.mark.xfail(reason=reason, strict=strict)
 
-
+skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_dynamic_rank = xfail_test(reason="Dynamic rank")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
