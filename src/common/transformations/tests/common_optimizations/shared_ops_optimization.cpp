@@ -21,8 +21,8 @@ public:
     void TearDown() override {
         TransformationTestsF::TearDown();
         size_t op_count = model->get_ops().size(), op_count_ref = model_ref->get_ops().size();
-        EXPECT_EQ(op_count, op_count_ref) << "Number of operations differ between models: model op count = " <<
-            op_count << " ref_model op count = " << op_count_ref;
+        EXPECT_EQ(op_count, op_count_ref) << "Number of operations differ between models: model op count = " << op_count
+                                          << " ref_model op count = " << op_count_ref;
     };
 };
 
@@ -49,9 +49,7 @@ TEST_F(SharedTransformationTestsF, SharedSlice) {
         auto slice_4 = make_slice(data, 1, 2, 3, 3);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{slice_0, slice_1, slice_2, slice_3, slice_4}, 0);
-
-        auto result = std::make_shared<v0::Result>(concat);
-        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
     {
@@ -61,9 +59,7 @@ TEST_F(SharedTransformationTestsF, SharedSlice) {
         auto slice_2 = make_slice(data, 1, 3, 3, 3);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{slice_0, slice_0, slice_2, slice_0, slice_0}, 0);
-
-        auto result = std::make_shared<v0::Result>(concat);
-        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
 
@@ -140,8 +136,7 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
                          transpose_2_2},
             0);
 
-        auto result = std::make_shared<v0::Result>(concat);
-        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
     {
@@ -180,8 +175,7 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
                          transpose_2_0},
             0);
 
-        auto result = std::make_shared<v0::Result>(concat);
-        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
 
@@ -196,8 +190,7 @@ TEST_F(SharedTransformationTestsF, SharedConcat) {
         auto concat_1 = std::make_shared<v0::Concat>(OutputVector{pre_constant_1, data, post_constant}, 0);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{concat_0, concat_1}, 0);
-        auto result = std::make_shared<v0::Result>(concat);
-        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
     {
@@ -208,9 +201,7 @@ TEST_F(SharedTransformationTestsF, SharedConcat) {
         auto concat_0 = std::make_shared<v0::Concat>(OutputVector{pre_constant_0, data, post_constant}, 0);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{concat_0, concat_0}, 0);
-        auto result = std::make_shared<v0::Result>(concat);
-
-        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
 
