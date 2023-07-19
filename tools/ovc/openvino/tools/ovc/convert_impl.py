@@ -79,8 +79,6 @@ def print_argv(argv: argparse.Namespace, model_name: str):
 
 def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
-    moc_front_end, _ = get_moc_frontends(argv)
-
     log.debug("Model Conversion API started")
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
@@ -135,6 +133,9 @@ def get_moc_frontends(argv: argparse.Namespace):
 def prepare_ir(argv: argparse.Namespace):
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
+
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 1:
+        argv.input_model = argv.input_model[0]
 
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     if moc_front_end:

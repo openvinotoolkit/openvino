@@ -474,7 +474,7 @@ class CanonicalizePathAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existence=False)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
+        setattr(namespace, self.dest, list_of_paths)
 
 
 class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
@@ -498,7 +498,7 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existence=True)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
+        setattr(namespace, self.dest, list_of_paths)
 
 
 class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
@@ -1300,6 +1300,8 @@ def get_model_name_from_args(argv: argparse.Namespace):
         model_name = argv.output_model
     else:
         model_name = argv.input_model
+        if isinstance(model_name, (tuple, list)) and len(model_name) > 0:
+            model_name = model_name[0]
     return model_name
 
 
