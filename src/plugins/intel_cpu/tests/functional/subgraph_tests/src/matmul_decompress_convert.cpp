@@ -50,7 +50,8 @@ namespace SubgraphTestsDefinitions {
 
 using MatMulDecompressConvertParams = std::tuple<
     std::vector<InputShape>, // input shapes
-    std::pair<bool, bool>    // transposeA, transposeB
+    std::pair<bool, bool>,   // transposeA, transposeB
+    element::Type            // input precision
 >;
 
 class MatMulDecompressConvertTest : public testing::WithParamInterface<MatMulDecompressConvertParams>,
@@ -59,8 +60,9 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
         std::vector<InputShape> inputShapes;
         std::pair<bool, bool> transpose;
+        element::Type inputPrecision;
 
-        std::tie(inputShapes, transpose) = obj.param;
+        std::tie(inputShapes, transpose, inputPrecision) = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
@@ -80,6 +82,8 @@ public:
         result << "transpose_a=" << transpose.first << "_";
         result << "transpose_b=" << transpose.second << "_";
 
+        result << "InPRC=" << inputPrecision;
+
         return result.str();
     }
 
@@ -90,14 +94,32 @@ protected:
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
+    void CheckConstFP16() const {
+        auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+
+        const auto execFunction = compiledModel.get_runtime_model();
+        ASSERT_NE(nullptr, execFunction);
+        for (const auto &fcNode : execFunction->get_ops()) {
+            if (getExecValue(fcNode->get_rt_info(), ExecGraphInfoSerialization::LAYER_TYPE) == "FullyConnected") {
+                const auto &constNode = fcNode->get_input_node_shared_ptr(1);
+                ASSERT_EQ(getExecValue(constNode->get_rt_info(), ExecGraphInfoSerialization::LAYER_TYPE), "Const");
+                ASSERT_EQ(getExecValue(constNode->get_rt_info(), ExecGraphInfoSerialization::OUTPUT_PRECISIONS), "FP16");
+            }
+        }
+    }
+
     void SetUp() override {
-        abs_threshold = 0.01;
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
         std::pair<bool, bool> transpose;
+        element::Type inputPrecision;
 
-        std::tie(inputShapes, transpose) = this->GetParam();
+        std::tie(inputShapes, transpose, inputPrecision) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -122,11 +144,11 @@ protected:
 
         std::string cpuNodeType = "FullyConnected";
 
-        auto params = builder::makeDynamicParams(element::f32, {inShapeA});
+        auto params = builder::makeDynamicParams(inputPrecision, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = ngraph::builder::makeConstant<float16>(element::f16, inShapeB.get_shape(), {}, true);
-        auto convert = std::make_shared<ngraph::opset1::Convert>(matrixB, element::f32);
+        auto convert = std::make_shared<ngraph::opset1::Convert>(matrixB, inputPrecision);
         mark_as_decompression(convert);
         auto matMul = builder::makeMatMul(paramOuts[0], convert, transpA, transpB);
 
@@ -139,33 +161,35 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "FullyConnected", 1);
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+    CheckConstFP16();
 }
 
 namespace {
 
-const std::vector<MatMulDecompressConvertParams> IS2D_smoke = {
-    {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {false, false}},
-    {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {false, true}},
-    {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {true, false}},
-    {static_shapes_to_test_representation({{2, 3}, {3, 4}}), {true, true}},
-    {static_shapes_to_test_representation({{40, 60}, {60, 80}}), {false, true}},
+const std::vector<std::pair<bool, bool>> transposeParams = {
+    {false, false},
+    {false, true},
+    {true, false},
+    {true, true},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest, ::testing::ValuesIn(IS2D_smoke),
+const std::vector<element::Type> inputPrecisions = { element::f32, element::bf16 };
+
+const auto testParams2D_smoke = ::testing::Combine(
+        ::testing::Values(static_shapes_to_test_representation({{2, 3}, {3, 4}})),
+        ::testing::ValuesIn(transposeParams),
+        ::testing::ValuesIn(inputPrecisions));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest, testParams2D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
-const std::vector<MatMulDecompressConvertParams> IS3D_smoke = {
-    {static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}), {false, true}},
-    {static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}), {true, true}},
-    {static_shapes_to_test_representation({{2, 3}, {1, 3, 4}}), {false, false}},
-    {static_shapes_to_test_representation({{2, 3}, {1, 3, 4}}), {false, true}},
-    {static_shapes_to_test_representation({{2, 3}, {1, 3, 4}}), {true, false}},
-    {static_shapes_to_test_representation({{2, 3}, {1, 3, 4}}), {true, true}},
-};
+const auto testParams3D_smoke = ::testing::Combine(
+        ::testing::Values(static_shapes_to_test_representation({{1, 2, 3}, {3, 4}}),
+                          static_shapes_to_test_representation({{2, 3}, {1, 3, 4}})),
+        ::testing::ValuesIn(transposeParams),
+        ::testing::ValuesIn(inputPrecisions));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulDecompressConvertTest, ::testing::ValuesIn(IS3D_smoke),
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulDecompressConvertTest, testParams3D_smoke,
                          MatMulDecompressConvertTest::getTestCaseName);
 
 } // namespace
