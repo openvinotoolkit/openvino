@@ -39,6 +39,7 @@ static const std::unordered_map<HWGeneration, DeviceVersion> HWGenerationDeviceM
 
 static const std::unordered_map<Gna2DeviceVersion, DeviceVersion> GnaDeviceMap{
     {Gna2DeviceVersionEmbedded1_0, DeviceVersion::GNA1_0},
+    {Gna2DeviceVersion1_0, DeviceVersion::GNA1_0},
     {Gna2DeviceVersion2_0, DeviceVersion::GNA2_0},
     {Gna2DeviceVersion3_0, DeviceVersion::GNA3_0},
     {Gna2DeviceVersionEmbedded3_1, DeviceVersion::GNA3_1},
