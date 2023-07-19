@@ -59,6 +59,10 @@ bool ConvertPrecisionI64ToI32::run_on_model(const std::shared_ptr<ov::Model>& mo
                         parentNode->get_input_element_type(0) == element::i32 &&
                         parentNode->get_output_element_type(0) == element::i64) {
                     input.replace_source_output(parentNode->input_value(0));
+                } else if (is_type<opset12::Convert>(op) &&
+                        op->get_input_element_type(0) == element::i64 &&
+                        op->get_output_element_type(0) == element::i32) {
+                    continue;
                 } else if (auto constOp = as_type_ptr<op::v0::Constant>(parentNode)) {
                     auto newConst = changeConstantPrecision(constOp);
                     input.replace_source_output(newConst);
@@ -78,7 +82,7 @@ bool ConvertPrecisionI64ToI32::run_on_model(const std::shared_ptr<ov::Model>& mo
             for (auto& output : op->outputs()) {
                 if (output.get_element_type() == element::i32) {
                     auto convert = std::make_shared<opset12::Convert>(output, element::i64);
-                    replace_output_update_name(output, convert->input_value(0));
+                    replace_output_update_name(output, convert->output(0));
                 }
             }
         }

@@ -215,7 +215,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
     const bool enable_i64 = config.enableNativeI64;
 
-    auto get_convert_precisions = [&]() {
+    auto get_convert_precisions = [&enable_i64]() {
         precisions_map map = {
             {ov::element::i16,     ov::element::i32},
             {ov::element::u16,     ov::element::i32},
