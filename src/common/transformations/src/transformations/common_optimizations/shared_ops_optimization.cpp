@@ -24,7 +24,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
 
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = dynamic_pointer_cast<util::SubGraphOp>(op)) {
+        if (auto sub_graph_node = dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
                 rewritten |= shared_node_optimization(sub_graph, rules);
             }
