@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.middle.L2NormFusing import L2NormToNorm
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -67,9 +66,9 @@ edges_after_replacement = [
 ]
 
 
-@generator
 class L2NormToNormTest(unittest.TestCase):
-    @generate(*[(int64_array([2, 3]), int64_array([1]), 'NCHW'),  # NC layout, normalize C dimension
+    def test_positive(self):
+        test_cases=[(int64_array([2, 3]), int64_array([1]), 'NCHW'),  # NC layout, normalize C dimension
                 (int64_array([2, 3]), int64_array([1]), 'NHWC'),  # NC layout, normalize C dimension
                 (int64_array([2, 3, 5]), int64_array([1]), 'NCHW'),  # NCH layout, normalize C dimension
                 (int64_array([2, 3, 5]), int64_array([1]), 'NHWC'),  # NCH layout, normalize C dimension
@@ -82,30 +81,31 @@ class L2NormToNormTest(unittest.TestCase):
                 (int64_array([2, 3, 5, 7]), int64_array([3]), 'NHWC'),  # NCHW layout, normalize C dimension
                 (int64_array([2, 3, 5, 7]), int64_array([-1, 1, 2]), 'NCHW'),  # NCHW layout, normalize CHW dimensions
                 (int64_array([2, 3, 5, 7]), int64_array([-3, -2, -1]), 'NHWC'),  # NCHW layout, normalize HWC dimensions
-                ])
-    def test_positive(self, input_shape, axes, layout):
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-        graph.graph['layout'] = layout
+                ]
+        for idx, (input_shape, axes, layout) in enumerate(test_cases):
+            with  self.subTest(test_cases=idx):
+                graph = build_graph_with_attrs(nodes + [
+                    ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+                    ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+                    ('square_data', dict(kind='data', shape=input_shape)),
+                    ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
+                ], edges, nodes_with_edges_only=True)
+                graph.stage = 'middle'
+                graph.graph['layout'] = layout
 
-        L2NormToNorm().find_and_replace_pattern(graph)
+                L2NormToNorm().find_and_replace_pattern(graph)
 
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', value=axes.sort())),
-        ], edges_after_replacement, nodes_with_edges_only=True)
+                graph_ref = build_graph_with_attrs(nodes + [
+                    ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+                    ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+                    ('weights_node_data', dict(kind='data', value=axes.sort())),
+                ], edges_after_replacement, nodes_with_edges_only=True)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
-        self.assertTrue(flag, resp)
-
-    @generate(*[(int64_array([2]), int64_array([0]), 'NCHW'),
+                (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+                self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
+                self.assertTrue(flag, resp)
+    def test_negative(self):
+        test_cases=[(int64_array([2]), int64_array([0]), 'NCHW'),
                 (int64_array([2, 3]), int64_array([0]), 'NCHW'),
                 (int64_array([2, 3]), int64_array([0]), 'NHWC'),
                 (int64_array([2, 3]), int64_array([0, 1]), 'NCHW'),
@@ -140,25 +140,26 @@ class L2NormToNormTest(unittest.TestCase):
                 (int64_array([2, 3, 5, 7, 9]), int64_array([-1]), 'NHWC'),
                 (int64_array([2, 3, 5, 7, 9]), int64_array([1, 2, 3, 4]), 'NCHW'),
                 (int64_array([2, 3, 5, 7, 9]), int64_array([-1, -2, -3, -4]), 'NHWC'),
-                ])
-    def test_negative(self, input_shape, axes, layout):
-        graph = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
-        graph.stage = 'middle'
-        graph.graph['layout'] = layout
+                ]
+        for idx, (input_shape, axes, layout) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph_with_attrs(nodes + [
+                    ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+                    ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+                    ('square_data', dict(kind='data', shape=input_shape)),
+                    ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
+                ], edges, nodes_with_edges_only=True)
+                graph.stage = 'middle'
+                graph.graph['layout'] = layout
 
-        L2NormToNorm().find_and_replace_pattern(graph)
+                L2NormToNorm().find_and_replace_pattern(graph)
 
-        graph_ref = build_graph_with_attrs(nodes + [
-            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
-            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
-        ], edges, nodes_with_edges_only=True)
+                graph_ref = build_graph_with_attrs(nodes + [
+                    ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+                    ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+                    ('square_data', dict(kind='data', shape=input_shape)),
+                    ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
+                ], edges, nodes_with_edges_only=True)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+                (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+                self.assertTrue(flag, resp)
