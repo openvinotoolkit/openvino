@@ -59,12 +59,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
  * @param[in]  proc_type_table candidate processors available at this time
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
  * @param[in]  ngraphFunc ngraph function
+ * @param[in]  config intel cpu configuration
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig);
+                             Config& config);
 
 /**
  * @brief      Generate streams information according to processors type table

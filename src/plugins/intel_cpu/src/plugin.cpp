@@ -318,7 +318,29 @@ void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Functi
     }
 
     if (is_cpu_map_available()) {
+        const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
+        if (imported && function->has_rt_info("intel_cpu_hints_config")) {
+            // load model_prefer_threads from cache
+            int cache_model_prefer;
+            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+            const auto it_model_prefer = hints_config.find(model_prefer_name);
+            if (it_model_prefer != hints_config.end()) {
+                try {
+                    cache_model_prefer = it_model_prefer->second.as<int>();
+                } catch (const std::exception&) {
+                    OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
+                }
+
+                conf.modelPreferThreads = cache_model_prefer;
+            }
+        }
         GetPerformanceStreams(conf, function);
+        // save model_prefer_threads to model rt_info when loading network
+        if (!imported) {
+            ov::AnyMap hints_props;
+            hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
+            function->set_rt_info(hints_props, "intel_cpu_hints_config");
+        }
     }
 }
 
