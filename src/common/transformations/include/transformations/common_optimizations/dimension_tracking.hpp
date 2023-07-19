@@ -15,29 +15,34 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FindBatch;
+
 class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPOC;
 class TRANSFORMATIONS_API ChainedMaximumOptimization;
 class TRANSFORMATIONS_API NopBroadcast;
 class TRANSFORMATIONS_API BroadcastOnes;
-class TRANSFORMATIONS_API DeReshapeMatMul;
 class TRANSFORMATIONS_API RemoveSliceBeforeGatherElements;
+class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;
+
 class TRANSFORMATIONS_API SharedTileOptimization;
 class TRANSFORMATIONS_API SharedGatherElementsOptimization;
 class TRANSFORMATIONS_API SharedTransposeOptimization;
 class TRANSFORMATIONS_API SharedSliceOptimization;
 class TRANSFORMATIONS_API SharedConcatOptimization;
 class TRANSFORMATIONS_API SharedReshapeOptimization;
+
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
-class TRANSFORMATIONS_API ChainedVariadicSplitOptimization;
+
 class TRANSFORMATIONS_API RPE_Optimization;
 class TRANSFORMATIONS_API Fused_RPE_MHA_Replacer;
+
 class TRANSFORMATIONS_API ApplyTableOfEquivalence;
 class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
-class TRANSFORMATIONS_API DeReshapeMatMulWithComplications;
 class TRANSFORMATIONS_API LabelResolvingThroughSelect;
-class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;
+
+class TRANSFORMATIONS_API DeReshapeMatMul;
+class TRANSFORMATIONS_API DeReshapeMatMulWithComplications;
 
 }  // namespace pass
 }  // namespace ov
@@ -116,12 +121,6 @@ class ov::pass::ChainedReshapeOptimization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ChainedReshapeOptimization", "0");
     ChainedReshapeOptimization();
-};
-
-class ov::pass::ChainedVariadicSplitOptimization : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ChainedVariadicSplitOptimization", "0");
-    ChainedVariadicSplitOptimization();
 };
 
 class ov::pass::ReshapeUpThroughBEAWithConstScalar : public ov::pass::MatcherPass {
