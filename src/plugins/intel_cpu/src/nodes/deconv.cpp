@@ -483,11 +483,11 @@ void Deconvolution::getSupportedDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
@@ -649,11 +649,11 @@ void Deconvolution::execute(dnnl::stream strm) {
         }
     } else {
         std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
         std::vector<MemoryPtr> dstMemory;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
         //TODO: need to pass post ops data
@@ -1049,11 +1049,11 @@ void Deconvolution::prepareParams() {
         }
     } else {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemoryDescs.push_back(getParentEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().getDescWithType<DnnlMemoryDesc>());
         }
 
@@ -1224,11 +1224,11 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 

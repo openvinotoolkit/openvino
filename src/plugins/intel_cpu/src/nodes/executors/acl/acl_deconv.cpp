@@ -146,6 +146,7 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
                                  src[1]->getStaticDims()[1] *
                                  src[1]->getStaticDims()[2] *
                                  src[1]->getStaticDims()[3]);
+    // TODO: Remove transpose from exec
     transpose_to_1023(src[1], weiBuffer);
 
     srcTensor.allocator()->import_memory(src[0]->getData());
