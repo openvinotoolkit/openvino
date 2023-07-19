@@ -219,17 +219,4 @@ TEST_F(TransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
         model = std::make_shared<ov::Model>(ResultVector{result_0, result_1}, ParameterVector{data});
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
-    {
-        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
-        auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
-        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
-        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14});
-
-        auto concat_0 = std::make_shared<v0::Concat>(OutputVector{pre_constant_0, data, post_constant}, 0);
-        auto concat_1 = std::make_shared<v0::Concat>(OutputVector{pre_constant_1, data, post_constant}, 0);
-
-        auto result_0 = std::make_shared<v0::Result>(concat_0);
-        auto result_1 = std::make_shared<v0::Result>(concat_1);
-        model_ref = std::make_shared<ov::Model>(ResultVector{result_0, result_1}, ParameterVector{data});
-    }
 }
