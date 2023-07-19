@@ -57,6 +57,12 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeExecutedInInt8() const override;
 
+    void fuseDecompressionMultiply(const NodePtr& constData);
+    const std::vector<float>& fuseDecompressionMultiply() const { return decompressionMultiply; }
+
+    void fuseDecompressionSubtract(const NodePtr& constData);
+    const std::vector<float>& fuseDecompressionSubtract() const { return decompressionSubtract; }
+
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
                                   const dnnl::memory::desc &outputDesc);
@@ -107,6 +113,9 @@ private:
     void executeMLAS();
     void prepackMLASWeight();
 #endif
+
+    std::vector<float> decompressionSubtract;
+    std::vector<float> decompressionMultiply;
 };
 
 }   // namespace node
