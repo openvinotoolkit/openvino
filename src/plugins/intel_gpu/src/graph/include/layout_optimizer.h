@@ -10,7 +10,6 @@
 #include "intel_gpu/runtime/lru_cache.hpp"
 
 #include "data_inst.h"
-#include "generic_layer_inst.h"
 #include "reorder_inst.h"
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
@@ -73,7 +72,6 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
 };
 
 class layout_optimizer {
