@@ -1,8 +1,16 @@
-const eloquaUrl = 'https://httpbingo.org/post'
+const eloquaUrl = 'https://s334284386.t.eloqua.com/e/f2'
+
+// debug url
+// const eloquaUrl = 'https://httpbingo.org/post'
 
 
 $(document).ready(function () {
-    $('#newsletterTrigger').on('click', showForm);
+    // trigger without iframe
+    // $('#newsletterTrigger').on('click', showForm);
+
+    $('iframe').on('load', function() {
+        $('iframe').contents().find('#newsletterTrigger').on('click', showForm);
+    });
 
     function showForm() {
         fetch('_static/html/newsletter.html').then((response) => response.text()).then((text) => {
@@ -27,12 +35,15 @@ $(document).ready(function () {
                     $.post(eloquaUrl, $(this).serialize())
                     .done(function(data) {
                         // ---------- debug request data
-                        // console.log(data);
-                        console.log('#############');
-                        console.log('Form data:');
-                        for (key in data.form) {
-                            console.log(`-- ${key}: ${data.form[key]}`);
-                        }
+
+                        // console.log('#############');
+                        // console.log('Origin: ' + data.headers['Origin'][0]);
+                        // console.log('Url: ' + data.url);
+                        // console.log('Form data:');
+                        // for (key in data.form) {
+                        //     console.log(`-- ${key}: ${data.form[key]}`);
+                        // }
+
                         // ----------
                         displayMessage(formHeight, 'pass');
                     })
@@ -67,22 +78,22 @@ $(document).ready(function () {
         $('#newsletterForm').hide();
         let message = '';
         const messageBox = $('.message-box');
-        const icon = $('<div class="fa-stack fa-2x">');
-        const iconBackground = $('<i class="fas fa-square fa-stack-2x">');
-        const iconMain = $('<i class="fas fa-stack-1x fa-inverse">');
+        const icon = $('<div class="fa-stack fa-2x newsletter-icon">');
+        const iconBackground = $('<i class="fas fa-square fa-stack-2x newsletter-icon-background">');
+        const iconMain = $('<i class="fas fa-stack-1x">');
         icon.append(iconBackground);
         icon.append(iconMain);
         messageBox.css({'height': boxHeight + 16, 'display': 'flex'});
 
         switch(status) {
             case 'pass':
-                icon.css('color', '#708541');
                 iconMain.addClass('fa-check-square');
+                messageBox.addClass('newsletter-submit--success')
                 message = 'REGISTRATION SUCCESSFUL'
                 break;
             case 'error':
-                icon.css('color', '#C81326');
                 iconMain.addClass('fa-window-close');
+                iconMain.addClass('newsletter-submit--failure')
                 switch(errorCode) {
                     case 400:
                         message = 'ALREADY REGISTERED';

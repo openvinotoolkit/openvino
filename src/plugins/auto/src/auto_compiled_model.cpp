@@ -20,8 +20,7 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
                                                       ScheduleContext::Ptr context,
                                                       Schedule::Ptr scheduler)
     : CompiledModel(model, plugin, context, scheduler),
-      m_model(model),
-      m_context(context) {
+      m_model(model) {
       m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
 }
 
@@ -177,7 +176,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                             iie.what());
                     }
                     real = (std::max)(requests, optimal_batch_size);
-                } else if (device_info.device_name.find("VPUX") != std::string::npos) {
+                } else if (device_info.device_name.find("VPU") != std::string::npos) {
                     real = 8u;
                 } else {
                     real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;

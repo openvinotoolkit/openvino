@@ -159,22 +159,18 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    if (reorder_params == nullptr)
-        return {};
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    layout expected_layout = reorder_params->get_output_layout();
-
-    cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
+    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
+    auto itr = _cached_reorders.find(ckey);
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_generic_reorders.size();
-        std::stringstream ss;
-        ss << input_id << "_generic_layer_" << count;
+        auto count = _cached_reorders.size();
+        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
+        _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -942,8 +938,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data and generic_layers
-        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
+        // skip data layers
+        if (dep.first->is_type<data>())
             continue;
 
         if (dep.first->is_type<convolution>()) {
@@ -1285,10 +1281,12 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
 }
 
 bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto in_padding = node.get_dependencies().front().first->get_output_layout().data_padding;
+    auto input_layout = node.get_dependencies().front().first->get_output_layout();
+    auto in_padding = input_layout.data_padding;
     auto out_padding = node.get_output_layout().data_padding;
     // Check if padding exists
     if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
+        // Check spatial padding
         bool no_spatial_padding = true;
         for (size_t i = 0; i < in_padding.lower_size().spatial.size(); ++i) {
             no_spatial_padding &= (in_padding.lower_size().spatial[i] == 0);
@@ -1302,18 +1300,24 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         for (size_t i = 0; i < out_padding.upper_size().spatial.size(); ++i) {
             no_spatial_padding &= (out_padding.upper_size().spatial[i] == 0);
         }
+
+        // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
         bool no_batch_padding = true;
-        for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
-        }
-        for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
-            no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+        auto out_fmt = node.get_output_layout().format;
+        if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
+            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (in_padding.upper_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.lower_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.lower_size().batch[i] == 0);
+            }
+            for (size_t i = 0; i < out_padding.upper_size().batch.size(); ++i) {
+                no_batch_padding &= (out_padding.upper_size().batch[i] == 0);
+            }
         }
         return (no_spatial_padding && no_batch_padding);
     }
