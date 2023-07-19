@@ -275,9 +275,7 @@ namespace {
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
         emptyFusingSpec,
-#if defined(OPENVINO_ARCH_X86_64)
-            fusingScaleShift
-#endif
+        fusingScaleShift
 };
 
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
