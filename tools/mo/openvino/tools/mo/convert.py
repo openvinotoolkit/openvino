@@ -42,7 +42,7 @@ def convert_model(
         version: bool = None,
         progress: bool = False,
         stream_output: bool = False,
-        enable_mmap: bool = False,
+        share_weights: bool = False,
 
         # PaddlePaddle-specific parameters:
         example_output: Any = None,
@@ -271,9 +271,9 @@ def convert_model(
             Enable model conversion progress display.
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
-        :param enable_mmap:
-            Force reading weights instead of mapping weights files into memory. 
-            Currently, mmap feature is provided only for ONNX models 
+        :param share_weights:
+            Map memory of weights instead reading files or share memory from input model.
+            Currently, mapping feature is provided only for ONNX models
             that do not require fallback to the legacy ONNX frontend for the conversion.
 
     PaddlePaddle-specific parameters:

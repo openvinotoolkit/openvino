@@ -443,8 +443,8 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
     # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
-    enable_mmap = False
-    function = fe.convert(fe.load(path_to_xml, enable_mmap))
+    share_weights = False
+    function = fe.convert(fe.load(path_to_xml, share_weights))
     return function
 
 
@@ -824,7 +824,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version, backend='ga4')
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

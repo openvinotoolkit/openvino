@@ -5,7 +5,7 @@
 #pragma once
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
-#include "ngraph_helpers/snippets_ngraph_functions/include/snippets_helpers.hpp"
+#include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -72,6 +72,11 @@ protected:
 };
 
 class MHAFQ : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
+};
+
+class MHAWithExtractedReshape : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() override;
 };

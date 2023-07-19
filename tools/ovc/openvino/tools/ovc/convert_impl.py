@@ -434,7 +434,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         return None, None
     framework = None
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_ie_version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_ie_version, backend='ga4')
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
