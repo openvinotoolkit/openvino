@@ -11,8 +11,6 @@
 #include "acl/acl_deconv.hpp"
 #endif
 
-#include "dnnl/dnnl_deconv.hpp"
-
 #include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"
 
@@ -45,14 +43,13 @@ public:
                                            const std::vector<MemoryDescPtr>& dstDescs,
                                            const dnnl::primitive_attr &attr) {
         auto build = [&](const DeconvExecutorDesc* desc) {
-            auto executor = desc->builder->makeExecutor();
+            auto executor = desc->builder->makeExecutor(context);
             if (executor->init(deconvAttrs, srcDescs, dstDescs, attr)) {
                 return executor;
             }
             DeconvExecutorPtr ptr = nullptr;
             return ptr;
         };
-
 
         if (chosenDesc) {
             if (auto executor = build(chosenDesc)) {
