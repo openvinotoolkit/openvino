@@ -40,6 +40,11 @@ from openvino import helpers as helpers
 from openvino import preprocess as preprocess
 
 # Import openvino.tools
-from openvino import tools as tools
-# Model Conversion API - ovc should reside in the main namespace
-from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
+# Capture it in try-except with pass so circular imports are allowed.
+# TODO: restructure packages to remove WA
+try:
+    from openvino import tools as tools
+    # Model Conversion API - ovc should reside in the main namespace
+    from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
+except ImportError:
+    pass
