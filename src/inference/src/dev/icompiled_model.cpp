@@ -6,8 +6,13 @@
 
 #include "dev/converter_utils.hpp"
 #include "icompiled_model_wrapper.hpp"
+#include "ie_common.h"
+#include "ie_plugin_config.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -143,4 +148,27 @@ ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (m_context)
         return m_context;
     return m_plugin->get_default_context({});
+}
+
+bool ov::ICompiledModel::supports_caching() const {
+    bool supported(false);
+    try {
+        auto supportedMetricKeys = get_property(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+        supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                    get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)).as<bool>();
+    } catch (const InferenceEngine::Exception& ex) {
+    } catch (const ov::Exception& ex) {
+    }
+    if (!supported) {
+        supported = util::contains(get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>(),
+                                   ov::device::capabilities) &&
+                    util::contains(get_property(ov::device::capabilities.name()).as<std::vector<std::string>>(),
+                                   ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported =
+            util::contains(get_property(ov::internal::supported_properties.name()).as<std::vector<PropertyName>>(),
+                           ov::internal::caching_properties);
+    }
+    return supported;
 }

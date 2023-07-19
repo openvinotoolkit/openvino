@@ -197,7 +197,17 @@ public:
     }
 
     ov::Any get_property(const std::string& name) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type(
+                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
+        } else if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties;
+            return decltype(ov::supported_properties)::value_type(
+                {ov::PropertyName{ov::device::capability::EXPORT_IMPORT, ov::PropertyMutability::RO}});
+        } else if (ov::device::capability::EXPORT_IMPORT == name) {
+            return true;
+        }
+        OPENVINO_THROW("Property ", name, " wasn't found!");
     }
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
@@ -547,7 +557,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capability::EXPORT_IMPORT),
                 RO_property(ov::optimal_batch_size.name()),
                 RW_property(ov::hint::performance_mode.name()),
                 RW_property(ov::hint::num_requests.name()),
@@ -602,7 +612,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                     configs.emplace_back(property);
                 }
                 return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+            } else if (ov::device::capability::EXPORT_IMPORT == name) {
                 return true;
             } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
@@ -680,7 +690,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capability::EXPORT_IMPORT),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -728,7 +738,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                     configs.emplace_back(property);
                 }
                 return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+            } else if (ov::device::capability::EXPORT_IMPORT == name) {
                 return true;
             } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
@@ -787,7 +797,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
-                RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::device::capability::EXPORT_IMPORT),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
@@ -823,7 +833,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                     configs.emplace_back(property);
                 }
                 return configs;
-            } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+            } else if (ov::device::capability::EXPORT_IMPORT == name) {
                 return true;
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
