@@ -79,6 +79,8 @@ OutputVector translate_slice(const NodeContext& context) {
 };
 
 OutputVector translate_slice_fx(const NodeContext& context) {
+    // slice.Tensor(Tensor(a) self, int dim=0, SymInt? start=None, SymInt? end=None, SymInt step=1) -> Tensor(a)
+    // FX version of slice have the inputs in the same order as it has 5 inputs, even if it has less than 5 inputs
     return translate_slice_common(context, 5);
 };
 

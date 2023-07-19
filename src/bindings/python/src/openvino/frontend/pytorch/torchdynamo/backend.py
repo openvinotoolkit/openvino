@@ -7,6 +7,7 @@
 import logging
 import os
 from functools import partial
+from hashlib import sha256
 
 import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported
@@ -106,6 +107,10 @@ def ts_openvino(subgraph, example_inputs):
 
 def fx_openvino(subgraph, example_inputs):
     try:
+        executor_parameters = None
+        if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
+            model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
+            executor_parameters = {"model_hash_str": model_hash_str}
         model = make_fx(subgraph)(*example_inputs)
         with torch.no_grad():
             model.eval()
@@ -113,7 +118,8 @@ def fx_openvino(subgraph, example_inputs):
         compiled_model = partitioner.make_partitions(model)
 
         def _call(*args):
-            res = execute(compiled_model, *args, executor="openvino")
+            res = execute(compiled_model, *args, executor="openvino",
+                          executor_parameters=executor_parameters)
             return res
         return _call
     except Exception as e:
