@@ -134,8 +134,7 @@ protected:
 
 TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     run();
-    // TODO: Graph could not be dumped with int64 for now. Swith on this in scope of int64 enabling.
-    // CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
 }
 
 const InputShape inputShapes = {
