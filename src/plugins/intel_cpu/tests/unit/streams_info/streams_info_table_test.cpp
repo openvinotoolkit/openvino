@@ -28,7 +28,7 @@ struct StreamsCalculationTestCase {
     std::vector<std::vector<int>> stream_info_table;
 };
 
-class StreamsCalculationTests : public CommonTestUtils::TestsCommon,
+class StreamsCalculationTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<StreamsCalculationTestCase>> {
 public:
     void SetUp() override {

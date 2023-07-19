@@ -35,6 +35,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::runtime::dev
                 PRIVATE
                     openvino::util
+                    ov_shape_inference
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -76,7 +77,7 @@ function(add_common_utils ADD_TARGET_NAME)
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
+    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 

@@ -58,6 +58,7 @@ private:
 
     struct CompiledModelDesc {
         std::string device;
+        std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;

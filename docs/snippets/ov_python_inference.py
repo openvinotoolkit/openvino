@@ -32,9 +32,13 @@ results_1 = compiled_model({"input_0": data_2, "input_1": data_3})
 request = compiled_model.create_infer_request()
 
 #! [shared_memory_inference]
-# Data can be shared
-_ = compiled_model({"input_0": data_0, "input_1": data_1}, shared_memory=True)
-_ = request.infer({"input_0": data_0, "input_1": data_1}, shared_memory=True)
+# Data can be shared only on inputs
+_ = compiled_model({"input_0": data_0, "input_1": data_1}, share_inputs=True)
+_ = request.infer({"input_0": data_0, "input_1": data_1}, share_inputs=True)
+# Data can be shared only on outputs
+_ = request.infer({"input_0": data_0, "input_1": data_1}, share_outputs=True)
+# Or both flags can be combined to achieve desired behavior
+_ = compiled_model({"input_0": data_0, "input_1": data_1}, share_inputs=False, share_outputs=True)
 #! [shared_memory_inference]
 
 time_in_sec = 2.0
