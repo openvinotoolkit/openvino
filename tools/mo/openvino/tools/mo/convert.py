@@ -31,7 +31,7 @@ def convert_model(
         source_layout: [str, Layout, dict] = (),
         target_layout: [str, Layout, dict] = (),
         layout: [str, Layout, LayoutMap, list, dict] = (),
-        compress_to_fp16: bool = False,
+        compress_to_fp16: bool = True,
         extensions: [str, pathlib.Path, list, Any] = None,
         transform: [str, list, tuple] = "",
         transformations_config: [str, pathlib.Path] = None,
