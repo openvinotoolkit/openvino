@@ -45,19 +45,18 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    input_checkpoint = getattr(argv, 'input_checkpoint', None)
-    share_weights = getattr(argv, 'share_weights', True)
-    if argv.input_model and input_checkpoint:
+
+    share_weights = getattr(argv, 'share_weights', True)    #FIXME: Should be controlled by default value
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
         # frozen format with v1 checkpoints
-        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], share_weights)
-    elif argv.input_model:
+        assert not hasattr(argv, 'saved_model_tags') or not argv.saved_model_tags
+        input_model = moc_front_end.load([part for part in argv.input_model], share_weights)
+    elif hasattr(argv, 'saved_model_tags') and argv.saved_model_tags:
+        input_model = moc_front_end.load([argv.input_model, argv.saved_model_tags], share_weights)
+    else:
         input_model = moc_front_end.load(argv.input_model, share_weights)
-    elif argv.saved_model_dir:
-        if argv.saved_model_tags:
-            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], share_weights)
-        else:
-            input_model = moc_front_end.load(argv.saved_model_dir, share_weights)
-    elif argv.input_meta_graph:
+
+    '''elif argv.input_meta_graph: # TODO: Cover this case
         input_model = moc_front_end.load(argv.input_meta_graph, share_weights)
         if argv.output:
             # Simulate original behavior with freezing model
@@ -65,7 +64,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             # need to simulate similar behavior with natively supported model
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
-
+    '''
     argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)

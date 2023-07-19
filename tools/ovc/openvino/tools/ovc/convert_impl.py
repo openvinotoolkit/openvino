@@ -115,7 +115,10 @@ def get_moc_frontends(argv: argparse.Namespace):
     available_moc_front_ends = get_available_front_ends(fem)
 
     if argv.input_model:
-        moc_front_end = fem.load_by_model(argv.input_model)  # TODO: Pass all input model parts
+        if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
+            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
+        else:
+            moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
         argv.framework = moc_front_end.get_name()
@@ -302,15 +305,13 @@ def show_mo_convert_help():
         print()
 
 
-def input_model_is_object(argv):
-    # Input model can be set as object only for "input_model" parameter.
-    # "saved_model_dir" or meta specific options are only used to store paths to the input model.
-    if 'input_model' not in argv:
+def input_model_is_object(input_model):
+    if input_model == ():
         return False
-    if isinstance(argv['input_model'], (str, Path)):
+    if isinstance(input_model, (str, Path)):
         return False
-    if argv['input_model'] is None:
-        return False
+    if isinstance(input_model, (tuple, list)):
+        return all(input_model_is_object(part) for part in input_model)
     return True
 
 
@@ -427,6 +428,7 @@ def silent_is_false(argv: argparse.Namespace):
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
+    # FIXME: It doesn't work when -h is passed
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
@@ -439,9 +441,15 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
     argv = None
+    # Minimize modifications among other places in case if multiple pieces are passed as input_model
+    if python_api_used:
+        if 'input_model' not in args:
+            args['input_model'] = ()
+        if isinstance(args['input_model'], (tuple, list)) and len(args['input_model']) == 1:
+            args['input_model'] = args['input_model'][0]
     try:
         model_framework = None
-        inp_model_is_object = input_model_is_object(args)
+        inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
 
         if inp_model_is_object:
             model_framework = check_model_object(args)
