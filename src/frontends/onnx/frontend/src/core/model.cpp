@@ -52,12 +52,12 @@ const Operator& Model::get_operator(const std::string& name, const std::string& 
     return op->second;
 }
 
-bool Model::is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const {
-    const auto dm = m_opset.find(get_node_domain(node_proto));
+bool Model::is_operator_available(const std::string& name, const std::string& domain) const {
+    const auto dm = m_opset.find(domain);
     if (dm == std::end(m_opset)) {
         return false;
     }
-    const auto op = dm->second.find(node_proto.op_type());
+    const auto op = dm->second.find(name);
     return (op != std::end(dm->second));
 }
 
