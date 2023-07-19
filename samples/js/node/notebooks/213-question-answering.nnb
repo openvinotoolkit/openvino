@@ -51,7 +51,7 @@
         {
             "language": "markdown",
             "source": [
-                "### Load the model\n\nDownloaded models are located in a fixed structure, which indicates a vendor, a model name and a precision. Only a few lines of code are required to run the model. First, create an OpenVINO Runtime object. Then, read the network architecture and model weights from the `.xml` and `.bin` files. Finally, compile the network for the desired device. You can choose `CPU` or `GPU` for this model."
+                "### Load the model\n\nDownloaded models are located in a fixed structure, which indicates a vendor, a model name and a precision. Only a few lines of code are required to run the model. First, create an OpenVINO Runtime object. Then, read the network architecture and model weights from the `.xml` and `.bin` files. Finally, compile the network for the desired device."
             ],
             "outputs": []
         },
