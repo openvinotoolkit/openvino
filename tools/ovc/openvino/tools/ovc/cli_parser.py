@@ -21,7 +21,7 @@ from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type # pyli
 import openvino
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.utils import refer_to_faq_msg, get_mo_root_dir
+from openvino.tools.ovc.utils import get_mo_root_dir
 from openvino.tools.ovc.help import get_convert_model_help_specifics, get_to_string_methods_for_params
 
 
@@ -580,7 +580,7 @@ def add_args_by_description(args_group, params_description):
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
-        if param_name == 'help':
+        if param_name in ['share_weights', 'example_input']:
             continue
         if param_name == 'input_model':
             # input_model is not a normal key for a tool, it will collect all untagged keys
@@ -1111,104 +1111,6 @@ def split_inputs(input_str):
         inputs.append(input_str[:idx])
         input_str = input_str[idx+1:]
     return inputs
-
-# def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
-#     """
-#     Parses input layers names and input shapes from the cli and returns the parsed object.
-#     All shapes are specified only through one command line option either "input" or "input_shape".
-#
-#     Parameters
-#     ----------
-#     argv_input
-#         string with a list of input layers: either an empty string, or strings separated with comma.
-#         E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
-#     argv_input_shape
-#         string with a list of input shapes: either an empty string, or tuples separated with comma.
-#         E.g. '[1,2],[3,4]'.
-#         Only positive integers are accepted.
-#         '?' marks dynamic dimension.
-#         Partial shape is specified with ellipsis. E.g. '[1..10,2,3]'
-#     argv_batch
-#         integer that overrides batch size in input shape
-#
-#     Returns
-#     -------
-#         parsed shapes in form of {'name of input':tuple} if names of inputs are provided with shapes
-#         parsed shapes in form of {'name of input':None} if names of inputs are provided without shapes
-#         tuple if only one shape is provided and no input name
-#         None if neither shape nor input were provided
-#     """
-#     if argv_input_shape and argv_batch:
-#         raise Error("Both \"input_shape\" and \"batch\" were provided. Please provide only one of them. " +
-#                     refer_to_faq_msg(56))
-#
-#     # attempt to extract shapes from "input" parameters
-#     placeholder_shapes = dict()
-#     placeholder_data_types = dict()
-#     are_shapes_specified_through_input = False
-#     inputs_list = list()
-#     if argv_input:
-#         for input_value in split_inputs(argv_input):
-#             node_name, shape, _, data_type = parse_input_value(input_value)
-#             placeholder_shapes[node_name] = shape
-#             inputs_list.append(node_name)
-#             if data_type is not None:
-#                 placeholder_data_types[node_name] = data_type
-#             if shape is not None:
-#                 are_shapes_specified_through_input = True
-#
-#     if argv_input_shape and are_shapes_specified_through_input:
-#         raise Error("Shapes are specified using both \"input\" and \"input_shape\" command-line parameters, but only one "
-#                     "parameter is allowed.")
-#
-#     if argv_batch and are_shapes_specified_through_input:
-#         raise Error("Shapes are specified using both \"input\" and \"batch\" command-line parameters, but only one "
-#                     "parameter is allowed.")
-#
-#     if are_shapes_specified_through_input:
-#         return inputs_list, placeholder_shapes, placeholder_data_types
-#
-#     shapes = list()
-#     inputs = list()
-#     inputs_list = list()
-#     placeholder_shapes = None
-#
-#
-#     if argv_input_shape:
-#         shapes = split_shapes(argv_input_shape)
-#
-#     if argv_input:
-#         inputs = split_inputs(argv_input)
-#     inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
-#
-#     # check number of shapes with no input provided
-#     if argv_input_shape and not argv_input:
-#         placeholder_shapes = [PartialShape(shape) for shape in shapes]
-#         if len(placeholder_shapes) == 1:
-#             placeholder_shapes = PartialShape(placeholder_shapes[0])
-#     # check if number of shapes does not match number of passed inputs
-#     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
-#         # clean inputs from values for freezing
-#         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
-#         placeholder_shapes = dict(zip_longest(inputs_without_value,
-#                                               map(lambda x: PartialShape(x) if x is not None else None, shapes)))
-#         for inp in inputs:
-#             if '->' not in inp:
-#                 inputs_list.append(inp)
-#                 continue
-#             shape = placeholder_shapes[inp.split('->')[0]]
-#             inputs_list.append(inp.split('->')[0])
-#
-#             if shape is None:
-#                 continue
-#             for dim in shape:
-#                 if isinstance(dim, Dimension) and not dim.is_static:
-#                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
-#
-#     elif argv_input:
-#         raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
-#
-#     return inputs_list, placeholder_shapes, placeholder_data_types
 
 
 def split_node_in_port(node_id: str):
