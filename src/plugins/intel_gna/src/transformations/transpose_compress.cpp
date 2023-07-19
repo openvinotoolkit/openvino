@@ -52,7 +52,7 @@ TransposeCompress::TransposeCompress() {
                 shape_fused_out.back() *= shape[axis];
             }
         }
-        // check that fusing is required
+        // check that compressing is required
         if (axis.size() == axis_compressed.size()) {
             return false;
         }
