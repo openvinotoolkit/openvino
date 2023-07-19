@@ -108,7 +108,7 @@ def ts_openvino(subgraph, example_inputs):
 def fx_openvino(subgraph, example_inputs):
     try:
         executor_parameters = None
-        if os.getenv("OPENVINO_ENABLE_MODEL_CACHING") is not None:
+        if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
             model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
         model = make_fx(subgraph)(*example_inputs)

@@ -29,10 +29,17 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
 
     file_name = None
     cache_root = "./cache/"
+    if os.getenv("OPENVINO_TORCH_CACHE_DIR") is not None:
+        cache_root = os.getenv("OPENVINO_TORCH_CACHE_DIR")
     if model_hash_str != None:
-        model_cache_dir = cache_root+"model/"
-        os.makedirs(model_cache_dir, exist_ok=True)
-        file_name = model_cache_dir+model_hash_str+"_"+device
+        model_cache_dir = cache_root+"/model/"
+        try:
+            os.makedirs(model_cache_dir, exist_ok=True)
+            file_name = model_cache_dir+model_hash_str+"_"+device
+        except OSError as error:
+            print("Cache directory ", cache_root, " cannot be created. Model caching is disabled. Error: ", error)
+            file_name = None
+            model_hash_str = None
 
     if file_name != None and os.path.isfile(file_name+".xml") and os.path.isfile(file_name+".bin"):
         om = core.read_model(file_name+".xml")
@@ -72,7 +79,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
     om.validate_nodes_and_infer_types()
 
     if model_hash_str != None:
-        core.set_property({'CACHE_DIR': cache_root+'blob'})
+        core.set_property({'CACHE_DIR': cache_root+'/blob'})
 
     compiled = core.compile_model(om, device)
     return compiled
