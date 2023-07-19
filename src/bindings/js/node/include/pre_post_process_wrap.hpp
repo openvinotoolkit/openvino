@@ -39,6 +39,12 @@ public:
     Napi::Value set_input_tensor_shape(const Napi::CallbackInfo& info);
     Napi::Value set_input_tensor_layout(const Napi::CallbackInfo& info);
     Napi::Value set_input_model_layout(const Napi::CallbackInfo& info);
+    /**
+     * @brief Sets type of element for specified input
+     * @param info[0] index of the input
+     * @param info[1] element_type
+     */
+    Napi::Value set_input_element_type(const Napi::CallbackInfo& info);
     Napi::Value build(const Napi::CallbackInfo& info);
 
 private:

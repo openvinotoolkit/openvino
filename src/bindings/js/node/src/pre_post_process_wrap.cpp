@@ -19,6 +19,7 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
                        {InstanceMethod("set_input_tensor_shape", &PrePostProcessorWrap::set_input_tensor_shape),
                         InstanceMethod("set_input_tensor_layout", &PrePostProcessorWrap::set_input_tensor_layout),
                         InstanceMethod("set_input_model_layout", &PrePostProcessorWrap::set_input_model_layout),
+                        InstanceMethod("setInputElementType", &PrePostProcessorWrap::set_input_element_type),
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
 }
 
@@ -49,6 +50,20 @@ Napi::Value PrePostProcessorWrap::set_input_model_layout(const Napi::CallbackInf
     auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
     _ppp->input().model().set_layout(layout);
     return info.This();
+}
+
+Napi::Value PrePostProcessorWrap::set_input_element_type(const Napi::CallbackInfo& info) {
+    if (info.Length() == 2 && info[0].IsNumber()) {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        auto type = js_to_cpp<ov::element::Type_t>(info, 1, {napi_string});
+
+        _ppp->input(idx).tensor().set_element_type(type);
+        return info.This();
+    }
+    else {
+        reportError(info.Env(), "Invalid number of arguments or it type -> " + std::to_string(info.Length()));
+        return Napi::Value();
+    }
 }
 
 Napi::Value PrePostProcessorWrap::build(const Napi::CallbackInfo& info) {
