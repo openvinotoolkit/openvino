@@ -35,14 +35,14 @@ private:
     void notifyUpdate();
 
     // We keep the original MemMngr as may fallback to copy output.
-    std::shared_ptr<IMemoryMngr> m_pOrigMngr;
-    std::shared_ptr<IMemoryMngr> m_pMngr;
+    std::shared_ptr<IMemoryMngr> m_pOrigMngr = nullptr;
+    std::shared_ptr<IMemoryMngr> m_pMngr = nullptr;
 
     std::unordered_set<Memory*> m_setMemPtrs;
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory manager changes.
-    mutable size_t m_size = 0ul;
+    size_t m_size = 0ul;
 };
 
 using ProxyMemoryMngrPtr = std::shared_ptr<ProxyMemoryMngr>;

@@ -29,14 +29,14 @@ bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
 
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto dim_idx = 1;
+    const size_t dim_idx = 1;
 
     auto blocking_loop_exists = [&](const ov::snippets::lowered::ExpressionPtr& expr,
                                     const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {
         const auto& loop_ids = expr->get_loop_ids();
         for (const auto& id : loop_ids) {
             const auto loop = loop_manager->get_loop_info(id);
-            if (loop->dim_idx == (size_t)dim_idx) {
+            if (loop->dim_idx == dim_idx) {
                 OPENVINO_ASSERT(brgemm->get_input_count(0) == loop->increment,
                                 "Brgemm ", brgemm, " has input count (", brgemm->get_input_count(0),
                                 ") which doesn't match the increment(", loop->increment, ") of loop by M");

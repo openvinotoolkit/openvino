@@ -815,8 +815,8 @@ void Graph::AllocateWithReuse() {
         for (auto& box : undefinedBoxes) {
             for (auto& edge : edge_clusters[box.id]) {
                 const auto child = edge->getChild();
-                if (edge->getStatus() == Edge::Status::NeedAllocation &&
-                    child->getType() == Type::Output) {
+                if (child->getType() == Type::Output &&
+                    edge->getStatus() == Edge::Status::NeedAllocation) {
                     auto proxyMemMngr =
                         std::make_shared<ProxyMemoryMngr>();
                     DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
@@ -838,7 +838,7 @@ void Graph::AllocateWithReuse() {
         }
 
         if (!syncNodesInds.empty()) {
-            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
             std::vector<int> vecIntervals = {0};
             for (const auto& item : syncNodesInds) {

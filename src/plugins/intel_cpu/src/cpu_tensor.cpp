@@ -21,16 +21,15 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
 }
 
 void Tensor::set_shape(ov::Shape new_shape) {
-    auto& shape = m_memptr->getDescPtr()->getShape();
+    const auto& shape = m_memptr->getDescPtr()->getShape();
     if (shape.isStatic()) {
-        auto _shape = ov::Shape{shape.getStaticDims()};
-        DEBUG_LOG("tensor's memory object ", m_memptr.get(), ", ", _shape.to_string(), " -> ", new_shape.to_string());
-        if (_shape == new_shape) return;
+        DEBUG_LOG("tensor's memory object ", m_memptr.get(), ", ", vec2str(shape.getStaticDims()), " -> ", new_shape.to_string());
+        if (shape.getStaticDims() == new_shape) return;
     }
 
     auto desc = m_memptr->getDescPtr();
-    const auto newdesc = desc->cloneWithNewDims(new_shape, true);
-    m_memptr->redefineDesc(newdesc);
+    const auto newDesc = desc->cloneWithNewDims(new_shape, true);
+    m_memptr->redefineDesc(newDesc);
 }
 
 const ov::element::Type& Tensor::get_element_type() const {

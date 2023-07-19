@@ -27,6 +27,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "proxy_mem_mgr.h"
 #include "openvino/runtime/make_tensor.hpp"
+#include <utils/general_utils.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -184,6 +185,7 @@ void InferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
 
+    // update output control blocks, if any, in order to refresh internal buffers
     if (Graph::Status::ReadyDynamic == graph->getStatus()) {
         for (auto&& item : outputControlBlocks) {
             item.second.update();
@@ -271,47 +273,6 @@ void InferRequestBase::changeDefaultPtr() {
             continue;
         }
         auto parentEdge = output->second->getParentEdgeAt(0);
-        const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
-        auto outMemMngrItr = outMemMngrMap.find(name);
-        if (Graph::Status::ReadyDynamic == graph->getStatus() &&
-            outMemMngrItr != outMemMngrMap.end()) {
-            bool enableMemSharing = true;
-            // TODO: filter
-
-            // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
-            ProxyMemoryMngrPtr outputMemMngr;
-            outputMemMngr = outMemMngrItr->second;
-            OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
-
-            auto controlBlockItr = outputControlBlocks.find(name);
-
-            if (enableMemSharing && controlBlockItr != outputControlBlocks.end()) {
-                //avoid cyclic memory use
-                auto parentNode = parentEdge->getParent();
-                const auto& parentNodeInpEdges = parentNode->getParentEdges();
-                std::unordered_set<const void*> parentInputPtrs(parentNodeInpEdges.size());
-                for (auto&& edge : parentNodeInpEdges) {
-                    if (auto edgePtr = edge.lock()) {
-                        parentInputPtrs.insert(edgePtr->getMemoryPtr()->getData());
-                    }
-                }
-
-                auto&& controlBlock = controlBlockItr->second;
-
-                std::shared_ptr<IMemoryMngr> memMngr = parentInputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
-                    controlBlock.nextMemMngr() :
-                    controlBlock.currentMemMngr();
-
-                outputMemMngr->setMemMngr(memMngr);
-                DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
-                DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
-            } else {
-                if (outputMemMngr) {
-                    outputMemMngr->reset();
-                }
-            }
-            continue;
-        }
 
         if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
             continue;
@@ -342,6 +303,46 @@ void InferRequestBase::changeDefaultPtr() {
         } while (previousParent != parent);
         if (canBeInPlace)
             changeEdgePtr(parentEdge, it.second);
+    }
+
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
+        for (auto&& item : outMemMngrMap) {
+            const auto& name = item.first;
+
+            // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
+            auto outputMemMngr = item.second;
+            OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
+
+            auto controlBlockItr = outputControlBlocks.find(name);
+
+            if (controlBlockItr != outputControlBlocks.end()) {
+                auto output = outputNodesMap.find(name);
+                OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
+                auto parentEdge = output->second->getParentEdgeAt(0);
+                //avoid cyclic memory use
+                auto parentNode = parentEdge->getParent();
+                const auto& parentNodeInpEdges = parentNode->getParentEdges();
+                std::unordered_set<const void*> parentInputPtrs(parentNodeInpEdges.size());
+                for (auto&& edge : parentNodeInpEdges) {
+                    if (auto edgePtr = edge.lock()) {
+                        parentInputPtrs.insert(edgePtr->getMemoryPtr()->getData());
+                    }
+                }
+
+                auto&& controlBlock = controlBlockItr->second;
+
+                std::shared_ptr<IMemoryMngr> memMngr = parentInputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
+                    controlBlock.nextMemMngr() : // then swap internal buffer to avoid data corruption
+                    controlBlock.currentMemMngr(); // else reuse the existing buffer
+
+                outputMemMngr->setMemMngr(memMngr);
+                DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
+                DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
+            } else {
+                outputMemMngr->reset(); // switch to the internal memory since memory sharing is no longer possible
+            }
+        }
     }
 }
 
@@ -739,7 +740,6 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         _inputs[name] = data;
         _batched_inputs.erase(name);
     } else {
-        outputControlBlocks.erase(name); // now the memory is under user's control
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "Can't set compound blob: supported only for input pre-processing";
         }
@@ -770,6 +770,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
             externalPtr.erase(name);
         }
         _outputs[name] = data;
+        outputControlBlocks.erase(name); // now the memory is under user's control
     }
 }
 
@@ -834,16 +835,18 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                 if (!data) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
-                        const auto prec = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
-                        outputControlBlocks.emplace(std::make_pair(name, OutputControlBlock{prec, shape}));
+                        const auto model_prec = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
+                        const auto graph_prec = output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+                        OutputControlBlock control_block{model_prec, shape};
 
                         DEBUG_LOG(name,
-                            ", blob ", outputControlBlocks.at(name).blob(),
-                            ", tensor ", outputControlBlocks.at(name).tensor(),
-                            ", memmngr ", outputControlBlocks.at(name).tensor()->get_memory()->getMemoryMngr(),
-                            "memory object ", outputControlBlocks.at(name).tensor()->get_memory().get());
+                            ", blob ", control_block.blob(),
+                            ", tensor ", control_block.tensor(),
+                            ", memmngr ", control_block.tensor()->get_memory()->getMemoryMngr(),
+                            "memory object ", control_block.tensor()->get_memory().get());
 
-                        data = outputControlBlocks.at(name).blob();
+                        data = control_block.blob();
+                        if (model_prec == graph_prec) outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
                     } else {
                         dims = shape.getStaticDims();
 
@@ -859,7 +862,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     // on blob initialization stage we create empty blob with dimensions equal 0
                     // so if we have blob with all zero dimension we mustn't throw exception
                     if (!shape.isCompatible(blobDims) &&
-                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.getRank() ||
+                        (!isDynamic || blobDims.size() != shape.getRank() ||
                          std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
                              return dims != 0;
                          }))) {
@@ -877,16 +880,9 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     }
                 }
 
-                auto _compatible = [isDynamic](const InferenceEngine::TensorDesc& tensor_desc, const MemoryDesc& mem_desc) {
-                    if (isDynamic) {
-                        return tensor_desc.getPrecision() == mem_desc.getPrecision();  // Any more resctrictions that blocks memory sharing?
-                    }
-                    return tensor_desc == MemoryDescUtils::convertToTensorDesc(mem_desc);
-                };
-
                 _outputs[name] = data;
-                if (!externalPtr.count(name) &&
-                    _compatible(data->getTensorDesc(), output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                if (!isDynamic && !externalPtr.count(name) &&
+                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
                     externalPtr[name] = data;
                 }
             } else {
@@ -909,10 +905,10 @@ void InferRequest::checkBlobs() {
         checkBlob(input.second, input.first, true);
     }
 
-    // won't check output blobs as it is not allocated.
+    // won't check dynamic output blobs as they are not allocated.
     for (auto const& output : _outputs) {
         const auto out_node = findOutputByNodeName(output.first);
-        auto isDynamic = out_node && out_node->get_output_partial_shape(0).is_dynamic();
+        const auto isDynamic = out_node && out_node->get_output_partial_shape(0).is_dynamic();
         if (!isDynamic) checkBlob(output.second, output.first, false);
     }
 }

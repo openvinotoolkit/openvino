@@ -519,7 +519,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     // Return the first output edge as the base if there is no inPlace consumers
     // thus benefits zero-copy of outputs.
     for (auto edge : edgesForSamePort) {
-        if (edge->getChild()->getTypeStr() == "Result") return edge;
+        if (Type::Output == edge->getChild()->getType()) return edge;
     }
 
     return edgesForSamePort[0];

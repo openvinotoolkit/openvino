@@ -18,8 +18,6 @@
 #include "nodes/reorder.h"
 #include "memory_desc/cpu_memory_desc.h"
 
-#include "utils/debug_capabilities.h"
-
 using namespace InferenceEngine;
 using namespace dnnl;
 
@@ -228,7 +226,6 @@ bool MemoryMngrWithReuse::resize(size_t size) {
         m_data = decltype(m_data)(ptr, destroy);
         sizeChanged = true;
     }
-    // DEBUG_LOG(" size ", size, " sizeChanged? ", sizeChanged, " RawPtr ", getRawPtr());
     return sizeChanged;
 }
 
