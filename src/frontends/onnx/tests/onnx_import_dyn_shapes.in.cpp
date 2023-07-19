@@ -29,6 +29,7 @@
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::test;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
