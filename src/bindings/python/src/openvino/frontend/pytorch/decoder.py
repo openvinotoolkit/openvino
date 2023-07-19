@@ -175,6 +175,17 @@ class TorchScriptPythonDecoder (Decoder):
             input_params_str = []
 
             for input_name in ordered_inputs:
+                if str(input_params[input_name].annotation).startswith("typing.Union"):
+                    filter_custom_args = []
+                    for arg in input_params[input_name].annotation.__args__:
+                        str_arg = str(arg)
+                        is_typing = str_arg.startswith("typing.")
+                        is_torch = "torch." in str_arg
+                        is_builten = str_arg in (str(int), str(float), str(type(None)))
+                        if not (is_typing or is_torch or is_builten):
+                            continue
+                        filter_custom_args.append(arg)
+                    input_params[input_name].annotation.__args__ = tuple(filter_custom_args)
                 input_sign_str.append(str(input_params[input_name]).replace("NoneType", "None"))
                 input_params_str.append(f"{input_name}={input_name}")
 
