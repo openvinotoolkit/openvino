@@ -59,7 +59,7 @@ protected:
         using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
 
     public:
-        OutputControlBlock(const ov::element::Type& precision, const ov::PartialShape& shape);
+        OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape);
 
         OutputControlBlock(const OutputControlBlock&) = delete;
         OutputControlBlock& operator=(const OutputControlBlock&) = delete;

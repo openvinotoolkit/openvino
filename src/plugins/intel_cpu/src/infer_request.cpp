@@ -828,21 +828,14 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         if (_outputs.find(name) == _outputs.end()) {
             auto outputNode = modelOutputsMap.find(name);
             if (modelOutputsMap.find(name) != modelOutputsMap.end()) {
-                auto shape = outputNode->second->get_input_partial_shape(0);
-                bool isDynamic = shape.is_dynamic();
-
-                //overwrite for cases that ov::Model is dynamic but actually it is a static graph.
-                const auto _shape = output->second->getInputShapeAtPort(0);
-                bool _isDynamic = _shape.isDynamic();
-                if (!_isDynamic && isDynamic) {
-                    shape = PartialShape(_shape.getStaticDims());
-                }
+                const auto& shape = output->second->getInputShapeAtPort(0);
+                const bool isDynamic = shape.isDynamic();
 
                 if (!data) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
-                        outputControlBlocks.emplace(
-                            std::make_pair(name, OutputControlBlock{outputNode->second->get_input_element_type(0), shape}));
+                        const auto prec = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
+                        outputControlBlocks.emplace(std::make_pair(name, OutputControlBlock{prec, shape}));
 
                         DEBUG_LOG(name,
                             ", blob ", outputControlBlocks.at(name).blob(),
@@ -852,7 +845,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                         data = outputControlBlocks.at(name).blob();
                     } else {
-                        dims = shape.to_shape();
+                        dims = shape.getStaticDims();
 
                         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
                                                         dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
@@ -865,14 +858,14 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     // but in dynamic shape case we also need to handle following corner case:
                     // on blob initialization stage we create empty blob with dimensions equal 0
                     // so if we have blob with all zero dimension we mustn't throw exception
-                    if (!shape.compatible(ov::PartialShape(blobDims)) &&
-                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.rank().get_length() ||
+                    if (!shape.isCompatible(blobDims) &&
+                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.getRank() ||
                          std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
                              return dims != 0;
                          }))) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
                                                     << ", but expect blobs with different shapes. Input shape: "
-                                                    << ov::PartialShape(blobDims) << ", output shape: " << shape;
+                                                    << ov::PartialShape(blobDims) << ", output shape: " << shape.toString();
                     }
 
                     const auto netOutPrc = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
@@ -935,17 +928,17 @@ void InferRequest::PushInputData() {
     }
 }
 
-InferRequestBase::OutputControlBlock::OutputControlBlock(const ov::element::Type& precision, const ov::PartialShape& shape) {
+InferRequestBase::OutputControlBlock::OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
     m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
 
-    Shape memShape = shape.is_dynamic() ?
-        Shape{VectorDims(shape.rank().get_length(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
+    Shape memShape = shape.isDynamic() ?
+        Shape{VectorDims(shape.getRank(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
         Shape{shape};
 
     CpuBlockedMemoryDescPtr desc =
-        std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::details::convertPrecision(precision), memShape);
+        std::make_shared<CpuBlockedMemoryDesc>(precision, memShape);
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
     m_tensor = std::make_shared<Tensor>(memory);
