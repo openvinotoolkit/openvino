@@ -33,13 +33,15 @@ struct network_output {
     event::ptr get_event() const { return _event; }
 
     /// @brief Returns @ref memory object of the output. Blocked until associated @ref event is not complete.
-    memory::ptr get_memory() const {
+    memory::ptr get_memory(bool do_sync = true) const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == QueueTypes::in_order) {
-            _stream->finish();
-        } else {
-            _event->wait();
+        if (do_sync) {
+            if (_stream->get_queue_type() == QueueTypes::in_order) {
+                _stream->finish();
+            } else {
+                _event->wait();
+            }
         }
         return _result;
     }

@@ -448,14 +448,13 @@ void InferRequest::enqueue() {
         }
     }
 
-    auto networkPtr = m_graph->GetNetwork();
-    networkPtr->reset_execution(true);
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
         prepare_input(inputName, inputBlob, dependencies);
     }
 
+    auto networkPtr = m_graph->GetNetwork();
     networkPtr->assign_variables_memories();
 
     for (auto& item : _outputs) {
@@ -485,11 +484,15 @@ void InferRequest::wait() {
         OPENVINO_THROW("Inference was not started!\n");
     }
     // wait for completion & collect outputs as requested by the model
+    // for in_order_queue, it is enough to call finish only once
+    bool do_sync_per_output = (m_graph->GetNetwork()->get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    if (!do_sync_per_output)
+        m_graph->GetNetwork()->get_stream().finish();
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
         // because it does not create outputsMap during SetGraph
         std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
-        auto outputMemory = internal_outputs.at(outputID).get_memory();
+        auto outputMemory = internal_outputs.at(outputID).get_memory(do_sync_per_output);
         auto outputLayout = internal_outputs.at(outputID).get_layout();
         if (outputMemory)
             outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
