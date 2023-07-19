@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 #include <ngraph/op/util/op_annotations.hpp>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/op/broadcast.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
@@ -364,6 +365,18 @@ float cast_eps_to_float(double eps_d) {
             eps_f = std::numeric_limits<float>::max();
     }
     return eps_f;
+}
+
+bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (const auto& constant = ov::get_constant_from_source(output)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& values = constant->cast_vector<int64_t>();
+        return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
+            return i == v;
+        });
+    }
+    return false;
 }
 
 }  // namespace util
