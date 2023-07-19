@@ -4,7 +4,8 @@
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
     (UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel"))
-    set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wformat -Wformat-security")
+    set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wformat -Wformat-security -fsanitize=safe-stack")
+    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -fsanitize=safe-stack")
 
     if (NOT ENABLE_SANITIZER)
         if(EMSCRIPTEN)
