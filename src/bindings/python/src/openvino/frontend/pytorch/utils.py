@@ -12,6 +12,8 @@ import numpy as np
 import inspect
 import ctypes
 
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+
 def maybe_convert_max_int(value : int):
     # FIXME: This is a convertion from 64-bit positive max integer value
     # to 32-bit positive max integer value. Find a better way to handle this.
@@ -109,6 +111,7 @@ pt_to_ov_type_map = {
     "torch.float32": OVType.f32,
     torch.float32: OVType.f32,
     "torch.float64": OVType.f64,
+    torch.float64: OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
     "torch.int32": OVType.i32,
@@ -127,6 +130,7 @@ pt_to_ov_type_map = {
 
 ov_to_c_type_map = {
     OVType.f32: ctypes.c_float,
+    OVType.f64: ctypes.c_double,
     OVType.i32: ctypes.c_int,
     OVType.i64: ctypes.c_int64,
 }

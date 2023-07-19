@@ -29,8 +29,8 @@ OutputVector translate_bitwise_and(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    //FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
-    //                              "aten::bitwise_not suppored only for boolean input");
+    FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
+                                  "aten::bitwise_not suppored only for boolean input");
     auto and_x = context.mark_node(std::make_shared<ov::op::v1::LogicalAnd>(x, y));
     return {and_x};
 };
@@ -39,8 +39,8 @@ OutputVector translate_bitwise_or(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    //FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
-    //                              "aten::bitwise_not suppored only for boolean input");
+    FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
+                                  "aten::bitwise_not suppored only for boolean input");
     auto or_x = context.mark_node(std::make_shared<ov::op::v1::LogicalOr>(x, y));
     return {or_x};
 };
