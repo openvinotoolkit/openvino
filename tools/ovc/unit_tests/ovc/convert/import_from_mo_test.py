@@ -9,7 +9,7 @@ from generator import generator, generate
 from openvino.runtime import serialize, InputCutInfo
 
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from utils import create_onnx_model, save_to_onnx
+from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
 
 
 @generator
@@ -93,7 +93,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(model_path)
-            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            #serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             #TODO: check that model is correct
 

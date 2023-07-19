@@ -19,17 +19,14 @@ from openvino.tools.ovc.moc_frontend.check_config import new_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.ovc.cli_parser import check_available_transforms, \
-    get_available_front_ends, \
-    get_common_cli_options, get_layout_values, get_freeze_placeholder_values, \
-    get_placeholder_shapes, parse_transform, \
-    get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
-    freeze_placeholder_to_input_cut_info
+from openvino.tools.ovc.cli_parser import check_available_transforms, get_available_front_ends, \
+    get_common_cli_options, parse_transform, get_model_name_from_args, depersonalize, get_mo_convert_params, \
+    input_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.ovc.error import Error, FrameworkError
 from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
 from openvino.tools.ovc.version import VersionChecker
-from openvino.tools.ovc.utils import check_values_equal
+from openvino.tools.ovc.utils import check_values_equal, deduce_legacy_frontend_by_namespace
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     get_tid
@@ -37,12 +34,12 @@ from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_d
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
+from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
 
 try:
-    from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, \
+    from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
         extract_model_graph  # pylint: disable=no-name-in-module,import-error
 
     tf_frontend_with_python_bindings_installed = True
@@ -81,6 +78,14 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
 
+
+    # FIXME: Removing these lines leads to stuck of convert_model() process, need to fix it.
+    # Deduce frontend type and load frontend
+    if not argv.is_python_object:
+        _ = deduce_legacy_frontend_by_namespace(argv)
+    _ = get_moc_frontends(argv)
+    #
+
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
     if not argv.silent:
@@ -88,15 +93,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
-
-    if hasattr(argv, 'is_python_api_used') and argv.is_python_api_used:
-        python_api_params_parsing(argv)
-    else:
-        argv.inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
-            argv.input)
-        argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(
-            argv.input)
-        argv.unnamed_freeze_placeholder_with_value = {}
+    params_parsing(argv)
     argv.output = argv.output.split(',') if argv.output else None
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
@@ -111,7 +108,9 @@ def get_moc_frontends(argv: argparse.Namespace):
         return None, []
 
     available_moc_front_ends = get_available_front_ends(fem)
-
+    if argv.framework:
+        moc_front_end = fem.load_by_framework(argv.framework)
+        return moc_front_end, available_moc_front_ends
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
             moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
@@ -140,7 +139,7 @@ def prepare_ir(argv: argparse.Namespace):
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     if moc_front_end:
         # TODO: Should be moved to the same place where paddle and pytorch handle their objects
-        if argv.framework == 'tf' and argv.is_python_object:
+        if argv.framework == 'tf' and argv.is_python_object and type_supported_by_tf_fe(argv.input_model):
             argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                         argv.placeholder_shapes,
                                                         argv.placeholder_data_types,
@@ -316,7 +315,7 @@ def input_model_is_object(input_model):
     return True
 
 
-def python_api_params_parsing(argv: argparse.Namespace):
+def params_parsing(argv: argparse.Namespace):
     """
     Parses params passed to convert_model and wraps resulting values into dictionaries or lists.
     After working of this method following values are set in argv:
@@ -482,8 +481,8 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         argv.is_python_object = inp_model_is_object
 
         argv.feManager = FrontEndManager()
-        frameworks = list(set(get_available_front_ends(argv.feManager)))
-        framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
+        # frameworks = list(set(get_available_front_ends(argv.feManager)))
+        # framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
 
         # send telemetry with params info
         send_params_info(argv, cli_parser)
@@ -495,6 +494,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             argv.output_model = "model"   # TODO: Consider removing
         if not hasattr(argv, "output_model") or argv.output_model is None:
             argv.output_model = get_model_name_from_args(argv)
+        print(argv.output_model)
 
         argv.framework = model_framework
 

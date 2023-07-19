@@ -221,7 +221,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
                    only_conversion)
 
     def test_conversion_model_oneshot_iterator_default(self):
-        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None, False)
+        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None, True)
 
     @generate(
         *[

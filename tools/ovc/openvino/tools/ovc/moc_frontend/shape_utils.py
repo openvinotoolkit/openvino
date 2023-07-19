@@ -4,7 +4,6 @@
 import numpy as np
 from openvino.runtime import PartialShape, Dimension # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.cli_parser import get_placeholder_shapes
 
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):

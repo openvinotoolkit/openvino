@@ -375,7 +375,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.runtime.LayoutMap):
+    if isinstance(value, openvino.tools.mo.LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
@@ -400,7 +400,7 @@ def layout_param_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
-    if isinstance(value, openvino.runtime.LayoutMap):
+    if isinstance(value, openvino.tools.mo.LayoutMap):
         return layoutmap_to_str(value)
     if isinstance(value, list) or isinstance(value, tuple):
         values_str = []
@@ -490,7 +490,7 @@ ParamDescription = namedtuple("ParamData",
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.runtime.convert_model.__doc__
+    mo_convert_docs = openvino.tools.mo.convert_model.__doc__
     mo_convert_params = {}
     group = "Optional parameters:"
     mo_convert_params[group] = {}
@@ -784,7 +784,7 @@ def writable_dir(path: str):
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.runtime.convert_model)
+    signature = inspect.signature(openvino.tools.mo.convert_model)
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():

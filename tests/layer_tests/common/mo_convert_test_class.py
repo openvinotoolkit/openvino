@@ -16,7 +16,10 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        if 'use_legacy_frontend' in kwargs:
+        del kwargs['model_name']
+        if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
+            if 'use_convert_model_from_mo' in kwargs:
+                del kwargs['use_convert_model_from_mo']
             model = legacy_convert_model(**kwargs)
         else:
             model = convert_model(**kwargs)
