@@ -70,13 +70,13 @@ bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!lhs_constant || !rhs_constant)
             return false;
-        if (lhs_constant->get_shape() != rhs_constant->get_shape() ||
-            shape_size(lhs_constant->get_shape()) > 10)  // protection for not comparing huge constants
-            return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
             return false;
-        size_t bytes = shape_size(lhs_constant->get_shape()) * lhs_constant->get_element_type().size();
-        if (!memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), bytes))
+        const auto& lhs_shape = lhs_constant->get_shape();
+        if (lhs_shape != rhs_constant->get_shape() || shape_size(lhs_shape) > 10)
+            return false;
+        size_t bytes = (shape_size(lhs_shape) * lhs_constant->get_element_type().bitwidth() + 8 - 1) / 8;
+        if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), bytes) != 0)
             return false;
     }
     return true;

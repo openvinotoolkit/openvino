@@ -16,7 +16,17 @@
 using namespace ov;
 using namespace ov::op;
 
-TEST_F(TransformationTestsF, SharedSlice) {
+class SharedTransformationTestsF : public TransformationTestsF {
+public:
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        size_t op_count = model->get_ops().size(), op_count_ref = model_ref->get_ops().size();
+        EXPECT_EQ(op_count, op_count_ref) << "Number of operations differ between models: model op count = " <<
+            op_count << " ref_model op count = " << op_count_ref;
+    };
+};
+
+TEST_F(SharedTransformationTestsF, SharedSlice) {
     auto make_slice = [](const Output<Node>& out,
                          const int64_t& start,
                          const int64_t& stop,
@@ -57,7 +67,7 @@ TEST_F(TransformationTestsF, SharedSlice) {
     }
 }
 
-TEST_F(TransformationTestsF, SharedRecursively) {
+TEST_F(SharedTransformationTestsF, SharedRecursively) {
     auto make_slice = [](const Output<Node>& out,
                          const int64_t& start,
                          const int64_t& stop,
@@ -175,7 +185,7 @@ TEST_F(TransformationTestsF, SharedRecursively) {
     }
 }
 
-TEST_F(TransformationTestsF, SharedConcat) {
+TEST_F(SharedTransformationTestsF, SharedConcat) {
     {
         auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
         auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
@@ -204,7 +214,7 @@ TEST_F(TransformationTestsF, SharedConcat) {
     }
 }
 
-TEST_F(TransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
+TEST_F(SharedTransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
     {
         auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
         auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
