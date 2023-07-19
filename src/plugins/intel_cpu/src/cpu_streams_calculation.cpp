@@ -353,10 +353,11 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 }
 
 int get_model_prefer_threads(const int num_streams,
+                             const Config::LatencyThreadingMode latency_threading_mode,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
                              const ov::threading::IStreamsExecutor::Config streamExecutorConfig) {
-    const int sockets = get_num_numa_nodes();
+    const int sockets = get_default_latency_streams(latency_threading_mode);
     auto model_prefer = 0;
     // latency
     if (num_streams <= sockets && num_streams > 0) {
@@ -435,9 +436,14 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                        config.changedCpuPinning,
                                                        streams,
                                                        executor_config._threadBindingType,
+                                                       config.latencyThreadingMode,
                                                        proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
-        model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
+        model_prefer_threads = get_model_prefer_threads(streams,
+                                                        config.latencyThreadingMode,
+                                                        proc_type_table,
+                                                        ngraphFunc,
+                                                        executor_config);
     }
 
     executor_config._streams_info_table = get_streams_info_table(executor_config._streams,
@@ -460,5 +466,16 @@ void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>&
     executor_config = InferenceEngine::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
 }
+
+int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {
+    if (latency_threading_mode == Config::LatencyThreadingMode::PER_NUMA_NODE) {
+        return get_num_sockets();
+    } else if (latency_threading_mode == Config::LatencyThreadingMode::PER_SOCKET) {
+        return get_num_numa_nodes();
+    } else {
+        return 1;
+    }
+}
+
 }  // namespace intel_cpu
 }  // namespace ov

@@ -56,12 +56,15 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.
  *               - input "0" mean function generate the optimal number of streams
  *               - LATENCY hint equals 1 stream.
+ * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
+ *               - user can select all processors per numa node, per socket, or per platform.
  * @param[in]  proc_type_table candidate processors available at this time
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
  * @param[in]  ngraphFunc ngraph function
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
+                             const Config::LatencyThreadingMode latency_threading_mode,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
                              const ov::threading::IStreamsExecutor::Config streamExecutorConfig);
@@ -101,6 +104,13 @@ struct StreamCfg {
 void get_num_streams(const int streams,
                      const std::shared_ptr<ngraph::Function>& ngraphFunc,
                      Config& config);
+
+/**
+ * @brief      Get default number of streams in certain latency threading mode
+ * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
+ * @return     number of streams
+ */
+int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
 
 }  // namespace intel_cpu
 }  // namespace ov

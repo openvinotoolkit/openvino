@@ -196,6 +196,9 @@ bool is_cpu_map_available() {
 int get_num_numa_nodes() {
     return -1;
 }
+int get_num_sockets() {
+    return -1;
+}
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {}
@@ -238,6 +241,9 @@ std::vector<std::vector<int>> get_org_proc_type_table() {
 
 int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
+}
+int get_num_sockets() {
+    return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
@@ -311,6 +317,10 @@ bool is_cpu_map_available() {
 
 int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
+}
+
+int get_num_sockets() {
+    return cpu_info()._sockets;
 }
 
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,

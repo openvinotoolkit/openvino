@@ -153,6 +153,13 @@ OPENVINO_RUNTIME_API bool is_cpu_map_available();
 OPENVINO_RUNTIME_API int get_num_numa_nodes();
 
 /**
+ * @brief      Get number of sockets
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of sockets
+ */
+OPENVINO_RUNTIME_API int get_num_sockets();
+
+/**
  * @brief      Returns a table of number of processor types on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable

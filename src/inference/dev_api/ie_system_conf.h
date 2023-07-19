@@ -165,6 +165,13 @@ using ov::is_cpu_map_available;
 using ov::get_num_numa_nodes;
 
 /**
+ * @brief      Get number of sockets
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of sockets
+ */
+using ov::get_num_sockets;
+
+/**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  plugin_task plugin task.

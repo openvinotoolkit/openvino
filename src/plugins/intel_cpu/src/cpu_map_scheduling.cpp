@@ -4,6 +4,7 @@
 
 #include "cpu_map_scheduling.hpp"
 
+#include "cpu_streams_calculation.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 
@@ -72,9 +73,10 @@ bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
                      const int num_streams,
                      const threading::IStreamsExecutor::ThreadBindingType bind_type,
+                     const Config::LatencyThreadingMode latency_threading_mode,
                      const std::vector<std::vector<int>>& proc_type_table) {
     int result_value;
-    int num_sockets = get_num_numa_nodes();
+    int num_sockets = get_default_latency_streams(latency_threading_mode);
     bool latency = num_streams <= num_sockets && num_streams > 0;
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
