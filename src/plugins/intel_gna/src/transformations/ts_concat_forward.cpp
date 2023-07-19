@@ -71,7 +71,7 @@ TSConcatForward::TSConcatForward() {
                 std::iota(transpose_order.begin(), transpose_order.end(), 0);
             }
             ov::AxisVector slice_ids =
-                graph_utils::make_gather_indexes_from_transpose_axes(transpose_shape, transpose_order);
+                graph_utils::make_gather_indices_from_transpose_axes(transpose_shape, transpose_order);
             // shift slice indexes and insert at the end of the gather indexes vector
             size_t id = gather_ids.size();
             std::for_each(slice_ids.begin(), slice_ids.end(), [&id](size_t& i) {
