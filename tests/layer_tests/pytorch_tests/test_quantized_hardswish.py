@@ -42,4 +42,4 @@ class TestQuantizedHardswish(PytorchLayerTest):
     def test_quantized_hardswish(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_hardswish(scale, zero_point, dtype), None, ["quantized::hardswish"], 
-                ie_device, precision, ir_version, )
+                ie_device, precision, ir_version, quantized_ops=True, quantized_ops_scale=scale)

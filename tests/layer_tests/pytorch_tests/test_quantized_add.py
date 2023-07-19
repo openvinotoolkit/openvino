@@ -43,4 +43,4 @@ class TestQuantizedAdd(PytorchLayerTest):
     def test_quantized_add(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_add(scale, zero_point, dtype), None, ["quantized::add"],
-                ie_device, precision, ir_version,)
+                ie_device, precision, ir_version, quantized_ops=True, quantized_ops_scale=scale)
