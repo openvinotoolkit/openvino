@@ -30,6 +30,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -111,6 +112,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     // ov::pass::Manager manager;
     // manager.run_passes(model);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {

@@ -32,6 +32,7 @@
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
@@ -476,6 +477,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
     manager.run_passes(model);
 }
 
