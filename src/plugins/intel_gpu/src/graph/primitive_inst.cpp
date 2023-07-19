@@ -115,19 +115,19 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return impl->is_cpu() && !user->is_type<shape_of>();
     return false;
 }
+
+bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (has_cpu_user_not_shape_of(user))
+            return true;
+    }
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
-            return true;
-    }
-    return false;
-}
-
-bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) {
-    for (const auto& user : users) {
-        if (has_cpu_user_not_shape_of(user))
             return true;
     }
     return false;
