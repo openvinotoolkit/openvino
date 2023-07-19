@@ -689,6 +689,9 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     for (const auto& comp_model_desc : m_compiled_submodels) {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
             try {
+                // Batch plugin reports property of low level plugin
+                // If we use Batch plugin inside hetero, we won't be able to call export
+                // Auto batch plugin will throw NOT_IMPLEMENTED
                 comp_model_desc.compiled_model->export_model(model_stream);
                 continue;
             } catch (ov::NotImplemented&) {
