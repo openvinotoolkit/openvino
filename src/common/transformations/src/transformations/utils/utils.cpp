@@ -353,7 +353,7 @@ float cast_eps_to_float(double eps_d) {
     return eps_f;
 }
 
-bool is_constfoldable(const ov::Output<ov::Node>& output) {
+bool is_on_constant_path(const ov::Output<ov::Node>& output) {
     auto status = true;
     std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
 
