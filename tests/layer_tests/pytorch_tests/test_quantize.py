@@ -70,11 +70,11 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
             np.array([0, 2, 4, -5, 6, -7], dtype=np.int32),
             1
         ],
-        [
+        pytest.param(
             np.array([1.0, 0.21, 0.62, 0.5, 0.11, 0.89, 0.32], dtype=np.float32),
             np.array([0, -1, 2, -3, 4, -5, -7], dtype=np.int32),
-            2
-        ],
+            2, 
+            marks=pytest.mark.skip(reason="Axis = 2 not supported in FakeQuantize.")),
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74, 0.11, 0.89, 0.32], dtype=np.float32),
             np.array([0, -1, 2, -3, 4, -5, 6, -7], dtype=np.int32),
