@@ -28,29 +28,10 @@ public:
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    std::mutex _plugin_mutex;
     int _socket_idx = 0;
-    int _num_threads = 0;
 };
 
 CPU& cpu_info();
-
-/**
- * @brief      Reserve cpu resource by streams info
- * @param[in]  _streams_info_table streams info table
- * @param[in]  _cpu_mapping_table CPU mapping table for each processor
- * @param[in]  _proc_type_table summary table of number of processors per type
- * @param[in]  _numa_nodes number of numa nodes
- * @param[out] _stream_processors processors grouped in stream which is used in core binding in cpu streams executor
- * @param[in]  _cpu_status set cpu status
- * @return
- */
-void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_info_table,
-                                 const std::vector<std::vector<int>> _cpu_mapping_table,
-                                 const std::vector<std::vector<int>> _proc_type_table,
-                                 const int _numa_nodes,
-                                 std::vector<std::vector<int>>& _stream_processors,
-                                 const int _cpu_status);
 
 #ifdef __linux__
 /**

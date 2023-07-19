@@ -7,10 +7,11 @@
 #include <common_test_utils/test_common.hpp>
 
 #include "ie_system_conf.h"
-#include "os/cpu_map_info.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 
 using namespace testing;
 using namespace ov;
+using namespace threading;
 
 namespace {
 
@@ -30,17 +31,17 @@ class LinuxCpuReserveTests : public CommonTestUtils::TestsCommon,
                              public testing::WithParamInterface<std::tuple<LinuxCpuReserveTestCase>> {
 public:
     void SetUp() override {
-        const auto& test_data = std::get<0>(GetParam());
+        auto test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_processors;
         std::vector<int> test_numa_node_ids;
 
-        ov::reserve_cpu_by_streams_info(test_data._streams_info_table,
-                                        test_data._cpu_mapping_table,
-                                        test_data._proc_type_table,
-                                        test_data._sockets,
-                                        test_processors,
-                                        test_data._cpu_status);
+        ov::threading::reserve_cpu_by_streams_info(test_data._streams_info_table,
+                                                   test_data._sockets,
+                                                   test_data._cpu_mapping_table,
+                                                   test_data._proc_type_table,
+                                                   test_processors,
+                                                   test_data._cpu_status);
 
         ASSERT_EQ(test_data._stream_processors, test_processors);
     }

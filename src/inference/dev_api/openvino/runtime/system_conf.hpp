@@ -163,7 +163,11 @@ OPENVINO_RUNTIME_API int get_num_numa_nodes();
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
- * @brief      Returns a table of original number of processor types on Linux/Windows
+ * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU resources.
+ *             The difference from get_proc_type_table:
+ * This is used to get the configuration of current machine. For example, GPU plugin occupies all Pcores,
+ * there is only one type core in proc_type_table from get_proc_type_table(). If user wants to get the real
+ * configuration of this machine which should be got from get_org_proc_type_table.
  * @ingroup    ie_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  */

@@ -165,12 +165,14 @@ public:
 
     /**
      * @brief Return the id of current NUMA Node
+     *        Return 0 when current stream cross some NUMA Nodes
      * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread
      */
     virtual int get_numa_node_id() = 0;
 
     /**
      * @brief Return the id of current socket
+     *        Return 0 when current stream cross some sockets
      * @return `ID` of current socket, or throws exceptions if called not from stream thread
      */
     virtual int get_socket_id() = 0;
@@ -181,33 +183,6 @@ public:
      */
     virtual void execute(Task task) = 0;
 };
-
-enum StreamCreateType {
-    STREAM_WITHOUT_PARAM = 0,  // new task_arena with no parameters, no threads binding
-    STREAM_WITH_CORE_TYPE,     // new task_arena with core type, threads binding with core type
-    STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads binding with numa node id
-    STREAM_WITH_OBSERVE        // new task_arena with no parameters, threads binding with observe
-};
-
-/**
- * @brief      Get current stream information
- * @param[in]  stream_id stream id
- * @param[in]  cpu_reservation cpu reservation
- * @param[in]  org_proc_type_table available processors in the platform
- * @param[in]  streams_info_table streams information table
- * @param[out]  stream_type stream create type
- * @param[out]  concurrency the number of threads created at the same time
- * @param[out]  core_type core type
- * @param[out]  numa_node_id numa node id
- */
-void get_cur_stream_info(const int stream_id,
-                         const bool cpu_reservation,
-                         const std::vector<std::vector<int>> org_proc_type_table,
-                         const std::vector<std::vector<int>> streams_info_table,
-                         StreamCreateType& stream_type,
-                         int& concurrency,
-                         int& core_type,
-                         int& numa_node_id);
 
 }  // namespace threading
 }  // namespace ov

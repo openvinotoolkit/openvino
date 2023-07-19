@@ -19,7 +19,6 @@ namespace ov {
 
 CPU::CPU() {
     DWORD len = 0;
-    _num_threads = parallel_get_max_threads();
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;
     }

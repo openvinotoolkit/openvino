@@ -15,8 +15,8 @@
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
@@ -134,7 +134,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int core_type,
                                    const int numa_node_id) {
             _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
-                              ? -1
+                              ? -1  // macOS
                               : std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {

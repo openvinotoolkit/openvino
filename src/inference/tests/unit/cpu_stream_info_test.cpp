@@ -7,7 +7,7 @@
 #include <common_test_utils/test_common.hpp>
 
 #include "ie_system_conf.h"
-#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
@@ -36,7 +36,7 @@ class LinuxCpuStreamTypeTests : public CommonTestUtils::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<LinuxCpuStreamTypeCase>> {
 public:
     void SetUp() override {
-        const auto& test_data = std::get<0>(GetParam());
+        auto test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> stream_processor_ids;
         std::vector<StreamCreateType> test_stream_types;
@@ -49,12 +49,12 @@ public:
             streams += test_data._streams_info_table[i][NUMBER_OF_STREAMS];
         }
 
-        reserve_cpu_by_streams_info(test_data._streams_info_table,
-                                    test_data._cpu_mapping_table,
-                                    test_data._proc_type_table,
-                                    test_data._numa_nodes,
-                                    stream_processor_ids,
-                                    NOT_USED);
+        ov::threading::reserve_cpu_by_streams_info(test_data._streams_info_table,
+                                                   test_data._numa_nodes,
+                                                   test_data._cpu_mapping_table,
+                                                   test_data._proc_type_table,
+                                                   stream_processor_ids,
+                                                   NOT_USED);
 
         for (auto i = 0; i < streams; i++) {
             StreamCreateType test_stream_type;

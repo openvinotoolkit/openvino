@@ -23,7 +23,6 @@ CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
     std::vector<std::string> node_info_table;
 
-    _num_threads = parallel_get_max_threads();
     auto get_cache_info_linux = [&]() {
         int cpu_index = 0;
         int cache_index = 0;
