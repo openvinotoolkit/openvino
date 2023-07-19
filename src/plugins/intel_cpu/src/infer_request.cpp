@@ -829,15 +829,22 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         if (_outputs.find(name) == _outputs.end()) {
             auto outputNode = modelOutputsMap.find(name);
             if (modelOutputsMap.find(name) != modelOutputsMap.end()) {
-                const auto& shape = output->second->getInputShapeAtPort(0);
-                const bool isDynamic = shape.isDynamic();
+                const auto& model_shape = outputNode->second->get_input_partial_shape(0);
+                const auto& graph_shape = output->second->getInputShapeAtPort(0);
+
+                // WA, due to the transformations and constant folding, shape inference of the resulting model may
+                // have static shapes, while they are dynamic in the initial representation
+                const auto& shape = graph_shape.isDynamic() ? model_shape :
+                    (model_shape.is_dynamic() ? graph_shape.toPartialShape() : model_shape);
+
+                const bool isDynamic = shape.is_dynamic();
 
                 if (!data) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
                         const auto model_prec = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
                         const auto graph_prec = output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
-                        OutputControlBlock control_block{model_prec, shape};
+                        OutputControlBlock control_block{model_prec, Shape{shape}};
 
                         DEBUG_LOG(name,
                             ", blob ", control_block.blob(),
@@ -848,7 +855,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                         data = control_block.blob();
                         if (model_prec == graph_prec) outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
                     } else {
-                        dims = shape.getStaticDims();
+                        dims = shape.to_shape();
 
                         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
                                                         dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
@@ -861,14 +868,14 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     // but in dynamic shape case we also need to handle following corner case:
                     // on blob initialization stage we create empty blob with dimensions equal 0
                     // so if we have blob with all zero dimension we mustn't throw exception
-                    if (!shape.isCompatible(blobDims) &&
-                        (!isDynamic || blobDims.size() != shape.getRank() ||
+                    if (!shape.compatible(ov::PartialShape(blobDims)) &&
+                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.rank().get_length() ||
                          std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
                              return dims != 0;
                          }))) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
                                                     << ", but expect blobs with different shapes. Input shape: "
-                                                    << ov::PartialShape(blobDims) << ", output shape: " << shape.toString();
+                                                    << ov::PartialShape(blobDims) << ", output shape: " << shape;
                     }
 
                     const auto netOutPrc = InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0));
