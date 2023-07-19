@@ -139,17 +139,17 @@ void ReadIRTest::query_model() {
 
 void ReadIRTest::import_export() {
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
     auto &summary = ov::test::utils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         summary.setDeviceName(targetDevice);
         try {
@@ -177,10 +177,10 @@ void ReadIRTest::import_export() {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Error in the Core::query_model() method call!";
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Hang happens";
     }

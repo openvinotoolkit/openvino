@@ -67,7 +67,7 @@ void ov::proxy::tests::ProxyTests::SetUp() {
 }
 
 void ov::proxy::tests::ProxyTests::TearDown() {
-    CommonTestUtils::removeDir("test_cache");
+    ov::test::utils::removeDir("test_cache");
 }
 
 ov::Tensor ov::proxy::tests::ProxyTests::create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape) {

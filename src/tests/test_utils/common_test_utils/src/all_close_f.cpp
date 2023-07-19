@@ -8,6 +8,8 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "precomp.hpp"
 
+#include "common_test_utils/float_util.hpp"
+
 using namespace std;
 
 namespace ov {

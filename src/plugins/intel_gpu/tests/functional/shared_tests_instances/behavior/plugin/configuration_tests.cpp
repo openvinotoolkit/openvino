@@ -89,7 +89,7 @@ namespace {
 
     auto auto_batch_inconfigs = []() {
         return std::vector<std::map<std::string, std::string>>{
-            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTov::test::utilsestUtils::DEVICE_GPU},
+            {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
             {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), ov::test::utils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},

@@ -511,3 +511,11 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
+
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::ie_abs;
+using ov::test::utils::generate_float_numbers;
+} // namespace CommonTestUtils

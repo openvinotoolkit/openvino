@@ -127,21 +127,21 @@ TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThro
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigHeteroThrows) {
     ov::Core core;
-    OV_ASSERT_NO_THROW(core.set_property(CommonTestUtils::DEVICE_HETERO, ov::enable_profiling(true)));
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_HETERO, ov::enable_profiling(true)));
 }
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigDevicePropertiesThrows) {
     ov::Core core;
-    ASSERT_THROW(core.set_property("", ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(core.set_property("", ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(core.set_property(CommonTestUtils::DEVICE_CPU,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_CPU,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(core.set_property(CommonTestUtils::DEVICE_AUTO,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(core.set_property(CommonTestUtils::DEVICE_AUTO,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(4))),
+    ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::num_streams(4))),
                  ov::Exception);
 }
 
@@ -150,20 +150,20 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAutoNoThrows) {
 
     // priority config test
     ov::hint::Priority value;
-    OV_ASSERT_NO_THROW(core.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
-    OV_ASSERT_NO_THROW(value = core.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::LOW);
-    OV_ASSERT_NO_THROW(core.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
-    OV_ASSERT_NO_THROW(value = core.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
-    OV_ASSERT_NO_THROW(core.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
-    OV_ASSERT_NO_THROW(value = core.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
 TEST(OVClassBasicPropsTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     ov::Core core;
-    std::string target_device = CommonTestUtils::DEVICE_HETERO;
+    std::string target_device = ov::test::utils::DEVICE_HETERO;
 
     std::vector<ov::PropertyName> properties;
     OV_ASSERT_NO_THROW(properties = core.get_property(target_device, ov::supported_properties));
@@ -179,7 +179,7 @@ TEST(OVClassBasicPropsTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST_P(OVClassModelOptionalTestP, getVersionsNonEmpty) {
     ov::Core core = createCoreWithTemplate();
-    ASSERT_EQ(2, core.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
+    ASSERT_EQ(2, core.get_versions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 }  // namespace behavior

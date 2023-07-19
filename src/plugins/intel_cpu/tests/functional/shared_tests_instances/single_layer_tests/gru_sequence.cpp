@@ -47,7 +47,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTest,

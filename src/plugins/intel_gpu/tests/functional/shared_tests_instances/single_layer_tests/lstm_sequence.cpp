@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(direction),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClipNonConstantWRB, LSTMSequenceTest,

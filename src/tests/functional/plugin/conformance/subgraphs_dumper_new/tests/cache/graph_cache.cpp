@@ -32,7 +32,7 @@ protected:
 
     void SetUp() override {
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
@@ -43,7 +43,7 @@ protected:
     };
 
     void TearDown() override {
-        CommonTestUtils::removeDir(test_artifacts_dir);
+        ov::test::utils::removeDir(test_artifacts_dir);
         GraphCache::reset();
     }
 };

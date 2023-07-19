@@ -164,7 +164,7 @@ const auto params_MultiAxis_4D = testing::Combine(
 const auto params_MultiAxis_5D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes5D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -178,7 +178,7 @@ const auto params_MultiAxis_5D = testing::Combine(
 const auto params_MultiAxis_4D_Hybrid = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesND()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypes()),
             testing::ValuesIn(inpOutPrc()),
@@ -192,7 +192,7 @@ const auto params_MultiAxis_4D_Hybrid = testing::Combine(
 const auto params_MultiAxis_5D_Hybrid = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes5D),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypes()),
             testing::ValuesIn(inpOutPrc()),
@@ -206,7 +206,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
 const auto params_MultiAxis_6D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes6D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::ValuesIn(keepDims()),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -234,7 +234,7 @@ const auto params_Int32 = testing::Combine(
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesHW),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -248,7 +248,7 @@ const auto params_NHWC_SmallChannel = testing::Combine(
 const auto params_SingleBatch = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),

@@ -25,11 +25,11 @@ public:
     }
 
     void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
-        std::string libraryPath = CommonTestUtils::get_mock_engine_path();
+        std::string libraryPath = ov::test::utils::get_mock_engine_path();
         if (!m_so)
             m_so = ov::util::load_shared_object(libraryPath.c_str());
         std::function<void(ov::IPlugin*)> injectProxyEngine =
-            CommonTestUtils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
+            ov::test::utils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
         injectProxyEngine(plugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),

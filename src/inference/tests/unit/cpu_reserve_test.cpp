@@ -27,7 +27,7 @@ struct LinuxCpuReserveTestCase {
     int _cpu_status;
 };
 
-class LinuxCpuReserveTests : public CommonTestUtils::TestsCommon,
+class LinuxCpuReserveTests : public ov::test::TestsCommon,
                              public testing::WithParamInterface<std::tuple<LinuxCpuReserveTestCase>> {
 public:
     void SetUp() override {

@@ -191,3 +191,12 @@ std::string generateTestFilePrefix();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::vec2str;
+using ov::test::utils::combineParams;
+using ov::test::utils::OpType;
+using ov::test::utils::GetTimestamp;
+} // namespace CommonTestUtils
