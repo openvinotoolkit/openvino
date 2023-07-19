@@ -754,7 +754,7 @@ bool Limitations::is_transpose_supported(const ov::Shape& shape) {
             return true;
         }
     } else if (squeezed_shape.size() == 1) {
-        // it means that transpose has only one valuable dimension (!=1)
+        // it means that transpose input has only one dimension > 1
         return true;
     }
     return false;
