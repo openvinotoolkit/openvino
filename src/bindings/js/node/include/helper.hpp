@@ -106,4 +106,5 @@ const std::map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::
                                                                      {"i32", ov::element::Type_t::i32},
                                                                      {"u32", ov::element::Type_t::u32},
                                                                      {"f32", ov::element::Type_t::f32},
-                                                                     {"f64", ov::element::Type_t::f64}};
+                                                                     {"f64", ov::element::Type_t::f64},
+                                                                     {"i64", ov::element::Type_t::i64}};

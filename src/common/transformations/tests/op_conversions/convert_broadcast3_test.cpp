@@ -39,7 +39,7 @@ void convert_broadcast3_test(std::shared_ptr<Function> f, std::shared_ptr<Functi
     ASSERT_TRUE(res.first) << res.second;
 }
 
-class ConvertBroadcast3NUMPYTest : public CommonTestUtils::TestsCommon,
+class ConvertBroadcast3NUMPYTest : public ov::test::TestsCommon,
                                    public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -73,7 +73,7 @@ public:
     }
 };
 
-class ConvertBroadcast3BIDIRECTMulTest : public CommonTestUtils::TestsCommon,
+class ConvertBroadcast3BIDIRECTMulTest : public ov::test::TestsCommon,
                                          public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -106,7 +106,7 @@ public:
 };
 
 class ConvertBroadcast3BIDIRECTBroadcastTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TargetShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -144,7 +144,7 @@ public:
 };
 
 class ConvertBroadcast3BIDIRECTBroadcastMultiplyTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -180,7 +180,7 @@ public:
 };
 
 class ConvertBroadcast3BIDIRECTBroadcastLogicalAndTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;

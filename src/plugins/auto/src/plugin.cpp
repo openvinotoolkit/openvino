@@ -16,6 +16,8 @@
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -77,13 +79,11 @@ namespace auto_plugin {
 std::mutex Plugin::m_mtx;
 std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
 
-std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    if (m_hw_compiledmodel)
-        return m_hw_compiledmodel->get_context();
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -93,7 +93,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -260,8 +260,19 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     device_name_with_id.c_str(), default_device_id.c_str(), unique_name.c_str());
             // create meta device
-            meta_devices.push_back({device_name_with_id, get_device_config(device_name_with_id),
-                                    num_requests, default_device_id, unique_name, device_priority});
+            try {
+                meta_devices.push_back({device_name_with_id,
+                                        get_device_config(device_name_with_id),
+                                        num_requests,
+                                        default_device_id,
+                                        unique_name,
+                                        device_priority});
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            }
         }
         if (enable_device_priority) {
             device_priority++;
@@ -281,6 +292,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
@@ -338,7 +351,7 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const {
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -521,7 +534,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     } else {
         impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
-    m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
     return impl;
 }
 
@@ -568,7 +580,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> MYRIAD;
-    std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> VPU;
 
     for (auto& item : meta_devices) {
         if (item.device_name.find("CPU") == 0) {
@@ -579,8 +591,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             MYRIAD.push_back(item);
             continue;
         }
-        if (item.device_name.find("VPUX") == 0) {
-            VPUX.push_back(item);
+        if (item.device_name.find("VPU") == 0) {
+            VPU.push_back(item);
             continue;
         }
         if (item.device_name.find("GPU") == 0) {
@@ -602,14 +614,14 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         }
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > VPU > iGPU > MYRIAD > CPU
     std::list<DeviceInformation> devices;
     if (model_precision == "INT8") {
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), VPU);
         devices.splice(devices.end(), dGPU);
     } else {
         devices.splice(devices.end(), dGPU);
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), VPU);
     }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);

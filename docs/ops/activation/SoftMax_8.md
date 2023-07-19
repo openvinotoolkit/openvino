@@ -42,12 +42,13 @@ where :math:`C` is a size of tensor along *axis* dimension.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
-  <layer ... type="SoftMax" ... >
-      <data axis="1" />
-      <input> ... </input>
-      <output> ... </output>
-  </layer>
+   <layer ... type="SoftMax" ... >
+       <data axis="1" />
+       <input> ... </input>
+       <output> ... </output>
+   </layer>
 
 @endsphinxdirective

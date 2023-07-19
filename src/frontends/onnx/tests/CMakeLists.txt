@@ -63,7 +63,6 @@ set(MULTI_TEST_SRC
     onnx_import_convpool.in.cpp
     onnx_import_deprecated.in.cpp
     onnx_import_dyn_shapes.in.cpp
-    onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
@@ -74,6 +73,8 @@ set(MULTI_TEST_SRC
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
+    convert_tests.cpp
+    convert_partially_tests.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
@@ -137,7 +138,7 @@ if(ONNX_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common funcTestUtils)
+    openvino_onnx_frontend onnx_common func_test_utils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.

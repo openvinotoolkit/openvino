@@ -135,15 +135,20 @@ std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
 };
 
 namespace {
-const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
-                                                                  {1, element::i8},
-                                                                  {2, element::i16},
-                                                                  {3, element::i32},
-                                                                  {4, element::i64},
-                                                                  {5, element::f16},
-                                                                  {6, element::f32},
-                                                                  {7, element::f64},
-                                                                  {11, element::boolean}};
+const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
+    {0, element::u8},
+    {1, element::i8},
+    {2, element::i16},
+    {3, element::i32},
+    {4, element::i64},
+    {5, element::f16},
+    {6, element::f32},
+    {7, element::f64},
+    {11, element::boolean},
+    {12, element::i8},  // quantized i8
+    {13, element::u8},  // quantized u8
+    {14, element::i32}  // quantized i32
+};
 
 const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
                                                                             {"same", ov::op::PadType::SAME_UPPER}};
@@ -380,7 +385,7 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
             if (otype != lhs_type) {
                 lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
             }
-            if (otype != lhs_type) {
+            if (otype != rhs_type) {
                 rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
             }
             return;
