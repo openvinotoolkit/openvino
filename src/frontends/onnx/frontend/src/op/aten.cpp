@@ -10,6 +10,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/opsets/opset8.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -91,3 +92,4 @@ OutputVector aten(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END
