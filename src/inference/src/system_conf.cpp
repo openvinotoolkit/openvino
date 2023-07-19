@@ -16,8 +16,8 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
-#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
 #include "os/cpu_map_info.hpp"
 
