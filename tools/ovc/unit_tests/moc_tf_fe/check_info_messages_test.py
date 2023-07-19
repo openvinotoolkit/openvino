@@ -24,7 +24,7 @@ def arg_parse_helper(input_model,
     return argparse.Namespace(
         input_model=input_model,
         log_level='INFO',
-        silent=True,
+        verbose=False,
         output_model=None,
         transform=[],
         output=None,
@@ -44,7 +44,7 @@ class TestInfoMessagesTFFE(unittest.TestCase):
     def run_fail_tf_fe(self, mock_driver):
         from openvino.tools.ovc import convert_model
         path = os.path.dirname(__file__)
-        convert_model(os.path.join(path, "test_models", "model_int32.pbtxt"), silent=False)
+        convert_model(os.path.join(path, "test_models", "model_int32.pbtxt"), verbose=True)
 
 
 class TestInfoMessagesCompressFP16(unittest.TestCase):

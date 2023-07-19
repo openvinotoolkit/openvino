@@ -64,10 +64,10 @@ class TagFilter(log.Filter):
         return True  # if regex wasn't set print all logs
 
 
-def init_logger(lvl: str, silent: bool):
+def init_logger(lvl: str, verbose: bool):
     global handler_num
     log_exp = os.environ.get('MO_LOG_PATTERN')
-    if silent:
+    if not verbose:
         lvl = 'ERROR'
     fmt = LvlFormatter(lvl=lvl)
     handler = log.StreamHandler()

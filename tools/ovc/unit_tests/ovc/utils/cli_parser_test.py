@@ -599,7 +599,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
             'Framework-agnostic parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extensions', 'transform', 'silent', 'share_weights'},
+                                               'extensions', 'transform', 'verbose', 'share_weights'},
             'TensorFlow*-specific parameters:': {'saved_model_tags'},
             'PaddlePaddle-specific parameters:': {'example_output'},
         }

@@ -25,7 +25,7 @@ def convert_model(
         example_input: Any = None,
         extensions: [str, pathlib.Path, list, Any] = None,
         transform: [str, list, tuple] = "",  #TODO: Consider removing
-        silent: bool = True,    #TODO: Consider replacing by verbose with default False
+        verbose: bool = False,
         share_weights: bool = True,
 
         # PaddlePaddle-specific parameters:
@@ -116,10 +116,8 @@ def convert_model(
                      transform="MakeStateful[param_res_names=
                      {'input_name_1':'output_name_1','input_name_2':'output_name_2'}]"
             Available transformations: "LowLatency2", "MakeStateful", "Pruning"
-        :param silent:
-            Prevent any output messages except those that correspond to log level
-            equals ERROR, that can be set with the following option: "log_level".
-            By default, log level is already ERROR.
+        :param verbose:
+            Print detailed information about conversion.
         :param share_weights:
             Reuse weights allocated in the original model. If input model is in file,
             then mmap is used to allocate weights directly from file. If input model is

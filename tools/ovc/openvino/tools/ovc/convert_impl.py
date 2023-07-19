@@ -88,7 +88,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
-    if not argv.silent:
+    if argv.verbose:
         print_argv(argv, argv.output_model)
 
     # This is just to check that transform key is valid and transformations are available
@@ -196,7 +196,7 @@ def check_model_object(argv):
 def driver(argv: argparse.Namespace, non_default_params: dict):
     if not hasattr(argv, 'log_level'):
         argv.log_level = 'ERROR'
-    init_logger(argv.log_level.upper(), argv.silent)
+    init_logger(argv.log_level.upper(), argv.verbose)
 
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
@@ -205,7 +205,7 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
     ov_model = moc_emit_ir(prepare_ir(argv), argv)
 
-    if not argv.silent:
+    if argv.verbose:
         elapsed_time = datetime.datetime.now() - start_time
         print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
         try:
@@ -423,8 +423,8 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
     return argv
 
 
-def silent_is_false(argv: argparse.Namespace):
-    return argv is not None and hasattr(argv, 'silent') and argv.silent is False
+def is_verbose(argv: argparse.Namespace):
+    return argv is not None and hasattr(argv, 'verbose') and argv.verbose
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
@@ -509,7 +509,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
-        if silent_is_false(argv) or not python_api_used:
+        if is_verbose(argv) or not python_api_used:
             if 'compress_to_fp16' in argv and argv.compress_to_fp16:
                 print(get_compression_message())
 
@@ -521,7 +521,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         return ov_model, argv
 
     except Exception as e:
-        if silent_is_false(argv) or not python_api_used:
+        if is_verbose(argv) or not python_api_used:
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
                 log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
                 log.debug(traceback.format_exc())
