@@ -20,7 +20,7 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
-class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
+class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
     virtual void serialize();

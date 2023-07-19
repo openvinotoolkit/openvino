@@ -406,50 +406,43 @@ class TestIRSerializeAndRestore(unittest.TestCase):
     """
 
     def test_save_and_restore_with_converts(self):
-        original_xml_file = tempfile.NamedTemporaryFile(delete=False)
-        original_xml_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
-        original_xml_file.close()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir_path = tmp_dir + os.sep
+            original_xml_file = tempfile.NamedTemporaryFile(prefix=tmp_dir_path, delete=False)
+            original_xml_file.write(bytes(self.test_ir_xml_with_i8, 'utf-8'))
+            original_xml_file.close()
 
-        gather_axis_blob = np.array([1], dtype=np.int8)
-        original_bin_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
-        gather_axis_blob.tofile(original_bin_file)
-        original_bin_file.close()
+            gather_axis_blob = np.array([1], dtype=np.int8)
+            original_bin_file = tempfile.NamedTemporaryFile(prefix=tmp_dir_path, mode='wb', delete=False)
+            gather_axis_blob.tofile(original_bin_file)
+            original_bin_file.close()
 
-        graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
-        type_infer(graph_orig)
-        os.remove(original_xml_file.name)
+            graph_orig, _ = restore_graph_from_ir(original_xml_file.name, original_bin_file.name)
+            type_infer(graph_orig)
 
-        restored_ir_dir = tempfile.TemporaryDirectory()
-        save_restored_graph(graph_orig.copy(), restored_ir_dir.name, {})
+            save_restored_graph(graph_orig.copy(), tmp_dir_path, {})
 
-        ir_file_with_convert = tempfile.NamedTemporaryFile(delete=False)
-        ir_file_with_convert.write(bytes(self.test_ir_xml_with_convert, 'utf-8'))
-        ir_file_with_convert.close()
+            ir_file_with_convert = tempfile.NamedTemporaryFile(prefix=tmp_dir_path, delete=False)
+            ir_file_with_convert.write(bytes(self.test_ir_xml_with_convert, 'utf-8'))
+            ir_file_with_convert.close()
 
-        from openvino.tools.mo.utils.ir_reader.extender import Extender
+            from openvino.tools.mo.utils.ir_reader.extender import Extender
 
-        if 'Convert' in Extender.registered_ops:
-            Extender.registered_ops['Convert'] = PatchedConvert_extender
+            if 'Convert' in Extender.registered_ops:
+                Extender.registered_ops['Convert'] = PatchedConvert_extender
 
-        graph_with_convert, _ = restore_graph_from_ir(ir_file_with_convert.name, original_bin_file.name)
-        type_infer(graph_with_convert)
-        os.remove(ir_file_with_convert.name)
+            graph_with_convert, _ = restore_graph_from_ir(ir_file_with_convert.name, original_bin_file.name)
+            type_infer(graph_with_convert)
 
-        if 'Convert' in Extender.registered_ops:
-            Extender.registered_ops['Convert'] = openvino.tools.mo.utils.ir_reader.extenders.convert_extender.Convert_extender
+            if 'Convert' in Extender.registered_ops:
+                Extender.registered_ops['Convert'] = openvino.tools.mo.utils.ir_reader.extenders.convert_extender.Convert_extender
 
-        restored_xml_file = restored_ir_dir.name + '/test_ir.xml'
-        restored_bin_file = restored_ir_dir.name + '/test_ir.bin'
+            restored_xml_file = tmp_dir_path + 'test_ir.xml'
+            restored_bin_file = tmp_dir_path + 'test_ir.bin'
 
-        # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'},
-        # converts from int8 to int64 will be inserted
-        graph_restored, _ = restore_graph_from_ir(restored_xml_file, restored_bin_file)
+            # Gather is listed in convert_inputs_of_specific_ops as 'Gather': {2: 'int64'},
+            # converts from int8 to int64 will be inserted
+            graph_restored, _ = restore_graph_from_ir(restored_xml_file, restored_bin_file)
 
-        os.remove(original_bin_file.name)
-        os.remove(restored_xml_file)
-        os.remove(restored_bin_file)
-        os.remove(restored_xml_file.replace('xml', 'mapping'))
-        os.removedirs(restored_ir_dir.name)
-
-        flag, msg = compare_graphs(graph_orig, graph_restored, 'result', 'gather/sink_port_0')
-        self.assertTrue(flag, msg)
+            flag, msg = compare_graphs(graph_orig, graph_restored, 'result', 'gather/sink_port_0')
+            self.assertTrue(flag, msg)
