@@ -56,7 +56,6 @@ struct program_node {
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
-    friend class post_optimize_weights;             // to be removed when possible - requires an access to selected_impl
 
     template <class PType>
     friend struct typed_program_node;

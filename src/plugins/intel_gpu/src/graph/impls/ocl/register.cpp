@@ -81,7 +81,6 @@ void register_implementations() {
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
     REGISTER_OCL(lstm_dynamic_timeloop);
-    REGISTER_OCL(generic_layer);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);

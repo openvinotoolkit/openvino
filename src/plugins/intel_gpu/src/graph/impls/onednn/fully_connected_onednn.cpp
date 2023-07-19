@@ -53,7 +53,7 @@ protected:
         return args;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto cldnn_prim = impl_params.typed_desc<fully_connected>();
@@ -68,35 +68,12 @@ protected:
             weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
 
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
+        format out_fmt = onednn::find_format(pd.weights_desc(0));
 
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0));
-        kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
+        auto output_weights_layout = weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        // set engine info & forcing
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, false);
-        r_params.output = r_params.input.TransformIgnorePadding(req_layout, r_params.input.GetDType(), 1, false);
-        r_params.rotate_180 = false;
-
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
-
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                      kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                      kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.src = r_params.input;
-        weights_reorder_params.dest = r_params.output;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(weights_layout, output_weights_layout, false);
     }
 
     static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,
