@@ -135,14 +135,12 @@ void AutoSchedule::init() {
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
         } else {
-            const auto cpu_iter =
-                deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
-            // if have CPU Device,  enable _loadContext[CPU]
+            const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
+            // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
                 m_compile_context[CPU].m_is_enabled = true;
                 m_compile_context[CPU].m_device_info = *cpu_iter;
-                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
-                    ov::hint::PerformanceMode::LATENCY;
+                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
                 m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
@@ -260,33 +258,28 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     auto& device_list = context.m_meta_devices;
-    bool is_compilation_num_threads = device_config.find(ov::compilation_num_threads.name()) != device_config.end();
     bool cur_dev_is_cpu = (device.find("CPU") != std::string::npos);
-    if (!cur_dev_is_cpu && !is_compilation_num_threads && m_compile_context[CPU].m_is_enabled) {
-        // user does not set the compiling threads
-        // limit the threads num for compiling
+    bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
+    {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        int max_threads = -1;
-        auto supported_properties = m_context->m_ov_core->get_property(device, ov::supported_properties);
-        auto is_support_compNumThreads =
-            std::find(supported_properties.begin(), supported_properties.end(), ov::compilation_num_threads.name()) !=
-            supported_properties.end();
-        if (is_support_compNumThreads) {
-            // default value for GPU is std::thread::hardware_concurrency()
-            // less than or equal to 0 for the other devices
-            max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
-            if (max_threads <= 0 || max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
-                const int num_logic_cores = ov::get_number_of_logical_cpu_cores();
-                int thread_num = (num_logic_cores / 2) == 0 ? 1 : (num_logic_cores / 2);
+        if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled) {
+            // user does not set the compiling threads
+            // limit the threads num for compiling
+            int max_threads = 0;
+            try {
+                max_threads = m_context->m_ov_core->get_property(device, ov::compilation_num_threads);
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
+            }
+            if (max_threads == static_cast<int>(std::thread::hardware_concurrency())) {
+                int thread_num = max_threads / 2;
                 device_config.insert(ov::compilation_num_threads(thread_num));
-                LOG_DEBUG_TAG("device %s streams number for compiling: %d", device.c_str(), thread_num);
+                LOG_DEBUG_TAG("gpu streams number for compiling: %d", thread_num);
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway
                 LOG_DEBUG_TAG("user defined compiling threads: %d", max_threads);
             }
-        } else {
-            LOG_DEBUG_TAG("Device %s didn't support max thread number of compilation", device.c_str());
         }
     }
     try {
