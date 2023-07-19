@@ -788,6 +788,47 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     this->register_matcher(m, callback);
 }
 
+ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
+    MATCHER_SCOPE(EliminateNopBroadcast);
+    auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>(
+        pattern::op::as_value_predicate([](std::shared_ptr<Node> node) {
+            auto input_rank = node->get_input_partial_shape(0).rank();
+            auto output_rank = node->get_output_partial_shape(0).rank();
+            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+        }));
+
+    ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
+        const auto& op = m.get_match_root();
+        if (op::util::is_constant_and_all_values_equal_int(op->input_value(1), 1))
+            return replace_output_update_name(op->output(0), op->input_value(0));
+        return false;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
+    MATCHER_SCOPE(NopSliceBeforeGatherElements);
+    auto slice = pattern::wrap_type<op::v8::Slice>();
+    auto gather = pattern::wrap_type<op::v6::GatherElements>({slice, pattern::any_input()});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_node = m.get_pattern_map();
+        const auto& slice_node = pattern_to_node.at(slice);
+        bool start_from_zero = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(1), 0);
+        bool step_is_one = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(3), 1);
+        if (!start_from_zero || !step_is_one)
+            return false;
+        const auto& gather_node = pattern_to_node.at(gather);
+        gather_node->input(0).replace_source_output(slice_node->input_value(0));
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(gather, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     ADD_MATCHER_FOR_THIS(EliminatePad)
@@ -807,6 +848,8 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
+        ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }
