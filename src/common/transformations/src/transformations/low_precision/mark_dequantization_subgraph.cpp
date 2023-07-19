@@ -36,6 +36,10 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
         auto input = pattern_map.at(input_pattern).get_node_shared_ptr();
         const auto multiply = m.get_match_root();
 
+        if (transformation_callback(multiply)) {
+            return false;
+        }
+
         auto subtract_it = pattern_map.find(subtract_pattern);
         if (subtract_it == pattern_map.end()) {
             for (size_t i = 0; i < multiply->get_input_size(); i++) {

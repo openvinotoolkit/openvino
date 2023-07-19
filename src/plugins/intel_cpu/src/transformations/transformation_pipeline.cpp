@@ -206,8 +206,33 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
 
     const bool useLpt = !defaultPrecisions.empty();
-    if (useLpt) {
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
+    // MarkDequantizationSubgraph is used even in non-LPT pipeline to keep compressed MatMul weights as is
+    const auto mark_dequantization_precisions = useLpt ? defaultPrecisions : ngraph::pass::low_precision::precision_set::int8_support;
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, mark_dequantization_precisions);
+
+    if (!useLpt) {
+        CPU_SET_CALLBACK_COMMON(manager, [](const_node_ptr &node) -> bool {
+            auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
+                const auto consumers = node->get_output_target_inputs(0);
+                if (consumers.size() != 1)
+                    return nullptr;
+                return consumers.begin()->get_node()->shared_from_this();
+            };
+
+            auto consumer = get_single_consumer(node);
+            if (!consumer)
+                return true;
+
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return false;
+            } else if (ov::is_type<ov::opset1::Transpose>(consumer)) {
+                consumer = get_single_consumer(consumer);
+                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                    return false;
+                }
+            }
+            return true;
+        }, ov::pass::MarkDequantizationSubgraph);
     }
 
     auto get_convert_precisions = []() {
