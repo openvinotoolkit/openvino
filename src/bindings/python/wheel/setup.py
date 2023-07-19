@@ -78,6 +78,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "nvidia_gpu_plugin": {
+        "name": "nvidia_gpu",
+        "prefix": f"{BUILD_BASE}/libs.nvidia_gpu",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "cpu_plugin": {
         "name": "cpu",
         "prefix": f"{BUILD_BASE}/libs.cpu",
