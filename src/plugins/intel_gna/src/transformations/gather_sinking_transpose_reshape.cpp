@@ -33,8 +33,16 @@ std::vector<std::shared_ptr<ov::Node>> SinkForward(std::shared_ptr<ov::Node> tra
     const auto gather_indices_value =
         graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
-    // reshape
+    ov::Shape shape_out = reshape->get_output_shape(0);
+
+    // Set Gather input shape
     std::vector<int8_t> reshape_in_dims = {1, -1};
+    for (size_t i = reshape_in_dims.size(); i < shape_out.size(); ++i) {
+        if (shape_out[i] == 1) {
+            reshape_in_dims.push_back(shape_out[i]);
+        }
+    }
+    // reshape
     auto reshape_in_const =
         std::make_shared<Constant>(ov::element::i64, ov::Shape{reshape_in_dims.size()}, reshape_in_dims);
     auto reshape_in = reshape->clone_with_new_inputs({transpose->input_value(0), reshape_in_const});
@@ -47,7 +55,6 @@ std::vector<std::shared_ptr<ov::Node>> SinkForward(std::shared_ptr<ov::Node> tra
     auto gather = std::make_shared<Gather>(reshape_in, gather_indices, gather_axis);
     new_nodes.push_back(gather);
 
-    ov::Shape shape_out = reshape->get_output_shape(0);
     auto reshape_out_const = std::make_shared<Constant>(ov::element::i64, ov::Shape{shape_out.size()}, shape_out);
     auto reshape_out = std::make_shared<Reshape>(gather, reshape_out_const, false);
 
@@ -65,8 +72,17 @@ std::vector<std::shared_ptr<ov::Node>> SinkBackward(std::shared_ptr<ov::Node> re
                                                     std::shared_ptr<ov::Node> transpose) {
     std::vector<std::shared_ptr<ov::Node>> new_nodes = {};
     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-    // reshape
+    ov::Shape shape_out = transpose->get_output_shape(0);
+
+    // Set Gather input shape
     std::vector<int8_t> reshape_in_dims = {1, -1};
+    for (size_t i = reshape_in_dims.size(); i < shape_out.size(); ++i) {
+        if (shape_out[i] == 1) {
+            reshape_in_dims.push_back(shape_out[i]);
+        }
+    }
+
+    // reshape
     auto reshape_in_const =
         std::make_shared<Constant>(ov::element::i64, ov::Shape{reshape_in_dims.size()}, reshape_in_dims);
     auto reshape_in = reshape->clone_with_new_inputs({reshape->input_value(0), reshape_in_const});
@@ -83,7 +99,6 @@ std::vector<std::shared_ptr<ov::Node>> SinkBackward(std::shared_ptr<ov::Node> re
     auto gather = std::make_shared<Gather>(reshape_in, gather_indices, gather_axis);
     new_nodes.push_back(gather);
 
-    ov::Shape shape_out = transpose->get_output_shape(0);
     auto reshape_out_const = std::make_shared<Constant>(ov::element::i64, ov::Shape{shape_out.size()}, shape_out);
     auto reshape_out = std::make_shared<Reshape>(gather, reshape_out_const, false);
 
