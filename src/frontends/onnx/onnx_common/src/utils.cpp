@@ -65,7 +65,7 @@ const std::map<element::Type_t, TensorProto_DataType> NG_2_ONNX_TYPES = {
     {element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
 }  // namespace
 
-element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type) {
+element::Type_t onnx_to_ng_data_type(const ONNX_NAMESPACE::TensorProto_DataType& onnx_type) {
     const auto result =
         std::find_if(NG_2_ONNX_TYPES.begin(),
                      NG_2_ONNX_TYPES.end(),
