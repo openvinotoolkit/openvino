@@ -152,9 +152,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
                 str != "cpu:unknown")
                 IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
-        // add default primitive priorities as a fallback for the custom ones
-        const auto& defaultImplPriorities = getDefaultImplPriority();
-        customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
 
     std::string inputMemoryFormats = getInputMemoryFormats(op);
