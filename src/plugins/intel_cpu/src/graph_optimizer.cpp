@@ -756,8 +756,10 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                 return false;
         }
 
-        auto subtractArg0 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-        if (subtractArg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        const auto& parentEdge = parent0->getParentEdgeAt(0);
+        const auto& subtractArg0 = parentEdge->getParent();
+        const size_t portNum = parentEdge->getInputNum();
+        if (subtractArg0->getOriginalOutputPrecisionAtPort(portNum) != Precision::U8)
             return false;
 
         auto zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());

@@ -224,7 +224,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
