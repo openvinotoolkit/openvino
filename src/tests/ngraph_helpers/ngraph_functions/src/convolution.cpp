@@ -39,5 +39,35 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node> &in,
     }
 }
 
+std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node>& in_data,
+                                      const ngraph::Output<Node>& in_weights,
+                                      const element::Type &type,
+                                      const std::vector<size_t> &filterSize,
+                                      const std::vector<size_t> &strides,
+                                      const std::vector<ptrdiff_t> &padsBegin,
+                                      const std::vector<ptrdiff_t> &padsEnd,
+                                      const std::vector<size_t> &dilations,
+                                      const op::PadType &autoPad,
+                                      size_t numOutChannels,
+                                      bool addBiases,
+                                      const std::vector<float> &biasesWeights) {
+    auto shape = in_data.get_partial_shape();
+    auto conv = std::make_shared<opset1::Convolution>(in_data,
+                                                      in_weights,
+                                                      strides,
+                                                      padsBegin,
+                                                      padsEnd,
+                                                      dilations,
+                                                      autoPad);
+    if (addBiases) {
+        bool randomBiases = biasesWeights.empty();
+        auto biasesWeightsNode = makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
+        auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
+        return add;
+    } else {
+        return conv;
+    }
+}
+
 }  // namespace builder
 }  // namespace ngraph
