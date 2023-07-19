@@ -347,6 +347,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,
+        //Lower down brgemm avx2 primitive priority than jit avx2 for perf issue.
         impl_desc_type::brgconv_avx2_1x1,
         impl_desc_type::brgconv_avx2,
         impl_desc_type::jit_avx_dw,
@@ -777,7 +778,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto& desc = descs[dIdx];
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
 
-        const bool first_match = customImplPriorities.empty();
+        const bool first_match = !customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
