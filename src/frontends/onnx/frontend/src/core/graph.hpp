@@ -15,6 +15,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "ops_bridge.hpp"
 
@@ -50,7 +51,9 @@ public:
     }
     virtual bool is_ng_node_in_cache(const std::string& name) const;
     virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OutputVector make_ng_nodes(const Node& onnx_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
@@ -65,10 +68,14 @@ protected:
           const bool enable_mmap,
           ov::frontend::ExtensionHolder extensions = {});
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OutputVector make_framework_nodes(const Node& onnx_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
@@ -81,7 +88,9 @@ protected:
     ov::frontend::ExtensionHolder m_extensions = {};
 
 private:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<Node> m_nodes;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::string m_model_dir;
     bool m_enable_mmap;
     OperatorsBridge m_ops_bridge;

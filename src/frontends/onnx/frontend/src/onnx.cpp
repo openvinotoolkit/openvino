@@ -29,7 +29,9 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream,
     const auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
     ov::frontend::ExtensionHolder extensions;
     extensions.conversions.push_back(legacy_conversion_extension);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto model = detail::import_onnx_model(model_proto, model_path, enable_mmap, std::move(extensions));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto error_message = common::collect_translation_exceptions(model);
     NGRAPH_CHECK(error_message.empty(), error_message);
     return model;
@@ -42,8 +44,9 @@ std::shared_ptr<Function> import_onnx_model(const std::string& file_path, const 
         OPENVINO_THROW("Error during import of ONNX model expected to be in file: " + file_path +
                        ". Could not open the file.");
     };
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto model = import_onnx_model(model_stream, file_path, enable_mmap);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto error_message = common::collect_translation_exceptions(model);
     NGRAPH_CHECK(error_message.empty(), error_message);
     return model;
