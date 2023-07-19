@@ -190,18 +190,18 @@ PY_INSTALL_CFG = {
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "ovc",
     },
-    # "benchmark_app": {                                                 # noqa: E731
-    #     "entry_point": {                                               # noqa: E731
-    #         "console_scripts": [                                       # noqa: E731
-    #             "benchmark_app = openvino.tools.benchmark.main:main",  # noqa: E731
-    #         ],                                                         # noqa: E731
-    #     },                                                             # noqa: E731
-    #     "name": f"pyopenvino_{PYTHON_VERSION}",                        # noqa: E731
-    #     "prefix": f"{BUILD_BASE}/site-packages",                       # noqa: E731
-    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",   # noqa: E731
-    #     "install_dir": PY_PACKAGES_DIR,                                # noqa: E731
-    #     "binary_dir": "benchmark_app",                                 # noqa: E731
-    # },                                                                 # noqa: E731
+    "benchmark_app": {
+        "entry_point": {
+            "console_scripts": [
+                "benchmark_app = openvino.tools.benchmark.main:main",
+            ],
+        },
+        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
+        "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": "benchmark_app",
+    },
 }
 
 
