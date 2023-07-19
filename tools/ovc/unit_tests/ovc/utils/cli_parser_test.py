@@ -19,7 +19,8 @@ from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension, Layout, InputCutInfo
+from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.tools.ovc import InputCutInfo
 
 
 class TestShapesParsing(UnitTestWithMockedTelemetry):

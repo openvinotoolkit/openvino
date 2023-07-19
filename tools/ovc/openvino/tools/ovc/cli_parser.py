@@ -142,14 +142,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
         # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(node_name,
+        return openvino.tools.ovc.InputCutInfo(node_name,
                                               PartialShape(shape) if shape is not None else None,
                                               data_type,
                                               value)
-    if isinstance(input, openvino.runtime.InputCutInfo): # pylint: disable=no-member
+    if isinstance(input, openvino.tools.ovc.InputCutInfo): # pylint: disable=no-member
         # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(input.name,
+        return openvino.tools.ovc.InputCutInfo(input.name,
                                               PartialShape(input.shape) if input.shape is not None else None,
                                               input.type,
                                               input.value)
@@ -180,18 +180,18 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(name,
+        return openvino.tools.ovc.InputCutInfo(name,
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
     # Case when only type is set
     if isinstance(input, (type, Type)):
-        return openvino.runtime.InputCutInfo(None, None, input, None) # pylint: disable=no-member
+        return openvino.tools.ovc.InputCutInfo(None, None, input, None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected openvino.runtime.InputCutInfo "
+    raise Exception("Unexpected object provided for input. Expected openvino.tools.ovc.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
@@ -211,13 +211,13 @@ def input_to_input_cut_info(input: [str, tuple, list]):
             # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
             # pylint: disable=no-member
-            inputs.append(openvino.runtime.InputCutInfo(node_name,
+            inputs.append(openvino.tools.ovc.InputCutInfo(node_name,
                                                          PartialShape(shape) if shape is not None else None,
                                                          data_type,
                                                          value))
         return inputs
     # pylint: disable=no-member
-    if isinstance(input, openvino.runtime.InputCutInfo):
+    if isinstance(input, openvino.tools.ovc.InputCutInfo):
         # Wrap to list and return
         return [input]
     if isinstance(input, tuple):
@@ -347,7 +347,7 @@ ParamDescription = namedtuple("ParamData",
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.runtime.convert_model.__doc__ # pylint: disable=no-member
+    mo_convert_docs = openvino.tools.ovc.convert_model.__doc__ # pylint: disable=no-member
     mo_convert_params = {}
     group = "Framework-agnostic parameters:"    #FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
@@ -639,7 +639,7 @@ def writable_dir(path: str):
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.runtime.convert_model) # pylint: disable=no-member
+    signature = inspect.signature(openvino.tools.ovc.convert_model) # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():

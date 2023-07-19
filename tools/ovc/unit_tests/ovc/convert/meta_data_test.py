@@ -7,7 +7,8 @@ from pathlib import Path
 
 from generator import generator
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import serialize, convert_model
+from openvino.runtime import serialize
+from openvino.tools.ovc import convert_model
 
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from utils import save_to_onnx

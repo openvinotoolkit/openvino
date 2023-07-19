@@ -6,7 +6,8 @@ import tempfile
 from pathlib import Path
 
 from generator import generator, generate
-from openvino.runtime import serialize, InputCutInfo
+from openvino.runtime import serialize
+from openvino.tools.ovc import InputCutInfo
 
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
@@ -60,7 +61,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
     ])
     # Checks convert import from openvino.tools.mo
     def test_import(self, params):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = create_onnx_model()
@@ -72,7 +73,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             assert os.path.exists(out_xml)
 
     def test_input_model_path(self):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
@@ -86,7 +87,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
 
 
     def test_unnamed_input_model(self):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)

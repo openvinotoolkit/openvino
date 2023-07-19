@@ -3,7 +3,8 @@
 
 from pathlib import Path
 
-from openvino.runtime import serialize, convert_model
+from openvino.runtime import serialize
+from openvino.tools.ovc import convert_model
 from openvino.tools.mo import convert_model as legacy_convert_model
 from openvino.test_utils import compare_functions
 

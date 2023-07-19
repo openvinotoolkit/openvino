@@ -4,7 +4,8 @@
 import numpy as np
 import os
 import pytest
-from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension, InputCutInfo
+from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
+from openvino.tools.ovc import InputCutInfo
 from openvino.tools.mo import LayoutMap
 
 from common.mo_convert_test_class import CommonMOConvertTest

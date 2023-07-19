@@ -9,8 +9,8 @@ import openvino.runtime as ov
 import pytest
 import torch
 import unittest
-from openvino.runtime import PartialShape, Dimension, Model, Type, InputCutInfo
-
+from openvino.runtime import PartialShape, Dimension, Model, Type
+from openvino.tools.ovc import InputCutInfo
 from common.mo_convert_test_class import CommonMOConvertTest
 
 
@@ -806,7 +806,7 @@ def create_pt_model_with_custom_op():
 
 class ConvertRaises(unittest.TestCase):
     def test_example_inputs(self):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
         pytorch_model = create_pt_model_with_custom_op()
 
         # Check that mo raises error message of wrong argument.
