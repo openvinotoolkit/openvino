@@ -103,6 +103,7 @@ tolerance_map = {
     "resnet152v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet18v2": {"atol": 1e-05, "rtol": 0.001},
     "resnet34v2": {"atol": 1e-05, "rtol": 0.001},
+    "resnet34-v1-7": {"atol": 1e-06, "rtol": 0.001},
     "vgg16": {"atol": 1e-05, "rtol": 0.001},
     "vgg19-bn": {"atol": 1e-05, "rtol": 0.001},
     "test_tiny_yolov2": {"atol": 1e-05, "rtol": 0.001},
