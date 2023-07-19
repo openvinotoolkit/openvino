@@ -217,6 +217,7 @@ struct format {
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
         os_i_yxs_osv4_yxsv4,
+        os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,

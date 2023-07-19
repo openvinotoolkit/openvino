@@ -19,6 +19,18 @@ class aten_quantize_per_tensor_aten_dequantize(torch.nn.Module):
         dequantized_tensor = torch.dequantize(quantized_tensor)
         return dequantized_tensor
 
+class aten_quantize_per_channel_aten_dequantize(torch.nn.Module):
+    def __init__(self, scales, zero_points, dtype, axis) -> None:
+        torch.nn.Module.__init__(self)
+        self.scales = torch.Tensor(scales)
+        self.zero_points = torch.Tensor(zero_points)
+        self.dtype = dtype
+        self.axis = axis
+    def forward(self, input_tensor):
+        quantized_tensor =  torch.quantize_per_channel(input_tensor, self.scales, self.zero_points, self.axis, self.dtype)
+        dequantized_tensor = torch.dequantize(quantized_tensor)
+        return dequantized_tensor
+
 class TestQuantizePerTensorDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (np.array(5.00 * np.random.rand(100, 100) + 5.00, dtype=np.float32),)
@@ -41,19 +53,6 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
                 ie_device, precision, ir_version, )
-
-class aten_quantize_per_channel_aten_dequantize(torch.nn.Module):
-    def __init__(self, scale, zero_point, axis, dtype) -> None:
-        torch.nn.Module.__init__(self)
-        self.scale = torch.tensor(scale)
-        self.zero_point = torch.tensor(zero_point)
-        self.axis = axis
-        self.dtype = dtype
-
-    def forward(self, input_tensor):
-        quantized_tensor =  torch.quantize_per_channel(input_tensor, self.scale, self.zero_point, self.axis, self.dtype)
-        dequantized_tensor = torch.dequantize(quantized_tensor)
-        return dequantized_tensor
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):

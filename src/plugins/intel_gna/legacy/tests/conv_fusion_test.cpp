@@ -33,7 +33,7 @@ using EltwiseShape = ngraph::Shape;
 using IsNegative = bool;
 
 class ConvFusionTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, WeightsShape, EltwiseType, EltwiseShape, IsNegative>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
