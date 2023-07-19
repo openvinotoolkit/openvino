@@ -273,12 +273,15 @@ void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned signi
 template<class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem)
 {
+    using T1 = typename std::conditional<std::is_same<int8_t, T>::value, int, T>::type;
+    using T2 = typename std::conditional<std::is_same<uint8_t, T1>::value, unsigned int, T1>::type;
+
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
 
     std::mt19937 gen;
-    static std::uniform_int_distribution<T> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    static std::uniform_int_distribution<T2> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
-        *it = uid(gen);
+        *it = static_cast<T>(uid(gen));
     }
 }
 
