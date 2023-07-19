@@ -4,7 +4,6 @@
 import argparse
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.ovc.cli_parser import parse_transform
 from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing
 
 
@@ -26,8 +25,6 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
         params_with_custom_types = [] if argv.placeholder_data_types is None \
             else list(argv.placeholder_data_types.keys())
         apply_moc_legacy_transformations(ngraph_function, params_with_custom_types)
-
-    apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
     # TODO: Move compression to save_model at the level of main function where serialize is called
     if not argv.is_python_api_used and argv.compress_to_fp16:

@@ -24,7 +24,6 @@ def convert_model(
         output: [str, list] = None,
         example_input: Any = None,
         extensions: [str, pathlib.Path, list, Any] = None,
-        transform: [str, list, tuple] = "",  #TODO: Consider removing
         verbose: bool = False,
         share_weights: bool = True,
 
@@ -104,18 +103,6 @@ def convert_model(
             a directory or a comma-separated list of directories with extensions
             are supported. To disable all extensions including those that are placed
             at the default location, pass an empty string.
-        :param transform:
-            Apply additional transformations. 'transform' can be set by a list
-            of tuples, where the first element is transform name and the second element
-            is transform parameters. For example: [('LowLatency2', {{'use_const_initializer':
-            False}}), ...] transform="transformation_name1[args],transformation_name2..."
-            where [args] is key=value pairs separated by semicolon. Examples:
-                     transform="LowLatency2" or
-                     transform="Pruning" or
-                     transform="LowLatency2[use_const_initializer=False]" or
-                     transform="MakeStateful[param_res_names=
-                     {'input_name_1':'output_name_1','input_name_2':'output_name_2'}]"
-            Available transformations: "LowLatency2", "MakeStateful", "Pruning"
         :param verbose:
             Print detailed information about conversion.
         :param share_weights:

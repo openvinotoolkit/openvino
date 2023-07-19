@@ -294,24 +294,6 @@ class TestComplexParams(CommonMOConvertTest):
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
 
-    test_data = [
-        {
-            'params_test': {'transform': ('MakeStateful', {'param_res_names': {'Input:0': 'Identity:0'}})},
-            'params_ref': {'transform': "MakeStateful[param_res_names={\'Input:0\':\'Identity:0\'}]"}}
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.nightly
-    def test_mo_convert_transform(self, params, ie_device, precision, ir_version,
-                                  temp_dir, use_new_frontend, use_old_api):
-        tf_net_path = self.create_tf_param_res_model(temp_dir)
-
-        test_params = params['params_test']
-        ref_params = params['params_ref']
-        test_params.update({'input_model': tf_net_path})
-        ref_params.update({'input_model': tf_net_path})
-        self._test(temp_dir, test_params, ref_params)
-
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_clearing_transformation_registry(self, ie_device, precision, ir_version,

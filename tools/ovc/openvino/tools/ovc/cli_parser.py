@@ -279,69 +279,6 @@ def layout_to_str(layout):
     raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
                     "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
 
-
-def transform_param_value_to_str(value):
-    # This function supports parsing of parameters of MakeStateful, LowLatency2, Pruning.
-    # If available transforms list is extended this method should be extended for new transforms.
-    if isinstance(value, str):
-        return value
-    if isinstance(value, bool):
-        return str(value)
-    if isinstance(value, dict):
-        # param_res_names dictionary for MakeStateful transform
-        values_str = []
-        for input_name, output_name in value.items():
-            assert isinstance(input_name, str), "Incorrect input name. " \
-                                                "Expected string, got {}".format(type(input_name))
-            assert isinstance(output_name, str), "Incorrect output name. " \
-                                                 "Expected string, got {}".format(type(output_name))
-            values_str.append("\'{}\':\'{}\'".format(input_name, output_name))
-        return "{" + ','.join(values_str) + "}"
-    raise Exception("Unknown parameter type.")
-
-
-def transform_to_str(value):
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
-
-    if isinstance(value, str):
-        return value
-
-    if isinstance(value, tuple):
-        assert 1 <= len(value) <= 2, "Incorrect definition of transformation in transform argument: " \
-                                     "expected two elements in tuple, provided {}. " \
-                                     "Supported transforms are: {}".format(
-            len(value),
-            list(get_available_transformations().keys()))
-        transform_name = value[0]
-        assert isinstance(transform_name, str), "Incorrect transform name type. " \
-                                                "Expected string, got {}".format(type(transform_name))
-        if len(value) == 2:
-            params = value[1]
-            assert isinstance(params, dict), "Incorrect transform params type. " \
-                                             "Expected dictionary, got {}".format(type(params))
-            params_str_list = []
-            for param_name, val in params.items():
-                assert isinstance(param_name, str), "Incorrect transform parameter name type. " \
-                                                    "Expected string, got {}".format(type(param_name))
-                val_str = transform_param_value_to_str(val)
-                params_str_list.append(param_name + "=" + val_str)
-            transform_name += '[' + ','.join(params_str_list) + ']'
-        return transform_name
-    raise Exception("Incorrect transform type. Expected tuple with transform name and "
-                    "dictionary with transform parameters. Got object of type {}".format(type(value)))
-
-
-def transform_param_to_str(value):
-    if value is None or isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        transforms_str = []
-        for transform in value:
-            transforms_str.append(transform_to_str(transform))
-        return ','.join(transforms_str)
-    return transform_to_str(value)
-
-
 ParamDescription = namedtuple("ParamData",
                               ["description", "cli_tool_description", "to_string"])
 
@@ -728,7 +665,6 @@ def get_common_cli_options(model_name):
     d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
-    d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     return d
 
 
@@ -1378,70 +1314,6 @@ def convert_string_to_real_type(value: str):
             values[i] = strtobool(value)
 
     return values[0] if len(values) == 1 else values
-
-
-def parse_transform(transform: str) -> list:
-    transforms = []
-
-    if len(transform) == 0:
-        return transforms
-
-    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
-
-    # Check that all characters were matched otherwise transform key value is invalid
-    key_len = len(transform)
-    for transform in all_transforms:
-        # In regexp we have 4 groups where 1st group - transformation_name,
-        #                                  2nd group - [args],
-        #                                  3rd group - args, <-- nested group
-        #                                  4th group - EOL
-        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
-        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
-        if len(transform) != 4:
-            raise Error("Unexpected transform key structure: {}".format(transform))
-        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
-
-    if key_len != 0:
-        raise Error("Unexpected transform key structure: {}".format(transform))
-
-    for transform in all_transforms:
-        name = transform[0]
-        args = transform[2]
-
-        args_dict = {}
-
-        if len(args) != 0:
-            for arg in args.split(';'):
-                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
-                if not m:
-                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
-
-                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
-
-        transforms.append((name, args_dict))
-
-    return transforms
-
-
-def check_available_transforms(transforms: list):
-    """
-    This function check that transformations specified by user are available.
-    :param transforms: list of user specified transformations
-    :return: raises an Error if transformation is not available
-    """
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
-    available_transforms = get_available_transformations()
-
-    missing_transformations = []
-    for name, _ in transforms:
-        if name not in available_transforms.keys():
-            missing_transformations.append(name)
-
-    if len(missing_transformations) != 0:
-        raise Error('Following transformations ({}) are not available. '
-                    'List with available transformations ({})'.format(','.join(missing_transformations),
-                                                                      ','.join(available_transforms.keys())))
-    return True
 
 
 def check_positive(value):

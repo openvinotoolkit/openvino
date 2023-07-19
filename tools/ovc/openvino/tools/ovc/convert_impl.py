@@ -19,8 +19,8 @@ from openvino.tools.ovc.moc_frontend.check_config import new_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.ovc.cli_parser import check_available_transforms, get_available_front_ends, \
-    get_common_cli_options, parse_transform, get_model_name_from_args, depersonalize, get_mo_convert_params, \
+from openvino.tools.ovc.cli_parser import get_available_front_ends, \
+    get_common_cli_options, get_model_name_from_args, depersonalize, get_mo_convert_params, \
     input_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.ovc.error import Error, FrameworkError
@@ -91,8 +91,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if argv.verbose:
         print_argv(argv, argv.output_model)
 
-    # This is just to check that transform key is valid and transformations are available
-    check_available_transforms(parse_transform(argv.transform))
     params_parsing(argv)
     argv.output = argv.output.split(',') if argv.output else None
 

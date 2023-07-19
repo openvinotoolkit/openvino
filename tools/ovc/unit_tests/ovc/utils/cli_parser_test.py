@@ -14,7 +14,7 @@ import numpy as np
 
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
     check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
+    readable_file, get_freeze_placeholder_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
 from openvino.tools.ovc.error import Error
@@ -488,83 +488,13 @@ class PathCheckerFunctions(unittest.TestCase):
             readable_file(__class__.NOT_EXISTING_FILE)
 
 
-class TransformChecker(unittest.TestCase):
-    def test_empty(self):
-        self.assertEqual(parse_transform(""), [])
-
-    def test_single_pass(self):
-        self.assertEqual(parse_transform("LowLatency2"), [("LowLatency2", {})])
-
-    def test_single_pass_with_args(self):
-        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True]"),
-                         [("LowLatency2", {"use_const_initializer": True})])
-
-    def test_single_pass_with_multiple_args(self):
-        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True;dummy_attr=3.14]"),
-                         [("LowLatency2", {"use_const_initializer": True, "dummy_attr": 3.14})])
-
-    def test_multiple_passes_with_args(self):
-        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True],DummyPass[type=ReLU]"),
-                         [("LowLatency2", {"use_const_initializer": True}),
-                          ("DummyPass", {"type": "ReLU"})])
-
-    def test_multiple_passes_with_args2(self):
-        self.assertEqual(parse_transform("LowLatency2[use_const_initializer=True,False],DummyPass1,"
-                                         "DummyPass2[types=ReLU,PReLU;values=1,2,3]"),
-                         [("LowLatency2", {"use_const_initializer": [True, False]}),
-                          ("DummyPass1", {}),
-                          ("DummyPass2", {"types": ["ReLU", "PReLU"], "values": [1, 2, 3]})])
-
-    def test_multiple_passes_no_args(self):
-        self.assertEqual(parse_transform("DummyPass,LowLatency22"),
-                         [("DummyPass", {}), ("LowLatency22", {})])
-
-    def test_single_pass_neg(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2!")
-
-    def test_multiple_passes_neg(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2;DummyPass")
-
-    def test_single_pass_with_args_neg1(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[=2]")
-
-    def test_single_pass_with_args_neg2(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[key=]")
-
-    def test_single_pass_with_args_neg3(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[]")
-
-    def test_single_pass_with_args_neg4(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[key=value;]")
-
-    def test_single_pass_with_args_neg5(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[value]")
-
-    def test_single_pass_with_args_neg6(self):
-        self.assertRaises(Error, parse_transform, "LowLatency2[key=value")
-
-    @patch("openvino.tools.ovc.moc_frontend.offline_transformations.get_available_transformations")
-    def test_check_low_latency_is_available(self, available_transformations):
-        available_transformations.return_value = {"LowLatency2": None}
-        try:
-            check_available_transforms([("LowLatency2", "")])
-        except Error as e:
-            self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
-
-    @patch("openvino.tools.ovc.moc_frontend.offline_transformations.get_available_transformations")
-    def test_check_dummy_pass_is_available(self, available_transformations):
-        available_transformations.return_value = {"LowLatency2": None}
-        self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])
-
-
 class TestPackParamsToArgsNamespace(unittest.TestCase):
     def test_mo_convert_params(self):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
                 'extensions': ConversionExtension("Ext", lambda x: x),
                 'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
-                'output': ["a", "b", "c"],
-                'transform': ('LowLatency2', {'use_const_initializer': False})}
+                'output': ["a", "b", "c"]}
 
         cli_parser = get_all_cli_parser()
         argv = pack_params_to_args_namespace(args, cli_parser)
@@ -573,7 +503,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.extensions == [args['extensions']]
         assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
         assert argv.output == "a,b,c"
-        assert argv.transform == "LowLatency2[use_const_initializer=False]"
 
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
@@ -599,7 +528,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
             'Framework-agnostic parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extensions', 'transform', 'verbose', 'share_weights'},
+                                               'extensions', 'verbose', 'share_weights'},
             'TensorFlow*-specific parameters:': {'saved_model_tags'},
             'PaddlePaddle-specific parameters:': {'example_output'},
         }
