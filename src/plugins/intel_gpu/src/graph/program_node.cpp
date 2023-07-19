@@ -987,8 +987,8 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef)
-                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
-                                  "pushing to post-op.";
+                    OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
+                                   "pushing to post-op.");
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
