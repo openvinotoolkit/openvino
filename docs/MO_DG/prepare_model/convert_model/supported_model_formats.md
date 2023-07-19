@@ -292,20 +292,22 @@ Below you will find code examples for each method, for all supported model forma
          .. tab-item:: CLI
             :sync: cli
 
-            You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+            * The ``convert_model()`` method:
 
-            .. dropdown:: List of supported formats:
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
 
-               * **Files**:
+              .. dropdown:: List of supported formats:
 
-                 * ``<INPUT_MODEL>.tflite``
+                 * **Files**:
 
-            .. code-block:: sh
+                   * ``<INPUT_MODEL>.tflite``
 
-               mo --input_model <INPUT_MODEL>.tflite
+              .. code-block:: sh
 
-            For details on the conversion, refer to the 
-            :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`.
+                 mo --input_model <INPUT_MODEL>.tflite
+
+              For details on the conversion, refer to the 
+              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite>`.
 
    .. tab-item:: ONNX
       :sync: onnx
@@ -405,20 +407,22 @@ Below you will find code examples for each method, for all supported model forma
          .. tab-item:: CLI
             :sync: cli
 
-            You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+            * The ``convert_model()`` method:
 
-            .. dropdown:: List of supported formats:
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
 
-               * **Files**:
+              .. dropdown:: List of supported formats:
 
-                 * ``<INPUT_MODEL>.onnx``
+                 * **Files**:
 
-            .. code-block:: sh
+                   * ``<INPUT_MODEL>.onnx``
 
-               mo --input_model <INPUT_MODEL>.onnx
+              .. code-block:: sh
 
-            For details on the conversion, refer to the
-            :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
+                 mo --input_model <INPUT_MODEL>.onnx
+
+              For details on the conversion, refer to the
+              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>`
 
    .. tab-item:: PaddlePaddle
       :sync: pdpd
@@ -525,25 +529,27 @@ Below you will find code examples for each method, for all supported model forma
          .. tab-item:: CLI
             :sync: cli
 
-            You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
+            * The ``convert_model()`` method:
 
-            .. dropdown:: List of supported formats:
+              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can then be read by ``read_model()`` and inferred.
 
-               * **Files**:
+              .. dropdown:: List of supported formats:
 
-                 * ``<INPUT_MODEL>.pdmodel``
+                 * **Files**:
 
-            .. code-block:: sh
+                   * ``<INPUT_MODEL>.pdmodel``
 
-               mo --input_model <INPUT_MODEL>.pdmodel
+              .. code-block:: sh
 
-            For details on the conversion, refer to the
-            :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
+                 mo --input_model <INPUT_MODEL>.pdmodel
+
+              For details on the conversion, refer to the
+              :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
 
 
 **MXNet, Caffe, and Kaldi** are legacy formats that need to be converted to OpenVINO IR before running inference. The model conversion in some cases may involve intermediate steps. For more details, refer to the :doc:`MXNet <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`, :doc:`Caffe <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`, :doc:`Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` conversion guides.
 
-OpenVINO is currently proceeding **to deprecate these formats** and **remove their support entirely in the future**. Converting these formats to ONNX might be a viable solution for inference in OpenVINO Toolkit.
+OpenVINO is currently proceeding **to deprecate these formats** and **remove their support entirely in the future**. Converting these formats to ONNX or using an LTS version might be a viable solution for inference in OpenVINO Toolkit.
 
 .. note::
 
