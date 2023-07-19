@@ -5,7 +5,11 @@ This notebook demonstrates how to process `point
 cloud <https://en.wikipedia.org/wiki/Point_cloud>`__ data and run 3D
 Part Segmentation with OpenVINO. We use the
 `PointNet <https://arxiv.org/abs/1612.00593>`__ pre-trained model to
-detect each part of a chair and return its category. ## PointNet
+detect each part of a chair and return its category.
+
+PointNet
+########
+
 PointNet was proposed by Charles Ruizhongtai Qi, a researcher at
 Stanford University in 2016: arXiv:1612.00593 <`PointNet: Deep Learning
 on Point Sets for 3D Classification and

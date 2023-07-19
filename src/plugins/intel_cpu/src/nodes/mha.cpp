@@ -902,11 +902,11 @@ void MHA::prepareParams() {
         return new_vec;
     };
 
-    const auto memDescTranspose0In0 = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescTranspose1In0 = getParentEdgeAt(1)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescAddIn1 = getParentEdgeAt(2)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescTranspose2In0 = getParentEdgeAt(3)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
-    const auto memDescOut = getChildEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose0In0 = getParentEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose1In0 = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescAddIn1 = getParentEdgeAt(2)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose2In0 = getParentEdgeAt(3)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescOut = getChildEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
 
     dimsTranspose0In0 = memDescTranspose0In0->getBlockDims();
     dimsTranspose1In0 = memDescTranspose1In0->getBlockDims();
@@ -1215,11 +1215,11 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
 
 template <typename in1_type>
 void MHA::mhaImpl() {
-    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const uint8_t* pTranspose1In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const uint8_t* pTranspose1In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->getData());
+    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto outPrcSize = outputPrecision.size();
 

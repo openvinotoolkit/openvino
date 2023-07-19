@@ -1,11 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
-import io
 import logging as log
 import sys
 from copy import copy
@@ -17,7 +13,7 @@ import os
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
     Place  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.ovc.types import get_element_type, \
+from openvino.runtime.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, fe_output_user_data_repack
@@ -50,18 +46,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
     input_checkpoint = getattr(argv, 'input_checkpoint', None)
+    share_weights = getattr(argv, 'share_weights', True)
     if argv.input_model and input_checkpoint:
         # frozen format with v1 checkpoints
-        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint])
+        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], share_weights)
     elif argv.input_model:
-        input_model = moc_front_end.load(argv.input_model)
+        input_model = moc_front_end.load(argv.input_model, share_weights)
     elif argv.saved_model_dir:
         if argv.saved_model_tags:
-            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags])
+            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], share_weights)
         else:
-            input_model = moc_front_end.load(argv.saved_model_dir)
+            input_model = moc_front_end.load(argv.saved_model_dir, share_weights)
     elif argv.input_meta_graph:
-        input_model = moc_front_end.load(argv.input_meta_graph)
+        input_model = moc_front_end.load(argv.input_meta_graph, share_weights)
         if argv.output:
             # Simulate original behavior with freezing model
             # While freezing we do a cutting of model, to keep similar behavior we

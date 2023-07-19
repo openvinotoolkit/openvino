@@ -44,7 +44,8 @@ where α corresponds to ``alpha`` scalar input and β corresponds to ``beta`` sc
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="HardSigmoid">
        <input>

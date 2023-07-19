@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
 import os
 import sys
 
@@ -10,7 +9,7 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 from openvino.tools.ovc.convert_impl import _convert
-from openvino.tools.ovc.version import VersionChecker
+from openvino.tools.ovc.utils import get_ir_version
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import serialize
@@ -28,7 +27,7 @@ def main():
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
-    print('[ SUCCESS ] Generated IR version {} model.'.format(VersionChecker().get_ie_simplified_version()))
+    print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version()))
     print('[ SUCCESS ] XML file: {}'.format(model_path))
     print('[ SUCCESS ] BIN file: {}'.format(model_path.replace('.xml', '.bin')))
     return 0

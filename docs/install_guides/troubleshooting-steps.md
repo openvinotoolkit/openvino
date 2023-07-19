@@ -18,15 +18,16 @@ Check the versions of OpenVINO Runtime and Development Tools
   .. tab-set::
 
       .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
-          .. code-block:: python
+          .. code-block:: py
+             :force:
 
              from openvino.tools.mo import convert_model
              ov_model = convert_model(version=True)
 
       .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 

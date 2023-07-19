@@ -36,6 +36,7 @@ ngraph::op::PadMode get_pad_mode(std::string mode) {
     return pad_mode;
 }
 }  // namespace
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -109,3 +110,4 @@ OutputVector pad(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END
