@@ -828,8 +828,15 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
         if (_outputs.find(name) == _outputs.end()) {
             auto outputNode = modelOutputsMap.find(name);
             if (modelOutputsMap.find(name) != modelOutputsMap.end()) {
-                const auto shape = outputNode->second->get_input_partial_shape(0);
+                auto shape = outputNode->second->get_input_partial_shape(0);
                 bool isDynamic = shape.is_dynamic();
+
+                //overwrite for cases that ov::Model is dynamic but actually it is a static graph.
+                const auto _shape = output->second->getInputShapeAtPort(0);
+                bool _isDynamic = _shape.isDynamic();
+                if (!_isDynamic && isDynamic) {
+                    shape = PartialShape(_shape.getStaticDims());
+                }
 
                 if (!data) {
                     InferenceEngine::SizeVector dims;
