@@ -75,8 +75,7 @@ bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs
         const auto& lhs_shape = lhs_constant->get_shape();
         if (lhs_shape != rhs_constant->get_shape() || shape_size(lhs_shape) > 10)
             return false;
-        size_t bytes = (shape_size(lhs_shape) * lhs_constant->get_element_type().bitwidth() + 8 - 1) / 8;
-        if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), bytes) != 0)
+        if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
             return false;
     }
     return true;
