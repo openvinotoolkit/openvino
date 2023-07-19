@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "common_test_utils/file_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "proxy_tests.hpp"
 
@@ -173,14 +172,13 @@ TEST_F(ProxyTests, set_property_for_loaded_fallback_device) {
 TEST_F(ProxyTests, set_cache_dir_for_loaded_fallback_device) {
     core.get_available_devices();
     const std::string dev_name = "MOCK.1";
-    core.set_property(dev_name, ov::cache_dir("./test_cache"));
+    core.set_property(dev_name, ov::cache_dir("test_cache"));
     auto model = create_model_with_subtract();
-    auto compiled_model = core.compile_model(model, "MOCK.1", ov::cache_dir("./test_cache"));
+    auto compiled_model = core.compile_model(model, "MOCK.1", ov::cache_dir("test_cache"));
     auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();
-    CommonTestUtils::removeDir("./test_cache");
 }
 
 TEST_F(ProxyTests, set_property_for_loaded_primary_device) {
@@ -310,36 +308,38 @@ TEST_F(ProxyTests, get_property_for_loaded_changed_default_device) {
 
 #ifdef ENABLE_AUTO_BATCH
 
-TEST_F(ProxyTests, set_cache_dir_for_auto_batch__hetero_fallback_device) {
+#    ifdef HETERO_ENABLED
+
+TEST_F(ProxyTests, set_cache_dir_for_auto_batch_hetero_fallback_device) {
     core.get_available_devices();
     const std::string dev_name = "MOCK.1";
-    core.set_property(dev_name, ov::cache_dir("./test_cache"));
-    auto model = create_model_with_subtract();
+    core.set_property(dev_name, ov::cache_dir("test_cache"));
+    auto model = create_model_with_add();
     auto compiled_model = core.compile_model(model,
                                              "MOCK.1",
-                                             ov::cache_dir("./test_cache"),
+                                             ov::cache_dir("test_cache"),
                                              ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
     auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();
-    CommonTestUtils::removeDir("./test_cache");
 }
+
+#    endif
 
 TEST_F(ProxyTests, set_cache_dir_for_auto_batch_main_fallback_device) {
     core.get_available_devices();
     const std::string dev_name = "MOCK.1";
-    core.set_property(dev_name, ov::cache_dir("./test_cache"));
+    core.set_property(dev_name, ov::cache_dir("test_cache"));
     auto model = create_model_with_add();
     auto compiled_model = core.compile_model(model,
                                              "MOCK.0",
-                                             ov::cache_dir("./test_cache"),
+                                             ov::cache_dir("test_cache"),
                                              ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
     auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = create_and_fill_tensor(model->input().get_element_type(), model->input().get_shape());
     infer_request.set_input_tensor(input_tensor);
     infer_request.infer();
-    CommonTestUtils::removeDir("./test_cache");
 }
 
 #endif

@@ -64,6 +64,7 @@ public:
     ov::Core core;
 
     void SetUp() override;
+    void TearDown() override;
 
     std::shared_ptr<ov::Model> create_model_with_subtract();
     std::shared_ptr<ov::Model> create_model_with_subtract_reshape();

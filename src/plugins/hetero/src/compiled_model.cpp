@@ -684,26 +684,29 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
 
     for (const auto& comp_model_desc : m_compiled_submodels) {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
-            comp_model_desc.compiled_model->export_model(model_stream);
-        } else {
-            auto model = std::const_pointer_cast<ov::Model>(comp_model_desc.compiled_model->get_runtime_model());
-            if (!model)
-                OPENVINO_THROW("OpenVINO Model is empty");
-
-            std::stringstream xmlFile, binFile;
-            ov::pass::Serialize serializer(xmlFile, binFile);
-            serializer.run_on_model(model);
-
-            auto constants = binFile.str();
-            auto model_str = xmlFile.str();
-
-            auto dataSize = static_cast<std::uint64_t>(model_str.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(model_str.c_str(), dataSize);
-
-            dataSize = static_cast<std::uint64_t>(constants.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
+            try {
+                comp_model_desc.compiled_model->export_model(model_stream);
+                continue;
+            } catch (ov::NotImplemented&) {
+            }
         }
+        auto model = std::const_pointer_cast<ov::Model>(comp_model_desc.compiled_model->get_runtime_model());
+        if (!model)
+            OPENVINO_THROW("OpenVINO Model is empty");
+
+        std::stringstream xmlFile, binFile;
+        ov::pass::Serialize serializer(xmlFile, binFile);
+        serializer.run_on_model(model);
+
+        auto constants = binFile.str();
+        auto model_str = xmlFile.str();
+
+        auto dataSize = static_cast<std::uint64_t>(model_str.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(model_str.c_str(), dataSize);
+
+        dataSize = static_cast<std::uint64_t>(constants.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
     }
 }

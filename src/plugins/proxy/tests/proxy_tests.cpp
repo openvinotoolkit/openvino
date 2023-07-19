@@ -66,6 +66,10 @@ void ov::proxy::tests::ProxyTests::SetUp() {
     }
 }
 
+void ov::proxy::tests::ProxyTests::TearDown() {
+    CommonTestUtils::removeDir("test_cache");
+}
+
 ov::Tensor ov::proxy::tests::ProxyTests::create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape) {
     switch (type) {
     case ov::element::Type_t::i64:
@@ -185,7 +189,7 @@ public:
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return m_model;
     }
 
     void set_property(const ov::AnyMap& properties) override {
