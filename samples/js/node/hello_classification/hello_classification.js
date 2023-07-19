@@ -25,9 +25,8 @@ async function main(modelPath, imagePath, deviceName) {
   console.log(`Reading the model: ${modelPath}`);
   const model = core.read_model(modelPath);
 
-  // FIXME: uncomment after latest changes merge
-  // if (model.inputs.length !== 1)
-  //   throw new Error('Sample supports only single input topologies');
+  if (model.inputs.length !== 1)
+    throw new Error('Sample supports only single input topologies');
 
   if (model.outputs.length !== 1)
     throw new Error('Sample supports only single output topologies');
