@@ -10,6 +10,7 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -17,7 +18,9 @@ namespace utils {
 /// \brief  Factory class which generates sub-graphs for ONNX ArgMin, ArgMax ops.
 class ArgMinMaxFactory {
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     explicit ArgMinMaxFactory(const Node& node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~ArgMinMaxFactory() = default;
 
     /// \brief      Creates ArgMax ONNX operation.
