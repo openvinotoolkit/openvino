@@ -134,7 +134,7 @@ def to_torch_tensor(tensor):
         return tensor
     if isinstance(tensor, (tuple, list)):
         # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
-        return tuple((to_torch_tensor(x) for x in tensor))
+        return tuple(to_torch_tensor(x) for x in tensor)
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
