@@ -19,7 +19,8 @@ using namespace ov::op;
 namespace {
 OutputVector base_translate_upsample(const NodeContext& context,
                                      v11::Interpolate::InterpolateMode interpolate_mode,
-                                     size_t dims) {
+                                     size_t dims,
+                                     bool antialias = false) {
     num_inputs_check(context, 1, 4);
     auto data = context.get_input(0);
     std::vector<size_t> pad(dims, 0);
@@ -74,6 +75,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
             attrs.coordinate_transformation_mode = v11::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
         }
     }
+    attrs.antialias = antialias;
     return {context.mark_node(std::make_shared<v11::Interpolate>(data, scales_sizes, target_axes, attrs))};
 };
 }  // namespace
@@ -84,6 +86,12 @@ OutputVector translate_upsample_linear1d(const NodeContext& context) {
 
 OutputVector translate_upsample_bilinear2d(const NodeContext& context) {
     return base_translate_upsample(context, v11::Interpolate::InterpolateMode::LINEAR_ONNX, 2);
+};
+
+// antialiasing supported only for bicubic and bilinear interpolations
+// realization is the same like in Pillow
+OutputVector translate_upsample_bilinear2d_aa(const NodeContext& context) {
+    return base_translate_upsample(context, v11::Interpolate::InterpolateMode::BILINEAR_PILLOW, 2);
 };
 
 OutputVector translate_upsample_trilinear3d(const NodeContext& context) {
@@ -105,6 +113,12 @@ OutputVector translate_upsample_nearest3d(const NodeContext& context) {
 // bicubic is only supported for 2d in pytorch
 OutputVector translate_upsample_bicubic2d(const NodeContext& context) {
     return base_translate_upsample(context, v11::Interpolate::InterpolateMode::CUBIC, 2);
+};
+
+// antialiasing supported only for bicubic and bilinear interpolations
+// realization is the same like in Pillow
+OutputVector translate_upsample_bicubic2d_aa(const NodeContext& context) {
+    return base_translate_upsample(context, v11::Interpolate::InterpolateMode::BICUBIC_PILLOW, 2);
 };
 
 }  // namespace op
