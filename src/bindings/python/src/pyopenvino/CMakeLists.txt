@@ -129,7 +129,7 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
             COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
             ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
     
-    install(${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
+    install(FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
             DESTINATION ${OV_CPACK_PYTHONDIR}
             COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}/src/openvino/preprocess/torchvision
             ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
