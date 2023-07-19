@@ -14,6 +14,7 @@ import ctypes
 
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
+
 def maybe_convert_max_int(value : int):
     # FIXME: This is a convertion from 64-bit positive max integer value
     # to 32-bit positive max integer value. Find a better way to handle this.
@@ -69,12 +70,17 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        if ivalue.ndim == 0:
-            assert str(ivalue.dtype()) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype()}"
-            ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
-            ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+        ivalue = ivalue.to(memory_format=torch.contiguous_format)
+        if ivalue.dtype == torch.bfloat16:
+            # reinterpret bfloat16 data as float16 to allow conversion to numpy
+            ivalue = ivalue.view(torch.float16)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
+            # TODO: this tensor doesn't share memory with initial tensor
+            tensor = Tensor(narr, ivalue.shape, OVType.bf16)
+            ov_const = op.Constant(tensor, shared_memory=True)
         else:
-            ivalue = ivalue.to(memory_format=torch.contiguous_format)
             narr = ivalue.numpy(force=True)
             if not narr.flags['C_CONTIGUOUS']:
                 narr = np.ascontiguousarray(narr)
@@ -107,6 +113,7 @@ pt_to_ov_type_map = {
     float: OVType.f32,
     int: OVType.i32,
     "bool": OVType.boolean,
+    "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
     torch.float32: OVType.f32,
@@ -126,6 +133,9 @@ pt_to_ov_type_map = {
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
     "torch.Tensor": OVType.i64,
+    "torch.quint8": OVType.u8,
+    "torch.qint8": OVType.i8,
+    "torch.qint32": OVType.i32
 }
 
 ov_to_c_type_map = {

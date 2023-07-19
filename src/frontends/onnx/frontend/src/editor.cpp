@@ -530,10 +530,12 @@ std::string onnx_editor::ONNXModelEditor::model_string() const {
 }
 
 std::shared_ptr<Model> onnx_editor::ONNXModelEditor::get_function() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ngraph::onnx_import::detail::import_onnx_model(m_pimpl->m_model_proto,
                                                           m_model_path,
                                                           m_enable_mmap,
                                                           m_extensions);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
