@@ -87,9 +87,8 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     MergeConvertAndScaleShift(graph);
     graph.RemoveDroppedNodes();
 
-    // This optimization forces to nodes to have fp16 on directly inputs and allows them to handle precision conversion based on internal logic.
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveConvertF16");
-    RemoveConvertF16(graph);
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
+    FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
@@ -697,11 +696,14 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     }
 }
 
-void GraphOptimizer::RemoveConvertF16(Graph& graph) {
+void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+    // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
+    // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
 
     for (auto parent : graphNodes) {
-        if (parent->getType() == Type::Convert && parent->isConstant() && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
+        if (parent->getType() == Type::Convert && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
                 && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)) {
             graph.DropNode(parent);
         }
