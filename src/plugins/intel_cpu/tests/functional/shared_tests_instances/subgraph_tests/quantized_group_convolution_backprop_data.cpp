@@ -13,7 +13,7 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32
 };
 
 const std::vector<size_t> numOutChannels = {16, 32};
