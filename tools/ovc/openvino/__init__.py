@@ -7,6 +7,10 @@ from openvino.utils import _add_openvino_libs_to_search_path
 
 _add_openvino_libs_to_search_path()
 
+# Import old API
+# TODO: remove in 2024.0
+from openvino import inference_engine as inference_engine
+
 # Import openvino.runtime and most important classes
 from openvino import runtime
 
@@ -36,6 +40,6 @@ from openvino import helpers as helpers
 from openvino import preprocess as preprocess
 
 # Import openvino.tools
-from openvino import tools
+from openvino import tools as tools
 # Model Conversion API - ovc should reside in the main namespace
 from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
