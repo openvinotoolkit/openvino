@@ -43,13 +43,13 @@ TransposeCompress::TransposeCompress() {
         const ov::Shape& shape_out = transpose_node->get_output_shape(0);
         ov::AxisVector axis = transpose_order->get_axis_vector_val();
         ov::AxisVector axis_compressed = {};
-        ov::Shape shape_fused_out = {};
+        ov::Shape shape_compressed_out = {};
         for (const size_t& axis : axis) {
             if (axis_compressed.empty() || (axis - axis_compressed.back()) != 1) {
                 axis_compressed.push_back(axis);
-                shape_fused_out.push_back(shape[axis]);
+                shape_compressed_out.push_back(shape[axis]);
             } else {
-                shape_fused_out.back() *= shape[axis];
+                shape_compressed_out.back() *= shape[axis];
             }
         }
         // check that compressing is required
@@ -63,7 +63,7 @@ TransposeCompress::TransposeCompress() {
         // Restore input shape
         ov::Shape shape_fused_in(fused_sz);
         for (size_t i = 0; i < fused_sz; ++i) {
-            shape_fused_in[i] = shape_fused_out[axis_fused_fixed[i]];
+            shape_fused_in[i] = shape_compressed_out[axis_fused_fixed[i]];
         }
 
         if (!limitations::Limitations::is_transpose_supported(shape_fused_in)) {
