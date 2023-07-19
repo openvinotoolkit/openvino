@@ -51,7 +51,6 @@ void CumuSchedule::init() {
         for (auto& device : valid_devices) {
             if (device.device_name.find("CPU") == std::string::npos) {
                 m_p_ctput_loadcontext[idx].m_device_info = device;
-                m_p_ctput_loadcontext[idx].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
                 idx++;
             } else {
                 cpu_device_information = device;
@@ -59,10 +58,8 @@ void CumuSchedule::init() {
                     {ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
             }
         }
-        if (!cpu_device_information.device_name.empty()) {
+        if (!cpu_device_information.device_name.empty())
             m_p_ctput_loadcontext[idx].m_device_info = cpu_device_information;
-            m_p_ctput_loadcontext[idx].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
-        }
     }
     if (m_context->m_log_tag == "MULTI") {
         // MULTI's performance hint always is tput
