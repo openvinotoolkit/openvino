@@ -630,12 +630,13 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 
     if (is_default_list) {
         // Generate the default device priority for selecting logic of AUTO.
-        // Default priority of selecting device: dGPU > iGPU > CPU > 3rd part devices
+        // Default priority of selecting device: dGPU > iGPU > 3rd part devices > CPU
         valid_devices.clear();
         valid_devices.splice(valid_devices.end(), dGPU);
         valid_devices.splice(valid_devices.end(), iGPU);
-        valid_devices.splice(valid_devices.end(), CPU);
         valid_devices.splice(valid_devices.end(), Others);
+        valid_devices.splice(valid_devices.end(), CPU);
+        return valid_devices;
     }
     // sort validDevices
     valid_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {

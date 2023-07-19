@@ -7,8 +7,8 @@
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
 
-const std::vector<std::string> availableDevs = {"CPU", "GPU", "VPUX"};
-const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "VPUX"};
+const std::vector<std::string> availableDevs = {"CPU", "GPU", "VPUX", "VPU"};
+const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "VPUX", "VPU"};
 using Params = std::tuple<std::string, std::string>;
 using ConfigParams = std::tuple<
         std::vector<std::string>,           // Available devices retrieved from Core
