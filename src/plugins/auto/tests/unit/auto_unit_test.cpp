@@ -143,6 +143,13 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
             }
         }
+        for (auto&& item : fullConfigs) {
+            if (item.first != ov::device::properties.name()) {
+                // primary property
+                // override will not happen here if the property already present in the device config list.
+                deviceConfigs.insert(item);
+            }
+        }
         return deviceConfigs;
     });
 
