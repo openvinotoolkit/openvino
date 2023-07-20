@@ -77,15 +77,6 @@ def print_argv(argv: argparse.Namespace, model_name: str):
 def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
-
-
-    # FIXME: Removing these lines leads to stuck of convert_model() process, need to fix it.
-    # Deduce frontend type and load frontend
-    if not argv.is_python_object and argv.input_model:
-        _ = deduce_legacy_frontend_by_namespace(argv)
-    _ = get_moc_frontends(argv)
-    #
-
     log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
     if argv.verbose:
@@ -108,11 +99,14 @@ def get_moc_frontends(argv: argparse.Namespace):
     available_moc_front_ends = get_available_front_ends(fem)
     if argv.framework:
         moc_front_end = fem.load_by_framework(argv.framework)
+        moc_front_end = fem.load_by_framework(argv.framework)
         return moc_front_end, available_moc_front_ends
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
             moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
+            moc_front_end = fem.load_by_model([argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
         else:
+            moc_front_end = fem.load_by_model(argv.input_model)
             moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
             return None, available_moc_front_ends
