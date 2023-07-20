@@ -9,6 +9,7 @@ import pytest
 from openvino.runtime import PartialShape, Model, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
+from common.layer_test_class import CommonLayerTest
 
 
 def create_tf_graph_def(tmp_dir):
@@ -587,6 +588,29 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     return model, model_ref, {'example_input': example_input}
 
 
+def create_keras_layer_with_string_tensor(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var = tf.Variable("Text_1", dtype=tf.string)
+            self.const = tf.constant("Text_2", dtype=tf.string)
+
+        @tf.function(input_signature=[tf.TensorSpec([1], tf.float32), tf.TensorSpec([1], tf.float32)])
+        def __call__(self, input1, input2):
+            return input1 + input2, self.var, self.const
+
+    model = LayerModel()
+
+    param1 = ov.opset8.parameter([1], dtype=np.float32)
+    param2 = ov.opset8.parameter([1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    parameter_list = [param1, param2]
+    model_ref = Model([add], parameter_list, "test")
+
+    return model, model_ref, {}
+
+
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
@@ -608,6 +632,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
+        create_keras_layer_with_string_tensor,
 
         # TF1
         create_tf_graph,
@@ -659,6 +684,110 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         test_params = {'input_model': saved_model_dir, 'use_new_frontend': False}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+    def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        from openvino.tools.mo import convert_model
+        from openvino.runtime import compile_model
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input * self.var1 + self.var2
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        # Create TF model with variables
+        keras_model = LayerModel()
+        test_input = np.array(7.).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(keras_model, input_shape=[1])
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+        fw_infer1 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer1['Identity:0'], fw_infer1)
+        assert np.array_equal(ov_infer1['Identity:0'], [54., 42., 45.])
+
+        # Change value of variables in original model
+        for val in keras_model.variables:
+            arr = val.value().__array__()
+            arr[0] = 0
+            arr[1] = 1
+            arr[2] = 2
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input)
+        fw_infer2 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
+
+
+
+    def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
+        # This test checks that the memory allocated for constants
+        # is not lost after returning the model from convert_model() method.
+        import tensorflow as tf
+        tf.compat.v1.reset_default_graph()
+
+        from openvino.tools.mo import convert_model
+        from openvino.runtime import compile_model
+        import gc
+
+        with tf.compat.v1.Session() as sess:
+            inp1 = tf.compat.v1.placeholder(tf.float32, [3], 'Input')
+            const = tf.constant([0.5, 2.3, 7.8], dtype=tf.float32)
+            res = inp1 + const
+
+            tf.compat.v1.global_variables_initializer()
+            tf_graph = sess.graph  # tf.Graph
+
+        if precision == 'FP32':
+            eps = 1e-4
+        else:
+            eps = 5e-2
+
+
+        test_input = np.array([2.1, 7.3, 4.6]).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(tf_graph)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+
+        feed_dict = {"Input:0": test_input}
+        with tf.compat.v1.Session(graph=tf_graph) as sess:
+            fw_infer1 = sess.run('add:0', feed_dict=feed_dict)
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": fw_infer1}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
+
+        # run Garbage collector to ensure, that values from tf.constant are copied to ov.Const and
+        # we do not lose allocated memory.
+        gc.collect()
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input, ie_device)
+
+        feed_dict = {"Input:0": test_input}
+        with tf.compat.v1.Session(graph=tf_graph) as sess:
+            fw_infer2 = sess.run('add:0', feed_dict=feed_dict)
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"add:0": fw_infer2}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
 
 class TFConvertTest(unittest.TestCase):

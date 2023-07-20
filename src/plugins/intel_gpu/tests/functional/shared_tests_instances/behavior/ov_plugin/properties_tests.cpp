@@ -793,7 +793,7 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ov::hint::execution_mode.name(),
     };
 
-    ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::caching_properties));
+    ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::internal::caching_properties));
 
     std::cout << "GPU Caching properties: " << std::endl;
     for (auto& prop : caching_properties) {
@@ -807,7 +807,7 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
                     caching_properties.end());
     }
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::caching_properties);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -815,6 +815,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
                          ::testing::Values("GPU"));
 
 // GetConfig / SetConfig for specific device
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.0"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice1Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.1"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceGetConfigTest, ::testing::Values("GPU.0"));
 
