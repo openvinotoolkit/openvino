@@ -409,7 +409,9 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     if(ENABLE_SYSTEM_PROTOBUF)
         # Note: Debian / Ubuntu / RHEL libprotobuf.a can only be used with -DBUILD_SHARED_LIBS=OFF
         # because they are compiled without -fPIC
-        set(Protobuf_USE_STATIC_LIBS ON)
+        if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
+            set(Protobuf_USE_STATIC_LIBS ON)
+        endif()
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
