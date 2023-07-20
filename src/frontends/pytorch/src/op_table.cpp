@@ -6,6 +6,7 @@
 
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -271,8 +272,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset10::HSwish>},
         {"aten::hardswish_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
-        {"aten::hardtanh", op::translate_hardtanh},
-        {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
+        {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
+        {"aten::hardtanh_", op::inplace_op<op::quantizable_op<op::translate_hardtanh>>},
         {"aten::im2col", op::translate_im2col},
         {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
         {"aten::index_select", op::translate_index_select},
