@@ -19,7 +19,7 @@ from openvino._offline_transformations import (
 from openvino.runtime import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
-from tests.test_utils.test_utils import create_filename_for_test, compare_models
+from tests.test_utils.test_utils import create_filename_for_test, compare_models, _compare_models
 
 
 def get_relu_model():
@@ -173,11 +173,11 @@ def prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    node_floor = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
     node_constant = ov.opset8.constant(np.array(0.1, dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
-    node_add = ov.opset8.add(node_ceil, parameter_a)
-    return Model(_model, [node_add, parameter_b], "Model"), xml_path, bin_path
+    node_add = ov.opset8.add(node_ceil, node_floor)
+    return Model([node_add], [parameter_a, parameter_b], "Model"), xml_path, bin_path
 
 
 def compare_models_and_finalize_after_test(model, xml_path, bin_path):
@@ -211,7 +211,7 @@ def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     (False),
 ],
 )
-def test_save_model(request, tmp_path, is_path_xml, is_path_bin):
+def test_save_model(request, tmp_path, is_path_xml):
     model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path, is_path_xml, False)
     save_model(model, xml_path, compress_to_fp16=False)
     compare_models_and_finalize_after_test(model, xml_path, bin_path)
@@ -224,8 +224,10 @@ def test_save_model_fp16(request, tmp_path):
     core = Core()
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    # orginal model should be the same as read model because of constant are different in types
-    assert not compare_models(model, res_model)
+    # number of operations are different due to an extra Convert op
+    # test model has only single constant that can be compressed, so
+    # only a single extra op is expected
+    assert len(model.get_ops()) + 1 == len(res_model.get_ops())
 
     # after compression of original modlel to fp16, they should match
     compress_model_transformation(model)
