@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "tensor.hpp"
+
 napi_types napiType(Napi::Value val) {
     if (val.IsTypedArray())
         return val.As<Napi::TypedArray>().TypedArrayType();
@@ -149,4 +151,27 @@ Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackIn
             break;
         }
     return str;
+}
+
+template <>
+ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
+    return infer_request.get_tensor(key);
+}
+
+template <>
+ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
+    return infer_request.get_input_tensor(idx);
+}
+
+ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request) {
+    // report error if not possible to create a tensor
+    ov::Tensor tensor;
+
+    if (value.IsObject()) {  // here add check if this is a TensorWrap{}
+        auto obj = value.As<Napi::Object>();
+        auto* tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
+        tensor = tensor_wrap->get_tensor();
+    }
+
+    return tensor;
 }

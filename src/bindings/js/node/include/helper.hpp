@@ -22,6 +22,16 @@ typedef enum {
     js_array,
 } js_type;
 
+const std::map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::element::Type_t::i8},
+                                                                     {"u8", ov::element::Type_t::u8},
+                                                                     {"i16", ov::element::Type_t::i16},
+                                                                     {"u16", ov::element::Type_t::u16},
+                                                                     {"i32", ov::element::Type_t::i32},
+                                                                     {"u32", ov::element::Type_t::u32},
+                                                                     {"f32", ov::element::Type_t::f32},
+                                                                     {"f64", ov::element::Type_t::f64},
+                                                                     {"i64", ov::element::Type_t::i64}};
+
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
 /**
@@ -99,12 +109,18 @@ template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type);
 
-const std::map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::element::Type_t::i8},
-                                                                     {"u8", ov::element::Type_t::u8},
-                                                                     {"i16", ov::element::Type_t::i16},
-                                                                     {"u16", ov::element::Type_t::u16},
-                                                                     {"i32", ov::element::Type_t::i32},
-                                                                     {"u32", ov::element::Type_t::u32},
-                                                                     {"f32", ov::element::Type_t::f32},
-                                                                     {"f64", ov::element::Type_t::f64},
-                                                                     {"i64", ov::element::Type_t::i64}};
+template <typename KeyType>
+ov::Tensor get_request_tensor(ov::InferRequest infer_request, KeyType key);
+
+template <>
+ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
+
+template <>
+ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
+
+/** @brief  A helper function to create a ov::Tensor from Napi::Value
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @param infer_request 
+ * @return ov::Tensor
+ */
+ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request);

@@ -49,8 +49,8 @@ public:
     /// @brief  Infers specified inputs in synchronous mode.
     Napi::Value infer(const Napi::CallbackInfo& info);
 
-    Napi::Value infer(const Napi::Object& inputs);
-    Napi::Value infer(const Napi::Array& inputs);
+    void infer(const Napi::Object& inputs);
+    void infer(const Napi::Array& inputs);
 
     /**
      * @brief Gets an input/output tensor for inference.

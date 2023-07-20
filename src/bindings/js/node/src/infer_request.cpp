@@ -49,6 +49,8 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
 Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
+    // TO_DO single TensorWrap object
+    // TO_DO TypedArray with Tensor data
     else if (info.Length() == 1 && info[0].IsArray()) {
         infer(info[0].As<Napi::Array>());
     } else if (info.Length() == 1 && info[0].IsObject()) {
@@ -59,31 +61,25 @@ Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
     return Napi::Value();
 }
 
-Napi::Value InferRequestWrap::infer(const Napi::Object& inputs) {
-    auto keys = inputs.GetPropertyNames();
-
-    for (size_t i = 0; i < keys.Length(); i++) {
-        auto tensor_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-        auto tensor_obj = inputs.Get(tensor_name).As<Napi::Object>();
-
-        auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_obj);
-        auto tensor = tensorWrap->get_tensor();
-
-        _infer_request.set_tensor(tensor_name, tensor);
-    }
-    _infer_request.infer();
-    return Napi::Value();
-}
-
-Napi::Value InferRequestWrap::infer(const Napi::Array& inputs) {
+void InferRequestWrap::infer(const Napi::Array& inputs) {
     for (size_t i = 0; i < inputs.Length(); i++) {
-        auto tensor_obj = static_cast<Napi::Value>(inputs[i]).As<Napi::Object>();
-        auto* tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_obj);
-        auto tensor = tensor_wrap->get_tensor();
+        auto tensor = value_to_tensor(inputs[i], _infer_request);
         _infer_request.set_input_tensor(i, tensor);
     }
     _infer_request.infer();
-    return Napi::Value();
+}
+
+void InferRequestWrap::infer(const Napi::Object& inputs) {
+    auto keys = inputs.GetPropertyNames();
+
+    for (size_t i = 0; i < keys.Length(); i++) {
+        auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+        auto value = inputs.Get(input_name);
+        auto tensor = value_to_tensor(value, _infer_request);
+
+        _infer_request.set_tensor(input_name, tensor);
+    }
+    _infer_request.infer();
 }
 
 Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
