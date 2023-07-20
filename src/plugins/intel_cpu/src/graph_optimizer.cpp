@@ -282,103 +282,93 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
+    auto expectedNode = [](NodePtr node, Type expectedType) {
+        return node->getType() == expectedType && node->getChildEdges().size() == 1;
+    };
+
     auto& graphNodes = graph.GetNodes();
-
-    auto tryFuseWeightsDecompression = [&](NodePtr node) {
-        // todo: draw pattern
-
-        // pattern matching
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
         if (node->getType() != Type::FullyConnected)
-            return false;
+            continue;
 
-        auto multiplyNode = node->getParentEdgesAtPort(1)[0]->getParent();
+        const auto multiplyNode = node->getParentEdgesAtPort(1)[0]->getParent();
         if (!multiplyNode->isConstant())
-            return false;
+            continue;
 
-        if (multiplyNode->getType() != Type::Eltwise || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply)
-            return false;
-        if (multiplyNode->getChildEdges().size() != 1)
-            return false;
+        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply)
+            continue;
 
-        auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
-        if (multiplyConstNode->getType() != Type::Input)
-            return false;
-        if (multiplyConstNode->getChildEdges().size() != 1)
-            return false;
+        const auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
+        if (!expectedNode(multiplyConstNode, Type::Input))
+            continue;
 
-        auto subtractNode = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
-        if (subtractNode->getType() != Type::Eltwise || subtractNode->getAlgorithm() != Algorithm::EltwiseSubtract)
-            return false;
-        if (subtractNode->getChildEdges().size() != 1)
-            return false;
+        const auto mulParent = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
+        const bool with_subtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
+        NodePtr subtractNode, subtractConstNode;
+        if (with_subtract) {
+            subtractNode = mulParent;
+            if (!expectedNode(subtractNode, Type::Eltwise))
+                continue;
 
-        auto subtractConstNode = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
-        if (subtractConstNode->getType() != Type::Input)
-            return false;
-        if (subtractConstNode->getChildEdges().size() != 1)
-            return false;
+            subtractConstNode = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
+            if (!expectedNode(subtractConstNode, Type::Input))
+                continue;
+        }
 
-        auto convertNode = subtractNode->getParentEdgesAtPort(0)[0]->getParent();
-        if (convertNode->getType() != Type::Convert)
-            return false;
-        if (convertNode->getChildEdges().size() != 1)
-            return false;
+        const auto convertNode = with_subtract ? subtractNode->getParentEdgesAtPort(0)[0]->getParent() : mulParent;
+        if (!expectedNode(convertNode, Type::Convert))
+            continue;
 
-        auto matmulConstNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
-        if (matmulConstNode->getType() != Type::Input)
-            return false;
-        if (matmulConstNode->getChildEdges().size() != 1)
-            return false;
+        const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
+        if (!expectedNode(weightsNode, Type::Input))
+            continue;
 
         // precision limitations
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            return false;
-        if (subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
-            return false;
-        if (matmulConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
-            return false;
+            continue;
+        if (weightsNode->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+            continue;
+        if (with_subtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
+            continue;
 
         // shape limitations
-        auto weightsShape = node->getInputShapeAtPort(1);
-        if (weightsShape != matmulConstNode->getOutputShapeAtPort(0))
-            return false;
+        const auto weightsShape = node->getInputShapeAtPort(1);
+        if (weightsShape != weightsNode->getOutputShapeAtPort(0))
+            continue;
 
         VectorDims expectedDims = {weightsShape.getDims()[0], 1};
         if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
-            return false;
-        if (subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
-            return false;
+            continue;
+        if (with_subtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
+            continue;
 
-        // decompression fusion
-        auto fcNode = dynamic_cast<node::FullyConnected*>(node.get());
+        const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
         if (fcNode == nullptr)
             IE_THROW() << "Cannot cast to FullyConnected node";
 
         fcNode->fuseDecompressionMultiply(multiplyConstNode);
-        fcNode->fuseDecompressionSubtract(subtractConstNode);
+        if (with_subtract)
+            fcNode->fuseDecompressionSubtract(subtractConstNode);
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
-        fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
+        if (with_subtract)
+            fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
 
-        auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
-        graph.RemoveEdge(subtractConstEdge);
-
+        if (with_subtract) {
+            auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConstEdge);
+        }
         auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(multiplyConstEdge);
 
         graph.DropNode(convertNode);
-        graph.DropNode(subtractNode);
+        if (with_subtract)
+            graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);
 
-        fcNode->setOriginalInputPrecisionAtPort(1, matmulConstNode->getOriginalOutputPrecisionAtPort(0));
-
-        return true;
-    };
-
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        auto fcNode = graphNodes[i];
-        tryFuseWeightsDecompression(fcNode);
+        fcNode->setOriginalInputPrecisionAtPort(1, weightsNode->getOriginalOutputPrecisionAtPort(0));
     }
 }
 
