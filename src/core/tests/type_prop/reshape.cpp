@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -9,6 +10,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, static_value_propagation) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
@@ -237,7 +239,7 @@ TEST(type_prop, interval_value_propagation_reshape_zero_special_value) {
               PartialShape({Dimension(1, 8), 3, Dimension(16, 64), Dimension(200, 400)}));
 }
 
-TEST(type_prop, interval_value_propagation_reshape_zero_minus_one_special_values) {
+TEST(type_prop, reshape_interval_value_propagation_reshape_zero_minus_one_special_values) {
     auto param = make_shared<op::Parameter>(element::f32,
                                             PartialShape{Dimension(1, 8), Dimension(16, 64), 6, Dimension(200, 400)});
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
@@ -295,19 +297,6 @@ TEST(type_prop, reshape_deduce_zero_special) {
     auto r = make_shared<op::v1::Reshape>(param, op::Constant::create(element::u64, {3}, Shape{6, 2, 0}), true);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{6, 2, 5}));
-}
-
-TEST(type_prop, reshape_deduce_wrong_output_shape) {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    try {
-        auto r = make_shared<op::v1::Reshape>(param, op::Constant::create(element::u64, {3}, Shape{3, 3, 3}), false);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "No exception was thrown";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("is incompatible with input shape"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
 }
 
 //
@@ -558,11 +547,13 @@ TEST(type_prop, reshape_to_zero_shape_dynamic) {
 
 TEST(type_prop, reshape_to_zero_shape_incorrect) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    ASSERT_THROW(const auto unused =
-                     make_shared<op::v1::Reshape>(param,
-                                                  op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
-                                                  false),
-                 std::exception);
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(param,
+                                              op::Constant::create(element::i64, {1}, std::vector<int64_t>{0}),
+                                              false),
+        NodeValidationFailure,
+        HasSubstr("Requested output shape [0] is incompatible with input shape"));
 }
 
 TEST(type_prop, reshape_to_zero) {
@@ -591,22 +582,24 @@ TEST(type_prop, reshape_to_scalar_2) {
 
 TEST(type_prop, reshape_to_scalar_3) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    ASSERT_THROW(const auto unused =
-                     make_shared<op::v1::Reshape>(param,
-                                                  op::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
-                                                  false),
-                 std::exception);
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(param,
+                                              op::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
+                                              false),
+        NodeValidationFailure,
+        HasSubstr("The value of scalar shape pattern should be equal to 1"));
 }
 
-TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
+TEST(type_prop, reshape_dynamic_shape_propagation_with_i32_precision) {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape{1, -1, -1});
-    auto shape_of = std::make_shared<op::v3::ShapeOf>(param, element::i32);
+    auto shape_of = make_shared<op::v3::ShapeOf>(param, element::i32);
 
     auto indices = op::Constant::create(element::i32, {3}, {1, 2, 0});
     auto axis = op::Constant::create(element::i32, {1}, {0});
-    auto gather = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
+    auto gather = make_shared<op::v1::Gather>(shape_of, indices, axis);
 
-    auto reshape = std::make_shared<op::v1::Reshape>(param, gather, true);
+    auto reshape = make_shared<op::v1::Reshape>(param, gather, true);
 
     ASSERT_EQ(reshape->get_element_type(), element::f32);
     ASSERT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, -1, 1}));
@@ -617,39 +610,263 @@ TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = make_shared<op::ShapeOf>(param_0);
 
     const auto& et = element::i64;
     std::vector<int64_t> zero{0};
-    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
+    const auto indices = make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto axis = make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = make_shared<op::v7::Gather>(shape_0, indices, axis);
 
-    const auto output_pattern = std::make_shared<op::v0::Constant>(et, Shape{1}, std::vector<int64_t>{-1});
-    const auto unsqueeze = std::make_shared<op::v1::Reshape>(gather, output_pattern, false);
+    const auto output_pattern = make_shared<op::v0::Constant>(et, Shape{1}, std::vector<int64_t>{-1});
+    const auto unsqueeze = make_shared<op::v1::Reshape>(gather, output_pattern, false);
 
-    auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    auto bc = make_shared<op::v1::Broadcast>(param, unsqueeze);
     ASSERT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape, PartialShape({3}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10));
+    // ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
-TEST(type_prop, reshape_label_shape_propagation_minus_one) {
-    Dimension marked_0 = Dimension(-1);
-    ov::DimensionTracker::set_label(marked_0, 10);
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_1) {
+    PartialShape initial_shape = PartialShape{{1, 3}, 4, {1, 6}, 1, 3};
+    ov::DimensionTracker::set_label(initial_shape[0], 10);
+    ov::DimensionTracker::set_label(initial_shape[2], 12);
 
-    PartialShape initial_shape = PartialShape{marked_0, 4, 3, 1};
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{3}, std::vector<int64_t>{12, -1, 0});
 
-    auto input = std::make_shared<op::Parameter>(element::f32, initial_shape);
-    auto output_pattern = std::make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 12});
-
-    const auto reshape = std::make_shared<op::v1::Reshape>(input, output_pattern, false);
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
 
     auto output_shape = reshape->get_output_partial_shape(0);
-    ASSERT_EQ(output_shape, PartialShape({-1, 12}));
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[1]), 0);
+    EXPECT_EQ(output_shape, PartialShape({12, {1, 3}, {1, 6}}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(ov::no_label, 10, 12));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_2) {
+    PartialShape initial_shape = PartialShape{4, -1, 2, 1, 3};
+    ov::DimensionTracker::set_label(initial_shape[0], 10);
+    ov::DimensionTracker::set_label(initial_shape[1], 11);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{3}, std::vector<int64_t>{-1, 12, 2});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, false);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({-1, 12, 2}));
+    EXPECT_THAT(get_shape_labels(output_shape), Each(ov::no_label));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_3) {
+    PartialShape initial_shape = PartialShape{{1, 3}, 4, {1, 6}, 1, 3};
+    ov::DimensionTracker::set_label(initial_shape[0], 10);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, -1, 12});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({1, {1, 18}, 12}));
+    EXPECT_THAT(get_shape_labels(output_shape), Each(ov::no_label));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_4) {
+    PartialShape initial_shape = PartialShape{-1, 2, 2, 1, 3};
+    ov::DimensionTracker::set_label(initial_shape[0], 10);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{12, -1});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({12, -1}));
+    EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(ov::no_label, 10));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_5) {
+    PartialShape initial_shape = PartialShape{-1, 2, 2, 1, 3};
+    ov::DimensionTracker::set_label(initial_shape[0], 10);
+    ov::DimensionTracker::set_label(initial_shape[1], 11);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{2}, std::vector<int64_t>{-1, 12});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({-1, 12}));
+    EXPECT_THAT(get_shape_labels(output_shape), Each(ov::no_label));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_6) {
+    PartialShape initial_shape = PartialShape{2, {2, 4}, 2, 3};
+    ov::DimensionTracker::set_label(initial_shape[1], 10);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{6}, std::vector<int64_t>{1, 4, 3, 1, 1, -1});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({1, 4, 3, 1, 1, {2, 4}}));
+    EXPECT_THAT(get_shape_labels(output_shape),
+                ElementsAre(ov::no_label, ov::no_label, ov::no_label, ov::no_label, ov::no_label, 10));
+}
+
+TEST(type_prop, reshape_label_shape_propagation_minus_one_variant_7) {
+    PartialShape initial_shape = PartialShape{2, 3, 2, 1, 4};
+    ov::DimensionTracker::set_label(initial_shape[1], 13);
+
+    auto input = make_shared<op::Parameter>(element::f32, initial_shape);
+    auto output_pattern = make_shared<op::Constant>(element::i64, Shape{5}, std::vector<int64_t>{4, 1, -1, 1, 4});
+
+    const auto reshape = make_shared<op::v1::Reshape>(input, output_pattern, true);
+
+    auto output_shape = reshape->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, PartialShape({4, 1, 3, 1, 4}));
+    EXPECT_THAT(get_shape_labels(output_shape),
+                ElementsAre(ov::no_label, ov::no_label, 13, ov::no_label, ov::no_label));
+}
+
+TEST(type_prop, reshape_when_pattern_has_static_shape_only) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto shape_pattern = make_shared<op::Parameter>(element::u64, PartialShape{3});
+    auto r = make_shared<op::v1::Reshape>(param, shape_pattern, false);
+
+    EXPECT_EQ(r->get_element_type(), element::f32);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, reshape_when_pattern_has_interval_shape_only) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto shape_pattern = make_shared<op::Parameter>(element::u64, PartialShape{{1, 3}});
+    auto r = make_shared<op::v1::Reshape>(param, shape_pattern, false);
+
+    EXPECT_EQ(r->get_element_type(), element::f32);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, reshape_when_pattern_has_scalar_shape_only) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto shape_pattern = make_shared<op::Parameter>(element::u64, PartialShape{});
+    auto r = make_shared<op::v1::Reshape>(param, shape_pattern, false);
+
+    EXPECT_EQ(r->get_element_type(), element::f32);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape());
+}
+
+TEST(type_prop, reshape_label_propagation) {
+    auto param_shape = PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8};
+    auto out_shape = PartialShape{{3, 5}, 0, 1, 0};
+    set_shape_labels(param_shape, 10);
+    set_shape_labels(out_shape, 20);
+
+    const auto data = make_shared<op::Parameter>(element::f32, param_shape);
+    const auto out = make_shared<op::Parameter>(element::f32, out_shape);
+    const auto shape_of = make_shared<op::v3::ShapeOf>(out);
+    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
+                                                           op::Constant::create(element::i64, {4}, {0, 1, 2, 3}),
+                                                           op::Constant::create(element::i64, {}, {0}));
+    const auto special_volume = op::Constant::create(element::i64, {1}, {-1});
+    const auto shape = make_shared<op::Concat>(OutputVector{dims_from_out_shape, special_volume}, 0);
+
+    const auto op = make_shared<op::v1::Reshape>(data, shape, true);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, {2, 4}, 1, {2, 4}, {10, 32}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
+}
+
+TEST(type_prop, reshape_default_ctor) {
+    auto param_shape = PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8};
+    auto out_shape = PartialShape{{3, 5}, 0, 1, 0};
+    set_shape_labels(param_shape, 10);
+    set_shape_labels(out_shape, 20);
+
+    const auto data = make_shared<op::Parameter>(element::f32, param_shape);
+    const auto out = make_shared<op::Parameter>(element::f32, out_shape);
+    const auto shape_of = make_shared<op::v3::ShapeOf>(out);
+    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
+                                                           op::Constant::create(element::i64, {4}, {0, 1, 2, 3}),
+                                                           op::Constant::create(element::i64, {}, {0}));
+    const auto special_volume = op::Constant::create(element::i64, {1}, {-1});
+    const auto shape = make_shared<op::Concat>(OutputVector{dims_from_out_shape, special_volume}, 0);
+
+    const auto op = make_shared<op::v1::Reshape>();
+    op->set_arguments(OutputVector{data, shape});
+    op->set_special_zero(true);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 5}, {2, 4}, 1, {2, 4}, {10, 32}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
+}
+
+TEST(type_prop, reshape_deduce_wrong_output_shape) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(param, op::Constant::create(element::u64, {3}, {3, 3, 3}), false),
+        NodeValidationFailure,
+        HasSubstr("is incompatible with input shape"));
+}
+
+TEST(type_prop, reshape_pattern_shape_not_1d) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(param, op::Constant::create(element::u64, {3, 1}, Shape{3, 5, 4}), false),
+        NodeValidationFailure,
+        HasSubstr("Pattern shape must have rank 1 or be empty"));
+}
+
+TEST(type_prop, reshape_multiple_minus_one_no_special_zero) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, {3}, {-1, 5, -1}), false),
+        NodeValidationFailure,
+        HasSubstr("More than one dimension has size of -1"));
+}
+
+TEST(type_prop, reshape_multiple_minus_one_special_zero_set) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, {3}, {-1, 5, -1}), true),
+        NodeValidationFailure,
+        HasSubstr("More than one dimension has size of -1"));
+}
+
+TEST(type_prop, reshape_special_zero_out_of_data_rank) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{{1, 2}, {2, 4}, 8});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, {4}, {5, 1, 1, 0}), true),
+        NodeValidationFailure,
+        HasSubstr("'0' dimension is out of range"));
+}
+
+TEST(type_prop, reshape_special_zero_cannot_div) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 5, 4});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, {3}, {10, -1, 3}), false),
+        NodeValidationFailure,
+        HasSubstr("Non-'-1' output dimensions do not evenly divide the input dimensions"));
+}
+
+TEST(type_prop, reshape_zero_dim_in_output_pattern_but_not_in_data_shape) {
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 5, 4});
+
+    OV_EXPECT_THROW(
+        ignore = make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, {3}, {5, 0, -1}), false),
+        NodeValidationFailure,
+        HasSubstr("Cannot infer '-1' dimension with zero-size output dimension unless at least one input dimension is "
+                  "also zero-size"));
 }

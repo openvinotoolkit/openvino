@@ -217,6 +217,25 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
 }
 
 /**
+ * @brief Check if dimension has valid value.
+ *
+ * @tparam TDim     Dimension type.
+ * @param d  Dimension for check.
+ * @return true if dimension has valid value.
+ */
+template <class TDim,
+          typename std::enable_if<!std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_valid(TDim&& d) {
+    return d != typename std::decay<TDim>::type{};
+}
+
+template <class TDim,
+          typename std::enable_if<std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_valid(TDim&& d) {
+    return !d.get_interval().empty();
+}
+
+/**
  * @brief Check if dimension is evenly divisible.
  *
  * @tparam TDim     Dimension type.
@@ -226,12 +245,7 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
  */
 template <class TDim>
 bool is_divisible(const TDim& quotient, const typename TDim::value_type dividend) {
-    return quotient / dividend != TDim{};
-}
-
-template <>
-inline bool is_divisible<Dimension>(const Dimension& quotient, const typename Dimension::value_type dividend) {
-    return !(quotient / dividend).get_interval().empty();
+    return is_valid(quotient / dividend);
 }
 
 /**

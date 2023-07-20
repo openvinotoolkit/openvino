@@ -13,6 +13,7 @@
 
 using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 namespace ov {
+
 namespace intel_cpu {
 namespace {
 std::vector<StaticShapeRef> make_static_shape_refs(const ShapeVector& shapes) {
@@ -36,7 +37,21 @@ void shape_inference(ov::Node* op,
     OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
     output_shapes = std::move(*result);
 }
+
 }  // namespace intel_cpu
+
+namespace test {
+namespace utils {
+template <class T = std::unordered_map<size_t, Tensor>>
+ShapeVector shape_inference(ov::Node* op, const ShapeVector& input_shapes, const T& constant_data = T{}) {
+    const auto in_shapes = intel_cpu::make_static_shape_refs(input_shapes);
+    const auto shape_infer = intel_cpu::make_shape_inference(op->shared_from_this());
+    auto result = shape_infer->infer(in_shapes, make_tensor_accessor(constant_data));
+    OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
+    return *result;
+}
+}  // namespace utils
+}  // namespace test
 }  // namespace ov
 
 struct TestTensor {
