@@ -859,6 +859,6 @@ void ov::save_model(const std::shared_ptr<const ov::Model>& m, const std::string
     }
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(xml_path, "");
-    auto cloned = ov::clone_model(*m);  // TODO: Implement on-the-fly compression in pass::Serialize
-    manager.run_passes(std::const_pointer_cast<ov::Model>(cloned));
+    auto cloned = m->clone();  // TODO: Implement on-the-fly compression in pass::Serialize
+    manager.run_passes(cloned);
 }
