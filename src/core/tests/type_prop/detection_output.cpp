@@ -45,7 +45,7 @@ std::shared_ptr<op::DetectionOutput> create_detection_output(PartialShape box_lo
 }
 
 TEST(type_prop_layers, detection_output_v0_default_ctor) {
-    auto op = make_shared<op::v8::DetectionOutput>();
+    auto op = make_shared<op::v0::DetectionOutput>();
 
     auto input_type = element::f32;
     auto box_logits = make_shared<op::Parameter>(input_type, PartialShape{4, 20});
@@ -1142,4 +1142,149 @@ TEST(type_prop_layers, detection_output_v8_default_ctor) {
         EXPECT_EQ(op->get_output_partial_shape(0), output_shape_reference);
         EXPECT_EQ(op->get_element_type(), element::f32);
     }
+}
+
+TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normalized_true_shareloc_true) {
+    try {
+        op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
+        attrs.normalized = true;      // If true, prior_box_size = 4, otherwise prior_box_size = 5
+        attrs.share_location = true;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+        auto op =
+            create_detection_output_v8(Shape{4, 6 * 1 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
+                                       Shape{4, 8 * 16},     // [N, num_prior_boxes * num_classes]
+                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       attrs,
+                                       element::f32);
+        FAIL() << "Exception expected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("The second dimension of the first input (box logits) is: 24, but must be compatible with "
+                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+    } catch (...) {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normalized_false_shareloc_true) {
+    try {
+        op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
+        attrs.normalized = false;     // If true, prior_box_size = 4, otherwise prior_box_size = 5
+        attrs.share_location = true;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+        auto op =
+            create_detection_output_v8(Shape{4, 6 * 1 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
+                                       Shape{4, 8 * 16},     // [N, num_prior_boxes * num_classes]
+                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       attrs,
+                                       element::f32);
+        FAIL() << "Exception expected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("The second dimension of the first input (box logits) is: 24, but must be compatible with "
+                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+    } catch (...) {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normalized_false_shareloc_false) {
+    try {
+        op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
+        attrs.normalized = false;      // If true, prior_box_size = 4, otherwise prior_box_size = 5
+        attrs.share_location = false;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+        auto op =
+            create_detection_output_v8(Shape{4, 6 * 16 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
+                                       Shape{4, 8 * 16},      // [N, num_prior_boxes * num_classes]
+                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       attrs,
+                                       element::f32);
+        FAIL() << "Exception expected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("The second dimension of the first input (box logits) is: 384, but must be compatible "
+                        "with (num_prior_boxes * num_loc_classes * 4) = (8 * 16 * 4) = (512)"));
+    } catch (...) {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normalized_true_shareloc_false) {
+    try {
+        op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
+        attrs.normalized = true;       // If true, prior_box_size = 4, otherwise prior_box_size = 5
+        attrs.share_location = false;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+        auto op =
+            create_detection_output_v8(Shape{4, 6 * 16 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
+                                       Shape{4, 8 * 16},      // [N, num_prior_boxes * num_classes]
+                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       attrs,
+                                       element::f32);
+        FAIL() << "Exception expected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("The second dimension of the first input (box logits) is: 384, but must be compatible "
+                        "with (num_prior_boxes * num_loc_classes * 4) = (8 * 16 * 4) = (512)."));
+    } catch (...) {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop_layers, detection_output_v8_incompatible_dynamic_num_prior_boxes_normalized_true_shareloc_true) {
+    try {
+        op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
+        attrs.normalized = true;      // If true, prior_box_size = 4, otherwise prior_box_size = 5
+        attrs.share_location = true;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+        auto op = create_detection_output_v8(
+            PartialShape{4, {16, 24}},  // [N, num_prior_boxes * num_loc_classes * 4]
+            PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
+            PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+            attrs,
+            element::f32);
+        FAIL() << "Exception expected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("The second dimension of the first input (box logits) is: 16..24, but must be compatible with "
+                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+    } catch (...) {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
+TEST(type_prop_layers, detection_output_v8_dynamic_range_num_prior_boxes_normalized_true_shareloc_true) {
+    op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {-1};
+    attrs.normalized = true;      // If true, prior_box_size = 4, otherwise prior_box_size = 5
+    attrs.share_location = true;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+    auto op = create_detection_output_v8(
+        PartialShape{4, {16, 32}},  // [N, num_prior_boxes * num_loc_classes * 4]
+        PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
+        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+        attrs,
+        element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, 4 * 8 * 16, 7}));
+    EXPECT_EQ(op->get_element_type(), element::f32);
+}
+
+TEST(type_prop_layers, detection_output_v8_dynamic_num_prior_boxes_normalized_true_shareloc_true) {
+    op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {-1};
+    attrs.normalized = true;      // If true, prior_box_size = 4, otherwise prior_box_size = 5
+    attrs.share_location = true;  // If true, num_loc_classes = 1, otherwise num_loc_classes = num_classes
+    auto op = create_detection_output_v8(
+        PartialShape{4, -1},        // [N, num_prior_boxes * num_loc_classes * 4]
+        PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
+        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+        attrs,
+        element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, 4 * 8 * 16, 7}));
+    EXPECT_EQ(op->get_element_type(), element::f32);
 }
