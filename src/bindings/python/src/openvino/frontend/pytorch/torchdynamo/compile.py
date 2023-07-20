@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
 # mypy: ignore-errors
 
 import os
@@ -19,10 +21,10 @@ from typing import Callable, Optional
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
     core = Core()
 
-    device = 'CPU'
+    device = "CPU"
 
-    if os.getenv("OPENVINO_DEVICE") is not None:
-        device = os.getenv("OPENVINO_DEVICE")
+    if os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None:
+        device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
         assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
 
     file_name = None
@@ -43,7 +45,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
         om = core.read_model(file_name + ".xml")
     else:
         fe_manager = FrontEndManager()
-        fe = fe_manager.load_by_framework('pytorch')
+        fe = fe_manager.load_by_framework("pytorch")
 
         input_shapes = []
         input_types = []

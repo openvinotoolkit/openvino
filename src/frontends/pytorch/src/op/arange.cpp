@@ -100,18 +100,18 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     if (num_inputs == 1) {
         // aten::arange(Scalar end, tensor out)
         end = context.get_input(0);
-        out_tensor = end; //context.input_is_none(1) ? end : context.get_input(1);
+        out_tensor = end;  // context.input_is_none(1) ? end : context.get_input(1);
     } else if (num_inputs == 2) {
         // aten::arange(Scalar end, tensor out)
         start = context.get_input(0);
         end = context.get_input(1);
-        out_tensor = end; //context.input_is_none(1) ? end : context.get_input(1);
+        out_tensor = end;  // context.input_is_none(1) ? end : context.get_input(1);
     } else if (num_inputs == 3) {
         // aten::arange(Scalar start, Scalar end, Scalar step, Tensor out)
         start = context.get_input(0);
         end = context.get_input(1);
         step = context.get_input(2);
-        out_tensor = end; //context.input_is_none(3) ? end : context.get_input(3);
+        out_tensor = end;  // context.input_is_none(3) ? end : context.get_input(3);
     } else if (num_inputs == 5) {
         // aten::arange(Scalar end, ScalarType dtype, Layout, Device, bool pin_memory)
         end = context.get_input(0);

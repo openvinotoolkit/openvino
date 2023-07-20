@@ -3,8 +3,8 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -27,7 +27,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
     }
     Shape pads;
     if (context.input_is_none(3)) {
-        pads = Shape(kernel.size(),0);
+        pads = Shape(kernel.size(), 0);
     } else {
         pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
     }

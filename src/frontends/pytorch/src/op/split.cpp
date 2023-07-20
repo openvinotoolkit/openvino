@@ -25,7 +25,7 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
     std::shared_ptr<ov::Node> chunk;
     auto dim_val = context.const_input<int>(2);
     if (dim_val < 0) {
-        dim_val = context.get_input(0).get_shape().size()+dim_val;
+        dim_val = context.get_input(0).get_shape().size() + dim_val;
     }
     int num_splits = context.get_input(0).get_shape()[dim_val] / num_chunks;
 

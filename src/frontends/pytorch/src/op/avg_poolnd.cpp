@@ -36,13 +36,13 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
         count_include_pad = false;
         pads = Shape(kernel.size(), 0);
     } else {
-        pads = context.const_input<Shape>(3); //pytorch supports only symmetric padding
+        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
     }
     ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
     if (!(context.input_is_none(4))) {
         rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
     }
-    if (!(context.input_is_none(5))){
+    if (!(context.input_is_none(5))) {
         count_include_pad = context.const_input<bool>(5);
     }
     FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(6),

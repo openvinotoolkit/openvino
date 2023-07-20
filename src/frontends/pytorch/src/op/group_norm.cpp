@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -12,6 +11,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -21,9 +21,12 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_group_norm_common(const NodeContext& context, const size_t max_inputs,
-                                         const size_t group_idx, const size_t eps_idx,
-                                         const size_t weights_idx, const size_t bias_idx) {
+OutputVector translate_group_norm_common(const NodeContext& context,
+                                         const size_t max_inputs,
+                                         const size_t group_idx,
+                                         const size_t eps_idx,
+                                         const size_t weights_idx,
+                                         const size_t bias_idx) {
     // aten::group_norm(Tensor input, int num_groups, Tensor? weight=None, Tensor? bias=None, float
     // eps=1.0000000000000001e-05, bool cudnn_enabled=True) -> Tensor
     num_inputs_check(context, 2, max_inputs);

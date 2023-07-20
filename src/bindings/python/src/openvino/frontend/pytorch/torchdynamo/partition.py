@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -29,9 +30,6 @@ class Partitioner:
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         fx_gm = make_fx(graph_module)(*args)
-        # prim_graph = torch.fx.Graph()
-        # DecompositionInterpreter(fx_gm, prim_graph, decomposition_table=aten2aten_decomp).run(*args, **kwargs)
-        # prim_module = torch.fx.GraphModule(fx_gm, prim_graph)
         return fx_gm  # prim_module
 
     def add_get_attr_inputs(self, partitions: t.List[Partition]):
@@ -41,14 +39,13 @@ class Partitioner:
         for partition in partitions:
             for pnode in partition.nodes:
                 for pnode_input in pnode.all_input_nodes:
-                    if pnode_input.op in ['get_attr'] and pnode_input.op not in getattr_to_merge:
+                    if pnode_input.op in ["get_attr"] and pnode_input.op not in getattr_to_merge:
                         getattr_to_merge[pnode_input] = partition
         for getattr_node, getattr_part in getattr_to_merge.items():
             getattr_part.add_node(getattr_node)
 
     def make_partitions(self, graph_module: GraphModule) -> GraphModule:
         # entry function for nvFuser backend
-        # logger.debug("Compiling graph_module: ", graph_module.code)
         # FX graph based partitioning based on nvfuser supported ops
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=False)

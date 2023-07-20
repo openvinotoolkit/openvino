@@ -38,9 +38,9 @@
 #include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
+#include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
-#include "transforms/softmax_reshape_elimination.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -110,13 +110,11 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 }
 }  // namespace
 
-FrontEnd::FrontEnd(){
-
+FrontEnd::FrontEnd() {
     const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-    if((torch_tracing_mode != NULL) && std::strcmp(std::getenv("PYTORCH_TRACING_MODE"), "TORCHFX") == 0){
+    if ((torch_tracing_mode != NULL) && std::strcmp(std::getenv("PYTORCH_TRACING_MODE"), "TORCHFX") == 0) {
         m_op_translators = get_supported_ops_fx();
-    }
-    else{
+    } else {
         m_op_translators = get_supported_ops_ts();
     }
 }

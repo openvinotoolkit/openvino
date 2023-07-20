@@ -3,9 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -17,7 +17,7 @@ OutputVector translate_index_fx(const NodeContext& context) {
     num_inputs_check(context, 2, context.get_input_size());
     auto x = context.get_input(0);
     std::deque<Output<Node>> list_elems;
-    for (size_t i=1; i<context.get_input_size(); i++) {
+    for (size_t i = 1; i < context.get_input_size(); i++) {
         auto index = context.get_input(i);
         if (index.get_element_type() == element::i64) {
             auto converted = context.mark_node(std::make_shared<ov::op::v0::Convert>(index, element::i32));
@@ -26,7 +26,8 @@ OutputVector translate_index_fx(const NodeContext& context) {
             list_elems.push_back(index);
         }
     }
-    auto concat = context.mark_node(std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0));
+    auto concat =
+        context.mark_node(std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0));
     auto gather = std::make_shared<ov::op::v8::GatherND>(x, concat);
     return {gather};
 };

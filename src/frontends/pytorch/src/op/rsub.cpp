@@ -20,12 +20,12 @@ OutputVector translate_rsub(const NodeContext& context) {
     auto self = context.get_input(0);
     auto other = context.get_input(1);
     if (!context.input_is_none(2)) {
-    	auto alpha = context.get_input(2);
-    	align_eltwise_input_types(context, self, other);
-    	// reverse aten::sub other - self * alpha
-    	auto alpha_casted = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, self));
-    	auto alpha_mul = context.mark_node(std::make_shared<v1::Multiply>(self, alpha_casted));
-    	return {context.mark_node(std::make_shared<v1::Subtract>(other, alpha_mul))};
+        auto alpha = context.get_input(2);
+        align_eltwise_input_types(context, self, other);
+        // reverse aten::sub other - self * alpha
+        auto alpha_casted = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, self));
+        auto alpha_mul = context.mark_node(std::make_shared<v1::Multiply>(self, alpha_casted));
+        return {context.mark_node(std::make_shared<v1::Subtract>(other, alpha_mul))};
     }
     align_eltwise_input_types(context, self, other);
     return {context.mark_node(std::make_shared<v1::Subtract>(other, self))};

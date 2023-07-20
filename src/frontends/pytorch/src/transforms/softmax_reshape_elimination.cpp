@@ -4,12 +4,12 @@
 
 #include "softmax_reshape_elimination.hpp"
 
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/softmax.hpp"
+#include <ngraph/validation_util.hpp>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include <ngraph/validation_util.hpp>
 
 namespace ov {
 namespace frontend {
@@ -19,10 +19,13 @@ namespace pass {
 SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     const auto m_reshape0 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(ov::pass::pattern::has_static_shape());
     const auto m_softmax = ov::pass::pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({m_reshape0});
-    const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_softmax, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
+        {m_softmax, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_reshape1, "ov::frontend::pytorch::pass::PrimTupleUnpackReplacer"),
-            [=](ov::pass::pattern::Matcher &m) {
+    register_matcher(
+        std::make_shared<ov::pass::pattern::Matcher>(m_reshape1,
+                                                     "ov::frontend::pytorch::pass::PrimTupleUnpackReplacer"),
+        [=](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
@@ -30,7 +33,8 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
             const auto input_shape = reshape0->get_input_partial_shape(0);
             const auto output_shape = reshape1->get_output_partial_shape(0);
-            if (input_shape.is_dynamic() || output_shape.is_dynamic() || input_shape.get_shape() != output_shape.get_shape())
+            if (input_shape.is_dynamic() || output_shape.is_dynamic() ||
+                input_shape.get_shape() != output_shape.get_shape())
                 return false;
 
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
@@ -55,7 +59,8 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
 
             // Eliminate Reshape before Softmax
             reshape0->output(0).replace(reshape0->input_value(0));
-            copy_runtime_info({reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
+            copy_runtime_info(
+                {reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
                 reshape0->input_value(0).get_node_shared_ptr());
 
             // Eliminate Reshape after Softmax with name saving

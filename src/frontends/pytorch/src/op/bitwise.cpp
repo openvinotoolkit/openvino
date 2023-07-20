@@ -45,7 +45,6 @@ OutputVector translate_bitwise_or(const NodeContext& context) {
     return {or_x};
 };
 
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -49,9 +50,7 @@ def execute(
     elif executor == "strictly_openvino":
         return openvino_execute(gm, *args, executor_parameters=executor_parameters)
 
-    msg = "Received unexpected value for 'executor': {0}. Allowed values are: openvino, strictly_openvino.".format(
-        executor
-    )
+    msg = "Received unexpected value for 'executor': {0}. Allowed values are: openvino, strictly_openvino.".format(executor)
     raise ValueError(msg)
 
 

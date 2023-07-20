@@ -14,8 +14,7 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
-
-//TorchScript translations
+// TorchScript translations
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
@@ -167,7 +166,7 @@ OP_CONVERTER(translate_zeros_like);
 OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
-//Torch FX Translations
+// Torch FX Translations
 OP_CONVERTER(translate_arange_fx);
 OP_CONVERTER(translate_batch_norm_fx);
 OP_CONVERTER(translate_cat_fx);
@@ -183,8 +182,7 @@ OP_CONVERTER(translate_transpose_fx);
 
 }  // namespace op
 
-
-//Supported ops for TorchScript
+// Supported ops for TorchScript
 const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
@@ -468,7 +466,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.cat.default", op::translate_cat_fx},
         {"aten.clamp_min.default", op::translate_1to1_match_2_inputs<opset10::Maximum>},
-        {"aten.clone.default", op::skip_node},       // ignore clone operators that are inserted by PyTorch autograd
+        {"aten.clone.default", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
         {"aten.convolution.default", op::translate_convolution},
         {"aten.copy_.default", op::skip_node},
         {"aten.cos.default", op::translate_1to1_match_1_inputs<opset10::Cos>},
@@ -544,11 +542,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
-        {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
+        {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
 
     };
 };
-
 
 }  // namespace pytorch
 }  // namespace frontend
