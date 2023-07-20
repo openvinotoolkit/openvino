@@ -82,12 +82,11 @@ public:
         const size_t page_size = sysconf(_SC_PAGE_SIZE);
         // align offset with page size
         const size_t aligned_offset = (offset / page_size) * page_size;
-        const size_t aligned_size = (offset % page_size) + m_size;
         // move pointer to the expected data (after alignment with page size)
         const size_t offset_delta = offset - aligned_offset;
 
-        if (aligned_size > 0) {
-            m_data = mmap(nullptr, aligned_size, prot, MAP_PRIVATE, m_handle.get(), aligned_offset);
+        if (m_size > 0) {
+            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), aligned_offset);
             if (m_data == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
             }
