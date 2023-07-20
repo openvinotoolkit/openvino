@@ -12,6 +12,14 @@ const {
 
 module.exports = {
   exp,
+  sum,
+  triu,
+  tril,
+  arange,
+  argMax,
+  reshape,
+  sumRows,
+  getShape,
   setShape,
   transform,
   downloadFile,
@@ -20,6 +28,7 @@ module.exports = {
   extractValues,
   arrayToImageData,
   displayArrayAsImage,
+  matrixMultiplication,
 };
 
 function arrayToImageData(array, width, height) {
@@ -311,14 +320,3 @@ function arange(count) {
 
   return arr;
 }
-
-exports.exp = exp;
-exports.sum = sum;
-exports.sumRows = sumRows;
-exports.reshape = reshape;
-exports.getShape = getShape;
-exports.argMax = argMax;
-exports.triu = triu;
-exports.tril = tril;
-exports.arange = arange;
-exports.matrixMultiplication = matrixMultiplication;
