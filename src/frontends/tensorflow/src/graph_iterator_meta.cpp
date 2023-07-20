@@ -42,20 +42,6 @@ bool GraphIteratorMeta::is_valid_signature(const ::tensorflow::SignatureDef& sig
     return true;
 }
 
-bool GraphIteratorMeta::is_supported(const std::string& path) {
-    std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
-    auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
-    return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream);
-}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorMeta::is_supported(const std::wstring& path) {
-    std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
-    auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
-    return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream);
-}
-#endif
-
 template <>
 std::basic_string<char> get_variables_index_name<char>(const std::string name) {
     return name + ".index";

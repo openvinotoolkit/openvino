@@ -69,6 +69,7 @@ struct memory {
 
         return true;
     }
+    void set_reused(bool reused = true) { _reused = reused; }
 
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool blocking = true) = 0;
     virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true) = 0;
@@ -249,6 +250,12 @@ inline std::shared_ptr<ngraph::runtime::HostTensor> make_host_tensor(layout l, v
     ov::element::Type et = data_type_to_element_type(l.data_type);
 
     return std::make_shared<ngraph::runtime::HostTensor>(et, l.get_shape(), memory_pointer);
+}
+
+inline ov::Tensor make_tensor(layout l, void* memory_pointer) {
+    ov::element::Type et = data_type_to_element_type(l.data_type);
+
+    return ov::Tensor(et, l.get_shape(), memory_pointer);
 }
 
 }  // namespace cldnn

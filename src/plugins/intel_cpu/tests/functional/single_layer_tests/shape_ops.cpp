@@ -87,7 +87,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
             if (i == 1) {
@@ -264,6 +264,20 @@ const auto params_NonZero = ::testing::Combine(::testing::Values(shape_NonZero),
                                                 ::testing::Values(true));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_NonZero, ShapeOpsCPUTest, params_NonZero, ShapeOpsCPUTest::getTestCaseName);
+
+// test cases about reshape with empty tensor
+inputDescription shape_EmptyTensor{{{-1, 2, 2},
+                                 {ngraph::Shape{0, 2, 2}, ngraph::Shape{2, 2, 2}}},
+                                 {std::vector<int>{0, 4}, std::vector<int>{2, 4}}};
+
+const auto params_EmptyTensor = ::testing::Combine(::testing::Values(shape_EmptyTensor),
+                                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                                ::testing::Values(shapeNodeType::Reshape),
+                                                ::testing::Values(Precision::FP32),
+                                                ::testing::ValuesIn(secondInPrcs),
+                                                ::testing::Values(false));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_EmptyTensor, ShapeOpsCPUTest, params_EmptyTensor, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace reshapeTest
 

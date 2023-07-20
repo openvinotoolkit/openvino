@@ -55,3 +55,4 @@ attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::extract_image_patches)

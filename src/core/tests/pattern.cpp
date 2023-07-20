@@ -10,6 +10,8 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "common_test_utils/matcher.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
@@ -31,8 +33,7 @@
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/skip.hpp"
 #include "ngraph/pattern/op/true.hpp"
-#include "util/matcher.hpp"
-#include "util/test_tools.hpp"
+#include "openvino/util/log.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -78,7 +79,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst1);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            NGRAPH_DEBUG << "In a callback for construct_multiply_by_one against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG << "In a callback for construct_multiply_by_one against " << m.get_match_root()->get_name();
             NGRAPH_CHECK(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -87,12 +88,12 @@ public:
             auto const_node =
                 ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            NGRAPH_DEBUG << "second_node = " << second_node->get_name()
-                         << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
+                           << " , pattern = " << pattern_map[pattern]->get_name();
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                NGRAPH_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
                 return false;
             }
 
@@ -102,7 +103,7 @@ public:
             });
 
             if (!all_ones) {
-                NGRAPH_DEBUG << "Constant vector's values aren't equal to 1";
+                OPENVINO_DEBUG << "Constant vector's values aren't equal to 1";
                 return false;
             }
 
@@ -115,9 +116,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
@@ -136,7 +137,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst0);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            NGRAPH_DEBUG << "In a callback for construct_add_zero against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG << "In a callback for construct_add_zero against " << m.get_match_root()->get_name();
             NGRAPH_CHECK(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -145,12 +146,12 @@ public:
             auto const_node =
                 ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            NGRAPH_DEBUG << "second_node = " << second_node->get_name()
-                         << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
+                           << " , pattern = " << pattern_map[pattern]->get_name();
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                NGRAPH_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
                 return false;
             }
 
@@ -160,7 +161,7 @@ public:
             });
 
             if (!all_zeros) {
-                NGRAPH_DEBUG << "Constant vector's values aren't equal to 0";
+                OPENVINO_DEBUG << "Constant vector's values aren't equal to 0";
                 return false;
             }
 
@@ -174,9 +175,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
@@ -640,13 +641,13 @@ public:
         auto padd = make_shared<op::v1::Add>(iconst_label, rpattern);
 
         auto callback = [iconst_label, rpattern](pattern::RecurrentMatcher& rm) {
-            NGRAPH_DEBUG << "In a callback for construct_recurrent_add against " << rm.get_match_root()->get_name();
+            OPENVINO_DEBUG << "In a callback for construct_recurrent_add against " << rm.get_match_root()->get_name();
 
             auto iconst_matches = rm.get_bound_nodes_for_pattern(iconst_label);
 
             auto is_iconst_zero = [](std::shared_ptr<Node> n) {
                 bool result = ngraph::is_zero(n);
-                NGRAPH_DEBUG << n->get_name() << " is " << (result ? " a zero " : " not a zero");
+                OPENVINO_DEBUG << n->get_name() << " is " << (result ? " a zero " : " not a zero");
                 return ngraph::is_zero(n);
             };
 
@@ -660,7 +661,7 @@ public:
             // replace the topmost add with the seed (i.e. the first parameter to add)
             // matches are added in reverse order (i.e. the first match is the topmost node)
             auto arg = rm.get_bound_nodes_for_pattern(rpattern).at(number_of_adds - 1);
-            NGRAPH_DEBUG << "Replacing " << rm.get_match_root()->get_name() << " with " << arg->get_name();
+            OPENVINO_DEBUG << "Replacing " << rm.get_match_root()->get_name() << " with " << arg->get_name();
             ngraph::replace_node(rm.get_match_root(), arg);
             return true;
         };

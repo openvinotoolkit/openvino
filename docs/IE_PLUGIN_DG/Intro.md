@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Develop and implement independent inference solutions for 
+                 different devices with the components of plugin architecture 
+                 of OpenVINO.
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Converting and Preparing Models
@@ -83,11 +89,12 @@ Detailed Guides
 *  :doc:`Quantized networks <openvino_docs_ov_plugin_dg_quantized_models>`
 *  :doc:`Low precision transformations <openvino_docs_OV_UG_lpt>` guide
 *  :doc:`Writing OpenVINO™ transformations <openvino_docs_transformations>` guide
+*  `Integration with AUTO Plugin <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto/docs/integration.md>`__
 
 API References
 ##############
 
-*  `OpenVINO Plugin API <https://docs.openvino.ai/nightly/groupov_dev_api.html>`__
-*  `OpenVINO Transformation API <https://docs.openvino.ai/2022.3/groupie_transformation_api.html>`__
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.0/groupov_dev_api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.0/groupie_transformation_api.html>`__
 
 @endsphinxdirective

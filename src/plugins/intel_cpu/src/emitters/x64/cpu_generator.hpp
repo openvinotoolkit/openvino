@@ -7,17 +7,18 @@
 #include <transformations_visibility.hpp>
 #include <cpu/x64/jit_generator.hpp>
 
+#include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class CPUTargetMachine : public ngraph::snippets::TargetMachine {
+class CPUTargetMachine : public snippets::TargetMachine {
 public:
     CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa);
 
     bool is_supported() const override;
-    ngraph::snippets::code get_snippet() const override;
+    snippets::code get_snippet() const override;
     size_t get_lanes() const override;
 
 private:
@@ -25,7 +26,7 @@ private:
     dnnl::impl::cpu::x64::cpu_isa_t isa;
 };
 
-class CPUGenerator : public ngraph::snippets::Generator {
+class CPUGenerator : public snippets::Generator {
 public:
     CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa);
 

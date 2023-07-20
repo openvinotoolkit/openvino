@@ -52,6 +52,10 @@ jobs:
           pip install -r requirements_dev.txt
         working-directory: tools/mo
 
-      - name: Pylint
+      - name: Pylint-MO
         run: pylint -d C,R,W openvino/tools/mo
         working-directory: tools/mo
+
+      - name: Pylint-OVC
+        run: pylint -d C,R,W openvino/tools/ovc
+        working-directory: tools/ovc

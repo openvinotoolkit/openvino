@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
 #include "kernel_selector_params.h"
@@ -79,7 +80,6 @@ using multi_data_tensor = kernel_selector::MultiDataTensor;
 
 using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
-using generic_kernel_params = kernel_selector::GenericKernelParams;
 
 }  // namespace kernel_selector
 
@@ -120,6 +120,7 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
+void set_dynamic_shape_offsets(kernel_selector::params& params);
 void set_weights_bias_default_params(const kernel_impl_params& param_info,
                                      kernel_selector::weight_bias_params& params,
                                      bool has_group_dimension,
@@ -131,7 +132,7 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
 
 template <typename params_t>
 inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
-    params_t params;
+    params_t params = params_t();
     set_default_params(param_info, params, is_shape_agnostic);
     return params;
 }
@@ -165,7 +166,7 @@ inline optional_params_t get_default_weights_bias_optional_params(const program&
 }
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
-switch (mode) {
+    switch (mode) {
         case eltwise_mode::sum:
             return kernel_selector::eltwise_mode::ADD;
         case eltwise_mode::sub:
@@ -254,18 +255,28 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2) {
-            auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
+            if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
+                auto out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
 
-            auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-            auto dep_shape = dep_layout.get_partial_shape();
+                auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
+                auto dep_shape = dep_layout.get_partial_shape();
 
-            if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
+                }
             }
         }
     }
     return updated_impl_params;
+}
+
+inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
+    if (!params.is_initialized) {
+        return nullptr;
+    }
+
+    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
 }
 
 }  // namespace cldnn

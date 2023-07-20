@@ -8,8 +8,10 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
-#include "bound_evaluation_util.hpp"
+#include "element_visitor.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
+#include "tensor_data_accessor.hpp"
 
 template <class OpType, class T>
 void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -49,6 +51,20 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
 }
 
 namespace ov {
+
+struct TensorTransform : element::NotSupported<void> {
+    using element::NotSupported<void>::visit;
+
+    template <element::Type_t ET, class Iterator, class UnaryOperation>
+    static result_type visit(const void* const ptr, const size_t size, Iterator out_it, UnaryOperation&& func) {
+        using T = fundamental_type_for<ET>;
+        std::transform(static_cast<const T*>(ptr),
+                       static_cast<const T*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
+    }
+};
+
 /**
  * \brief Get the raw data as TResult object.
  *
@@ -70,94 +86,13 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
-    switch (et) {
-    case element::Type_t::i4: {
-        using dtype = fundamental_type_for<element::Type_t::i4>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i8: {
-        using dtype = fundamental_type_for<element::Type_t::i8>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i16: {
-        using dtype = fundamental_type_for<element::Type_t::i16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i32: {
-        using dtype = fundamental_type_for<element::Type_t::i32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i64: {
-        using dtype = fundamental_type_for<element::Type_t::i64>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u4: {
-        using dtype = fundamental_type_for<element::Type_t::u4>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u8: {
-        using dtype = fundamental_type_for<element::Type_t::u8>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u16: {
-        using dtype = fundamental_type_for<element::Type_t::u16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u32: {
-        using dtype = fundamental_type_for<element::Type_t::u32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u64: {
-        using dtype = fundamental_type_for<element::Type_t::u64>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::f16: {
-        using dtype = fundamental_type_for<element::Type_t::f16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::f32: {
-        using dtype = fundamental_type_for<element::Type_t::f32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    default:
-        OPENVINO_ASSERT(false, "Get raw data from tensor is not supported for element type: ", et);
-    };
+    using namespace ov::element;
+    IfTypeOf<i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, f16, f32>::apply<TensorTransform>(
+        et,
+        ptr,
+        size,
+        out_it,
+        std::forward<UnaryOperation>(func));
     return out;
 }
 
@@ -214,29 +149,26 @@ namespace op {
  * \tparam TShape          Shape type which enabled this version (not ov::PartialShape)
  * \tparam TData           Type use to cast input's data.
  * \tparam TRes            Result type which has got default type as std::vector<TData>.
- * \tparam TTensorPtr      Type of tensor pointer or reference_wrapper. Default HostTensorPtr.
  * \tparam UnaryOperation  Unary function object applied on data with signature (Ret f(const TData &a)).
  *
- * \param op             Pointer to operator.
- * \param idx            Operator's input number.
- * \param constant_data  Map with constant. Default empty.
- * \param func           Unary operation function object.
+ * \param op               Pointer to operator.
+ * \param idx              Operator's input number.
+ * \param tensor_accessor  Tensor accessor object.
+ * \param func             Unary operation function object.
  *
  * \return Pointer to constant data or nullptr if input has no constant data.
  */
 template <class TShape,
           class TData,
           class TRes = std::vector<TData>,
-          class TTensorPtr = HostTensorPtr,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
-                                              const std::map<size_t, TTensorPtr>& constant_data = {},
+                                              const ITensorAccessor& tensor_accessor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
-    if (constant_data.count(idx)) {
-        return std::unique_ptr<TRes>(
-            new TRes(get_tensor_data_as<TData, TRes>(constant_data.at(idx).get(), std::forward<UnaryOperation>(func))));
+    if (auto t = tensor_accessor(idx)) {
+        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
@@ -258,31 +190,29 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
  * \tparam TShape          Shape type which enabled this version (ov::PartialShape)
  * \tparam TData           Type use to cast input's data.
  * \tparam TRes            Result type which has got default type as std::vector<TData>.
- * \tparam TTensorPtr      Type of tensor pointer or reference_wrapper. Default HostTensorPtr.
  * \tparam UnaryOperation  Unary function object applied on data with signature (Ret f(const TData &a)).
  *
- * \param op             Pointer to operator.
- * \param idx            Operator's input number.
- * \param constant_data  Map with constant. Default empty.
- * \param func           Unary operation function object.
+ * \param op               Pointer to operator.
+ * \param idx              Operator's input number.
+ * \param tensor_accessor  Tensor accessor object.
+ * \param func             Unary operation function object.
  *
  * \return Pointer to constant data or nullptr if input has no constant data.
  */
 template <class TShape,
           class TData,
           class TRes = std::vector<TData>,
-          class TTensorPtr = HostTensorPtr,
           class UnaryOperation = ov::util::Cast<TData>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
-                                              const std::map<size_t, TTensorPtr>& constant_data = {},
+                                              const ITensorAccessor& tensor_accessor,
                                               UnaryOperation&& func = ov::util::Cast<TData>()) {
-    if (constant_data.count(idx)) {
-        return std::unique_ptr<TRes>(
-            new TRes(get_tensor_data_as<TData, TRes>(constant_data.at(idx).get(), std::forward<UnaryOperation>(func))));
+    if (auto t = tensor_accessor(idx)) {
+        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))));
         OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
+    } else if (const auto& constant =
+                   (idx < op->get_input_size()) ? ov::get_constant_from_source(op->input_value(idx)) : nullptr) {
         OPENVINO_SUPPRESS_DEPRECATED_END
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
@@ -300,8 +230,74 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
  *
  * The input data can be processed by unary operation. By default is validated and casted to shape's dimension type.
  *
+ * \tparam TShape          Shape type.
+ * \tparam TDimValue       Dimension value type.
+ * \tparam UnaryOperation  Unary function object applied on data with signature (Ret f(const TDimValue &a)).
+ *
+ * \param op               Pointer to operator.
+ * \param idx              Operator input index.
+ * \param tensor_accessor  Tensor accessor object.
+ * \param func             Unary operation function object to apply in input data.
+ *                         Default ov::utils::InTypeRange<TDimValue>.
+ *
+ * \return Unique pointer to shape created from input data.
+ */
+template <class TShape,
+          class TDimValue = typename TShape::value_type::value_type,
+          class UnaryOperation = ov::util::InTypeRange<TDimValue>>
+std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
+                                                      size_t idx,
+                                                      const ITensorAccessor& tensor_accessor,
+                                                      UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
+    if (auto s = get_input_const_data_as<TShape, TDimValue, TShape>(op,
+                                                                    idx,
+                                                                    tensor_accessor,
+                                                                    std::forward<UnaryOperation>(func))) {
+        return s;
+    } else {
+        PartialShape shape;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if ((idx < op->get_input_size()) && ov::evaluate_as_partial_shape(op->input_value(idx), shape)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
+            return std::unique_ptr<TShape>(new TShape(std::move(shape)));
+        }
+    }
+    return {};
+}
+
+/**
+ * \brief Get the operator's input const as pointer to vector of specified type.
+ *
+ * The behaviour depends on shape type. The default output type is std::vector<TData> can be replace by other type
+ * which if is possible to construct it from constant data vector.
+ *
+ * \tparam TShape          Shape type which enabled this version (not ov::PartialShape)
+ * \tparam TData           Type use to cast input's data.
+ * \tparam TRes            Result type which has got default type as std::vector<TData>.
+ * \tparam UnaryOperation  Unary function object applied on data with signature (Ret f(const TData &a)).
+ *
+ * \param op             Pointer to operator.
+ * \param idx            Operator's input number.
+ * \param constant_data  Map with constant. Default empty.
+ * \param func           Unary operation function object.
+ *
+ * \return Pointer to constant data or nullptr if input has no constant data.
+ */
+template <class TShape, class TData, class TRes = std::vector<TData>, class UnaryOperation = ov::util::Cast<TData>>
+std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
+                                              size_t idx,
+                                              const std::map<size_t, HostTensorPtr>& constant_data = {},
+                                              UnaryOperation&& func = ov::util::Cast<TData>()) {
+    const auto tensor_accessor = make_tensor_accessor(constant_data);
+    return get_input_const_data_as<TShape, TData, TRes>(op, idx, tensor_accessor, std::forward<UnaryOperation>(func));
+}
+
+/**
+ * \brief Get the input const data as shape object.
+ *
+ * The input data can be processed by unary operation. By default is validated and casted to shape's dimension type.
+ *
  * \tparam TShape
- * \tparam TTensorPtr      Type of tensor pointer or reference_wrapper. Default HostTensorPtr.
  * \tparam UnaryOperation  Unary function object applied on data with signature (Ret f(const TDimValue &a)).
  *
  * \param op             Pointer to operator.
@@ -314,26 +310,16 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
  */
 template <class TShape,
           class TDimValue = typename TShape::value_type::value_type,
-          class TTensorPtr = HostTensorPtr,
           class UnaryOperation = ov::util::InTypeRange<TDimValue>>
 std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
                                                       size_t idx,
-                                                      const std::map<size_t, TTensorPtr>& constant_data = {},
+                                                      const std::map<size_t, HostTensorPtr>& constant_data = {},
                                                       UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
-    std::unique_ptr<TShape> shape_ptr;
-
-    if (auto d =
-            get_input_const_data_as<TShape, TDimValue>(op, idx, constant_data, std::forward<UnaryOperation>(func))) {
-        return std::unique_ptr<TShape>(new TShape(std::move(*d)));
-    } else {
-        PartialShape shape;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (ov::evaluate_as_partial_shape(op->input_value(idx), shape)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            return std::unique_ptr<TShape>(new TShape(std::move(shape)));
-        }
-    }
-    return {};
+    const auto tensor_accessor = make_tensor_accessor(constant_data);
+    return get_input_const_data_as_shape<TShape, TDimValue>(op,
+                                                            idx,
+                                                            tensor_accessor,
+                                                            std::forward<UnaryOperation>(func));
 }
 
 /**
@@ -380,6 +366,30 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
 }
 
 }  // namespace op
+
+/**
+ * @brief Get correct return type of input shape when call `shape_infer`.
+ *
+ * The input shapes are vector like std::vector<TShape>, where `TShape` can be `std::vector<const size_t>`
+ * This will provide correct return especially for static shape which can work as reference to dimension or hold them.
+ *
+ * @tparam TShape Type of input shape.
+ */
+template <class TShape>
+struct result_shape {
+    using type = typename TShape::ShapeContainer;
+};
+
+/**
+ * @brief Get correct result shape for PartialShape which is same type.
+ */
+template <>
+struct result_shape<PartialShape> {
+    using type = PartialShape;
+};
+
+template <class TShape>
+using result_shape_t = typename result_shape<TShape>::type;
 }  // namespace ov
 
 // Helper to reduce duplicates of code for get_data_as_... specific type functions.

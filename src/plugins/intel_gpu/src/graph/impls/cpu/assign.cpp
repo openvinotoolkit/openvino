@@ -29,7 +29,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<assign>());
+        OPENVINO_ASSERT(arg.is_type<assign>());
         const auto& node = arg.as<assign>();
         variable_id = node.get_primitive()->variable_id;
     }
@@ -81,3 +81,4 @@ attach_assign_impl::attach_assign_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::assign)

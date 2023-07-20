@@ -65,11 +65,11 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
             set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
             add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
                              "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
-        elseif(EXISTS "${Samples_SOURCE_DIR}../../thirdparty/nlohmann_json")
+        elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json")
             # Allow running samples CMakeLists.txt as stand alone from openvino sources
             # suppress shadowing names warning
             set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-            add_subdirectory("${Samples_SOURCE_DIR}../../thirdparty/nlohmann_json"
+            add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/json/nlohmann_json"
                              "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find / build nlohmann_json library")

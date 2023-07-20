@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to setup hardware and virtual machines to use the OpenVINO™ Security Add-on to access and run access controlled models.
+
+
 This guide provides instructions for people who use the OpenVINO™ Security Add-on to create, distribute, and use models that are created with the OpenVINO™ toolkit:
 
 * **Model Developer**: The Model Developer interacts with the Independent Software Vendor to control the User access to models. This document shows you how to setup hardware and virtual machines to use the OpenVINO™ Security Add-on to define access control to your OpenVINO™ models and then provide the access controlled models to the users. 
@@ -180,9 +184,9 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 5.  Build and install the `libtpm package <https://github.com/stefanberger/libtpms/>`__. 
 6.  Build and install the `swtpm package <https://github.com/stefanberger/swtpm/>`__.
 7.  Add the ``swtpm`` package to the ``$PATH`` environment variable.
-8.  Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__.
-9.  Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__.
-10. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__ . For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__.
+8.  Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__.
+9.  Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__.
+10. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__ . For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__.
 11. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__ .
     
     .. note:: 
@@ -525,11 +529,11 @@ Step 5: Set Up one Guest VM for the User role
       3. Shut down the Guest VM.<br><br>
 	        
       **Option 2: Manually install additional software**
-      1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
+      1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
       2. Install the software tool `tpm2-abmrd <https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz>`__
-      For innstallation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__
+      For installation information follow `here <https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md>`__
       3. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__
-      For innstallation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
+      For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
       4. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__ 
       5. Shut down the Guest VM.
 

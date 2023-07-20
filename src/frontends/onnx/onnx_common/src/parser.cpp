@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace onnx_common {
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
-    std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
         OPENVINO_THROW("Could not open the file: " + file_path);
@@ -28,7 +28,7 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
-    std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+    std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
         NGRAPH_SUPPRESS_DEPRECATED_START

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -39,16 +39,7 @@ TEST(type_prop, normalize_l2_axes_input_not_constant) {
     auto axes = make_shared<op::Parameter>(element::u64, Shape{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
-
-    try {
-        auto normalize = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid input tensor rank.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input axes must be Constant type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    ASSERT_NO_THROW(auto op = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode));
 }
 
 TEST(type_prop, normalize_l2_invalid_axes_rank) {

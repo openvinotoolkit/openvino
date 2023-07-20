@@ -26,18 +26,21 @@ PyTorch or TensorFlow 2:
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [imports]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [imports]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [imports]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [imports]         
 
 2. Create NNCF configuration
 ++++++++++++++++++++++++++++
@@ -46,18 +49,22 @@ Here, you should define NNCF configuration which consists of model-related param
 of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object 
 specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [nncf_congig]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [nncf_congig]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [nncf_congig]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [nncf_congig] 
+         
 
 3. Apply optimization methods
 +++++++++++++++++++++++++++++
@@ -69,18 +76,22 @@ undergoes a set of corresponding transformations and can contain additional oper
 the case of QAT, the compression controller object is used for model export and, optionally, in distributed training as it 
 will be shown below.
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [wrap_model]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [wrap_model]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [wrap_model]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [wrap_model]
+         
 
 4. Fine-tune the model
 ++++++++++++++++++++++
@@ -89,17 +100,22 @@ This step assumes that you will apply fine-tuning to the model the same way as i
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle, 
 you can skip this step which means that the post-training optimization will be applied to the model.
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [tune_model]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [tune_model]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [tune_model]
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [tune_model]
+         
 
 
 5. Multi-GPU distributed training
@@ -108,39 +124,47 @@ you can skip this step which means that the post-training optimization will be a
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before 
 the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [distributed]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [distributed]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2      
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [distributed]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [distributed]
+         
 6. Export quantized model
 +++++++++++++++++++++++++
 
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in 
 the case of PyTorch and frozen graph - for TensorFlow 2.
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [export]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [export]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [export]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [export]
+         
 
 .. note::
-   The precision of weigths gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation. 
+   The precision of weights gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation. 
    You can expect the model footprint reduction only for that format.
 
 
@@ -152,17 +176,21 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 To save model checkpoint use the following API:
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [save_checkpoint]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [save_checkpoint]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [save_checkpoint]
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [save_checkpoint]
 
 
 8. (Optional) Restore from checkpoint
@@ -170,18 +198,22 @@ To save model checkpoint use the following API:
 
 To restore the model from checkpoint you should use the following API:
 
-.. tab:: PyTorch
+.. tab-set::
 
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-       :language: python
-       :fragment: [load_checkpoint]
+   .. tab-item:: PyTorch
+      :sync: pytorch
+      
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+         :language: python
+         :fragment: [load_checkpoint]
+         
+   .. tab-item:: TensorFlow 2
+      :sync: tensorflow-2       
 
-.. tab:: TensorFlow 2
-
-    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-       :language: python
-       :fragment: [load_checkpoint]
-
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
+         :language: python
+         :fragment: [load_checkpoint]
+         
 
 For more details on saving/loading checkpoints in the NNCF, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 

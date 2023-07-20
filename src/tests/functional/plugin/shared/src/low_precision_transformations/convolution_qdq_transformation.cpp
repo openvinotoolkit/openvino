@@ -53,6 +53,8 @@ void ConvolutionQDqTransformation::SetUp() {
         param.convertOnWeights,
         param.dequantizationOnWeights,
         {});
+
+    this->configuration[ov::hint::inference_precision.name()] = "f32";
 }
 
 void ConvolutionQDqTransformation::Run() {

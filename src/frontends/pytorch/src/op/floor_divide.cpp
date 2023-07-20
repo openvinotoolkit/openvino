@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
 #include "utils.hpp"

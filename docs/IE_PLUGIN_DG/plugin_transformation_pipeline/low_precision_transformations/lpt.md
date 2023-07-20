@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about low precision transformations used to infer a quantized model in low precision with the maximum performance on Intel CPU, GPU, and ARM platforms.
+
 .. toctree::
    :maxdepth: 1
    :caption: Low Precision Transformations
@@ -308,13 +311,13 @@ This step is optional. It modifies the nGraph function to a device-specific oper
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use `Model Downloader <https://docs.openvino.ai/2022.3/omz_tools_downloader.html>`__ tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
+Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
 
 .. code-block:: sh
 
    omz_downloader --name resnet-50-tf --precisions FP16-INT8
 
-After that you should quantize model by the `Model Quantizer <https://docs.openvino.ai/2022.3/omz_tools_downloader.html>`__ tool.
+After that you should quantize model by the :doc:`Model Quantizer <omz_tools_downloader>` tool.
 
 .. code-block:: sh
 
@@ -337,7 +340,7 @@ Results analysis
 
 Result model depends on different factors:
 
-* The original model quantization possibility and quantization quality. For some models, some operations are not possible to be quantized by POT and NNCF tools. In this case ``FakeQuantize`` operations are absent before these operations and they will be inferred in original precision.
+* The original model quantization possibility and quantization quality. For some models, some operations are not possible to be quantized by NNCF tool. In this case ``FakeQuantize`` operations are absent before these operations and they will be inferred in original precision.
 * LPT customization and plugin supported operations. If plugin doesn't support INT8 inference for some operation then corresponding LPT transformation should be disabled and the operation will be inferred in original precision.
 
 

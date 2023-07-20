@@ -76,11 +76,12 @@ public:
         quantize_params.out_scale = arg.get_output_scale_val();
         quantize_params.out_shift = arg.get_output_shift_val();
 
-        for (size_t i = 1; i < arg.inputs_count(); i++) {
+        for (size_t i = 1; i < arg.get_inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
         quantize_params.is_shape_agnostic = impl_param.is_dynamic();
+        quantize_params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 

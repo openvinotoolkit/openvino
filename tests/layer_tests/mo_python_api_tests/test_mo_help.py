@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 from openvino.tools.mo import mo
-from openvino.tools.mo.utils.cli_parser import get_mo_convert_params
+from openvino.tools.ovc.cli_parser import get_mo_convert_params
 from pathlib import Path
 
 from common.utils.common_utils import shell
@@ -24,7 +24,7 @@ class TestSubprocessMoConvert(unittest.TestCase):
 
         # We don't expect PyTorch specific parameters to be in help message of the MO tool.
         for group in mo_convert_params:
-            if group == 'Pytorch-specific parameters:':
+            if group == 'Pytorch-specific parameters:' or group == 'PaddlePaddle-specific parameters:':
                 continue
             for param_name in group:
                 assert param_name in mo_output

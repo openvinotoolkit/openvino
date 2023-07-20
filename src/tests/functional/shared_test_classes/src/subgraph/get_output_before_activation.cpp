@@ -32,6 +32,9 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     result << "IS=" << inputSize << "_";
     result << "OutputType=" << outputType << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 

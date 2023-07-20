@@ -223,3 +223,4 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::strided_slice)

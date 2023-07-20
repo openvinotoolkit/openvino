@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to show metrics and default 
+                 configuration values of inference devices using Query 
+                 Device (C++) API feature.
+
+
 This sample demonstrates how to execute an query OpenVINO™ Runtime devices, prints their metrics and default configuration values, using :doc:`Properties API <openvino_docs_OV_UG_query_api>`.
 
 The following C++ API is used in the application:
@@ -67,8 +73,6 @@ The application prints all available devices with their supported metrics and de
    [ INFO ]                CPU_THREADS_NUM : 0
    [ INFO ]                CPU_THROUGHPUT_STREAMS : 1
    [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT : ""
-   [ INFO ]                DYN_BATCH_ENABLED : NO
-   [ INFO ]                DYN_BATCH_LIMIT : 0
    [ INFO ]                ENFORCE_BF16 : NO
    [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS : NO
    [ INFO ]                PERFORMANCE_HINT : ""

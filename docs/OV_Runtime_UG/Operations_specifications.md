@@ -2,9 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Explore the examples of operations supported in OpenVINO™ toolkit.
+
 .. toctree::
    :maxdepth: 1
-   
+
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
@@ -82,6 +85,7 @@
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
    GroupConvolution-1 <openvino_docs_ops_convolution_GroupConvolution_1>
+   GroupNormalization-12 <openvino_docs_ops_normalization_GroupNormalization_12>
    HardSigmoid-1 <openvino_docs_ops_activation_HardSigmoid_1>
    HSigmoid-5 <openvino_docs_ops_activation_HSigmoid_5>
    HSwish-4 <openvino_docs_ops_activation_HSwish_4>
@@ -136,6 +140,7 @@
    PReLU-1 <openvino_docs_ops_activation_PReLU_1>
    PSROIPooling-1 <openvino_docs_ops_detection_PSROIPooling_1>
    Pad-1 <openvino_docs_ops_movement_Pad_1>
+   Pad-12 <openvino_docs_ops_movement_Pad_12>
    Parameter-1 <openvino_docs_ops_infrastructure_Parameter_1>
    Power-1 <openvino_docs_ops_arithmetic_Power_1>
    PriorBoxClustered-1 <openvino_docs_ops_detection_PriorBoxClustered_1>
@@ -172,6 +177,7 @@
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>
    ScatterElementsUpdate-3 <openvino_docs_ops_movement_ScatterElementsUpdate_3>
+   ScatterElementsUpdate-12 <openvino_docs_ops_movement_ScatterElementsUpdate_12>
    ScatterNDUpdate-3 <openvino_docs_ops_movement_ScatterNDUpdate_3>
    ScatterUpdate-3 <openvino_docs_ops_movement_ScatterUpdate_3>
    Select-1 <openvino_docs_ops_condition_Select_1>

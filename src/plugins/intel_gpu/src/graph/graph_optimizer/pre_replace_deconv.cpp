@@ -25,11 +25,9 @@ void pre_replace_deconv::run(program& p) {
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr).second;
-        // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
+        // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
             if (node->is_dynamic())
-                continue;
-            if (!p.get_config().get_property(ov::intel_gpu::optimize_data))
                 continue;
 
             auto& deconv_node = node->as<deconvolution>();
@@ -39,6 +37,7 @@ void pre_replace_deconv::run(program& p) {
             auto weights_nodes_id = deconv_prim->weights;
             auto biases_nodes_id = deconv_prim->bias;
             auto& input_node = deconv_node.get_dependency(0);
+            auto input_layout = deconv_node.get_input_layout(0);
             const primitive_id deconv_node_id = deconv_node.id();
             const primitive_id& input_node_id = input_node.id();
 
@@ -50,27 +49,28 @@ void pre_replace_deconv::run(program& p) {
 
                 bool perform_opt = false;
                 // fp16 and fp32 bfyx implementation supports transposed convolution
-                perform_opt |= cldnn::format::dimension(input_node.get_output_layout().format) == 4 &&
-                               (input_node.get_output_layout().data_type == data_types::f32 || input_node.get_output_layout().data_type == data_types::f16) &&
-                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
+                perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
+                               (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
+                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
                                 _lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
-                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8);
+                perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
                 if (!perform_opt)
                     continue;
 
-
                 // setting convolution parameters based on deconvolution params
-                auto spatial_rank = deconv_node.get_output_layout().get_spatial_rank();
+                auto output_layout = deconv_node.get_output_layout();
+                auto output_pshape = output_layout.get_partial_shape();
+                auto input_pshape = input_layout.get_partial_shape();
+                auto spatial_rank = output_layout.get_spatial_rank();
                 auto stride = deconv_prim->stride;
                 auto pad = deconv_prim->pad;
                 ov::Strides dilation(spatial_rank, 1);
                 auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
-                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
-                // list
+                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
                 p.remove_connection(input_node, deconv_node);
                 std::vector<std::shared_ptr<program_node>> weight_connections;
                 for (auto& weights_id : weights_nodes_id) {
@@ -83,8 +83,16 @@ void pre_replace_deconv::run(program& p) {
                     p.remove_connection(*weights_node_ptr, deconv_node);
                 }
 
+                ov::CoordinateDiff pad_begin(spatial_rank, 0);
+                ov::CoordinateDiff pad_end(spatial_rank, 0);
+
                 for (size_t i = 0; i < spatial_rank; i++) {
-                    pad[i] = (filter_layout.spatial(spatial_rank - i - 1) - 1) - std::abs(pad[i]);
+                    auto fs = filter_layout.spatial(spatial_rank - i - 1);
+                    auto out_dim = output_pshape[2 + i].get_length();
+                    auto in_dim = input_pshape[2 + i].get_length();
+
+                    pad_begin[i] = (fs - 1) - std::abs(pad[i]);
+                    pad_end[i] = (out_dim - 1) * stride[i] + fs - in_dim - pad_begin[i];
                 }
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
@@ -107,46 +115,18 @@ void pre_replace_deconv::run(program& p) {
                 p.rename(deconv_node, rename_id);
 
                 // create convolution primitive
-                std::shared_ptr<convolution> conv_prim;
-                if (!biases_nodes_id.empty()) {
-                    conv_prim = std::make_shared<convolution>(deconv_node_id,
-                                                              input_node_id,
-                                                              weights_nodes_id,
-                                                              biases_nodes_id,
-                                                              groups,
-                                                              stride,
-                                                              pad,
-                                                              dilation,
-                                                              grouped_weights_shape,
-                                                              output_padding);
-                } else {
-                    tensor output_size(0);
-                    if (deconv_prim->with_output_size) {
-                        output_size = deconv_prim->output_size;
-                        conv_prim = std::make_shared<convolution>(deconv_node_id,
-                                                                  input_node_id,
-                                                                  weights_nodes_id,
-                                                                  groups,
-                                                                  stride,
-                                                                  pad,
-                                                                  dilation,
-                                                                  output_size,
-                                                                  grouped_weights_shape,
-                                                                  output_padding);
-                    } else {
-                        conv_prim = std::make_shared<convolution>(deconv_node_id,
-                                                                  input_node_id,
-                                                                  weights_nodes_id,
-                                                                  groups,
-                                                                  stride,
-                                                                  pad,
-                                                                  dilation,
-                                                                  output_size,
-                                                                  grouped_weights_shape,
-                                                                  output_padding);
-                    }
-                }
-
+                auto conv_prim = std::make_shared<convolution>(deconv_node_id,
+                                                               input_node_id,
+                                                               weights_nodes_id[0],
+                                                               biases_nodes_id.empty() ? "" : biases_nodes_id[0],
+                                                               groups,
+                                                               stride,
+                                                               dilation,
+                                                               pad_begin,
+                                                               pad_end,
+                                                               grouped_weights_shape,
+                                                               ov::op::PadType::EXPLICIT,
+                                                               output_padding);
                 conv_prim->transposed = true;
                 program_node& new_node = p.get_or_create(conv_prim);
 
@@ -276,11 +256,15 @@ void pre_replace_deconv::run(program& p) {
                 // create convolution primitive
                 auto conv_prim = std::make_shared<convolution>(deconv_id_conv,
                                                                input_node_id,
-                                                               std::vector<primitive_id>{ weight_replace_node_id },
+                                                               weight_replace_node_id,
+                                                               "",
+                                                               1,
                                                                stride,
-                                                               pad,
                                                                dilation,
+                                                               pad,
+                                                               pad,
                                                                grouped_weights_shape,
+                                                               ov::op::PadType::EXPLICIT,
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 

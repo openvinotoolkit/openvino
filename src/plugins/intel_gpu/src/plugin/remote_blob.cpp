@@ -104,7 +104,20 @@ AnyMap RemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(VA_PLANE),  params.plane }
         };
     default:
-        IE_THROW() << "Unsupported shared object type " << static_cast<int>(m_mem_type);
+        OPENVINO_THROW("Unsupported shared object type ", static_cast<int>(m_mem_type));
+    }
+}
+
+void RemoteBlobImpl::setShape(const SizeVector& dims) {
+    if (ov::shape_size(dims) > m_memory_object->count()) {
+        OPENVINO_ASSERT(!is_shared(), "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.");
+        if (!deallocate()) {
+            OPENVINO_THROW("Cannot deallocate blob while an attempt to enlarge blob area in setShape.");
+        }
+
+        m_layout.set_partial_shape(ov::PartialShape{dims});
+
+        allocate();
     }
 }
 
@@ -132,7 +145,6 @@ void RemoteBlobImpl::allocate() {
         if (m_memory_object)
             return;
     }
-
 
     auto& engine = context->get_engine();
 
@@ -197,16 +209,15 @@ std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() con
 }
 
 void RemoteBlobImpl::reinterpret(const cldnn::layout& new_layout) {
-    OPENVINO_ASSERT(m_layout.bytes_count() >= new_layout.bytes_count(),
-                    "[GPU] Can't reinterpret blob to the size bigger than allocated memory buffer");
+    OPENVINO_ASSERT(m_memory_object->size() >= new_layout.bytes_count(),
+                    "[GPU] Can't reinterpret blob to the size bigger than allocated memory buffer",
+                    " (", m_memory_object->size(), " vs ",  new_layout.bytes_count(), ")");
     m_layout = new_layout;
-    auto engine = m_memory_object->get_engine();
-    m_memory_object = engine->reinterpret_buffer(*m_memory_object, new_layout);
 }
 
 void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
-        IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
+        OPENVINO_THROW("[GPU] Remote blob can't be locked as it's not allocated");
     }
 
     std::lock_guard<std::mutex> locker(lockedMutex);
@@ -273,12 +284,16 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
     }
 }
 
-bool RemoteBlobImpl::supports_caching() const {
+bool RemoteBlobImpl::is_shared() const {
     return m_mem_type == BlobType::BT_BUF_SHARED ||
            m_mem_type == BlobType::BT_USM_SHARED ||
            m_mem_type == BlobType::BT_IMG_SHARED ||
            m_mem_type == BlobType::BT_SURF_SHARED ||
            m_mem_type == BlobType::BT_DX_BUF_SHARED;
+}
+
+bool RemoteBlobImpl::supports_caching() const {
+    return is_shared();
 }
 
 }  // namespace intel_gpu

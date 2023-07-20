@@ -18,7 +18,13 @@ public:
     OPENVINO_OP("UnsupportedConstant", "ov::frontend::tensorflow::util", InternalOperation);
 
     UnsupportedConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, {}, 1) {
+        : InternalOperation(decoder, {}, 1, "Const of unknown type") {
+        validate_and_infer_types();
+    }
+
+    UnsupportedConstant(const std::string& no_conversion_reason,
+                        const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
+        : InternalOperation(decoder, {}, 1, no_conversion_reason) {
         validate_and_infer_types();
     }
 

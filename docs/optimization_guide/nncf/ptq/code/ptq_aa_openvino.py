@@ -45,5 +45,19 @@ quantized_model = nncf.quantize_with_accuracy_control(model,
                         calibration_dataset=calibration_dataset,
                         validation_dataset=validation_dataset,
                         validation_fn=validate,
-                        max_drop=0.01)
+                        max_drop=0.01,
+                        drop_type=nncf.DropType.ABSOLUTE)
 #! [quantization]
+
+#! [inference]
+import openvino.runtime as ov
+
+# compile the model to transform quantized operations to int8
+model_int8 = ov.compile_model(quantized_model)
+
+input_fp32 = ... # FP32 model input
+res = model_int8(input_fp32)
+
+# save the model
+ov.serialize(quantized_model, "quantized_model.xml")
+#! [inference]

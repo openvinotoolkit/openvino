@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models, such as alexnet and googlenet-v1, using 
+                 Synchronous Inference Request (C) API.
+
+
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
 Hello Classification C sample application demonstrates how to use the C API from OpenVINO in applications.
@@ -75,8 +81,8 @@ To run the sample, you need specify a model and image:
 
 .. note:: 
   
-   - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using ``mo`` with `reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+   - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
 Example
@@ -132,7 +138,7 @@ See Also
 - :doc:`Integrate OpenVINO™ into Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 - :doc:`C API Reference <pot_compression_api_README>`
 
 @endsphinxdirective

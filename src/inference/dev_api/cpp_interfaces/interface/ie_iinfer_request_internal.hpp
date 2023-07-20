@@ -18,6 +18,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 class IExecutableNetworkInternal;
 class IVariableStateInternal;
 
@@ -27,7 +28,8 @@ class IVariableStateInternal;
  * which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_infer_request_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IInferRequestInternal)
+    : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
@@ -130,28 +132,11 @@ public:
     virtual BatchedBlob::Ptr GetBlobs(const std::string& name);
 
     /**
-     * @brief Sets pre-process for input data
-     * @param name Name of input blob.
-     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
-     * precision and size.
-     * @param info Preprocess info for blob.
-     */
-    virtual void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
-
-    /**
      * @brief Gets pre-process for input data
      * @param name Name of input blob.
      * @param info pointer to a pointer to PreProcessInfo structure
      */
     virtual const PreProcessInfo& GetPreProcess(const std::string& name) const;
-
-    /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
-     * @deprecated
-     * @param batch - new batch size to be used by all the following inference calls for this request.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    virtual void SetBatch(int batch);
 
     /**
      * @brief Queries memory states.
@@ -345,7 +330,6 @@ protected:
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
     std::map<std::string, BatchedBlob::Ptr> _batched_inputs;   //!< A map of user passed blobs for network inputs
-    int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**
      * @brief A shared pointer to IInferRequestInternal
@@ -367,5 +351,7 @@ private:
  * @brief SoPtr to IInferRequestInternal.
  */
 using SoIInferRequestInternal = ov::SoPtr<IInferRequestInternal>;
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

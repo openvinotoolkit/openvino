@@ -10,7 +10,7 @@
 using namespace reference_tests;
 using namespace ov;
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #   pragma warning(disable : 4756)
 #endif  
 

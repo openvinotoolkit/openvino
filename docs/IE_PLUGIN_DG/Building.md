@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to build a plugin using CMake and OpenVINO Developer Package.
+
+
 OpenVINO build infrastructure provides the OpenVINO Developer Package for plugin development.
 
 OpenVINO Developer Package
@@ -9,7 +13,7 @@ OpenVINO Developer Package
 
 To automatically generate the OpenVINO Developer Package, run the ``cmake`` tool during a OpenVINO build:
 
-.. code-block:: bash 
+.. code-block:: sh 
 
    $ mkdir openvino-release-build
    $ cd openvino-release-build
@@ -32,9 +36,9 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
   * Libraries for tests development:
 
     * ``openvino::gtest``, ``openvino::gtest_main``, ``openvino::gmock`` - Google Tests framework libraries
-    * ``openvino::commonTestUtils`` - static library with common tests utilities 
-    * ``openvino::funcTestUtils`` - static library with functional tests utilities 
-    * ``openvino::unitTestUtils`` - static library with unit tests utilities 
+    * ``openvino::common_test_utils`` - static library with common tests utilities 
+    * ``openvino::func_test_utils`` - static library with functional tests utilities 
+    * ``openvino::unit_test_utils`` - static library with unit tests utilities 
     * ``openvino::ngraphFunctions`` - static library with the set of ``ov::Model`` builders
     * ``openvino::funcSharedTests`` - static library with common functional tests
     * ``openvino::ngraph_reference`` - static library with operation reference implementations.
@@ -48,7 +52,7 @@ Build Plugin using OpenVINO Developer Package
 
 To build a plugin source tree using the OpenVINO Developer Package, run the commands below:
 
-.. code-block:: bash 
+.. code-block:: sh 
 
    $ mkdir template-plugin-release-build
    $ cd template-plugin-release-build
@@ -72,7 +76,7 @@ To build a plugin and its tests, run the following CMake scripts:
       
    The default values of the ``ENABLE_TESTS``, ``ENABLE_FUNCTIONAL_TESTS`` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
 
-.. code-block:: bash 
+.. code-block:: sh 
    
    $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino-release-build ../template-plugin
 

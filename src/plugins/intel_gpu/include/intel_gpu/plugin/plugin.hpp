@@ -24,7 +24,10 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     std::map<std::string, cldnn::device::ptr> device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
 
-    std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
+    mutable std::map<std::string, RemoteCLContext::Ptr> m_default_contexts;
+    mutable std::once_flag m_default_contexts_once;
+
+    std::map<std::string, RemoteCLContext::Ptr> get_default_contexts() const;
 
     InferenceEngine::CNNNetwork clone_and_transform_model(const InferenceEngine::CNNNetwork& network,
                                                           const ExecutionConfig& config) const;
@@ -35,6 +38,7 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
 
     std::vector<ov::PropertyName> get_supported_properties() const;
+    std::vector<ov::PropertyName> get_supported_internal_properties() const;
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
     uint32_t get_max_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
@@ -57,7 +61,10 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const std::map<std::string, std::string>& config) override;
+                                                                   const std::map<std::string, std::string>& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
+                                                                   const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                                                                   const std::map<std::string, std::string>& config) override;
 
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;

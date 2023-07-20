@@ -93,7 +93,9 @@ enum class KernelType {
     PRIOR_BOX,
     EYE,
     GENERATE_PROPOSALS,
-    MULTICLASS_NMS
+    MULTICLASS_NMS,
+    UNIQUE_COUNT,
+    UNIQUE_GATHER,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

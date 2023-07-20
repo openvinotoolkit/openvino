@@ -3,6 +3,7 @@
 //
 
 #include "test_utils/test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
@@ -17,19 +18,6 @@
 
 using namespace cldnn;
 using namespace tests;
-
-template <typename T>
-std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    int k = 8;  // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> v(b * f * x * y);
-    for (size_t i = 0; i < b * f * x * y; ++i) {
-        v[i] = (T)distribution(generator);
-        v[i] /= k;
-    }
-    return v;
-}
 
 TEST(depth_concatenate_f32_gpu, test01) {
     //  Input count : 2
@@ -251,7 +239,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     topology.add(resample("unpool1", input_info("input1"), tensor(1, 1, 2, 2), 0, resample::InterpolateOp::InterpolateMode::NEAREST));
     topology.add(concatenation("concat1", { input_info("pool1"), input_info("unpool1") }, 3));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("concat1"), {"weights"}));
+    topology.add(convolution("conv", input_info("concat1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -325,13 +313,14 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
 TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     // 2 inputs of size 3x10x10 concatenated on f axis with fused relu
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 10, 10}});
     auto input2 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 10, 10}});
 
-    std::vector<float> input1_vec = generate_random_input<float>(1, 3, 10, 10, -10, 10);
+    std::vector<float> input1_vec = rg.generate_random_1d<float>(input1->count(), -10, 10);
     set_values(input1, input1_vec);
-    std::vector<float> input2_vec = generate_random_input<float>(1, 3, 10, 10, -10, 10);
+    std::vector<float> input2_vec = rg.generate_random_1d<float>(input2->count(), -10, 10);
     set_values(input2, input2_vec);
 
     topology topology;
@@ -423,12 +412,13 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     const int32_t input_f = 32;
     const int32_t output_f = 3 * input_f;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 
-    auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
-    auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input1_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
@@ -448,7 +438,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology.add(activation("actv1", input_info("input1"), activation_func::linear, { 0.75f, 0.0f }));
     topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("actv2"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(convolution("conv", input_info("actv2"), { "weights" }, {}, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
     topology.add(concatenation("depth2", { input_info("depth1"), input_info("conv") }, 1));
     topology.add(reorder("output", input_info("depth2"), format::bfyx, data_types::f32));
@@ -500,6 +490,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     const int32_t input_f = 32;
     const int32_t output_f = 2 * input_f;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     if (engine.get_device_info().supports_immad) {
         // Currently, oneDNN does NOT support input/output padding
@@ -509,8 +500,8 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     auto input1 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f16, format::fs_b_yx_fsv32, {1, input_f, 1, 1} });
 
-    auto input1_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
-    auto input2_data = generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input1_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = rg.generate_random_4d<FLOAT16>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
@@ -531,7 +522,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology.add(activation("actv2", input_info("input2"), activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { input_info("actv1"), input_info("actv2") }, 1));
     topology.add(data("weights", weights));
-    topology.add(convolution("conv", input_info("depth1"), { "weights" }, {1, 1}, {1, 1}));
+    topology.add(convolution("conv", input_info("depth1"), { "weights" }, {}, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
 
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
@@ -578,12 +569,13 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     const int32_t input_f = 16;
     const int32_t output_f = 2 * input_f;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, {1, input_f, 1, 1} });
     auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, {1, input_f, 1, 1} });
 
-    auto input1_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
-    auto input2_data = generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
+    auto input1_data = rg.generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
+    auto input2_data = rg.generate_random_4d<float>(1, input_f, 1, 1, -1, 1);
     set_values(input1, flatten_4d(format::bfyx, input1_data));
     set_values(input2, flatten_4d(format::bfyx, input2_data));
 
@@ -961,6 +953,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
 
 template <typename T>
 void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     const int b = 2;
     const int f = 3;
@@ -977,7 +970,7 @@ void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(concatenation("concat", { input_info("input1"), input_info("input1") }, 2));
 
-    auto input_data = generate_random_1d<T>(input1->count(), -1, 1);
+    auto input_data = rg.generate_random_1d<T>(input1->count(), -1, 1);
 
     auto expected_output = std::vector<T>(input1->count() * 2);
 

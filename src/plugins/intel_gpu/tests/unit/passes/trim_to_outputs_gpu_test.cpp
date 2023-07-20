@@ -45,8 +45,8 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("weights", weights));
         topology.add(data("bias", bias));
-        topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights" }, { "bias" }));
-        topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights" }, { "bias" }));
+        topology.add(cldnn::convolution("conv1", input_info("input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        topology.add(cldnn::convolution("conv2", input_info("input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
@@ -98,10 +98,10 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("weights1", weights1));
         topology.add(data("bias1", bias1));
-        topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias1" }));
+        topology.add(cldnn::convolution("conv1", input_info("input"), "weights1", "bias1", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(data("weights2", weights2));
         topology.add(data("bias2", bias2));
-        topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights2" }, { "bias2" }));
+        topology.add(cldnn::convolution("conv2", input_info("input"), "weights2", "bias2", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
@@ -155,12 +155,12 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("weights1", weights1));
         topology.add(data("bias", bias));
-        topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }, { "bias" }));
+        topology.add(cldnn::convolution("conv1", input_info("input"), "weights1", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(data("weights23", weights23));
-        topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights23" }, { "bias" }));
-        topology.add(cldnn::convolution("conv3", { input_info("conv2") }, { "weights23" }, { "bias" }));
+        topology.add(cldnn::convolution("conv2", input_info("input"), "weights23", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        topology.add(cldnn::convolution("conv3", input_info("conv2"), "weights23", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(data("weights4", weights4));
-        topology.add(cldnn::convolution("conv4", { input_info("conv1") }, { "weights4" }, { "bias" }));
+        topology.add(cldnn::convolution("conv4", input_info("conv1"), "weights4", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
@@ -194,9 +194,9 @@ public:
         topology.add(data("unused1", bias));
         topology.add(data("unused2", weights));
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(convolution("conv1", input_info("input"), { "weights" }));
+        topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
-        topology.add(convolution("conv2", input_info("pool"), { "weights" }, { "bias" }));
+        topology.add(convolution("conv2", input_info("pool"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));

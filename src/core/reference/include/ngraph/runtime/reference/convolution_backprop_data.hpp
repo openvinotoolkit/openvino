@@ -11,6 +11,7 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
+#include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph {
@@ -171,8 +172,8 @@ void convolution_backprop_impl(const T* in,
     // convolution implementation to convolve also in 1D & 2D case
     Shape input_shape{in_shape};
     Shape filters_shape{f_shape};
-    if (in_shape.size() < 5) {
-        extend_to_3D(params, input_shape, filters_shape);
+    if (in_shape.size() < 4) {
+        extend_to_2D(params, input_shape, filters_shape);
     }
 
     for (size_t i = 0; i < input_shape.size() - 2; ++i) {
@@ -185,47 +186,108 @@ void convolution_backprop_impl(const T* in,
         }
     }
 
-    // convert output shape to 3D, contains only dimensions
-    Shape out_shape_3d{out_shape.begin() + 2, out_shape.end()};
+    // convert output shape to 2D, contains only dimensions
+    Shape out_shape_2d{out_shape.begin() + 2, out_shape.end()};
 
     int out_shape_rank = static_cast<int>(out_shape.size()) - 2;
-    if (out_shape_rank < 3) {
-        int missing_dims = 3 - out_shape_rank;
-        out_shape_3d.insert(std::prev(out_shape_3d.end(), out_shape_rank), missing_dims, 1);
+    if (out_shape_rank < 2) {
+        int missing_dims = 2 - out_shape_rank;
+        out_shape_2d.insert(std::prev(out_shape_2d.end(), out_shape_rank), missing_dims, 1);
     }
 
     // modify params.pads_end when output_shape was provided in ctor in order to
     // calculate expected number of output elements
-    for (size_t i = 0; i < out_shape_3d.size(); i++) {
-        if (out_shape_3d[i] > 1) {
+    for (size_t i = 0; i < out_shape_2d.size(); i++) {
+        if (out_shape_2d[i] > 1) {
             // expected_dim = (in - 1)* strides + filter - 2*padding + out_padding
             // strides is already applied (through 0's extension in input)
             // padding = pads_begin + pads_end, formula below is using
             // params.pad_begin/params.pads_end:
             const size_t expected_dim =
-                out_shape_3d[i] - ((input_shape[i + 2] - 1) - filters_shape[i + 2] + params.pads_begin[i] +
+                out_shape_2d[i] - ((input_shape[i + 2] - 1) - filters_shape[i + 2] + params.pads_begin[i] +
                                    params.pads_end[i] + 2 + params.output_padding[i]);
             params.pads_end[i] += expected_dim;
         }
     }
 
-    const size_t filters_count = filters_shape[filter_out_ch_axis];
-    const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
-    const size_t filter_size = shape_size(filter_shape);
+    auto ncores = std::thread::hardware_concurrency() / 2;
+    if (ncores == 0) {
+        ncores = 1;
+    }
+    std::vector<std::future<void>> futures(ncores);
 
-    const size_t batches_count = input_shape[in_batch_axis];
-    Shape batch_shape(++input_shape.begin(), input_shape.end());
-    const size_t batch_size = shape_size(batch_shape);
+    auto ker_callback = [](const int64_t nthr,
+                           const int64_t ithr,
+                           const T* in,
+                           const T* f,
+                           T* out,
+                           const Shape& input_shape,
+                           const Shape& filters_shape,
+                           const Shape& out_shape,
+                           const ConvolutionParams& params) {
+        const size_t filters_count = filters_shape[filter_out_ch_axis];
+        const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+        const size_t filter_size = shape_size(filter_shape);
 
-    auto batch = in;
+        const size_t batches_count = input_shape[in_batch_axis];
+        Shape batch_shape(++input_shape.begin(), input_shape.end());
+        const size_t batch_size = shape_size(batch_shape);
 
-    for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx) {
-        auto filter = f;
-        for (size_t f_idx = 0; f_idx < filters_count; ++f_idx) {
-            convolve_3D_channels(params, batch, batch_shape, filter, filter_shape, out);
-            filter += filter_size;
+        const size_t out_spatial_size =
+            std::accumulate(out_shape.begin() + 2, out_shape.end(), size_t(1), std::multiplies<size_t>());
+
+        const int64_t work_amount = static_cast<int64_t>(batches_count * filters_count);
+        int64_t start = 0, end = 0;
+        if (nthr <= 1 || work_amount == 0) {
+            start = 0;
+            end = work_amount;
+        } else {
+            auto n1 = (work_amount + nthr - 1) / nthr;
+            auto n2 = n1 - 1;
+            auto T1 = work_amount - n2 * nthr;
+            end = ithr < T1 ? n1 : n2;
+            start = ithr <= T1 ? ithr * n1 : T1 * n1 + (ithr - T1) * n2;
         }
-        batch += batch_size;
+        end += start;
+        if (start >= end) {
+            return;
+        }
+
+        void (*conv_channels)(const ConvolutionParams&, const T*, const Shape&, const T*, const Shape&, T*);
+        if (input_shape.size() == 5) {
+            conv_channels = &convolve_3D_channels;
+        } else {
+            conv_channels = &convolve_2D_channels;
+        }
+
+        size_t batch_idx = start / filters_count;
+        size_t c_idx = start % filters_count;
+
+        auto in_data = in + batch_size * batch_idx;
+        auto filter = f + filter_size * c_idx;
+        auto out_data = out + out_spatial_size * filters_count * batch_idx + out_spatial_size * c_idx;
+
+        for (; batch_idx < batches_count; ++batch_idx) {
+            for (; c_idx < filters_count && start < end; c_idx++, start++) {
+                conv_channels(params, in_data, batch_shape, filter, filter_shape, out_data);
+                filter += filter_size;
+                out_data += out_spatial_size;
+            }
+            if (start >= end) {
+                break;
+            }
+            filter = f;
+            c_idx = 0;
+            in_data += batch_size;
+        }
+    };
+
+    for (size_t ithr = 0; ithr < ncores; ithr++) {
+        futures[ithr] =
+            std::async(ker_callback, ncores, ithr, in, f, out, input_shape, filters_shape, out_shape, params);
+    }
+    for (size_t ithr = 0; ithr < ncores; ithr++) {
+        futures[ithr].get();
     }
 }
 
@@ -305,7 +367,7 @@ void convolution_backprop_in(const T* delta_in,
     if (stride_dim >= 2) {
         extend_with_zeros(stride, in_shape, delta_in, conv_input_shape, extended_input);
         std::fill(conv_stride.begin(), conv_stride.end(), 1);
-        conv_input_data = &extended_input[0];
+        conv_input_data = extended_input.data();
     }
 
     const size_t dilation_dim =
@@ -317,7 +379,7 @@ void convolution_backprop_in(const T* delta_in,
                              conv_filter_shape,
                              extended_filter);
         std::fill(conv_filter_dilation.begin(), conv_filter_dilation.end(), 1);
-        conv_filter_data = &extended_filter[0];
+        conv_filter_data = extended_filter.data();
     }
 
     convolution_backprop_impl(conv_input_data,

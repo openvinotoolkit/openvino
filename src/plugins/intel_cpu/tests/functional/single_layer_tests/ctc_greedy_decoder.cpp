@@ -92,7 +92,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -113,7 +113,7 @@ protected:
                 std::uniform_int_distribution<unsigned long> dist(1, T);
 
                 std::vector<float> sequenceMaskData(B * T, 0);
-                for (int b = 0; b < B; b++) {
+                for (size_t b = 0; b < B; b++) {
                     int len = dist(gen);
                     for (int t = 0; t < len; t++) {
                         sequenceMaskData[t * B + b] = 1;

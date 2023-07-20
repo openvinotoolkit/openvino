@@ -262,7 +262,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -277,14 +277,14 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 
-    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
-    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
-    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
+    const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
+    const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
+    const auto* scores = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
+    const auto* im_info = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
 
-    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
-    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->GetPtr());
+    auto* output_boxes = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_BOXES)[0]->getMemoryPtr()->getData());
+    auto* output_scores = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
+    auto* output_classes = reinterpret_cast<int32_t *>(getChildEdgesAtPort(OUTPUT_CLASSES)[0]->getMemoryPtr()->getData());
 
     const float img_H = im_info[0];
     const float img_W = im_info[1];

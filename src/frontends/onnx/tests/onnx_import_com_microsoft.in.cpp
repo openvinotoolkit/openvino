@@ -18,9 +18,9 @@
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
                                           1.354462f,
                                           1.8336612f,
                                           0.3068893f});
-    test_case.run();
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {

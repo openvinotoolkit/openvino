@@ -35,7 +35,7 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
     const float center = 0.5f * (base_size - coordinates_offset);
 
     // enumerate all transformed boxes
-    for (int ratio = 0; ratio < num_ratios; ++ratio) {
+    for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
         // transformed width & height for given ratio factors
         float ratio_w;
         float ratio_h;
@@ -52,7 +52,7 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
         float * const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
         float * const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
 
-        for (int scale = 0; scale < num_scales; ++scale) {
+        for (size_t scale = 0; scale < num_scales; ++scale) {
             // transformed width & height for given scale factors
             const float scale_w = 0.5f * (ratio_w * scales[scale] - coordinates_offset);
             const float scale_h = 0.5f * (ratio_h * scales[scale] - coordinates_offset);
@@ -164,13 +164,13 @@ void Proposal::executeDynamicImpl(dnnl::stream strm) {
 
 void Proposal::execute(dnnl::stream strm) {
     try {
-        const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->GetPtr());
-        const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->GetPtr());
-        const float* imgInfoData = reinterpret_cast<const float *>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->GetPtr());
-        float* outRoiData = reinterpret_cast <float *>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
+        const float* probabilitiesData = reinterpret_cast<const float *>(getParentEdgeAt(PROBABILITIES_IN_IDX)->getMemoryPtr()->getData());
+        const float* anchorsData = reinterpret_cast<const float *>(getParentEdgeAt(ANCHORS_IN_IDX)->getMemoryPtr()->getData());
+        const float* imgInfoData = reinterpret_cast<const float *>(getParentEdgeAt(IMG_INFO_IN_IDX)->getMemoryPtr()->getData());
+        float* outRoiData = reinterpret_cast <float *>(getChildEdgesAtPort(ROI_OUT_IDX)[0]->getMemoryPtr()->getData());
         float* outProbData = nullptr;
         if (store_prob)
-            outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
+            outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->getData());
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];

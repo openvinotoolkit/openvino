@@ -41,7 +41,7 @@ Engine Parameters
 
 The main parameter is ``"type"`` which can take two possible options: ``"accuracy_checher"`` (default) or ``"simplified"``. It specifies the engine used for model inference and validation (if supported):
 
-- **Simplified mode** engines. These engines can be used only with ``DefaultQuantization`` algorithm to get a fully quantized model. They do not use the Accuracy Checker tool and annotation. In this case, the following parameters are applicable:
+- **Simplified mode** engines. These engines can be used only with the ``DefaultQuantization`` algorithm to get a fully quantized model. They do not use the Accuracy Checker tool and annotation. In this case, the following parameters are applicable:
 
   - ``"data_source"`` specifies the path to the directory​ where the calibration data is stored.
   - ``"layout"`` - (Optional) Layout of input data. Supported values: [``"NCHW"``, ``"NHWC"``, ``"CHW"``, ``"CWH"``]​.
@@ -57,13 +57,13 @@ There are two options to define engine parameters in this mode:
 Compression Parameters
 ######################
 
-For more details about parameters of the concrete optimization algorithm, see descriptions of :doc:`Default Quantization <pot_compression_algorithms_quantization_default_README>` and :doc:`Accuracy-aware Quantizatoin <accuracy_aware_README>` methods.
+For more details on the parameters of a particular optimization algorithm, see descriptions of :doc:`Default Quantization <pot_compression_algorithms_quantization_default_README>` and :doc:`Accuracy-aware Quantizatoin <accuracy_aware_README>` methods.
 
 Examples of the Configuration File
 ##################################
 
 For a quick start, many examples of configuration files are provided `here <https://github.com/openvinotoolkit/openvino/blob/master/tools/pot/configs/examples>`__. 
-There, you can find ready-to-use configurations for the models from various domains: Computer Vision (Image Classification, Object Detection, Segmentation), Natural Language Processing, Recommendation Systems. We put configuration files for the models which require non-default configuration settings to get accurate results.
+There, you can find ready-to-use configurations for the models from various domains: Computer Vision (Image Classification, Object Detection, Segmentation), Natural Language Processing, and Recommendation Systems. We put configuration files for the models which require non-default configuration settings to get accurate results.
 
 For details on how to run the Post-Training Optimization Tool with a sample configuration file, see the :doc:`example <pot_configs_examples_README>`.
 

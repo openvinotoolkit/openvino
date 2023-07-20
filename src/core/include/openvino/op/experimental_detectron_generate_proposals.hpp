@@ -57,6 +57,8 @@ public:
         return m_attrs;
     }
 
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
 };

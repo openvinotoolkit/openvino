@@ -15,7 +15,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-/// Minimal graph to test Transpose support: Parameter->Sinh->Transpose->Result
+/// Minimal graph to test Transpose support: Parameter->Transpose->Result
 /// Tokenized simply by starting subgraph, supported through TransposeDecomposition
 //   in1        Const(order)
 //        Transpose
@@ -29,6 +29,23 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
+    std::vector<int> order;
+};
+/// Testing Transpose + Eltwise support on the example of Mul op
+/// Tokenized simply by starting subgraph, supported through TransposeDecomposition
+//   in1        Const(order)
+//        Transpose
+//   in2     |
+//        Multiply
+//         Result
+class TransposeMulFunction : public SnippetsFunctionBase {
+public:
+    explicit TransposeMulFunction(const std::vector<PartialShape>& inputShapes, std::vector<int> order)
+            : SnippetsFunctionBase(inputShapes), order(std::move(order)) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
     std::vector<int> order;
 };
 }  // namespace snippets

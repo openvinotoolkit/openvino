@@ -1,7 +1,13 @@
 # Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
 @sphinxdirective
- 
+
+.. meta::
+   :description: Enabling model caching to export compiled model 
+                 automatically and reusing it can significantly 
+                 reduce duration of model compilation on application startup.
+
+
 As described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`, 
 a common application flow consists of the following steps:
 
@@ -26,9 +32,6 @@ automatically and reuses it to significantly reduce the model compilation time.
 
 .. important:: 
 
-   The :doc:`Compile Tool <openvino_inference_engine_tools_compile_tool_README>` may serve the same purpose
-   for C++ applications, but is considered a legacy solution and you should use Model Caching instead.
-
    Not all devices support the network import/export feature. They will perform normally but will not
    enable the compilation stage speed-up.
 
@@ -40,19 +43,19 @@ To enable model caching, the application must specify a folder to store the cach
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-         .. doxygensnippet:: docs/snippets/ov_caching.cpp
-            :language: cpp
-            :fragment: [ov:caching:part0]
-   
    .. tab-item:: Python
       :sync: py
 
-         .. doxygensnippet:: docs/snippets/ov_caching.py
-            :language: py
-            :fragment: [ov:caching:part0]
+      .. doxygensnippet:: docs/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part0]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part0]
 
 
 With this code, if the device specified by ``device_name`` supports import/export model capability, 
@@ -74,18 +77,18 @@ For these cases, there is a more convenient API to compile the model in a single
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
-         :language: cpp
-         :fragment: [ov:caching:part1]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_caching.py
          :language: py
+         :fragment: [ov:caching:part1]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+         :language: cpp
          :fragment: [ov:caching:part1]
 
 
@@ -93,18 +96,18 @@ With model caching enabled, the total load time is even shorter, if ``read_model
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
-         :language: cpp
-         :fragment: [ov:caching:part2]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_caching.py
          :language: py
+         :fragment: [ov:caching:part2]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+         :language: cpp
          :fragment: [ov:caching:part2]
 
 
@@ -118,18 +121,18 @@ To check in advance if a particular device supports model caching, your applicat
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_caching.cpp
-         :language: cpp
-         :fragment: [ov:caching:part3]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_caching.py
          :language: py
+         :fragment: [ov:caching:part3]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+         :language: cpp
          :fragment: [ov:caching:part3]
 
 

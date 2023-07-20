@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "mmap_object.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;
@@ -77,7 +77,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         const auto& path = model_variant.as<std::wstring>();
-        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -153,11 +153,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         model_path = tmp_path;
 #endif
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         model_path = model_variant.as<std::wstring>();
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -201,16 +201,20 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::load_mmap_object(weights_path);
-        else {
+        if (enable_mmap) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights =
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                               mapped_memory->size(),
+                                                                                               mapped_memory);
+        } else {
             std::ifstream bin_stream;
-            bin_stream.open(weights_path, std::ios::binary);
+            bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
 #else
-                IE_THROW() << "Weights file " + weights_path + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
 #endif
 
             bin_stream.seekg(0, std::ios::end);

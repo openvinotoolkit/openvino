@@ -26,8 +26,6 @@
 #include "threading/ie_thread_affinity.hpp"
 #include "threading/ie_thread_local.hpp"
 
-using namespace openvino;
-
 namespace InferenceEngine {
 struct CPUStreamsExecutor::Impl : public ov::threading::CPUStreamsExecutor {
     Impl(const InferenceEngine::IStreamsExecutor::Config& config) : ov::threading::CPUStreamsExecutor(config) {}
@@ -41,7 +39,7 @@ int CPUStreamsExecutor::GetNumaNodeId() {
     return _impl->get_numa_node_id();
 }
 
-CPUStreamsExecutor::CPUStreamsExecutor(const Config& config) : _impl{new Impl(config)} {}
+CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl(config)} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {}
 

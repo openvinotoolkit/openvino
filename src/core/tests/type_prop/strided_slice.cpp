@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
 #include <memory>
 #include <strided_slice_shape_inference.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -444,6 +444,33 @@ TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
                                                               std::vector<int64_t>{1, 1, 0});
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
+}
+
+TEST(type_prop, strided_slice_different_ranks) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = op::Constant::create(element::i64, Shape{1}, {0});
+    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                              std::vector<int64_t>{0, 0, 0, 0, 0});
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 2, 3, 4}));
+}
+
+TEST(type_prop, strided_slice_different_ranks_long_masks) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stop = op::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{2, 2, 2, 2});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              std::vector<int64_t>{1, 1, 0, 1, 1},
+                                                              std::vector<int64_t>{0, 0, 1, 0, 0});
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 2, 3, 2}));
 }
 
 struct StridedSliceTestParams {

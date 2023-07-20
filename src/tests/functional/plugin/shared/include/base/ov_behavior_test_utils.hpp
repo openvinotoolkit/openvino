@@ -42,14 +42,14 @@ inline bool sw_plugin_in_target_device(std::string targetDevice) {
             targetDevice.find("HETERO") != std::string::npos || targetDevice.find("AUTO") != std::string::npos);
 }
 
-class APIBaseTest : public CommonTestUtils::TestsCommon {
+class APIBaseTest : public ov::test::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
     const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(
                                                                         new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
 
 protected:
-    size_t k = 1;
+    double k = 1.0;
     std::string target_device = "";
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
@@ -62,7 +62,7 @@ public:
     void SetUp() override {
         set_api_entity();
         auto test_name = this->GetFullTestName();
-        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
         std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();

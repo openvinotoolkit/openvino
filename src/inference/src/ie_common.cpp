@@ -20,6 +20,7 @@
 #include "openvino/core/except.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 //
 // ie_iextension.h

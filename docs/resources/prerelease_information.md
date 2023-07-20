@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the pre-release information that includes a general 
+                 changelog for each version of OpenVINO Toolkit published under 
+                 the current cycle.
+
 To ensure you can test OpenVINO's upcoming features even before they are officially released, 
 OpenVINO developers continue to roll out pre-release software. On this page you can find
 a general changelog for each version published under the current cycle.
@@ -17,12 +22,22 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * NOT subject to official support.
    * Subject to change in the future.
    * Introduced to allow early testing and get early feedback from the community.
- 
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230427
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230623
    :open:
    :animate: fade-in-slide-down
    :color: primary
+
+   The first pre-release for OpenVINO 2023.1, focused on fixing bugs and performance issues.
+
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
+   
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+   :animate: fade-in-slide-down
+   :color: secondary
 
    Note that a new distribution channel has been introduced for C++ developers: `Conda Forge <https://anaconda.org/conda-forge/openvino>`__ 
    (the 2022.3.0 release is available there now).
@@ -103,10 +118,10 @@ Please file a github Issue on these with the label “pre-release” so we can g
    OpenVINO™ repository tag: `2023.0.0.dev20230217 <https://github.com/openvinotoolkit/openvino/releases/tag/2023.0.0.dev20230217>`__
 
    * Enabled PaddlePaddle Framework 2.4
-   * Preview of TensorFlow Lite Front End – Load models directly via “read_model” into OpenVINO Runtime and export OpenVINO IR format using Model Optimizer or “convert_model”
+   * Preview of TensorFlow Lite Frontend – Load models directly via “read_model” into OpenVINO Runtime and export OpenVINO IR format using model conversion API or “convert_model”
    * PyTorch Frontend is available as an experimental feature which will allow you to convert PyTorch models, using convert_model Python API directly from your code without the need to export to the ONNX format. Model coverage is continuously increasing. Feel free to start using the option and give us feedback.
-   * Model Optimizer now uses the TensorFlow Frontend as the default path for conversion to IR. Known limitations compared to the legacy approach are: TF1 Loop, Complex types, models requiring config files and old python extensions. The solution detects unsupported functionalities and provides fallback. To force using the legacy frontend ``--use_legacy_fronted`` can be specified.
-   * Model Optimizer now supports out-of-the-box conversion of TF2 Object Detection models. At this point, same performance experience is guaranteed only on CPU devices. Feel free to start enjoying TF2 Object Detection models without config files!
+   * Model conversion API now uses the TensorFlow Frontend as the default path for conversion to IR. Known limitations compared to the legacy approach are: TF1 Loop, Complex types, models requiring config files and old python extensions. The solution detects unsupported functionalities and provides fallback. To force using the legacy frontend ``use_legacy_fronted`` can be specified.
+   * Model conversion API now supports out-of-the-box conversion of TF2 Object Detection models. At this point, same performance experience is guaranteed only on CPU devices. Feel free to start enjoying TF2 Object Detection models without config files!
    * Introduced new option ov::auto::enable_startup_fallback / ENABLE_STARTUP_FALLBACK to control whether to use CPU to accelerate first inference latency for accelerator HW devices like GPU.
    * New FrontEndManager register_front_end(name, lib_path) interface added, to remove “OV_FRONTEND_PATH” env var (a way to load non-default frontends).
 

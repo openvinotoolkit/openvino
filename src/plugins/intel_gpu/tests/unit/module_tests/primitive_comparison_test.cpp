@@ -41,20 +41,20 @@ TEST(primitive_comparison, common_params) {
 }
 
 TEST(primitive_comparison, convolution) {
-    auto conv_prim = convolution("conv", input_info("input"), {"weights"}, {"bias"}, 1,
-                                 {2, 2}, {0, 0}, {1, 1}, {1, 3, 224, 224}, data_types::f32, false);
+    auto conv_prim = convolution("conv", input_info("input"), "weights", "bias", 1,
+                                 {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_eq = convolution("conv_eq", input_info("input_eq"), {"weights_eq"}, {"bias_eq"}, 1,
-                                    {2, 2}, {0, 0}, {1, 1}, {1, 3, 224, 224}, data_types::f32, false);
+    auto conv_prim_eq = convolution("conv_eq", input_info("input_eq"), "weights_eq", "bias_eq", 1,
+                                    {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_stride = convolution("conv", input_info("input"), {"weights"}, {"bias"}, 1,
-                                        {1, 1}, {0, 0}, {1, 1}, {1, 3, 224, 224}, data_types::f32, false);
+    auto conv_prim_stride = convolution("conv", input_info("input"), "weights", "bias", 1,
+                                        {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
     auto conv_prim_no_bias = convolution("conv", input_info("input"), {"weights"}, {}, 1,
-                                         {2, 2}, {0, 0}, {1, 1}, {1, 3, 224, 224}, data_types::f32, false);
+                                         {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_grouped = convolution("conv", input_info("input"), {"weights"}, {"bias"}, 2,
-                                         {2, 2}, {0, 0}, {1, 1}, {1, 3, 224, 224}, data_types::f32, true);
+    auto conv_prim_grouped = convolution("conv", input_info("input"), "weights", "bias", 2,
+                                         {2, 2}, {1, 1}, {0, 0}, {0, 0}, true);
 
     ASSERT_EQ(conv_prim, conv_prim_eq);
     ASSERT_NE(conv_prim, conv_prim_stride);
@@ -108,4 +108,22 @@ TEST(primitive_comparison, permute) {
 
     ASSERT_EQ(permute_prim, permute_prim_eq);
     ASSERT_NE(permute_prim, permute_prim_order);
+}
+
+TEST(primitive_comparison, reorder_weights) {
+    auto shape = ov::PartialShape{1, 2, 3, 4};
+    auto data_type = data_types::f32;
+
+    auto format_osv16 = format::os_iyx_osv16;
+    auto format_osv32 = format::os_iyx_osv32;
+
+    auto layout_osv16 = layout{shape, data_type, format_osv16};
+    auto layout_osv32 = layout{shape, data_type, format_osv32};
+
+    auto reorder_weights_prim = reorder("reorder_weights", input_info("input"), layout_osv16);
+    auto reorder_weights_eq_prim = reorder("reorder_weights_eq", input_info("input"), layout_osv16);
+    auto reorder_weights_diff_prim = reorder("reorder_weights_neq", input_info("input"), layout_osv32);
+
+    ASSERT_EQ(reorder_weights_prim, reorder_weights_eq_prim);
+    ASSERT_NE(reorder_weights_prim, reorder_weights_diff_prim);
 }

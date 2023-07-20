@@ -147,6 +147,7 @@ public:
             params.reuse_internal_buffer = true;
         }
 
+        params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 

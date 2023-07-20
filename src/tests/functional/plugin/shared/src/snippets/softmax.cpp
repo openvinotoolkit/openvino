@@ -77,11 +77,13 @@ void AddSoftmax::SetUp() {
 }
 
 TEST_P(Softmax, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(AddSoftmax, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }

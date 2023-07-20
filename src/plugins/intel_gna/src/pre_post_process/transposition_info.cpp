@@ -5,10 +5,12 @@
 
 #include <vector>
 
+#include "common/graph_utils.hpp"
 #include "log/debug.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -17,8 +19,8 @@ namespace pre_post_processing {
 using namespace ov::opset10;
 
 std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
-    int32_t c_size = t_info.num_transpose_rows;
-    int32_t hw_size = t_info.num_transpose_columns;
+    int32_t c_size = static_cast<int32_t>(t_info.num_transpose_rows);
+    int32_t hw_size = static_cast<int32_t>(t_info.num_transpose_columns);
 
     if (!t_info.transpose) {
         return nullptr;
@@ -49,7 +51,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const TranspositionInfo& t_info) {
 
 std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& transposes) {
     // count transposition parts need to be transposed
-    int count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
+    auto count_transposes = std::count_if(transposes.begin(), transposes.end(), [](TranspositionInfo t_info) {
         return t_info.transpose || t_info.num_transpose_rows != 1 || t_info.num_transpose_columns != 1;
     });
     if (count_transposes == 0) {
@@ -61,32 +63,36 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
         return ToProcessModel(transposes.front());
     }
 
-    std::vector<int32_t> indexes = {};
+    std::vector<size_t> indices = {};
     for (auto& transpose : transposes) {
         size_t c_size = transpose.num_transpose_rows;
         size_t hw_size = transpose.num_transpose_columns;
         if (c_size == 0 || hw_size == 0) {
             THROW_GNA_EXCEPTION << "Incorrect transposition dimentions";
         }
-        size_t chw_size = c_size * hw_size;
-        size_t id = indexes.size();
-        for (size_t i{0}; i < chw_size; ++i) {
-            size_t idx = (transpose.transpose) ? hw_size * (i % c_size) + i / c_size : i;
-            indexes.push_back(id + idx);
-        }
+        std::vector<size_t> slice_indices;
+        std::vector<size_t> transpose_order =
+            transpose.transpose ? std::vector<size_t>{1, 0} : std::vector<size_t>{0, 1};
+        slice_indices =
+            graph_utils::make_gather_indexes_from_transpose_axes(ov::Shape{c_size, hw_size}, transpose_order);
+        size_t id = indices.size();
+        std::for_each(slice_indices.begin(), slice_indices.end(), [&id](size_t& i) {
+            i += id;
+        });
+        indices.insert(indices.end(), slice_indices.begin(), slice_indices.end());
     }
 
-    auto param = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, indexes.size()});
+    auto param = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, indices.size()});
     // legacy way was to swap C and HW dimensions in the reshaped tensor
-    std::vector<int32_t> reshape_pattern{-1, static_cast<int32_t>(indexes.size())};
+    std::vector<int32_t> reshape_pattern{-1, static_cast<int32_t>(indices.size())};
     auto reshape_const =
         std::make_shared<Constant>(ov::element::i32, ov::Shape{reshape_pattern.size()}, reshape_pattern);
     auto reshape = std::make_shared<Reshape>(param, reshape_const, false);
 
     // CHW -> HWC or HWC -> CHW
-    auto gather_indexes = std::make_shared<Constant>(ov::element::i32, ov::Shape{indexes.size()}, indexes);
+    auto gather_indices = std::make_shared<Constant>(ov::element::i32, ov::Shape{indices.size()}, indices);
     auto gather_axis = std::make_shared<Constant>(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{1});
-    auto gather = std::make_shared<Gather>(reshape, gather_indexes, gather_axis);
+    auto gather = std::make_shared<Gather>(reshape, gather_indices, gather_axis);
 
     auto result = std::make_shared<Result>(gather);
 

@@ -40,6 +40,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             assert values.dtype == dtype
         assert np.allclose(values, expected)
 
+
     @generate(
         *[
             (
@@ -278,14 +279,6 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         self.basic("model_fp32.frozen", input_freezing_value, inputs, dtype, expected, only_conversion=False,
                    input_model_is_text=False, use_new_frontend=True,
                    use_legacy_frontend=False)
-
-    def test_conversion_fake_model(self):
-        with self.assertRaisesRegex(Exception,
-                                    "Internal error or inconsistent input model: the frontend supports "
-                                    "only frozen binary protobuf format."):
-            self.basic("fake.pb", None, None, None, None,
-                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
-                       use_legacy_frontend=False)
 
     @unittest.skip("109220: Make TF FE to return the error")
     def test_conversion_dir_model(self):

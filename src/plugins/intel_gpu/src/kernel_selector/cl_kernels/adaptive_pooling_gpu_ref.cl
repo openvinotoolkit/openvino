@@ -45,12 +45,15 @@ KERNEL(adaptive_pooling_gpu)(
 
 #if OUTPUT_DIMS == 5
     uint z_start = z * INPUT0_SIZE_Z / OUTPUT_SIZE_Z;
-    uint z_end = ceil((float)((z + 1) * INPUT0_SIZE_Z) / OUTPUT_SIZE_Z);
+    uint z_end = ((z + 1) * INPUT0_SIZE_Z) / OUTPUT_SIZE_Z;
+    z_end += (((z + 1) * INPUT0_SIZE_Z) - OUTPUT_SIZE_Z * z_end != 0) ? 1 : 0;
 #endif
     uint y_start = y * INPUT0_SIZE_Y / OUTPUT_SIZE_Y;
-    uint y_end = ceil((float)((y + 1) * INPUT0_SIZE_Y) / OUTPUT_SIZE_Y);
+    uint y_end = ((y + 1) * INPUT0_SIZE_Y) / OUTPUT_SIZE_Y;
+    y_end += (((y + 1) * INPUT0_SIZE_Y) - OUTPUT_SIZE_Y * y_end != 0) ? 1 : 0;
     uint x_start = x * INPUT0_SIZE_X / OUTPUT_SIZE_X;
-    uint x_end = ceil((float)((x + 1) * INPUT0_SIZE_X) / OUTPUT_SIZE_X);
+    uint x_end = ((x + 1) * INPUT0_SIZE_X) / OUTPUT_SIZE_X;
+    x_end += (((x + 1) * INPUT0_SIZE_X) - OUTPUT_SIZE_X * x_end != 0) ? 1 : 0;
 
 
 #if OUTPUT_DIMS == 5

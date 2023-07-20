@@ -7,9 +7,27 @@
 #include <vector>
 
 #include "ie_blob.h"
+#include "openvino/runtime/make_tensor.hpp"
 #include "system_allocator.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
+
+Blob* Blob::getHardwareBlob() {
+#ifdef PROXY_PLUGIN_ENABLED
+    return ov::get_hardware_blob(this);
+#else
+    return this;
+#endif
+}
+
+const Blob* Blob::getHardwareBlob() const {
+#ifdef PROXY_PLUGIN_ENABLED
+    return ov::get_hardware_blob(this);
+#else
+    return this;
+#endif
+}
 
 void Blob::setShape(const SizeVector& dims) {
     // we don't want to allow setShape for:

@@ -634,3 +634,22 @@ void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary)
         throw std::runtime_error("Could not save binary to " + path);
     }
 }
+
+const char* ov::util::trim_file_name(const char* const fname) {
+    static const auto pattern_native_sep =
+        std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+
+    const auto has_native_sep_pattern_ptr = std::strstr(fname, pattern_native_sep.c_str());
+    auto fname_trim_ptr = has_native_sep_pattern_ptr ? has_native_sep_pattern_ptr + pattern_native_sep.size() : fname;
+
+#if defined(_WIN32)
+    // On windows check also forward slash as in some case the __FILE__ can have it instead native backward slash.
+    if (fname_trim_ptr == fname) {
+        static const auto pattern_fwd_sep = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + '/';
+        if (const auto has_fwd_sep_pattern_ptr = std::strstr(fname, pattern_fwd_sep.c_str())) {
+            fname_trim_ptr = has_fwd_sep_pattern_ptr + pattern_fwd_sep.size();
+        }
+    }
+#endif
+    return fname_trim_ptr;
+}

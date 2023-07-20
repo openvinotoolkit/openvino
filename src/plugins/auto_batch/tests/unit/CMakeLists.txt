@@ -7,26 +7,6 @@ set(TARGET_NAME ov_auto_batch_unit_tests)
 set(CI_BUILD_NUMBER "unittest")
 add_definitions(-DAUTOBATCH_UNITTEST)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4050)
-    ie_add_compiler_flags(/wd4250)
-    ie_add_compiler_flags(/wd4334)
-    ie_add_compiler_flags(/wd4661)
-    ie_add_compiler_flags(/wd4273)
-    ie_add_compiler_flags(/wd4309)
-    ie_add_compiler_flags(/wd4804)
-endif()
-if(NOT MSVC)
-    ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-odr)
-    ie_add_compiler_flags(-Wno-all)
-endif()
-
 set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/ie_test_util")
 addIeTargetTest(
         NAME
@@ -40,9 +20,7 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
-            unitTestUtils
-            openvino::runtime
-            openvino::runtime::dev
+            unit_test_utils
             ngraphFunctions
         DEPENDENCIES
             mock_engine
@@ -51,6 +29,6 @@ addIeTargetTest(
         LABELS
             Auto_Batch
 )
-ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/auto_batch.cpp ${TARGET_NAME})
+ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/plugin.cpp ${TARGET_NAME})
 
 set_ie_threading_interface_for(${TARGET_NAME})

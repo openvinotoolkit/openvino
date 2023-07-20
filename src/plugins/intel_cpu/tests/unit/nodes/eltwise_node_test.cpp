@@ -15,7 +15,7 @@ class EltwisePrecisionHelperTest : public testing::Test {};
 TEST(EltwisePrecisionHelperTest, get_precision_mixed) {
     InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
     const size_t inputs_size = 4ull;
-    for (auto i = 0; i < inputs_size; ++i) {
+    for (size_t i = 0; i < inputs_size; ++i) {
         src_prc[i] = InferenceEngine::Precision::I32;
     }
 
@@ -31,7 +31,7 @@ TEST(EltwisePrecisionHelperTest, get_precision_mixed) {
 TEST(EltwisePrecisionHelperTest, get_precision_single) {
     InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
     const size_t inputs_size = 4ull;
-    for (auto i = 0; i < inputs_size; ++i) {
+    for (size_t i = 0; i < inputs_size; ++i) {
         src_prc[i] = InferenceEngine::Precision::I32;
     }
 

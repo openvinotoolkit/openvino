@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to estimate performance of a Bert model using Asynchronous Inference Request (Python) API.
+
+
 This sample demonstrates how to estimate performance of a Bert model using Asynchronous Inference Request API. Unlike :doc:`demos <omz_demos>` this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 The following Python API is used in the application:
@@ -64,6 +68,6 @@ See Also
 * :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 * :doc:`Model Downloader <omz_tools_downloader>`
-* :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective

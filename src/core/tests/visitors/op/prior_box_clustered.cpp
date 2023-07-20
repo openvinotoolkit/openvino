@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -14,8 +14,8 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, prior_box_clustered_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBoxClustered>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{300, 300});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::PriorBoxClusteredAttrs attrs;
     attrs.heights = {2.0f, 3.0f};
@@ -48,8 +48,8 @@ TEST(attributes, prior_box_clustered_op) {
 
 TEST(attributes, prior_box_clustered_op2) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBoxClustered>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{300, 300});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::PriorBoxClusteredAttrs attrs;
     attrs.heights = {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f};

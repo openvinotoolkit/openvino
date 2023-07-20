@@ -78,17 +78,19 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     auto input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
     topology topology(input_layout("input", input_l),
                       data("weights", weights),
-                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16, 
+                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16,
                       values_to_subtract, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
                       convolution("conv",
                                   input_info("reorder"),
-                                  {"weights"},
-                                  {},     /*bias*/
+                                  "weights",
+                                  "",     /*bias*/
+                                  1,
                                   {1, 1}, /*stride*/
-                                  {2, 2}, /*pad*/
                                   {1, 1}, /*dilation*/
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
+                                  false,
+                                  ov::op::PadType::EXPLICIT,
                                   padding{{0, 0, 0, 0}, 0}),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
@@ -106,10 +108,10 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
         ASSERT_EQ(output_mem_2_ptr[i], ref_output_2[i]);
     }
     // check padding of second run of reorder
-    // 0, 0, 0,  0,  0, 0,  
-    // 0, 0, 0,  0,  0, 0, 
-    // 0, 0, 11, 11, 0, 0, 
-    // 0, 0, 11, 11, 0, 0, 
+    // 0, 0, 0,  0,  0, 0,
+    // 0, 0, 0,  0,  0, 0,
+    // 0, 0, 11, 11, 0, 0,
+    // 0, 0, 11, 11, 0, 0,
     // 0, 0,"0","0","0","0", // !! check pad_after
     // 0, 0,"0","0","0","0", // !! check pad_after
     auto reorder_mem = network.get_primitive("reorder")->output_memory_ptr();
@@ -144,7 +146,13 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         layout(ov::PartialShape{ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}},
                data_types::f32,
                format::bfyx);
-    network network(engine, topology(input_layout("input", in_layout), softmax("softmax", input_info("input"), 3)), get_test_default_config(engine));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology(input_layout("input", in_layout),
+                                     reorder("reorder", input_info("input"), format::bfyx, data_types::f16),
+                                     softmax("softmax", input_info("reorder"), 3),
+                                     reorder("reorder2", input_info("softmax"), format::bfyx, data_types::f32)),
+                                     config);
 
     // First run
     float out_buffer_1[out_size_1];
@@ -184,6 +192,9 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     ASSERT_EQ(internal_mems_1.size(), internal_mems_2.size());
     for (size_t i = 0; i < internal_mems_1.size(); ++i) {
         ASSERT_EQ(internal_mems_1[i]->buffer_ptr(), internal_mems_2[i]->buffer_ptr());
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(internal_mems_1[i]->get_allocation_type(), allocation_type::usm_device);
+        }
     }
 }
 

@@ -58,7 +58,7 @@ void Math::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -71,9 +71,9 @@ void Math::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Math::execute(dnnl::stream strm) {
-    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
+    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     switch (getAlgorithm()) {
         case Algorithm::MathAbs:

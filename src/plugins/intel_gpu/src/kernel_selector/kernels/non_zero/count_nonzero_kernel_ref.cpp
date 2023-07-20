@@ -65,8 +65,8 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     if (newParams.has_dynamic_tensors()) {
         const auto& input = newParams.inputs[0];
-        DimensionAccessHelper dims(input, 0);
-        const std::string total_data_size = toVectorMulString({dims.x, dims.y, dims.z, dims.w, dims.f, dims.b});
+        DimensionAccessHelper dims(input);
+        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", total_data_size)});
     } else {
         cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize)});

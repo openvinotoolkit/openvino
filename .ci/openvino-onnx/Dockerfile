@@ -72,5 +72,5 @@ RUN ninja install
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib/intel64:/openvino/dist/runtime/3rdparty/tbb/lib
-ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.11:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python:${PYTHONPATH}
 CMD tox

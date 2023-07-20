@@ -10,7 +10,7 @@ from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_i
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.runtime import Core, serialize  # pylint: disable=E0401,E0611
 from openvino.runtime.passes import Manager # pylint: disable=E0401,E0611
-from openvino.offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
+from openvino._offline_transformations import apply_pot_transformations # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
@@ -18,6 +18,7 @@ from ..configs.config import GNA_DEVICES
 
 init_logger('ERROR', False)
 core = Core()
+core.set_property({"ENABLE_MMAP": "NO"})
 pass_manager = Manager()
 
 

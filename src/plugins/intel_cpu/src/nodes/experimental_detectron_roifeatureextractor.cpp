@@ -320,7 +320,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -335,11 +335,11 @@ void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
-    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
-    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
+    auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->getData());
+    auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->getData());
     float *output_rois = nullptr;
     if (OUTPUT_ROIS < outputShapes.size()) {
-        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
+        output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
     }
 
     std::vector<int> level_ids(num_rois, 0);
@@ -357,7 +357,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
         const int level_rois_offset = rois_per_level[i];
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
-            auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
+            auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->getData());
             const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
             const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,

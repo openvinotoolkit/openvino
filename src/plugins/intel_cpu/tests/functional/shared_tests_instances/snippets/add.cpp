@@ -30,11 +30,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
 std::vector<std::vector<ov::Shape>> inShapesStatic{
         {{1, 128, 1, 1}, {1, 128, 1, 1}},
         {{1, 128, 1, 9}, {1, 128, 1, 9}},
+        {{1, 128, 1, 16}, {1, 128, 1, 16}},
         {{1, 128, 1, 17}, {1, 128, 1, 17}},
         {{1, 128, 1, 29}, {1, 128, 1, 29}},
         {{1, 128, 1, 33}, {1, 128, 1, 33}},
         {{1, 128, 9, 30}, {1, 128, 1, 30}},
         {{1, 128, 9, 1}, {1, 128, 1, 30}},
+        {{1, 128, 9, 16}, {1, 128, 9, 1}},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                          ::testing::Combine(
@@ -67,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_BF16, AddRollConst,
         ::testing::Combine(
-                ::testing::Values(ov::Shape {1, 42, 16, 64}),
+                ::testing::Values(ov::Shape {1, 2, 3, 32}),
                 ::testing::Values(ov::element::bf16),
                 ::testing::Values(3), // Add + reorder + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
