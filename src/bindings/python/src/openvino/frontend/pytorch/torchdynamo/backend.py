@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
+
 # mypy: ignore-errors
 
 import logging
@@ -37,6 +37,7 @@ log = logging.getLogger(__name__)
     model = torchvision.models.resnet50()
     2) model = torch.compile(model, backend="openvino")
 """
+
 
 @register_backend
 @fake_tensor_unsupported
@@ -104,6 +105,7 @@ def ts_openvino(subgraph, example_inputs):
     except Exception as e:
         log.debug(f"Failed in compilation: {e}")
         return compile_fx(subgraph, example_inputs)
+
 
 def fx_openvino(subgraph, example_inputs):
     try:

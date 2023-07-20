@@ -1,3 +1,8 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# mypy: ignore-errors
+
 from typing import Dict
 
 import torch
@@ -24,20 +29,20 @@ class Partitioner:
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         fx_gm = make_fx(graph_module)(*args)
-        #prim_graph = torch.fx.Graph()
-        #DecompositionInterpreter(fx_gm, prim_graph, decomposition_table=aten2aten_decomp).run(*args, **kwargs)
-        #prim_module = torch.fx.GraphModule(fx_gm, prim_graph)
-        return fx_gm #prim_module
+        # prim_graph = torch.fx.Graph()
+        # DecompositionInterpreter(fx_gm, prim_graph, decomposition_table=aten2aten_decomp).run(*args, **kwargs)
+        # prim_module = torch.fx.GraphModule(fx_gm, prim_graph)
+        return fx_gm  # prim_module
 
     def add_get_attr_inputs(self, partitions: t.List[Partition]):
-        #TODO: Find a more efficient way to include input
-        #"get_attr" nodes to the partitions.
-        getattr_to_merge : Dict[Node, Node] = {}
+        # TODO: Find a more efficient way to include input
+        # "get_attr" nodes to the partitions.
+        getattr_to_merge: Dict[Node, Node] = {}
         for partition in partitions:
             for pnode in partition.nodes:
                 for pnode_input in pnode.all_input_nodes:
                     if pnode_input.op in ['get_attr'] and pnode_input.op not in getattr_to_merge:
-                            getattr_to_merge[pnode_input] = partition
+                        getattr_to_merge[pnode_input] = partition
         for getattr_node, getattr_part in getattr_to_merge.items():
             getattr_part.add_node(getattr_node)
 
@@ -52,5 +57,3 @@ class Partitioner:
         fused_graph_module = partitioner.fuse_partitions(partitions)
 
         return fused_graph_module
-
-

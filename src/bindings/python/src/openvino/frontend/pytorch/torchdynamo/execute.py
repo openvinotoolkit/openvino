@@ -1,3 +1,8 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# mypy: ignore-errors
+
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -32,6 +37,7 @@ compiled_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
 
+
 def execute(
     gm: GraphModule,
     *args,
@@ -51,6 +57,7 @@ def execute(
 
 import numpy as np
 
+
 def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
@@ -62,8 +69,8 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
     global compiled_cache
 
     model_hash_str = executor_parameters.get("model_hash_str", None)
-    if model_hash_str != None:
-        model_hash_str = model_hash_str+str(partition_id)
+    if model_hash_str is not None:
+        model_hash_str = model_hash_str + str(partition_id)
 
     if use_cache and (partition_id in compiled_cache):
         compiled = compiled_cache[partition_id]
@@ -88,7 +95,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
 
 class OpenVINOGraphModule(torch.nn.Module):
-    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str : str = None):
+    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None):
         super().__init__()
         self.gm = gm
         self.partition_id = partition_id
@@ -102,14 +109,14 @@ class OpenVINOGraphModule(torch.nn.Module):
 
         try:
             result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id)
-        except Exception as e:
+        except Exception:
             self.perm_fallback = True
             return self.gm(*args)
 
         return result
 
 
-def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str : str = None):
+def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None):
     global max_openvino_partitions
     partition_id = max_openvino_partitions
     for node in gm.graph.nodes:
@@ -134,10 +141,6 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     global partitioned_modules
 
-    allow_single_op_fusion = executor_parameters.get(
-        "allow_single_op_fusion",
-        DEFAULT_OPENVINO_PYTHON_CONFIG["allow_single_op_fusion"],
-    )
     use_python_fusion_cache = executor_parameters.get(
         "use_python_fusion_cache",
         DEFAULT_OPENVINO_PYTHON_CONFIG["use_python_fusion_cache"],
@@ -146,7 +149,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     signature = str(id(gm))
     for idx, input_data in enumerate(args):
-        signature = signature+"_"+str(idx)+":"+str(input_data.type())[6:]+":"+str(input_data.size())[11:-1].replace(" ","")
+        signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,

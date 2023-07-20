@@ -1,8 +1,7 @@
-from copy import deepcopy
-from dataclasses import dataclass
-from functools import lru_cache
-from types import MappingProxyType
-from warnings import warn
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# mypy: ignore-errors
 
 import os
 import torch
@@ -17,8 +16,7 @@ from openvino.runtime import Core, Type, PartialShape, serialize
 from typing import Callable, Optional
 
 
-import numpy as np
-def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
     core = Core()
 
     device = 'CPU'
@@ -31,25 +29,25 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
     cache_root = "./cache/"
     if os.getenv("OPENVINO_TORCH_CACHE_DIR") is not None:
         cache_root = os.getenv("OPENVINO_TORCH_CACHE_DIR")
-    if model_hash_str != None:
-        model_cache_dir = cache_root+"/model/"
+    if model_hash_str is not None:
+        model_cache_dir = cache_root + "/model/"
         try:
             os.makedirs(model_cache_dir, exist_ok=True)
-            file_name = model_cache_dir+model_hash_str+"_"+device
+            file_name = model_cache_dir + model_hash_str + "_" + device
         except OSError as error:
             print("Cache directory ", cache_root, " cannot be created. Model caching is disabled. Error: ", error)
             file_name = None
             model_hash_str = None
 
-    if file_name != None and os.path.isfile(file_name+".xml") and os.path.isfile(file_name+".bin"):
-        om = core.read_model(file_name+".xml")
+    if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
+        om = core.read_model(file_name + ".xml")
     else:
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework('pytorch')
 
         input_shapes = []
         input_types = []
-        for idx, input_data in enumerate(args): #subgraph.example_inputs):
+        for idx, input_data in enumerate(args):  # subgraph.example_inputs):
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 
@@ -59,8 +57,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
 
         om = fe.convert(im)
 
-        if file_name != None:
-            serialize(om, file_name+".xml", file_name+".bin")
+        if file_name is not None:
+            serialize(om, file_name + ".xml", file_name + ".bin")
 
     dtype_mapping = {
         torch.float32: Type.f32,
@@ -78,8 +76,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str : str = None):
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
-    if model_hash_str != None:
-        core.set_property({'CACHE_DIR': cache_root+'/blob'})
+    if model_hash_str is not None:
+        core.set_property({'CACHE_DIR': cache_root + '/blob'})
 
     compiled = core.compile_model(om, device)
     return compiled

@@ -97,8 +97,6 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     ov::Output<Node> start = zero;
     ov::Output<Node> step = one;
 
-
-
     if (num_inputs == 1) {
         // aten::arange(Scalar end, tensor out)
         end = context.get_input(0);

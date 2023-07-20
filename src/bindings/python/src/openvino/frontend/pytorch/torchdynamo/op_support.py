@@ -1,3 +1,8 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# mypy: ignore-errors
+
 from typing import Dict
 
 import torch
@@ -13,8 +18,6 @@ from torch.fx.experimental.proxy_tensor import DecompositionInterpreter
 from torch._decomp import decomposition_table
 from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 
-#from openvino.frontend.pytorch.torchdynamo.openvino_executor import execute
-
 import typing as t
 
 import logging
@@ -22,10 +25,12 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
+
 def aten_to_dtype(self, dtype: torch.dtype, **kwargs):
     if len(kwargs) > 0 or not dtype:
         raise RuntimeError("No support for other to.dtype() formats other than to.dtype(self, dtype)")
     return torch._prims.convert_element_type(self, dtype)
+
 
 # decomposition_table currently contains both aten2aten and aten2prim decomposition
 # this is a hack to separate them, as we only need aten2prim decomposition for nvfuser-supported aten graph lowering
@@ -204,7 +209,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.native_group_norm.default": None,
             "torch.ops.aten.native_layer_norm.default": None,
             "torch.ops.aten.neg.default": None,
-            "torch.ops.aten.new_ones.default" : None,
+            "torch.ops.aten.new_ones.default": None,
             "torch.ops.aten.permute.default": None,
             "torch.ops.aten.pow.Tensor_Scalar": None,
             "torch.ops.aten.relu.default": None,
