@@ -111,28 +111,6 @@ ul#navbar-main-elements > li:hover {
 }
 
 
-/* Footer */
-/* =================================================== */
-footer iframe {
-    background-color: white;
-    width: 100%;
-    border: none;
-    height: 70px;
-}
-
-@media screen and (min-width: 860px) {
-    footer iframe {
-        height: 60px;
-    }
-}
-
-@media screen and (max-width: 596px) {
-    footer iframe {
-        height: 85px;
-    }
-}
-
-
 /* Doc version dropdown formatting override */
 /* =================================================== */
 [aria-labelledby="version-selector"]  {
