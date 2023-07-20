@@ -208,13 +208,6 @@ else()
 endif()
 
 #
-# Add "external" python modules
-#
-
-# add_subdirectory("${OpenVINO_SOURCE_DIR}/tools/benchmark_tool" "${CMAKE_CURRENT_BINARY_DIR}/benchmark_tool")
-# add_subdirectory("${OpenVINO_SOURCE_DIR}/tools/ovc" "${CMAKE_CURRENT_BINARY_DIR}/ovc")
-
-#
 # Packaging
 #
 
