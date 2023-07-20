@@ -38,7 +38,8 @@ Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` ope
 
 *Example 1*
 
-.. code-block::  cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="NV12toBGR">
         <input>
@@ -62,7 +63,8 @@ Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` ope
 
 *Example 2*
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="NV12toBGR">
         <input>

@@ -81,6 +81,13 @@ inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& 
     return true;
 }
 
+/**
+ * @brief Checks if 2 shapes are the same
+ */
+inline bool are_shapes_equal(const ov::Shape& shape_1, const ov::Shape& shape_2) {
+    return (shape_1.size() == shape_2.size()) && std::equal(shape_1.begin(), shape_1.end(), shape_2.begin());
+}
+
 inline bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_t input_op_out_index) {
     size_t offset = 0;
 
@@ -202,6 +209,18 @@ inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
             std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
 }
 
+inline bool is_concat(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::Concat>(node) != nullptr);
+}
+
+inline bool is_fake_quantize(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr);
+}
+
+inline bool is_read_value(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::ReadValue>(node) != nullptr);
+}
+
 template <typename T>
 inline bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     auto fq_node = std::dynamic_pointer_cast<ngraph::opset9::FakeQuantize>(node);
@@ -275,8 +294,7 @@ inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) || is_concat(node) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Reshape>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Squeeze>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Unsqueeze>(node) != nullptr) ||
@@ -598,8 +616,7 @@ inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
     auto reshape = output.get_node_shared_ptr();
     const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
     const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
-    return (input_shape.size() == output_shape.size()) &&
-           std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+    return are_shapes_equal(input_shape, output_shape);
 }
 
 /**

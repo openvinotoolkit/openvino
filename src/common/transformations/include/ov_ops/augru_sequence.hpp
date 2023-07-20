@@ -43,6 +43,9 @@ public:
     op::RecurrentSequenceDirection get_direction() const {
         return m_direction;
     }
+    void set_direction(const RecurrentSequenceDirection& direction) {
+        m_direction = direction;
+    }
 
 protected:
     op::RecurrentSequenceDirection m_direction;

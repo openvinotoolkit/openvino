@@ -23,7 +23,7 @@
 
 using namespace ::testing;
 
-class OVRemoteTensor_Test : public CommonTestUtils::TestsCommon {
+class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
@@ -1362,7 +1362,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     FuncTestUtils::compare_tensor(out_tensor, output_tensor_regular, thr);
 }
 
-class OVRemoteTensorBatched_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+class OVRemoteTensorBatched_Test : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
     };
