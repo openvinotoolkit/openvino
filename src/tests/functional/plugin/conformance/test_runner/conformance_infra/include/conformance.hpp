@@ -21,9 +21,18 @@ extern const char* refCachePath;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
-extern std::list<std::string> dirList;
+// first value - path to model, second - amout of tests with this path
+extern std::list<std::pair<std::string, int>> dirListInfo;
 
 extern ov::AnyMap pluginConfig;
+
+enum ShapeMode {
+    DYNAMIC,
+    STATIC,
+    BOTH
+};
+
+extern ShapeMode shapeMode;
 
 inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     if (!CommonTestUtils::fileExists(configFilePath)) {
@@ -135,8 +144,10 @@ inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std:
             } else {
                 continue;
             }
-            //Save it in a list
-            dirList.insert(dirList.end(), tmp_buf.begin(), tmp_buf.end());
+            //Save it in a list, first value - path, second - amout of tests with this path
+            for (auto& val : tmp_buf) {
+                dirListInfo.insert(dirListInfo.end(), std::make_pair(val, 0));
+            }
         }
         listPrepared = true;
     }
@@ -146,21 +157,24 @@ inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std:
         for (const auto& op_version : unique_ops[opName]) {
             std::string final_op_name = op_version == "" ? opName : opName + "-" + op_version;
             std::string strToFind = CommonTestUtils::FileSeparator + final_op_name + CommonTestUtils::FileSeparator;
-            auto it = dirList.begin();
-            while (it != dirList.end()) {
-                if (it->find(strToFind) != std::string::npos) {
-                    result.push_back({*it, get_ref_path(*it)});
-                    it = dirList.erase(it);
-                } else {
-                    ++it;
+            auto it = dirListInfo.begin();
+            while (it != dirListInfo.end()) {
+                if (it->first.find(strToFind) != std::string::npos) {
+                    result.push_back({it->first, get_ref_path(it->first)});
+                    it->second++;
                 }
+                ++it;
             }
         }
     } else if (opName == "Other") {
         // For "Undefined" operation name - run all applicable files in "Undefined" handler
-        // result.insert(result.end(), dirList.begin(), dirList.end());
-        for (const auto& file : dirList) {
-            result.push_back({file, get_ref_path(file)});
+        // result.insert(result.end(), dirListInfo.begin(), dirListInfo.end());
+        for (auto& file : dirListInfo) {
+            // if file wasn't used for tests previously we can create test with it
+            if (file.second == 0) {
+                result.push_back({file.first, get_ref_path(file.first)});
+                file.second++;
+            }
         }
     }
     return result;

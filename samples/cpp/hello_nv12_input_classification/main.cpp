@@ -162,15 +162,15 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // -------- Step 6. Set input tensor  --------
+        // -------- Step 7. Set input tensor  --------
         // Set the input tensor by tensor name to the InferRequest
         infer_request.set_tensor(input_tensor_name, input_tensor);
 
-        // -------- Step 7. Do inference --------
+        // -------- Step 8. Do inference --------
         // Running the request synchronously
         infer_request.infer();
 
-        // -------- Step 8. Process output --------
+        // -------- Step 9. Process output --------
         ov::Tensor output = infer_request.get_tensor(output_tensor_name);
 
         // Print classification results

@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 import datetime
 import logging as log
@@ -272,8 +269,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
-        # corresponds to TF1 If and TF1 While operations
-        "Switch", "Merge",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
@@ -434,7 +429,7 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
     graph, ngraph_function = prepare_ir(argv)
     legacy_path = False
     if graph is not None:
-        legacy_path_error()
+        legacy_path_error("")
     else:
         res_ngraph_function = moc_emit_ir(ngraph_function, argv)
 
@@ -699,7 +694,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         return None, None
     framework = None
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_ie_version)
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_ie_version, backend='ga4')
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

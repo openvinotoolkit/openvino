@@ -29,9 +29,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         }
     }
     auto it = networkOutputs.find(inputID);
-    if (it == networkOutputs.end()) {
-        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
-    }
+    OPENVINO_ASSERT(it != networkOutputs.end(), "[GPU] Can't find output ", inputID, " in OutputsDataMap");
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
 
@@ -56,7 +54,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         outputlayout != NC &&
         outputlayout != C &&
         outputlayout != SCALAR) {
-        IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
+        OPENVINO_THROW("[GPU] Unsupported layout (", outputlayout, ") in output: ", originalOutName);
     }
     auto out_rank = op->get_output_partial_shape(0).size();
     auto out_format = cldnn::format::get_default_format(out_rank);

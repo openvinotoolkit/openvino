@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -257,12 +258,13 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 }
 
 TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto in_layout = layout{ ov::PartialShape{-1, -1, 2, 7, 7, 384}, data_types::f32, format::bfwzyx };
     auto in_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 7, 7, 384}, data_types::f32, format::bfwzyx });
 
-    auto in = generate_random_1d<float>(in_memory->count(), -10, 10);
+    auto in = rg.generate_random_1d<float>(in_memory->count(), -10, 10);
 
     set_values<float>(in_memory, in);
 

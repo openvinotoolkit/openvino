@@ -183,7 +183,7 @@ Model Initialization function
     
         # Read the network and corresponding weights from a file.
         model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can use GPU or MYRIAD as well).
+        # Compile the model for CPU (you can also use GPU).
         compiled_model = ie_core.compile_model(model=model, device_name="CPU")
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)
@@ -618,6 +618,6 @@ Now, try to see yourself in your webcam.
 
 .. parsed-literal::
 
-    [ WARN:0@318.227] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@318.227] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@318.296] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@318.297] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
