@@ -159,6 +159,8 @@ OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
+OP_CONVERTER(translate_quantized_convnd);
+OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
 
 }  // namespace op
@@ -420,6 +422,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"quantized::conv2d", op::translate_quantized_convnd},
+        {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
         {"quantized::linear", op::translate_quantized_linear},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
