@@ -250,9 +250,11 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
                 } catch (ov::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 } catch (InferenceEngine::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
 
             if (full_device_name.empty()) {
@@ -276,12 +278,14 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
                               unique_name.c_str());
+            OPENVINO_SUPPRESS_DEPRECATED_START
             } catch (const InferenceEngine::Exception&) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
                               unique_name.c_str());
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (enable_device_priority) {
             device_priority++;
