@@ -7,8 +7,9 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape, Tensor
 from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map
+from openvino.runtime import opset11 as ops
 
 import typing
 from packaging.version import parse
@@ -318,10 +319,59 @@ class TorchScriptPythonDecoder (Decoder):
             node.set_friendly_name(name)
         return node
 
+    @staticmethod
+    def convert_quantized_tensor(qtensor: torch.Tensor):
+        # need to represent as Constant(u8) -> Convert(f32) -> Subtract(zero_point) -> Multiply (scale)
+        qscheme = qtensor.qscheme()  # torch.per_channel_affine (per_tensor)
+        if qscheme == torch.per_channel_affine:
+            int8_tensor = qtensor.int_repr()
+            scale = qtensor.q_per_channel_scales().numpy().astype(np.float32)  # (weight.q_scale() for per_tensor)
+            zero_point = qtensor.q_per_channel_zero_points().numpy().astype(np.float32)  # (weight.q_zero_point() for per_tensor)
+            axis = np.int32(qtensor.q_per_channel_axis())
+
+            new_shape = np.ones(len(int8_tensor.shape), dtype=np.int32)
+            new_shape[axis] = -1
+            zero_point_bc = np.reshape(zero_point, new_shape)
+            scale_bc = np.reshape(scale, new_shape)
+
+            int8_const = op.Constant(int8_tensor.numpy())
+            convert = ops.convert(int8_const, np.float32)
+            sub = ops.subtract(convert, zero_point_bc)
+            return ops.multiply(sub, scale_bc).outputs()
+        elif qscheme == torch.per_tensor_affine:
+            int8_tensor = qtensor.int_repr()
+            scale = np.float32(qtensor.q_scale())
+            zero_point = np.float32(qtensor.q_zero_point())
+
+            int8_const = op.Constant(int8_tensor.numpy())
+            convert = ops.convert(int8_const, np.float32)
+            sub = ops.subtract(convert, zero_point)
+            return ops.multiply(sub, scale).outputs()
+        assert False, "Unsupported qscheme"
+
     def try_decode_get_attr(self):
         pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
-        if not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
+        if isinstance(pt_value, torch.ScriptObject):
+            # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
+            # TODO: but can be anything. Figure a better way to distinguish
+            weight, bias = pt_value.unpack()
+            res = self.convert_quantized_tensor(weight)
+            if isinstance(bias, torch.Tensor):
+                res += ivalue_to_constant(bias)
+            else:
+                res += ops.convert_like(ivalue_to_constant(torch.zeros(1))[0], res[0]).outputs()
+            try:
+                # these params exist only for conv params
+                stride = pt_value.stride()
+                padding = pt_value.padding()
+                dilation = pt_value.dilation()
+                groups = pt_value.groups()
+                res += ivalue_to_constant(stride) + ivalue_to_constant(padding) + ivalue_to_constant(dilation) + ivalue_to_constant(groups)
+            except:
+                pass
+            return res
+        elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
             return ivalue_to_constant(pt_value)
         else:
             return []
