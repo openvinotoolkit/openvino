@@ -43,7 +43,7 @@ def ts_openvino(subgraph, example_inputs):
     try:
         model = torch.jit.script(subgraph)
         model.eval()
-        fr_model = torch.jit.freeze(model)
+        fr_model = model
 
         core = Core()
         fe_manager = FrontEndManager()
