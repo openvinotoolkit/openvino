@@ -13,7 +13,6 @@ class quantized_hardswish(torch.nn.Module):
         self.scale = scale
         self.zero_point = zero_point
         self.dtype = dtype
-        self.hswish = torch.nn.Hardswish()
 
     def forward(self, input_tensor1):
         quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, self.scale, self.zero_point, self.dtype)
@@ -38,8 +37,8 @@ class TestQuantizedHardswish(PytorchLayerTest):
             reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - sporadic issue
+    @pytest.mark.precommit
     def test_quantized_hardswish(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_hardswish(scale, zero_point, dtype), None, ["quantized::hardswish"], 
-                ie_device, precision, ir_version, quantized_ops=True, quantized_ops_scale=scale)
+                ie_device, precision, ir_version, quantized_ops=True)

@@ -80,8 +80,8 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
         0, 1, 2, 3
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - conversion issue
+    @pytest.mark.precommit
     def test_quantize_per_channel_dequantize(self, scales, zero_points, dtype, axis, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_points = abs(zero_points)
         self._test(aten_quantize_per_channel_aten_dequantize(scales, zero_points, dtype, axis), None, ["aten::quantize_per_channel", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+                ie_device, precision, ir_version, quantized_ops=True)

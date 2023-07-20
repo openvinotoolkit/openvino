@@ -39,8 +39,8 @@ class TestQuantizedAddReLU(PytorchLayerTest):
             reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - sporadic issue
+    @pytest.mark.precommit
     def test_quantized_add_relu(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_add_relu(scale, zero_point, dtype), None, ["quantized::add_relu"], 
-                ie_device, precision, ir_version, quantized_ops=True, quantized_ops_scale=scale)
+                ie_device, precision, ir_version, quantized_ops=True)

@@ -38,7 +38,7 @@ class PytorchLayerTest:
                     return True
         return False
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, quantized_ops=False, quantized_ops_scale=None, 
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, quantized_ops=False,  
               **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -64,10 +64,6 @@ class PytorchLayerTest:
             custom_eps = kwargs['custom_eps']
         else:
             custom_eps = 1e-4
-
-        if quantized_ops: 
-            assert quantized_ops_scale is not None, "quantized_ops_scale must be provided when testing quantized operators"
-
 
         def use_ts_backend():
             return(os.environ.get('USE_TS_BACKEND', False))
@@ -141,15 +137,15 @@ class PytorchLayerTest:
                     print("Max diff is {}".format(
                         np.array(
                             abs(cur_ov_res - cur_fw_res)).max()))
-                elif quantized_ops and cur_fw_res.size - np.close(cur_ov_res, cur_fw_res,
+                elif quantized_ops and cur_fw_res.size - np.isclose(cur_ov_res, cur_fw_res,
                                 atol=fw_eps,
-                                rtol=fw_eps, equal_nan=True).sum() <= max(cur_fw_res.size - quantized_ops_scale//fw_eps, 0):
+                                rtol=fw_eps, equal_nan=True).sum() <= int(np.emath.logn(cur_fw_res.size, 100)):
                     is_ok = False
                     print("Errors outside threshold range: {}, expected at most {}".format(
-                        cur_fw_res.size - np.close(cur_ov_res, cur_fw_res,
+                        cur_fw_res.size - np.isclose(cur_ov_res, cur_fw_res,
                                 atol=fw_eps,
                                 rtol=fw_eps, equal_nan=True).sum(),
-                        max(cur_fw_res.size - quantized_ops_scale//fw_eps, 0)
+                        int(np.emath.logn(cur_fw_res.size, 100))
                     ))
                 else:
                     print("Accuracy validation successful!\n")

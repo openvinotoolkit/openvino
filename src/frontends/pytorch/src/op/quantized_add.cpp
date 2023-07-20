@@ -24,7 +24,7 @@ OutputVector translate_quantized_add(const NodeContext& context) {
 
     const auto quantized_add = context.mark_node(std::make_shared<v1::Add>(x, y));
 
-    return {context.mark_node(quantize(context, quantized_add, scale, zero_point, x).get_node_shared_ptr())};
+    return {quantize(context, quantized_add, scale, zero_point, x).get_node_shared_ptr()};
 }
 
 OutputVector translate_quantized_add_relu(const NodeContext& context) {
@@ -37,7 +37,7 @@ OutputVector translate_quantized_add_relu(const NodeContext& context) {
     const auto quantized_add = context.mark_node(std::make_shared<v1::Add>(x, y));
     const auto quantized_add_relu = context.mark_node(std::make_shared<v0::Relu>(quantized_add));
 
-    return {context.mark_node(quantize(context, quantized_add_relu, scale, zero_point, x).get_node_shared_ptr())};
+    return {quantize(context, quantized_add_relu, scale, zero_point, x).get_node_shared_ptr()};
 }
 
 }  // namespace op
