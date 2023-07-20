@@ -416,7 +416,7 @@ bool isSuitableMatMulCompressedWeights(const std::shared_ptr<Node>& node) {
     if (consumers.size() != 1)
         return false;
     const auto consumer = consumers.begin()->get_node()->shared_from_this();
-    return ov::is_type<ov::opset1::MatMul>(consumer) && ov::op::util::is_constfoldable(multiply);
+    return ov::is_type<ov::opset1::MatMul>(consumer) && ov::op::util::is_on_constant_path(multiply);
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
