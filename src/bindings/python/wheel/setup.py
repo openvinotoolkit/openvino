@@ -157,20 +157,6 @@ LIB_INSTALL_CFG = {
 }
 
 PY_INSTALL_CFG = {
-    "pyie": {
-        "name": f"pyie_{PYTHON_VERSION}",
-        "prefix": f"{BUILD_BASE}/site-packages",
-        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
-        "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
-    },
-    "pyngraph": {
-        "name": f"pyngraph_{PYTHON_VERSION}",
-        "prefix": f"{BUILD_BASE}/site-packages",
-        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
-        "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
-    },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": f"{BUILD_BASE}/site-packages",
@@ -184,7 +170,7 @@ PY_INSTALL_CFG = {
                 "ovc = openvino.tools.ovc.main:main",
             ],
         },
-        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "name": "ovc",
         "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/ovc",
         "install_dir": PY_PACKAGES_DIR,
@@ -196,7 +182,7 @@ PY_INSTALL_CFG = {
                 "benchmark_app = openvino.tools.benchmark.main:main",
             ],
         },
-        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "name": "benchmark_app",
         "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
         "install_dir": PY_PACKAGES_DIR,
