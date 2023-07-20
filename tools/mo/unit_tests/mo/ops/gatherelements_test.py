@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.gatherelements import GatherElements
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors, dynamic_dimension
@@ -15,9 +14,9 @@ from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, resu
 
 dyn = dynamic_dimension
 
-@generator
 class GatherElementsInferTest(unittest.TestCase):
-    @generate(*[
+    def test_gatherelements_value_infer(self):
+        test_cases=[
         ([[1, 2],
           [3, 4]],
          [[0, 1],
@@ -76,31 +75,32 @@ class GatherElementsInferTest(unittest.TestCase):
              [[9, 9],
               [12, 12]]
          ]),
-    ])
-    def test_gatherelements_value_infer(self, data, indices, axis, ref_res):
-        nodes = {
-            **valued_const_with_data('data', int64_array(data)),
-            **valued_const_with_data('indices', int64_array(indices)),
-            **regular_op_with_empty_data('gather_elements', {'op': 'GatherElements', 'axis': axis}),
-            **result()
-        }
+    ]
+        for idx, (data, indices, axis, ref_res) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                nodes = {
+                    **valued_const_with_data('data', int64_array(data)),
+                    **valued_const_with_data('indices', int64_array(indices)),
+                    **regular_op_with_empty_data('gather_elements', {'op': 'GatherElements', 'axis': axis}),
+                    **result()
+                }
 
-        graph = build_graph(nodes_attrs=nodes, edges=[
-            *connect('data', '0:gather_elements'),
-            *connect('indices', '1:gather_elements'),
-            *connect('gather_elements', 'output')
-        ], nodes_with_edges_only=True)
-        graph.stage = 'middle'
+                graph = build_graph(nodes_attrs=nodes, edges=[
+                    *connect('data', '0:gather_elements'),
+                    *connect('indices', '1:gather_elements'),
+                    *connect('gather_elements', 'output')
+                ], nodes_with_edges_only=True)
+                graph.stage = 'middle'
 
-        gather_el_node = Node(graph, 'gather_elements')
-        GatherElements.infer(gather_el_node)
+                gather_el_node = Node(graph, 'gather_elements')
+                GatherElements.infer(gather_el_node)
 
-        res_output_shape = gather_el_node.out_node().shape
-        self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
+                res_output_shape = gather_el_node.out_node().shape
+                self.assertTrue(np.array_equal(int64_array(ref_res).shape, res_output_shape))
 
-        res_output_value = gather_el_node.out_node().value
-        if res_output_value is not None:
-            self.assertTrue(np.array_equal(int64_array(ref_res), res_output_value))
+                res_output_value = gather_el_node.out_node().value
+                if res_output_value is not None:
+                    self.assertTrue(np.array_equal(int64_array(ref_res), res_output_value))
 
     def check_shape_infer(self, data_shape, indices_shape, axis, ref):
         nodes = {
