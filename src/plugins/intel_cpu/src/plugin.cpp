@@ -301,13 +301,6 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
 }
 
-Config Engine::MergeConfig(const std::map<std::string, std::string>& config) {
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-    conf.readProperties(config);
-    return conf;
-}
-
 void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& function, bool imported) {
     // import config props from caching model
     if (imported && !is_cpu_map_available()) {
@@ -528,7 +521,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
 
     // update the props after the perf mode translated to configs
-    Config conf = MergeConfig(config);
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    conf.readProperties(config);
     CalculateStreams(conf, nGraphFunc);
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
@@ -817,9 +813,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     CNNNetwork cnnnetwork;
     deserializer >> cnnnetwork;
 
+    Config conf = engConfig;
+    conf.readProperties(config);
+
     auto function = cnnnetwork.getFunction();
 
-    Config conf = MergeConfig(config);
     CalculateStreams(conf, function, true);
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
