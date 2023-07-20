@@ -6,6 +6,7 @@
 
 #include "ocl_common.hpp"
 #include "ocl_base_event.hpp"
+#include "intel_gpu/runtime/optionals.hpp"
 
 #include <vector>
 #include <memory>
@@ -20,24 +21,28 @@ public:
         : ocl_base_event(queue_stamp)
         , _event(ev) {}
 
+    ocl_event(uint64_t duration_nsec, uint64_t queue_stamp = 0)
+        : ocl_base_event(queue_stamp)
+        , duration_nsec(duration_nsec) {}
+
     cl::Event& get() override { return _event; }
 
 private:
     bool _callback_set = false;
     void set_ocl_callback();
-    static void CL_CALLBACK ocl_event_completion_callback(cl_event, cl_int, void* me);
-
-private:
     void wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
     bool add_event_handler_impl(event_handler, void*) override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
+    static void CL_CALLBACK ocl_event_completion_callback(cl_event, cl_int, void* me);
+
     friend struct ocl_events;
 
 protected:
     cl::Event _event;
+    optional_value<uint64_t> duration_nsec;
 };
 
 struct ocl_events : public ocl_base_event {

@@ -12,7 +12,7 @@ namespace snippets {
 namespace pass {
 
 /**
- * @interface TransofrmConvertToConvertTruncation
+ * @interface TransformConvertToConvertTruncation
  * @brief Transform Convert to ConvertTruncation with specification conversion rules
  *        Note: ConvertTruncation op is covered by specification of "Convert" op
  *              This op is used for real Convert ops inside subgraph body in CPU Plugin

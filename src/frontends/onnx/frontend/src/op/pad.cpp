@@ -16,7 +16,6 @@
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "op/pad.hpp"
-#include "openvino/opsets/opset11.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
@@ -37,6 +36,7 @@ ngraph::op::PadMode get_pad_mode(std::string mode) {
     return pad_mode;
 }
 }  // namespace
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -56,7 +56,7 @@ OutputVector pad(const Node& node) {
     ngraph::CoordinateDiff padding_below = paddings.first;
     ngraph::CoordinateDiff padding_above = paddings.second;
 
-    return {std::make_shared<ov::opset11::Pad>(
+    return {std::make_shared<default_opset::Pad>(
         data,
         std::make_shared<default_opset::Constant>(element::i64, ngraph::Shape{padding_below.size()}, padding_below),
         std::make_shared<default_opset::Constant>(element::i64, ngraph::Shape{padding_above.size()}, padding_above),
@@ -100,7 +100,7 @@ OutputVector pad(const Node& node) {
     const std::string mode = node.get_attribute_value<std::string>("mode", "constant");
     ngraph::op::PadMode pad_mode = get_pad_mode(mode);
 
-    return {std::make_shared<ov::opset11::Pad>(data, padding_begin, padding_end, values, pad_mode)};
+    return {std::make_shared<default_opset::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
 
 }  // namespace set_11
@@ -110,3 +110,4 @@ OutputVector pad(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

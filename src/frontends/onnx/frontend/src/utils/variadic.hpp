@@ -11,6 +11,7 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/node.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -24,6 +25,7 @@ namespace variadic {
 /// \tparam T   Class of an nGraph binary operation (e.g. Add, Minimum, Maximum)
 ///
 /// \return nGraph node equivalent of the ONNX operation
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
 inline OutputVector make_ng_variadic_op(
     const Node& node,
@@ -48,6 +50,7 @@ inline OutputVector make_ng_variadic_op(
 
     return {result};
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
 

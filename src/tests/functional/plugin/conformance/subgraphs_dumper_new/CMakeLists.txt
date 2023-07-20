@@ -7,7 +7,7 @@ set(TARGET_NAME subgraphs_dumper)
 list(APPEND LIBRARIES
         gflags
         openvino::runtime
-        funcTestUtils
+        func_test_utils
         openvino::pugixml
 )
 
