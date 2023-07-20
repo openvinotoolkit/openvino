@@ -13,10 +13,10 @@ namespace pass {
 /**
  * @brief Reduce the rank of Transpose shape by merging consecutive dimensions
  * if those dimensions are not changed by transposition order.
- * For example, shape[2,3,4] -> transpose[2, 0, 1] -> shape[4,2,3] will be replaced with
- *              shape[6,4]   -> transpose[1, 0]    -> shape[4,6]
- * If the new transpose layer is not supported by GNA (see full conditions in the is_transpose_supported())
- * then transpose will not be changed.
+ * For example, shape[2,3,4] -> Transpose[2, 0, 1] -> shape[4,2,3] will be replaced with
+ *              shape[6,4]   -> Transpose[1, 0]    -> shape[4,6]
+ * If the new Transpose layer is not supported by GNA (see full conditions in the is_transpose_supported())
+ * then Transpose will not be changed.
  *
  *    [A, B, C, D]            [A, B, C, D]
  *         |                       |
