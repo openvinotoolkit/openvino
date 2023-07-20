@@ -73,7 +73,7 @@ class TestQuantizedConv2D(PytorchLayerTest):
     @pytest.mark.parametrize("scale", [1, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
-    @pytest.mark.precommit
+    # @pytest.mark.precommit Test disabled due to sporadic issues
     def test_quantized_conv2d(self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version):
         self._test(
             *self.create_model(**params, bias=bias, relu=relu, scale=scale, zero_point=zero_point),
