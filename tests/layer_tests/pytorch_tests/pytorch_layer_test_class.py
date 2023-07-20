@@ -143,7 +143,7 @@ class PytorchLayerTest:
                             abs(cur_ov_res - cur_fw_res)).max()))
                 elif quantized_ops and cur_fw_res.size - np.close(cur_ov_res, cur_fw_res,
                                 atol=fw_eps,
-                                rtol=fw_eps, equal_nan=True).sum() >= max(cur_fw_res.size - quantized_ops_scale//fw_eps, 0):
+                                rtol=fw_eps, equal_nan=True).sum() <= max(cur_fw_res.size - quantized_ops_scale//fw_eps, 0):
                     is_ok = False
                     print("Errors outside threshold range: {}, expected at most {}".format(
                         cur_fw_res.size - np.close(cur_ov_res, cur_fw_res,
