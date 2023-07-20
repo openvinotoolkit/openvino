@@ -26,12 +26,17 @@ tracking and object counting, medical image analysis, and many others.
 This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch Yolo V7 with OpenVINO.
 
-The tutorial consists of the following steps: - Prepare PyTorch model -
-Download and prepare dataset - Validate original model - Convert PyTorch
-model to ONNX - Convert ONNX model to OpenVINO IR - Validate converted
-model - Prepare and run optimization pipeline - Compare accuracy of the
-FP32 and quantized models. - Compare performance of the FP32 and
-quantized models.
+The tutorial consists of the following steps:
+
+- Prepare PyTorch model
+- Download and prepare dataset
+- Validate original model
+- Convert PyTorch model to ONNX
+- Convert ONNX model to OpenVINO IR
+- Validate converted model
+- Prepare and run optimization pipeline
+- Compare accuracy of the FP32 and quantized models.
+- Compare performance of the FP32 and quantized models.
 
 Get Pytorch model
 -----------------
@@ -69,13 +74,13 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'yolov7'...
-    remote: Enumerating objects: 1169, done.[K
-    remote: Counting objects: 100% (30/30), done.[K
-    remote: Compressing objects: 100% (21/21), done.[K
-    remote: Total 1169 (delta 16), reused 18 (delta 9), pack-reused 1139[K
-    Receiving objects: 100% (1169/1169), 70.42 MiB | 3.88 MiB/s, done.
-    Resolving deltas: 100% (504/504), done.
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
+    remote: Enumerating objects: 1191, done.[K
+    remote: Counting objects: 100% (6/6), done.[K
+    remote: Compressing objects: 100% (4/4), done.[K
+    remote: Total 1191 (delta 2), reused 6 (delta 2), pack-reused 1185[K
+    Receiving objects: 100% (1191/1191), 74.23 MiB | 4.24 MiB/s, done.
+    Resolving deltas: 100% (511/511), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -100,7 +105,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
@@ -118,7 +123,7 @@ result,
 .. parsed-literal::
 
     Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='', exist_ok=False, img_size=640, iou_thres=0.45, name='exp', no_trace=False, nosave=False, project='runs/detect', save_conf=False, save_txt=False, source='inference/images/horses.jpg', update=False, view_img=False, weights=['model/yolov7-tiny.pt'])
-    YOLOR 🚀 v0.1-122-g3b41c2c torch 1.13.1+cpu CPU
+    YOLOR 🚀 v0.1-126-g84932d7 torch 1.13.1+cpu CPU
     
     Fusing layers... 
     Model Summary: 200 layers, 6219709 parameters, 229245 gradients
@@ -126,9 +131,9 @@ result,
      traced_script_module saved! 
      model is traced! 
     
-    5 horses, Done. (73.1ms) Inference, (0.8ms) NMS
+    5 horses, Done. (70.2ms) Inference, (0.8ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.087s)
+    Done. (0.084s)
 
 
 .. code:: ipython3
@@ -189,17 +194,21 @@ Let us check its arguments.
       --int8                CoreML INT8 quantization
 
 
-The most important parameters: \* ``--weights`` - path to model weigths
-checkpoint \* ``--img-size`` - size of input image for onnx tracing
+The most important parameters:
+
+* ``--weights`` - path to model weigths checkpoint
+* ``--img-size`` - size of input image for onnx tracing
 
 When exporting the ONNX model from PyTorch, there is an opportunity to
 setup configurable parameters for including post-processing results in
-model: \* ``--end2end`` - export full model to onnx including
-post-processing \* ``--grid`` - export Detect layer as part of model \*
-``--topk-all`` - topk elements for all images \* ``--iou-thres`` -
-intersection over union threshold for NMS \* ``--conf-thres`` - minimal
-confidence threshold \* ``--max-wh`` - max bounding box width and height
-for NMS
+model:
+
+* ``--end2end`` - export full model to onnx including post-processing
+* ``--grid`` - export Detect layer as part of model
+* ``--topk-all`` - topk elements for all images
+* ``--iou-thres`` - intersection over union threshold for NMS
+* ``--conf-thres`` - minimal confidence threshold
+* ``--max-wh`` - max bounding box width and height for NMS
 
 Including whole post-processing to model can help to achieve more
 performant results, but in the same time it makes the model less
@@ -218,7 +227,7 @@ an end2end ONNX model, you can check this
 
     Import onnx_graphsurgeon failure: No module named 'onnx_graphsurgeon'
     Namespace(batch_size=1, conf_thres=0.25, device='cpu', dynamic=False, dynamic_batch=False, end2end=False, fp16=False, grid=True, img_size=[640, 640], include_nms=False, int8=False, iou_thres=0.45, max_wh=None, simplify=False, topk_all=100, weights='model/yolov7-tiny.pt')
-    YOLOR 🚀 v0.1-122-g3b41c2c torch 1.13.1+cpu CPU
+    YOLOR 🚀 v0.1-126-g84932d7 torch 1.13.1+cpu CPU
     
     Fusing layers... 
     Model Summary: 200 layers, 6219709 parameters, 6219709 gradients
@@ -233,7 +242,7 @@ an end2end ONNX model, you can check this
     Starting ONNX export with onnx 1.14.0...
     ONNX export success, saved as model/yolov7-tiny.onnx
     
-    Export complete (2.44s). Visualize with https://github.com/lutzroeder/netron.
+    Export complete (2.52s). Visualize with https://github.com/lutzroeder/netron.
 
 
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
@@ -267,9 +276,12 @@ Preprocessing
 ~~~~~~~~~~~~~
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
-``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
-size) \* ``C`` - image channels \* ``H`` - image height \* ``W`` - image
-width
+``N, C, H, W`` format, where
+
+* ``N`` - number of images in batch (batch size)
+* ``C`` - image channels
+* ``H`` - image height
+* ``W`` - image width
 
 Model expects images in RGB channels format and normalized in [0, 1]
 range. To resize images to fit model size ``letterbox`` resize approach
@@ -510,7 +522,7 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2878.57it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2847.41it/s]
 
 
 Define validation function
@@ -526,6 +538,7 @@ evaluation procedure can be found in this
     import numpy as np
     from tqdm.notebook import tqdm
     from utils.metrics import ap_per_class
+    from openvino.runtime import Tensor
     
     
     def test(data,
@@ -581,7 +594,7 @@ evaluation procedure can be found in this
     
             with torch.no_grad():
                 # Run model
-                out = torch.from_numpy(model(img)[model_output])  # inference output            
+                out = torch.from_numpy(model(Tensor(img))[model_output])  # inference output            
                 # Run NMS
                 targets[:, 2:] *= torch.Tensor([width, height, width, height])  # to pixels
     
@@ -725,12 +738,6 @@ transformation function for getting only input tensors.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future, use `openvino.runtime.passes` instead!
-      warnings.warn(
-
-
-.. parsed-literal::
-
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
@@ -753,18 +760,8 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    INFO:openvino.tools.pot.pipeline.pipeline:Inference Engine version:                2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Model Optimizer version:                 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.pipeline.pipeline:Post-Training Optimization Tool version: 2022.3.0-9052-9752fafe8eb-releases/2022/3
-    INFO:openvino.tools.pot.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
-    INFO:openvino.tools.pot.statistics.collector:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Start algorithm: DefaultQuantization
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithm : ActivationChannelAlignment
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Start computing statistics for algorithms : MinMaxQuantization,FastBiasCorrection
-    INFO:openvino.tools.pot.algorithms.quantization.default.algorithm:Computing statistics finished
-    INFO:openvino.tools.pot.pipeline.pipeline:Finished: DefaultQuantization
-     ===========================================================================
+    Statistics collection: 100%|██████████| 300/300 [00:38<00:00,  7.87it/s]
+    Biases correction: 100%|██████████| 58/58 [00:04<00:00, 13.47it/s]
 
 
 Validate Quantized model inference
@@ -772,7 +769,7 @@ Validate Quantized model inference
 
 .. code:: ipython3
 
-    int8_compiled_model = core.compile_model(quantized_model)
+    int8_compiled_model = core.compile_model(quantized_model, "CPU")
     boxes, image, input_shape = detect(int8_compiled_model, 'inference/images/horses.jpg')
     image_with_boxes = draw_boxes(boxes[0], input_shape, image, NAMES, COLORS)
     Image.fromarray(image_with_boxes)
@@ -811,7 +808,7 @@ Validate quantized model accuracy
 .. parsed-literal::
 
                    Class      Images      Labels   Precision      Recall      mAP@.5  mAP@.5:.95
-                     all        5000       36335       0.649         0.5        0.54       0.352
+                     all        5000       36335       0.644       0.504        0.54       0.353
 
 
 As we can see, model accuracy slightly changed after quantization.
@@ -822,7 +819,7 @@ Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -845,18 +842,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 20.19 ms
+    [ INFO ] Read model took 26.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -870,7 +867,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 249.40 ms
+    [ INFO ] Compile model took 202.20 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -881,22 +878,28 @@ models.
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 45.64 ms
+    [ INFO ] First inference took 46.24 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            5724 iterations
-    [ INFO ] Duration:         60088.75 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            5772 iterations
+    [ INFO ] Duration:         60086.63 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        62.75 ms
-    [ INFO ]    Average:       62.83 ms
-    [ INFO ]    Min:           48.24 ms
-    [ INFO ]    Max:           88.29 ms
-    [ INFO ] Throughput:   95.26 FPS
+    [ INFO ]    Median:        62.23 ms
+    [ INFO ]    Average:       62.30 ms
+    [ INFO ]    Min:           30.97 ms
+    [ INFO ]    Max:           86.17 ms
+    [ INFO ] Throughput:   96.06 FPS
 
 
 .. code:: ipython3
@@ -911,18 +914,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 22.89 ms
+    [ INFO ] Read model took 44.99 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -936,7 +939,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 420.62 ms
+    [ INFO ] Compile model took 385.78 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -947,20 +950,26 @@ models.
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 24.84 ms
+    [ INFO ] First inference took 25.50 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            16050 iterations
-    [ INFO ] Duration:         60028.88 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            15864 iterations
+    [ INFO ] Duration:         60030.26 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        22.24 ms
-    [ INFO ]    Average:       22.33 ms
-    [ INFO ]    Min:           14.99 ms
-    [ INFO ]    Max:           43.79 ms
-    [ INFO ] Throughput:   267.37 FPS
+    [ INFO ]    Median:        22.53 ms
+    [ INFO ]    Average:       22.58 ms
+    [ INFO ]    Min:           12.63 ms
+    [ INFO ]    Max:           42.07 ms
+    [ INFO ] Throughput:   264.27 FPS
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Abs-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Abs-1*
 
 **Category**: *Arithmetic unary*
@@ -35,7 +39,8 @@ No attributes available.
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
     
     <layer ... type="Abs">
         <input>

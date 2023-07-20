@@ -62,7 +62,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             }
         } else {
             if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+                OPENVINO_THROW("Shapes can't be aligned: ", shape_a_aligned, " ", shape_b_aligned);
             }
             auto max_value = std::max(a_dim.get_length(), b_dim.get_length());
             shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -96,7 +96,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
     if (is_fc) {
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            OPENVINO_THROW("MatMul ", op->get_friendly_name(), " shapes are inconsistent.");
         }
 
         auto inputName = inputs[0].pid;
@@ -177,12 +177,12 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             op->get_input_partial_shape(1)
         };
 
-        auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
+        auto canTransposeInputs = [&] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB, ov::element::Type type) -> bool {
             if (!transA && !transB)
                 return false;
 
             // dynamic shapes and 1D tensors are not transposed
-            if (shapes[0].rank().is_dynamic() || shapes[1].rank().is_dynamic() ||
+            if (shapes[0].is_dynamic() || shapes[1].is_dynamic() ||
                 shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
@@ -194,10 +194,18 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             if (inputsAligned)
                 return false;
 
-            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
-                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Heuristic condition for permute and tiled_opt kernel perform better than ref kernel.
+            bool in0_large = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            bool in1_large = std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Optimized for clDNN
+            auto is_u8_i8 = (type == ov::element::Type_t::i8 || type == ov::element::Type_t::u8);
+            bool in0_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool in1_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool needs_to_transpose_inputs = (in0_very_large || in1_very_large) && !is_u8_i8 && !p.get_engine().get_device_info().supports_immad;
+
+            return (in0_large && in1_large) || needs_to_transpose_inputs;
         };
 
         auto transposeInput = [] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
@@ -214,7 +222,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             return cldnn::input_info(permuteName);
         };
 
-        if (canTransposeInputs(inputShapes, transA, transB)) {
+        if (canTransposeInputs(inputShapes, transA, transB, op->get_input_element_type(0))) {
             if (transA) {
                 inputs[0] = transposeInput(p, op, inputShapes[0], "/transpose_a", inputs[0].pid);
                 transA = false;

@@ -57,7 +57,7 @@ OutputGather find_first_output_gather(NodePtr node) {
                 output_gather.gather = gather_node;
                 output_gather.gather_indices = indices_node;
                 output_gather.gather_axis = axis_node;
-                output_gather.output_idx = output_idx;
+                output_gather.output_idx = static_cast<int>(output_idx);
 
                 return output_gather;
             }

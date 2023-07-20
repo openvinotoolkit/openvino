@@ -962,10 +962,15 @@ void program_node::init_onednn_primitive_attributes() {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
+            bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
+                int oc_dim = 1;
+                if (allow_new_shape_infer)
+                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
+                else
+                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -982,8 +987,8 @@ void program_node::init_onednn_primitive_attributes() {
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef)
-                    IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
-                                  "pushing to post-op.";
+                    OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
+                                   "pushing to post-op.");
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);

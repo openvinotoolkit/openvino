@@ -1026,11 +1026,11 @@ InferenceEngine::Precision ColorConvert::Converter::outputPrecision(size_t idx) 
 }
 
 const void * ColorConvert::Converter::input(size_t idx) const {
-    return _node->getParentEdgeAt(idx)->getMemoryPtr()->GetPtr();
+    return _node->getParentEdgeAt(idx)->getMemoryPtr()->getData();
 }
 
 void * ColorConvert::Converter::output(size_t idx) const {
-    return _node->getChildEdgeAt(idx)->getMemoryPtr()->GetPtr();
+    return _node->getChildEdgeAt(idx)->getMemoryPtr()->getData();
 }
 
 const VectorDims & ColorConvert::Converter::inputDims(size_t idx) const {

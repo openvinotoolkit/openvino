@@ -5,14 +5,13 @@
 #
 # Common cmake options
 #
+ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
 ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
-
-ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
@@ -186,7 +185,7 @@ ie_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 
 # temporary option until we enable this by default when review python API distribution
 ie_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
-    "ENABLE_PYTHON;CPACK_GENERATOR STREQUAL RPM OR CPACK_GENERATOR STREQUAL DEB" OFF)
+    "ENABLE_PYTHON;UNIX" OFF)
 
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 

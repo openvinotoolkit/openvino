@@ -8,9 +8,9 @@
 #include <iostream>
 #include <vector>
 
-#include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 namespace {
 static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";
@@ -164,7 +164,7 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
                 str << ",";
             }
             if (const auto& l = ov::DimensionTracker::get_label(d))
-                str << "l<" << l << ">";
+                str << "<" << l << ">";
             str << d;
             first = false;
         }

@@ -20,6 +20,8 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -173,8 +175,6 @@ public:
      */
     static inline std::shared_ptr<Limitations> get_instance();
 
-    static bool is_transpose_2d(const std::vector<size_t>& shape);
-    static bool is_transpose_supported(const std::vector<size_t>& shape);
     static size_t get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr input);
 
     /**
@@ -202,6 +202,13 @@ public:
      * @return true if supported
      */
     static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
+
+    /**
+     * @brief Validates if transpose is supported by GNA
+     * @param shape transpose
+     * @return true if supported
+     */
+    static bool is_transpose_supported(const ov::Shape& shape);
     /**
      * @brief Validates if transpose is supported by GNA
      * @param node transpose
@@ -209,13 +216,13 @@ public:
      */
     static bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
     /**
-     * @brief Validates if legacy convolution is supported by GNA
-     * @param conv_ie convolution
+     * @brief Validates if convolution is supported by GNA
+     * @param conv_gna GNA convolution
      * @param gna_precision GNA inference precision
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if supported
      */
-    bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+    bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
                            const InferenceEngine::Precision gna_precision,
                            bool is_exception_allowed = false);
     /**
@@ -224,8 +231,18 @@ public:
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if precision is found in supported
      */
-    bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+    bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                               bool is_exception_allowed = false);
+
+    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed);
+    static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                       const AxisVector& order);
+    static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
+                                                        const AxisVector& order);
+    static bool is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                      const AxisVector& order);
+    static bool is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
+                                                       const AxisVector& order);
 
     /**
      * @brief Validates if operation is supported by GNA
@@ -288,10 +305,6 @@ private:
     Limitations& operator=(const Limitations&) = delete;
 
     size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
-
-    IE_SUPPRESS_DEPRECATED_START
-    static bool validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
-    IE_SUPPRESS_DEPRECATED_END
 
     bool m_use_only_16bit_conv_weights = false;
     size_t m_mem_alignment = 0;

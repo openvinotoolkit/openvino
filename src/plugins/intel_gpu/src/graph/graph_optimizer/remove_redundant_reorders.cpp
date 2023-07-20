@@ -275,7 +275,9 @@ void remove_redundant_reorders::run(program& p) {
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
             r_node.has_fused_primitives() ||
-            r_node.get_primitive()->has_surface_input())
+            r_node.get_primitive()->has_surface_input() ||
+            (r_node.get_primitive()->weights_reorder_params &&
+             r_node.get_primitive()->weights_reorder_params->should_be_transposed()))
             continue;
 
         auto o_layout = r_node.get_output_layout();
@@ -449,7 +451,8 @@ void remove_redundant_reorders::run(program& p) {
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
+        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
+            node_ptr->get_dependencies().size() != 1 || node_ptr->is_dynamic())
             continue;
 
         auto& node = node_ptr->as<reorder>();

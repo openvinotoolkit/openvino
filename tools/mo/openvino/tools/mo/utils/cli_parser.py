@@ -19,7 +19,6 @@ import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 import openvino
-from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
@@ -148,13 +147,13 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     if isinstance(input, str):
         # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
-        return openvino.tools.mo.InputCutInfo(node_name,
+        return openvino.runtime.InputCutInfo(node_name,
                                               PartialShape(shape) if shape is not None else None,
                                               data_type,
                                               value)
-    if isinstance(input, openvino.tools.mo.InputCutInfo):
+    if isinstance(input, openvino.runtime.InputCutInfo):
         # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
-        return openvino.tools.mo.InputCutInfo(input.name,
+        return openvino.runtime.InputCutInfo(input.name,
                                               PartialShape(input.shape) if input.shape is not None else None,
                                               input.type,
                                               input.value)
@@ -184,18 +183,18 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
-        return openvino.tools.mo.InputCutInfo(name,
+        return openvino.runtime.InputCutInfo(name,
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
     # Case when only type is set
     if isinstance(input, (type, Type)):
-        return openvino.tools.mo.InputCutInfo(None, None, input, None)
+        return openvino.runtime.InputCutInfo(None, None, input, None)
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
+    raise Exception("Unexpected object provided for input. Expected openvino.runtime.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
@@ -214,12 +213,12 @@ def input_to_input_cut_info(input: [str, tuple, list]):
 
             # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
-            inputs.append(openvino.tools.mo.InputCutInfo(node_name,
+            inputs.append(openvino.runtime.InputCutInfo(node_name,
                                                          PartialShape(shape) if shape is not None else None,
                                                          data_type,
                                                          value))
         return inputs
-    if isinstance(input, openvino.tools.mo.InputCutInfo):
+    if isinstance(input, openvino.runtime.InputCutInfo):
         # Wrap to list and return
         return [input]
     if isinstance(input, tuple):
@@ -261,20 +260,20 @@ def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, 
             input_shape = [input_shape]
 
         if len(inputs) > 0 and len(input_shape) > 0:
-            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in --input parameter " \
-                    "and --input_shapes. --input has {} items, --input_shape has {} item.".format(len(inputs), len(input_shape))
+            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in \"input\" parameter " \
+                    "and \"input_shapes\". \"input\" has {} items, \"input_shape\" has {} item.".format(len(inputs), len(input_shape))
 
         # Update inputs with information from 'input_shape'
         if len(inputs) > 0:
             for idx, shape in enumerate(input_shape):
                 shape = PartialShape(shape)
-                assert inputs[idx].shape is None, "Shape was set in both --input and in --input_shape parameter." \
-                                                  "Please use either --input or --input_shape for shape setting."
-                inputs[idx] = openvino.tools.mo.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
+                assert inputs[idx].shape is None, "Shape was set in both \"input\" and in \"input_shape\" parameter." \
+                                                  "Please use either \"input\" or \"input_shape\" for shape setting."
+                inputs[idx] = openvino.runtime.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
 
         else:
             for shape in input_shape:
-                inputs.append(openvino.tools.mo.InputCutInfo(None, PartialShape(shape), None, None))
+                inputs.append(openvino.runtime.InputCutInfo(None, PartialShape(shape), None, None))
         return
 
     raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
@@ -376,7 +375,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.tools.mo.LayoutMap):
+    if isinstance(value, openvino.runtime.LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
@@ -401,7 +400,7 @@ def layout_param_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
-    if isinstance(value, openvino.tools.mo.LayoutMap):
+    if isinstance(value, openvino.runtime.LayoutMap):
         return layoutmap_to_str(value)
     if isinstance(value, list) or isinstance(value, tuple):
         values_str = []
@@ -418,7 +417,7 @@ def batch_to_int(value):
     if isinstance(value, Dimension):
         if not value.is_static:
             # TODO: Ticket 88676
-            raise Exception("Dynamic batch for --batch parameter is not supported.")
+            raise Exception("Dynamic batch for \"batch\" parameter is not supported.")
         else:
             return value.get_length()
     raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
@@ -445,7 +444,7 @@ def transform_param_value_to_str(value):
 
 
 def transform_to_str(value):
-    from openvino.tools.mo.back.offline_transformations import get_available_transformations
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations   # pylint: disable=no-name-in-module,import-error
 
     if isinstance(value, str):
         return value
@@ -491,7 +490,7 @@ ParamDescription = namedtuple("ParamData",
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.tools.mo.convert_model.__doc__
+    mo_convert_docs = openvino.runtime.convert_model.__doc__
     mo_convert_params = {}
     group = "Optional parameters:"
     mo_convert_params[group] = {}
@@ -785,7 +784,7 @@ def writable_dir(path: str):
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.tools.mo.convert_model)
+    signature = inspect.signature(openvino.runtime.convert_model)
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
@@ -854,7 +853,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'a network in a generated IR and output .xml/.bin files.')
     common_group.add_argument('--output_dir', '-o',
                               help='Directory that stores the generated IR. ' +
-                                   'By default, it is the directory from where the Model Optimizer is launched.',
+                                   'By default, it is the directory from where the Model Conversion is launched.',
                               default=get_absolute_path('.'),
                               action=CanonicalizePathAction,
                               type=writable_dir)
@@ -864,7 +863,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
                                    'It will be DEPRECATED in future releases. '
-                                   'Use --input option to specify a value for freezing.',
+                                   'Use "input" option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
@@ -872,13 +871,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the OpenVINO Runtime API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument("--use_new_frontend",
-                              help='Force the usage of new Frontend of Model Optimizer for model conversion into IR. '
+                              help='Force the usage of new Frontend for model conversion into IR. '
                                    'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
-                                   'Model optimizer uses new Frontend for ONNX* and PaddlePaddle* by default that means '
-                                   '`--use_new_frontend` and `--use_legacy_frontend` options are not specified.',
+                                   'Model Conversion API uses new Frontend for ONNX* and PaddlePaddle* by default that means '
+                                   '`use_new_frontend` and `use_legacy_frontend` options are not specified.',
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help='Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
+                              help='Force the usage of legacy Frontend for model conversion into IR. '
                                    'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
                                    'Caffe*, and Kaldi* models.',
                               action='store_true', default=False)
@@ -911,8 +910,8 @@ def get_common_cli_options(model_name):
 
 def get_advanced_cli_options():
     d = OrderedDict()
-    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend of Model Optimizer for model conversion into IR'
-    d['use_new_frontend'] = '- Force the usage of new Frontend of Model Optimizer for model conversion into IR'
+    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend for model conversion into IR'
+    d['use_new_frontend'] = '- Force the usage of new Frontend for model conversion into IR'
     return d
 
 
@@ -979,7 +978,7 @@ def get_params_with_paths_list():
 
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for Caffe*
+    Specifies cli arguments for Model Conversion for Caffe*
 
     Returns
     -------
@@ -997,7 +996,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for TF
+    Specifies cli arguments for Model Conversion for TF
 
     Returns
     -------
@@ -1015,7 +1014,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for MXNet*
+    Specifies cli arguments for Model Conversion for MXNet*
 
     Returns
     -------
@@ -1034,7 +1033,7 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for MXNet*
+    Specifies cli arguments for Model Conversion for MXNet*
 
     Returns
     -------
@@ -1052,7 +1051,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     """
-    Specifies cli arguments for Model Optimizer for ONNX
+    Specifies cli arguments for Model Conversion for ONNX
 
     Returns
     -------
@@ -1067,7 +1066,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
 
 def get_all_cli_parser():
     """
-    Specifies cli arguments for Model Optimizer
+    Specifies cli arguments for Model Conversion
 
     Returns
     -------
@@ -1090,7 +1089,7 @@ def get_all_cli_parser():
 def remove_data_type_from_input_value(input_value: str):
     """
     Removes the type specification from the input string. The type specification is a string enclosed with curly braces.
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: string without type specification
     """
     return re.sub(r'\{.*\}', '', input_value)
@@ -1099,7 +1098,7 @@ def remove_data_type_from_input_value(input_value: str):
 def get_data_type_from_input_value(input_value: str):
     """
     Returns the numpy data type corresponding to the data type specified in the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding numpy data type and None if the data type is not specified in the input value
     """
     data_type_match = re.match(r'.*\{(.*)\}.*', input_value)
@@ -1110,7 +1109,7 @@ def remove_shape_from_input_value(input_value: str):
     """
     Removes the shape specification from the input string. The shape specification is a string enclosed with square
     brackets.
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
@@ -1120,7 +1119,7 @@ def remove_shape_from_input_value(input_value: str):
 def get_shape_from_input_value(input_value: str):
     """
     Returns PartialShape corresponding to the shape specified in the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
     # remove the tensor value from the input_value first
@@ -1138,7 +1137,7 @@ def get_shape_from_input_value(input_value: str):
         dims = list(filter(None, dims))
         shape = PartialShape([Dimension(dim) for dim in dims])
     else:
-        raise Error("Wrong syntax to specify shape. Use --input "
+        raise Error("Wrong syntax to specify shape. Use \"input\" "
                     "\"node_name[shape]->value\"")
     return shape
 
@@ -1146,7 +1145,7 @@ def get_shape_from_input_value(input_value: str):
 def get_node_name_with_port_from_input_value(input_value: str):
     """
     Returns the node name (optionally with input/output port) from the input value
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding node name with input/output port
     """
     return remove_shape_from_input_value(remove_data_type_from_input_value(input_value.split('->')[0]))
@@ -1155,7 +1154,7 @@ def get_node_name_with_port_from_input_value(input_value: str):
 def get_value_from_input_value(input_value: str):
     """
     Returns the value from the input value string
-    :param input_value: string passed as input to the --input command line parameter
+    :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding value or None if it is not specified
     """
     parts = input_value.split('->')
@@ -1163,7 +1162,7 @@ def get_value_from_input_value(input_value: str):
     if len(parts) == 2:
         value = parts[1]
         if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
-            raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+            raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
         if '[' in value.strip(' '):
             value = value.replace('[', '').replace(']', '')
             if ',' in value:
@@ -1174,7 +1173,7 @@ def get_value_from_input_value(input_value: str):
         if not isinstance(value, list):
             value = ast.literal_eval(value)
     elif len(parts) > 2:
-        raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
+        raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
     return value
 
 
@@ -1190,7 +1189,7 @@ def partial_shape_prod(shape: [PartialShape, tuple]):
 
 def parse_input_value(input_value: str):
     """
-    Parses a value of the --input command line parameter and gets a node name, shape and value.
+    Parses a value of the "input" command line parameter and gets a node name, shape and value.
     The node name includes a port if it is specified.
     Shape and value is equal to None if they are not specified.
     Parameters
@@ -1286,9 +1285,9 @@ def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = N
     :param found_layout: string containing layout for the node
     :param parsed: dict where result will be stored
     :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+      * 'source' is "source_layout"
+      * 'target' is "target_layout"
+      * None is "layout"
     """
     s_layout = None
     t_layout = None
@@ -1313,9 +1312,9 @@ def write_found_layout_list(idx: int, found_layout: str, parsed: list, dest: str
     :param found_layout: string containing layout for the node
     :param parsed: list where result will be stored
     :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+      * 'source' is "source_layout"
+      * 'target' is "target_layout"
+      * None is "layout"
     """
     s_layout = None
     t_layout = None
@@ -1343,9 +1342,9 @@ def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: 
     :param s: string to parse
     :param parsed: dict where result will be stored
     :param dest: type of the command line:
-      * 'source' is --source_layout
-      * 'target' is --target_layout
-      * None is --layout
+      * 'source' is "source_layout"
+      * 'target' is "target_layout"
+      * None is "layout"
     """
     list_s = split_str_avoiding_square_brackets(s)
     if len(list_s) == 1 and (list_s[0][-1] not in ')]' or (list_s[0][0] == '[' and list_s[0][-1] == ']')):
@@ -1376,13 +1375,13 @@ def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: 
 def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
     """
     Parses layout string.
-    :param argv_layout: string with a list of layouts passed as a --layout.
-    :param argv_source_layout: string with a list of layouts passed as a --source_layout.
-    :param argv_target_layout: string with a list of layouts passed as a --target_layout.
+    :param argv_layout: string with a list of layouts passed as a "layout".
+    :param argv_source_layout: string with a list of layouts passed as a "source_layout".
+    :param argv_target_layout: string with a list of layouts passed as a "target_layout".
     :return: dict with names and layouts associated
     """
     if argv_layout and (argv_source_layout or argv_target_layout):
-        raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
+        raise Error("\"layout\" is used as well as \"source_layout\" and/or \"target_layout\" which is not allowed, please "
                     "use one of them.")
     res = {}
     res_list = []
@@ -1412,7 +1411,7 @@ def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
         for plh_with_value in argv_freeze_placeholder_with_value.split(','):
             plh_with_value = plh_with_value.split('->')
             if len(plh_with_value) != 2:
-                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
+                raise Error("Wrong replacement syntax. Use \"freeze_placeholder_with_value\" "
                             "\"node1_name->value1,node2_name->value2\"")
             node_name = plh_with_value[0]
             value = plh_with_value[1]
@@ -1503,7 +1502,7 @@ def split_shapes(argv_input_shape: str):
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
     Parses input layers names and input shapes from the cli and returns the parsed object.
-    All shapes are specified only through one command line option either --input or --input_shape.
+    All shapes are specified only through one command line option either "input" or "input_shape".
 
     Parameters
     ----------
@@ -1527,10 +1526,10 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         None if neither shape nor input were provided
     """
     if argv_input_shape and argv_batch:
-        raise Error("Both --input_shape and --batch were provided. Please provide only one of them. " +
+        raise Error("Both \"input_shape\" and \"batch\" were provided. Please provide only one of them. " +
                     refer_to_faq_msg(56))
 
-    # attempt to extract shapes from --input parameters
+    # attempt to extract shapes from "input" parameters
     placeholder_shapes = dict()
     placeholder_data_types = dict()
     are_shapes_specified_through_input = False
@@ -1546,11 +1545,11 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
                 are_shapes_specified_through_input = True
 
     if argv_input_shape and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --input_shape command-line parameters, but only one "
+        raise Error("Shapes are specified using both \"input\" and \"input_shape\" command-line parameters, but only one "
                     "parameter is allowed.")
 
     if argv_batch and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both --input and --batch command-line parameters, but only one "
+        raise Error("Shapes are specified using both \"input\" and \"batch\" command-line parameters, but only one "
                     "parameter is allowed.")
 
     if are_shapes_specified_through_input:
@@ -1687,6 +1686,32 @@ def get_tuple_values(argv_values: str or tuple, num_exp_values: int = 3, t=float
                         refer_to_faq_msg(60), num_exp_values)
 
     return mean_values_matches
+
+
+def split_node_in_port(node_id: str):
+    """Split node_id in form port:node to separate node and port, where port is converted to int"""
+    if isinstance(node_id, str):
+        separator = ':'
+        parts = node_id.split(separator)
+        if len(parts) > 1:
+            if parts[0].isdigit():
+                node_name = separator.join(parts[1:])
+                try:
+                    port = int(parts[0])
+                    return node_name, port
+                except ValueError as err:
+                    log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
+                    node_id))
+            else:
+                node_name = separator.join(parts[:-1])
+                try:
+                    port = int(parts[-1])
+                    return node_name, port
+                except ValueError as err:
+                    log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
+                    node_id))
+
+    return node_id, None
 
 
 def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
@@ -1947,7 +1972,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from openvino.tools.mo.back.offline_transformations import get_available_transformations
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations   # pylint: disable=no-name-in-module,import-error
     available_transforms = get_available_transformations()
 
     missing_transformations = []

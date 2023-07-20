@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GroupNormalization-12 - a normalization operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name**: *GroupNormalization-12*
 
 **Category**: *Normalization*
@@ -52,7 +56,8 @@ The operation is applied per batch, per group of channels. This means that the e
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
 <layer ... type="GroupNormalization">
     <data epsilon="1e-5" num_groups="4"/>

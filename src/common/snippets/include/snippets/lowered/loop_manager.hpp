@@ -32,6 +32,9 @@ public:
         // True if after each Loop iteration the corresponding data pointer should be incremented.
         // Otherwise, the data pointer shift is skipped
         bool is_incremented = true;
+        int64_t ptr_increment = 0;
+        int64_t finalization_offset = 0;
+        int64_t data_size = 0;
     };
 
     class LoopInfo {
@@ -40,7 +43,8 @@ public:
         LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                  const std::vector<LoopPort>& entries,
                  const std::vector<LoopPort>& exits)
-            : work_amount(work_amount), increment(increment), dim_idx(dim_idx), entry_points(entries), exit_points(exits) {}
+            : work_amount(work_amount), increment(increment), dim_idx(dim_idx),
+              entry_points(entries), exit_points(exits), outer_splited_loop(false) {}
         LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits);
@@ -54,6 +58,8 @@ public:
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
         std::vector<LoopPort> entry_points = {};
         std::vector<LoopPort> exit_points = {};
+        // True if this Loop is outer Loop for nested Loops that splits the same dimension
+        bool outer_splited_loop = false;
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -69,13 +75,20 @@ public:
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
                    size_t loop_depth, size_t vector_size);
-    void mark_loop(LinearIR::constExprIt loop_begin_pos,
-                   LinearIR::constExprIt loop_end_pos,
-                   size_t work_amount,
-                   size_t work_amount_increment,
-                   size_t dim_idx,
-                   const std::vector<ExpressionPort>& entries,
-                   const std::vector<ExpressionPort>& exits);
+    // Return Loop ID
+    template <typename T>
+    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
+                    LinearIR::constExprIt loop_end_pos,
+                    size_t work_amount, size_t work_amount_increment, size_t dim_idx,
+                    const std::vector<T>& entries,
+                    const std::vector<T>& exits) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
+        const auto loop_id = this->add_loop_info(loop_info);
+        for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+            insert_loop_id(*expr_it, loop_id);
+        }
+        return loop_id;
+    }
 
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
@@ -104,16 +117,21 @@ public:
     void expression_replacement(constExprIt new_expr_begin, constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
                                 size_t loop_id, const std::vector<ExpressionPort>& new_entries, const std::vector<ExpressionPort>& exits);
 
+    // Note: these methods find iterators of first entry loop point and last exit point (bounds of Loop)
+    //       If there are already inserted LoopBegin and LoopEnd in Linear IR, the methods can find them as well if `loop_ops_inserted` = true
     void get_loop_bounds(const LinearIR& linear_ir,
                          size_t loop_id,
                          LinearIR::constExprIt& loop_begin_pos,
-                         LinearIR::constExprIt& loop_end_pos) const;
+                         LinearIR::constExprIt& loop_end_pos,
+                         bool loop_ops_inserted = false) const;
     static void get_loop_bounds(const LinearIR& linear_ir,
                                 const std::vector<LoopPort>& entries,
                                 const std::vector<LoopPort>& exits,
                                 LinearIR::constExprIt& loop_begin_pos,
                                 LinearIR::constExprIt& loop_end_pos,
-                                size_t loop_id);
+                                size_t loop_id, bool loop_ops_inserted = false);
+
+    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
 
 private:
     static void get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,

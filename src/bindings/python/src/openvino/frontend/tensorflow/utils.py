@@ -5,9 +5,9 @@
 # mypy: ignore-errors
 
 
-from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape
-from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
+from openvino.tools.ovc.environment_setup_utils import get_environment_setup  # pylint: disable=no-name-in-module
+from openvino.tools.ovc.error import Error
 from distutils.version import LooseVersion
 import logging as log
 
