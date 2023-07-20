@@ -6,40 +6,36 @@
 #pragma once
 
 #include "compiled_model.hpp"
-#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
 
-class SyncInferRequest : public InferenceEngine::IInferRequestInternal {
+class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    using Ptr = std::shared_ptr<SyncInferRequest>;
-    explicit SyncInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                              const InferenceEngine::OutputsDataMap& networkOutputs,
-                              CompiledModel::WorkerInferRequest& workerRequestPtr,
-                              int batch_id,
-                              int num_batch,
-                              const std::set<std::string>& batchedIntputs,
-                              const std::set<std::string>& batchedOutputs);
-
-    explicit SyncInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                              const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                              CompiledModel::WorkerInferRequest& workerRequestPtr,
-                              int batch_id,
-                              int num_batch,
-                              const std::set<std::string>& batchedIntputs,
-                              const std::set<std::string>& batchedOutputs);
+    SyncInferRequest(const std::shared_ptr<const ov::autobatch_plugin::CompiledModel>& compiled_model,
+                     const std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>& worker_request,
+                     int batch_id,
+                     int num_batch,
+                     const std::set<std::string>& batched_inputs,
+                     const std::set<std::string>& batched_outputs);
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
+    void set_tensors_to_another_request(ov::SoPtr<ov::IAsyncInferRequest>& req);
 
-    void CopyInputsIfNeeded();
+    void copy_inputs_if_needed();
 
-    void CopyOutputsIfNeeded();
+    void copy_outputs_if_needed();
 
-    CompiledModel::WorkerInferRequest& m_batched_request_wrapper;
+    void infer() override;
 
-    std::exception_ptr m_exceptionPtr;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
+    std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest> m_batched_request_wrapper;
+
+    std::exception_ptr m_exception_ptr;
 
     enum eExecutionFlavor : uint8_t {
         NOT_EXECUTED,
@@ -48,10 +44,11 @@ public:
     } m_batched_request_status = eExecutionFlavor::NOT_EXECUTED;
 
 protected:
-    void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
+    void copy_tensor_if_needed(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const bool bInput);
 
-    void ShareBlobsWithBatchRequest(const std::set<std::string>& batchedIntputs,
-                                    const std::set<std::string>& batchedOutputs);
+    void share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
+                                        const std::set<std::string>& batched_outputs);
+
     size_t m_batch_id;
 
     size_t m_batch_size;

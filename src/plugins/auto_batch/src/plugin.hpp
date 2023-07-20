@@ -7,8 +7,9 @@
 
 #include <map>
 
-#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie/ie_plugin_config.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #ifdef AUTOBATCH_UNITTEST
 #    define autobatch_plugin mock_autobatch_plugin
@@ -19,40 +20,39 @@ namespace autobatch_plugin {
 
 struct DeviceInformation {
     std::string device_name;
-    std::map<std::string, std::string> config;
-    int batch_for_device;
+    ov::AnyMap device_config;
+    uint32_t device_batch_size;
 };
 
-class Plugin : public InferenceEngine::IInferencePlugin {
+class Plugin : public ov::IPlugin {
 public:
     Plugin();
 
     virtual ~Plugin() = default;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const InferenceEngine::CNNNetwork& network,
-        const std::map<std::string, std::string>& config) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const InferenceEngine::CNNNetwork& network,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config) override;
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    void SetConfig(const std::map<std::string, std::string>& config) override;
+    void set_property(const ov::AnyMap& properties) override;
 
-    void CheckConfig(const std::map<std::string, std::string>& config);
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
-    InferenceEngine::Parameter GetConfig(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                     const std::map<std::string, std::string>& config) const override;
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap&) override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
 
 #ifdef AUTOBATCH_UNITTEST
 
@@ -61,15 +61,12 @@ public:
 
 protected:
 #endif
-    DeviceInformation ParseMetaDevice(const std::string& devicesBatchCfg,
-                                      const std::map<std::string, std::string>& config) const;
+    DeviceInformation parse_meta_device(const std::string& devices_batch_config, const ov::AnyMap& user_config) const;
 
-    static DeviceInformation ParseBatchDevice(const std::string& deviceWithBatch);
+    static DeviceInformation parse_batch_device(const std::string& device_with_batch);
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(
-        const InferenceEngine::CNNNetwork& network,
-        const std::shared_ptr<InferenceEngine::RemoteContext> context,
-        const std::map<std::string, std::string>& config);
+private:
+    mutable ov::AnyMap m_plugin_config;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov
