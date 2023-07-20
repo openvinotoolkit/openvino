@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('./helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
+                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
             ],
             "outputs": []
         },

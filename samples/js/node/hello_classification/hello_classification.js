@@ -1,8 +1,7 @@
 const ov = require(
   '../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
 const cv2 = require('opencv.js');
-// TODO: move helpers from notebook to samples root
-const { getImageData } = require('../notebooks/helpers.js');
+const { getImageData } = require('../helpers.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
@@ -46,6 +45,10 @@ async function main(modelPath, imagePath, deviceName) {
   const tensorData = new Float32Array(image.data);
   const shape = [1, 224, 224, 3];
   const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+
+  //----------------- Step 4. Apply preprocessing ------------------------------
+
+  // FIXME: Add PrePost process
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');

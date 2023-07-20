@@ -1,7 +1,7 @@
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-const cv2 = require('https');
+const cv2 = require('opencv.js');
 const {
   Image,
   ImageData,
