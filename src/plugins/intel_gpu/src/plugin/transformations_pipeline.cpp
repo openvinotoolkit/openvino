@@ -13,9 +13,10 @@
 #include <memory>
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
 
-#include "ie_metric_helpers.hpp"
-#include "ie_plugin_config.hpp"
+#include <ie_ngraph_utils.hpp>
+
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -23,8 +24,6 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ie_algorithm.hpp>
 
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
@@ -41,7 +40,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>

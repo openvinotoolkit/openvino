@@ -143,7 +143,7 @@ public:
             break;
         case Type_t::undefined:
         case Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -281,8 +281,9 @@ public:
     template <typename T>
     std::vector<T> get_vector() const {
         const T* p = get_data_ptr<T>();
-        if (p == nullptr)
-            throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
+        if (p == nullptr) {
+            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
+        }
         return std::vector<T>(p, p + shape_size(m_shape));
     }
 
@@ -349,7 +350,7 @@ public:
             cast_vector<Type_t::u64>(rc);
             break;
         default:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
@@ -438,6 +439,37 @@ private:
         output_vector.reserve(source_vector.size());
 
         std::transform(source_vector.begin(), source_vector.end(), std::back_inserter(output_vector), [](IN_T c) {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+            if (!std::is_same<OUT_T, IN_T>::value) {
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+            }
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
             return static_cast<OUT_T>(c);
         });
     }
@@ -526,9 +558,11 @@ private:
 #    pragma warning(disable : 4804)
 #endif
         if (!std::is_same<T, StorageDataType>::value) {
-            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
-                            std::numeric_limits<StorageDataType>::lowest() <= value);
-            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
+            OPENVINO_ASSERT(
+                !std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value,
+                "Cannot fill constant data. Values is outside the range.");
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value,
+                            "Cannot fill constant data. Values is outside the range.");
         }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
@@ -644,7 +678,7 @@ private:
         const auto& target_type = m_element_type;
         size_t target_element_count = shape_size(m_shape);
         if (source.size() != target_element_count) {
-            throw std::runtime_error("Constant initializer does not match shape");
+            OPENVINO_THROW("Constant initializer does not match shape");
         }
         using Type_t = element::Type_t;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -703,7 +737,7 @@ private:
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop

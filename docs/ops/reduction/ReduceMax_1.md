@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ReduceMax-1 - a reduction operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *ReduceMax-1*
 
 **Category**: *Reduction*
@@ -51,7 +55,8 @@ Particular cases:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceMax" ...>
         <data keep_dims="true" />
@@ -77,7 +82,8 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceMax" ...>
         <data keep_dims="false" />
@@ -101,7 +107,8 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceMax" ...>
         <data keep_dims="false" />
@@ -126,7 +133,8 @@ Particular cases:
     </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="1" type="ReduceMax" ...>
         <data keep_dims="false" />

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Divide-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Divide-1*
 
 **Category**: *Arithmetic binary*
@@ -60,7 +64,8 @@ The result of division by zero is undefined.
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Divide">
        <data auto_broadcast="none" m_pythondiv="true"/>
@@ -84,7 +89,8 @@ The result of division by zero is undefined.
 
 *Example 2: broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Divide">
        <data auto_broadcast="numpy" m_pythondiv="false"/>

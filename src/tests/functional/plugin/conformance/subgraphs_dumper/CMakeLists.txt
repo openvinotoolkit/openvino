@@ -7,7 +7,7 @@ set(TARGET_NAME subgraphsDumper)
 list(APPEND LIBRARIES
         gflags
         inference_engine
-        funcTestUtils
+        func_test_utils
         openvino::pugixml
 )
 

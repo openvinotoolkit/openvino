@@ -9,12 +9,11 @@ specifically an
 `Encoder <https://docs.openvino.ai/2020.2/_models_intel_action_recognition_0001_encoder_description_action_recognition_0001_encoder.html>`__
 and a
 `Decoder <https://docs.openvino.ai/2020.2/_models_intel_action_recognition_0001_decoder_description_action_recognition_0001_decoder.html>`__.
-Both models create a sequence to sequence (``"seq2seq"``)\ `1 <#f1>`__\ 
-system to identify the human activities for `Kinetics-400
+Both models create a sequence to sequence (``"seq2seq"``) [1] system to
+identify the human activities for `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__. The
-models use the Video Transformer approach with ResNet34
-encoder\ `2 <#f2>`__\ . The notebook shows how to create the following
-pipeline:
+models use the Video Transformer approach with ResNet34 encoder [2]. The
+notebook shows how to create the following pipeline:
 
 Final part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
@@ -23,20 +22,18 @@ Additionally, you can also upload a video file.
 computer with a webcam. If you run on a server, the webcam will not
 work. However, you can still do inference on a video in the final step.
 
-   1 seq2seq: Deep learning models that take a sequence of items to the
-   input and output. In this case, input: video frames, output: actions
-   sequence. This ``"seq2seq"`` is composed of an encoder and a decoder.
-   The encoder captures ``"context"`` of the inputs to be analyzed by
-   the decoder, and finally gets the human action and
-   confidence.\ `:math:`\hookleftarrow` <#a1>`__
+--------------
 
-..
+[1] seq2seq: Deep learning models that take a sequence of items to the
+input and output. In this case, input: video frames, output: actions
+sequence. This ``"seq2seq"`` is composed of an encoder and a decoder.
+The encoder captures ``"context"`` of the inputs to be analyzed by the
+decoder, and finally gets the human action and confidence.
 
-   2 `Video
-   Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>`__
-   and
-   `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
-   `:math:`\hookleftarrow` <#a2>`__
+[2] `Video
+Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>`__
+and
+`ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
 Imports
 -------
@@ -186,7 +183,7 @@ Model Initialization function
     
         # Read the network and corresponding weights from a file.
         model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can use GPU or MYRIAD as well).
+        # Compile the model for CPU (you can also use GPU).
         compiled_model = ie_core.compile_model(model=model, device_name="CPU")
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)
@@ -621,6 +618,6 @@ Now, try to see yourself in your webcam.
 
 .. parsed-literal::
 
-    [ WARN:0@319.142] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@319.143] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@318.296] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@318.297] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 

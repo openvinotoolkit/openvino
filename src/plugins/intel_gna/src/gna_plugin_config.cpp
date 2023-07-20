@@ -290,7 +290,7 @@ void Config::AdjustKeyMapValues() {
             inputScaleFactors.push_back(kScaleFactorDefault);
         }
         keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
-        for (int n = 0; n < inputScaleFactors.size(); n++) {
+        for (size_t n = 0; n < inputScaleFactors.size(); n++) {
             keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(n)] =
                 std::to_string(inputScaleFactors[n]);
         }
@@ -391,7 +391,6 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         {ov::device::capabilities.name(), ov::PropertyMutability::RO},
         {ov::device::full_name.name(), ov::PropertyMutability::RO},
         {ov::intel_gna::library_full_version.name(), ov::PropertyMutability::RO},
-        {ov::caching_properties.name(), ov::PropertyMutability::RO},
         {ov::intel_gna::execution_mode.name(), ov::PropertyMutability::RW},
         {ov::hint::performance_mode.name(), ov::PropertyMutability::RW},
         {ov::log::level.name(), ov::PropertyMutability::RW},
@@ -405,6 +404,12 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
                                 impacting_model_compilation_properties.begin(),
                                 impacting_model_compilation_properties.end());
     return supported_properties;
+}
+
+const Parameter Config::GetSupportedInternalProperties() {
+    std::vector<ov::PropertyName> supported_internal_properties = {
+        {ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+    return supported_internal_properties;
 }
 
 std::vector<std::string> Config::GetSupportedKeys() const {

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 
+#include "checkpoint_utils.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "tensor_bundle.pb.h"
@@ -20,80 +21,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-template <typename T>
-static T smReadFixed(const char* ptr) {
-    T result = 0;
-    for (uint8_t i = 0; i < sizeof(T); ++i) {
-        result |= static_cast<const uint8_t>(ptr[i]) << (i * 8);
-    }
-    return result;
-}
-
-template <typename T>
-static T smUnpack(char*& ptr, const char* ptr_end) {
-    T result = 0;
-    for (uint8_t i = 0; i < sizeof(T) * 7 && ptr < ptr_end; i += 7) {
-        T byte = *(ptr++);
-        if (byte & 0x80) {
-            result |= ((byte & 0x7F) << i);
-        } else {
-            result |= byte << i;
-            return result;
-        }
-    }
-    return 0;
-}
-
-/// \brief Structure is for storing information about block in Varaibles Index file.
-/// It defines only offset and block size, no information about exact content.
-struct VIBlock {
-    uint64_t m_size;
-    uint64_t m_offset;
-
-    void read(char*& ptr, const char* ptr_end) {
-        m_offset = smUnpack<uint64_t>(ptr, ptr_end);
-        m_size = smUnpack<uint64_t>(ptr, ptr_end);
-    }
-};
-
-#define VARIABLES_INDEX_FOOTER_SIZE 48
-
-/// \brief Structure is for storing information about Variables Index footer information.
-/// It contains description of two blocks and a magic number for a file verification.
-/// Currently, it is placed in last VARIABLES_INDEX_FOOTER_SIZE bytes at the end of a file.
-struct VIFooter {
-    VIBlock m_metaIndex;
-    VIBlock m_index;
-
-    void read(char*& ptr, const char* ptr_end) {
-        m_index.read(ptr, ptr_end);
-        m_metaIndex.read(ptr, ptr_end);
-    }
-
-    void read(std::ifstream& fs) {
-        fs.seekg(0, std::ios::end);
-        size_t size = fs.tellg();
-        FRONT_END_GENERAL_CHECK(size >= VARIABLES_INDEX_FOOTER_SIZE,
-                                "Wrong index file, file size is less than minimal expected");
-
-        char footerData[VARIABLES_INDEX_FOOTER_SIZE] = {}, *ptr = &footerData[0];
-        fs.seekg(size - sizeof(footerData));
-        fs.read(ptr, sizeof(footerData));
-
-        // https://github.com/tensorflow/tensorflow/blob/9659b7bdca80a8ef8240eb021d4da089034eeb00/tensorflow/tsl/lib/io/format.cc#L59
-        ptr += sizeof(footerData) - 8;
-        uint32_t magic_lo = *reinterpret_cast<const uint32_t*>(ptr);
-        uint32_t magic_hi = *reinterpret_cast<const uint32_t*>(ptr + 4);
-        uint64_t magic_no = (static_cast<uint64_t>(magic_hi) << 32) | static_cast<uint64_t>(magic_lo);
-
-        FRONT_END_GENERAL_CHECK(magic_no == 0xdb4775248b80fb57ull, "Wrong index file, magic number mismatch detected");
-
-        ptr = &footerData[0];
-        m_metaIndex.read(ptr, ptr + sizeof(footerData));
-        m_index.read(ptr, ptr + sizeof(footerData));
-    }
-};
-
 void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 const VIBlock& index,
                                                 std::vector<char>& data,
@@ -101,7 +28,7 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 uint32_t& offset_end) {
     size_t block_size = index.m_size;
     data.clear();
-    data.resize(block_size + 5 /*kBlockTrailerSize*/);
+    data.resize(block_size + BLOCK_TRAILER_SIZE);
     FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
                             "Block offset is bigger than variables index size");
     FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
@@ -124,11 +51,11 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
         block_size = uncompressed_length;
     }
 #endif
-    uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + block_size - sizeof(uint32_t));
+    uint32_t numRestarts = decode_fixed32(data.data() + block_size - sizeof(uint32_t));
     size_t maxRestarts = (block_size - sizeof(uint32_t)) / sizeof(uint32_t);
     FRONT_END_GENERAL_CHECK(maxRestarts >= numRestarts, "Wrong restarts value");
     offset_end = static_cast<uint32_t>(block_size) - ((numRestarts + 1) * sizeof(uint32_t));
-    offset = smReadFixed<uint32_t>(data.data() + offset_end);
+    offset = decode_fixed32(data.data() + offset_end);
 }
 
 void VariablesIndex::read_variables_index_pair(char*& ptr,

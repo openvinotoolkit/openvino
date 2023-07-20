@@ -16,7 +16,7 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "ie_common.h"
 #include "openvino/core/visibility.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
 #ifdef __APPLE__
@@ -72,6 +72,10 @@ bool with_cpu_x86_bfloat16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 }
 
+bool with_cpu_x86_avx512_core_fp16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_FP16);
+}
+
 bool with_cpu_x86_avx512_core_amx_int8() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_INT8);
 }
@@ -105,6 +109,9 @@ bool with_cpu_x86_avx512_core_vnni() {
     return false;
 }
 bool with_cpu_x86_bfloat16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_fp16() {
     return false;
 }
 bool with_cpu_x86_avx512_core_amx_int8() {
@@ -341,11 +348,11 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
                 if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start]
                                         [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start][ALL_PROC]++;
                     all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
                     all_table[ALL_PROC]++;
                 }

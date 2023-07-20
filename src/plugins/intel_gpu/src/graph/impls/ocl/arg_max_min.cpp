@@ -29,7 +29,7 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
             else
                 return kernel_selector::argm_axis::X;
         case 4: return kernel_selector::argm_axis::X;
-        default: IE_THROW() << "Invalid arg_max_min axis " << axis;
+        default: OPENVINO_THROW("Invalid arg_max_min axis ", axis);
     }
 }
 

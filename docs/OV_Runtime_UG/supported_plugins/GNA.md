@@ -3,16 +3,24 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The GNA plugin in OpenVINO™ Runtime enables running inference 
+                 on Intel® Gaussian & Neural Accelerator (GNA) and in the 
+                 software execution mode on CPU.
+
 
 The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 
 Intel® GNA is not intended to replace typical inference devices such as the CPU and GPU. It is designed for offloading
 continuous inference workloads including but not limited to noise reduction or speech recognition
-to save power and free CPU resources.
+to save power and free CPU resources. It lets you run inference on Intel® GNA, as well as the CPU, in the software execution mode.
+For more details on how to configure a system to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
 
-The GNA plugin provides a way to run inference on Intel® GNA, as well as in the software execution mode on CPU.
+.. note::
 
-For more details on how to configure a machine to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
+   Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) will be the last generation of hardware to include it.
+   Consider Intel's new Visual Processing Unit as a low-power solution for offloading neural network computation, for processors offering the technology.
+   
 
 Intel® GNA Generational Differences
 ###########################################################
@@ -42,7 +50,7 @@ exported for GNA 2.0 runs on GNA 3.0 or vice versa.
 
    In most cases, a network compiled for GNA 2.0 runs as expected on GNA 3.0. However, performance may be worse 
    compared to when a network is compiled specifically for the latter. The exception is a network with convolutions 
-   with the number of filters greater than 8192 (see the :ref:`Model and Operation Limitations <#model-and-operation-limitations>` section).
+   with the number of filters greater than 8192 (see the `Model and Operation Limitations <#model-and-operation-limitations>`__ section).
 
 
 For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0 hardware, the following requirements should be satisfied:
@@ -80,17 +88,6 @@ Therefore, there is no need for explicitly switching between GNA and CPU.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/configure.cpp
-         :language: cpp
-         :fragment: [include]
-
-      .. doxygensnippet:: docs/snippets/gna/configure.cpp
-         :language: cpp
-         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
    .. tab-item:: Python
       :sync: py
 
@@ -100,6 +97,17 @@ Therefore, there is no need for explicitly switching between GNA and CPU.
 
       .. doxygensnippet:: docs/snippets/gna/configure.py
          :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
+
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
          :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
@@ -131,7 +139,7 @@ quantization hints based on statistics for the provided dataset.
 * Performance (i8 weights)
 
 For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
-:ref:`Model and Operation Limitations section <#model-and-operation-limitations>`.
+`Model and Operation Limitations section <#model-and-operation-limitations>`__.
 
 
 Supported Features
@@ -158,18 +166,18 @@ To export a model for a specific version of GNA HW, use the ``ov::intel_gna::com
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-         :language: cpp
-         :fragment: [ov_gna_export]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/import_export.py
          :language: py
+         :fragment: [ov_gna_export]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
+         :language: cpp
          :fragment: [ov_gna_export]
 
 
@@ -178,18 +186,18 @@ Import model:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-         :language: cpp
-         :fragment: [ov_gna_import]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/import_export.py
          :language: py
+         :fragment: [ov_gna_import]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
+         :language: cpp
          :fragment: [ov_gna_import]
 
 
@@ -213,14 +221,17 @@ Profiling
 The GNA plugin allows turning on profiling, using the ``ov::enable_profiling`` property.
 With the following methods, you can collect profiling information with various performance data about execution on GNA:
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+   
+      ``openvino.runtime.InferRequest.get_profiling_info``
 
-   ``ov::InferRequest::get_profiling_info``
-
-.. tab:: Python
-
-   ``openvino.runtime.InferRequest.get_profiling_info``
+   .. tab-item:: C++
+      :sync: cpp
+   
+      ``ov::InferRequest::get_profiling_info``
 
 
 The current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. 
@@ -256,31 +267,33 @@ Read-write Properties
 
 In order to take effect, the following parameters must be set before model compilation or passed as additional arguments to ``ov::Core::compile_model()``:
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::inference_precision
-- ov::hint::num_requests
-- ov::intel_gna::compile_target
-- ov::intel_gna::firmware_model_image_path
-- ov::intel_gna::execution_target
-- ov::intel_gna::pwl_design_algorithm
-- ov::intel_gna::pwl_max_error_percent
-- ov::intel_gna::scale_factors_per_input
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::inference_precision``
+- ``ov::hint::num_requests``
+- ``ov::intel_gna::compile_target``
+- ``ov::intel_gna::firmware_model_image_path``
+- ``ov::intel_gna::execution_target``
+- ``ov::intel_gna::pwl_design_algorithm``
+- ``ov::intel_gna::pwl_max_error_percent``
+- ``ov::intel_gna::scale_factors_per_input``
 
 These parameters can be changed after model compilation ``ov::CompiledModel::set_property``:
-- ov::hint::performance_mode
-- ov::intel_gna::execution_mode
-- ov::log::level
+
+- ``ov::hint::performance_mode``
+- ``ov::intel_gna::execution_mode``
+- ``ov::log::level``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-- ov::available_devices
-- ov::device::capabilities
-- ov::device::full_name
-- ov::intel_gna::library_full_version
-- ov::optimal_number_of_infer_requests
-- ov::range_for_async_infer_requests
-- ov::supported_properties
+
+- ``ov::available_devices``
+- ``ov::device::capabilities``
+- ``ov::device::full_name``
+- ``ov::intel_gna::library_full_version``
+- ``ov::optimal_number_of_infer_requests``
+- ``ov::range_for_async_infer_requests``
+- ``ov::supported_properties``
 
 Limitations
 ###########################################################
@@ -358,17 +371,6 @@ To set the layout of model inputs in runtime, use the :doc:`Optimize Preprocessi
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-         :language: cpp
-         :fragment: [include]
-      
-      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-         :language: cpp
-         :fragment: [ov_gna_set_nc_layout]
-
    .. tab-item:: Python
       :sync: py
 
@@ -380,23 +382,34 @@ To set the layout of model inputs in runtime, use the :doc:`Optimize Preprocessi
          :language: py
          :fragment: [ov_gna_set_nc_layout]
 
-
-then set batch size:
-
-.. tab-set::
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
          :language: cpp
-         :fragment: [ov_gna_set_batch_size]
+         :fragment: [include]
+      
+      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
+         :language: cpp
+         :fragment: [ov_gna_set_nc_layout]
+
+
+then set batch size:
+
+.. tab-set::
 
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/set_batch.py
          :language: py
+         :fragment: [ov_gna_set_batch_size]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
+         :language: cpp
          :fragment: [ov_gna_set_batch_size]
 
 

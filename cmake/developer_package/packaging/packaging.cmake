@@ -4,6 +4,9 @@
 
 include(CPackComponent)
 
+# we don't need RPATHs, because setupvars.sh is used
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 #
 # ov_install_static_lib(<target> <comp>)
 #
@@ -13,6 +16,12 @@ macro(ov_install_static_lib target comp)
         if(target_type STREQUAL "STATIC_LIBRARY")
             set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
         endif()
+
+        # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
+        list(APPEND openvino_installed_targets ${target})
+        set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
+            "A list of OpenVINO internal targets" FORCE)
+
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
     endif()
@@ -148,6 +157,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
@@ -160,6 +170,7 @@ endmacro()
 
 ov_define_component_names()
 
+# default components for case when CPACK_GENERATOR is not set (i.e. default open source user)
 macro(ov_define_component_include_rules)
     # core components
     unset(OV_CPACK_COMP_CORE_EXCLUDE_ALL)
@@ -177,6 +188,9 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
+    # TODO: think about python entry points
+    # maybe we can create entry points without python interpreter and use it in debian / rpm as well?
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     unset(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL)
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)

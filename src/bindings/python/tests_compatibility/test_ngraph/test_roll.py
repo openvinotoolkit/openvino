@@ -8,7 +8,7 @@ import numpy as np
 
 
 def test_roll():
-    input = np.reshape(np.arange(10), (2, 5))
+    input = np.reshape(np.arange(10, dtype=np.int64), (2, 5))
     input_tensor = ng.constant(input)
     input_shift = ng.constant(np.array([-10, 7], dtype=np.int32))
     input_axes = ng.constant(np.array([-1, 0], dtype=np.int32))
