@@ -1153,7 +1153,7 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
         auto op =
             create_detection_output_v8(Shape{4, 6 * 1 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
                                        Shape{4, 8 * 16},     // [N, num_prior_boxes * num_classes]
-                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
                                        attrs,
                                        element::f32);
         FAIL() << "Exception expected";
@@ -1176,7 +1176,7 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
         auto op =
             create_detection_output_v8(Shape{4, 6 * 1 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
                                        Shape{4, 8 * 16},     // [N, num_prior_boxes * num_classes]
-                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
                                        attrs,
                                        element::f32);
         FAIL() << "Exception expected";
@@ -1199,7 +1199,7 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
         auto op =
             create_detection_output_v8(Shape{4, 6 * 16 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
                                        Shape{4, 8 * 16},      // [N, num_prior_boxes * num_classes]
-                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       Shape{4, 2, 8 * 5},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
                                        attrs,
                                        element::f32);
         FAIL() << "Exception expected";
@@ -1222,7 +1222,7 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
         auto op =
             create_detection_output_v8(Shape{4, 6 * 16 * 4},  // [N, num_prior_boxes * num_loc_classes * 4]
                                        Shape{4, 8 * 16},      // [N, num_prior_boxes * num_classes]
-                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+                                       Shape{4, 2, 8 * 4},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
                                        attrs,
                                        element::f32);
         FAIL() << "Exception expected";
@@ -1245,7 +1245,7 @@ TEST(type_prop_layers, detection_output_v8_incompatible_dynamic_num_prior_boxes_
         auto op = create_detection_output_v8(
             PartialShape{4, {16, 24}},  // [N, num_prior_boxes * num_loc_classes * 4]
             PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
-            PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+            PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
             attrs,
             element::f32);
         FAIL() << "Exception expected";
@@ -1267,7 +1267,7 @@ TEST(type_prop_layers, detection_output_v8_dynamic_range_num_prior_boxes_normali
     auto op = create_detection_output_v8(
         PartialShape{4, {16, 32}},  // [N, num_prior_boxes * num_loc_classes * 4]
         PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
-        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
         attrs,
         element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, 4 * 8 * 16, 7}));
@@ -1282,7 +1282,7 @@ TEST(type_prop_layers, detection_output_v8_dynamic_num_prior_boxes_normalized_tr
     auto op = create_detection_output_v8(
         PartialShape{4, -1},        // [N, num_prior_boxes * num_loc_classes * 4]
         PartialShape{4, 8 * 16},    // [N, num_prior_boxes * num_classes]
-        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 1, num_prior_boxes * prior_box_size]`
+        PartialShape{4, 2, 8 * 4},  // [priors_batch_size, 2, num_prior_boxes * prior_box_size]`
         attrs,
         element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, 4 * 8 * 16, 7}));
