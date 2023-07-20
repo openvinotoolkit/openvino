@@ -448,6 +448,9 @@ class TorchScriptPythonDecoder (Decoder):
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
 
+    def inlined_inputs(self, index):
+        return []
+
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
         # Function replaces prim::Constant containing List of Tensors with
