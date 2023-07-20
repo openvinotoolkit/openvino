@@ -267,7 +267,7 @@ function addFooter() {
 
 function initSplide() {
   const slides = $('.splide__slide');
-  const height = (slides.length > 3) ? 81.8 + ((slides.length - 3) * 16.6) : 81.8
+  const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
   var splide = new Splide('.splide', {
     direction  : 'ttb',
     type       : 'loop',
