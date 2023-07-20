@@ -34,8 +34,8 @@ class PoolingFactory {
 public:
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit PoolingFactory(const Node& node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     virtual ~PoolingFactory() = default;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ///
     /// \brief      Creates average pooling ONNX operation.
