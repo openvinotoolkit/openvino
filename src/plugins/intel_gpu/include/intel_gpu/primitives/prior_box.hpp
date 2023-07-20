@@ -282,9 +282,9 @@ struct prior_box : public primitive_base<prior_box> {
     }
 
     /// @brief Spatial size of generated grid with boxes.
-    mutable cldnn::tensor output_size{};
+    tensor output_size{};
     /// @brief Image width and height.
-    mutable cldnn::tensor img_size{};
+    tensor img_size{};
     /// @brief  Minimum box sizes in pixels.
     std::vector<float> min_sizes{};
     /// @brief Maximum box sizes in pixels.
