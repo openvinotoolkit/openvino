@@ -131,7 +131,7 @@ public:
         m_model = std::make_shared<ov::Model>(results, params, "concat");
         // save for the ref model
         const ov::AxisVector transpose_ids =
-            graph_utils::make_gather_indices_from_transpose_axes(m_input_shape, transpose_order);
+            graph_utils::make_gather_indexes_from_transpose_axes(m_input_shape, transpose_order);
         m_gather_ids_ref = graph_utils::combine_gather_indexes(gather_ids, transpose_ids);
         m_output_shape = shape_out;
     }
@@ -190,7 +190,7 @@ public:
 
         // save values for the ref model
         const ov::AxisVector transpose_ids =
-            graph_utils::make_gather_indices_from_transpose_axes(m_input_shape, transpose_order);
+            graph_utils::make_gather_indexes_from_transpose_axes(m_input_shape, transpose_order);
         m_gather_ids_ref = graph_utils::combine_gather_indexes(gather_ids, transpose_ids);
         m_output_shape = transpose_node->get_output_shape(0);
     }

@@ -28,7 +28,7 @@ inline std::vector<std::shared_ptr<ov::Node>> merge_nodes_forward(std::shared_pt
 
     // transpose ids -> gather indexes
     const ov::AxisVector transpose_ids =
-        graph_utils::make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+        graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
     // merge gather indexes
     const ov::AxisVector gather_new_ids =
@@ -60,7 +60,7 @@ inline std::vector<std::shared_ptr<ov::Node>> merge_nodes_backward(std::shared_p
 
     // transpose ids -> gather indexes
     const ov::AxisVector transpose_ids =
-        graph_utils::make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+        graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
     // merge gather indexes
     const ov::AxisVector gather_new_ids =
