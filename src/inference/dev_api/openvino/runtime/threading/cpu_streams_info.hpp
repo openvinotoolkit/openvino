@@ -3,13 +3,13 @@
 //
 
 /**
- * @file ie_cpu_streams_info.hpp
+ * @file cpu_streams_info.hpp
  * @brief A header file for Inference Engine CPU streams info table implementation.
  */
 
 #pragma once
 
-namespace InferenceEngine {
+namespace ov {
 
 /**
  * @enum       ColumnOfCpuStreamsInfoTable
@@ -45,4 +45,4 @@ enum ColumnOfCpuStreamsInfoTable {
     CPU_STREAMS_TABLE_SIZE = 5  //!< Size of streams info table
 };
 
-}  // namespace InferenceEngine
+}  // namespace ov
