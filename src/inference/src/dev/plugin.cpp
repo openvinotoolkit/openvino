@@ -14,9 +14,14 @@
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
     try {                                                                              \
         __VA_ARGS__;                                                                   \
-    } catch (...) {                                                                    \
-        ::InferenceEngine::details::Rethrow();                                         \
+    } catch (const ov::NotImplemented& ex) {                                 \
+        OPENVINO_NOT_IMPLEMENTED;                          \
+    } catch (const std::exception& ex) {                                     \
+        OPENVINO_THROW(ex.what());                                           \
+    } catch (...) {                                                          \
+        OPENVINO_THROW("Unexpected exception");                              \
     }
+
 ov::Plugin::~Plugin() {
     m_ptr = {};
 }

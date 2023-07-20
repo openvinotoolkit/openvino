@@ -102,7 +102,11 @@ ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::
 }
 
 void IPluginWrapper::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    m_old_plugin->AddExtension(extension);
+    try {
+        m_old_plugin->AddExtension(extension);
+    } catch (InferenceEngine::NotImplemented& ex) {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 }
 
 const std::shared_ptr<InferenceEngine::IInferencePlugin>& IPluginWrapper::get_plugin() const {
