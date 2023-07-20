@@ -23,7 +23,7 @@ OutputVector translate_quantized_mul(const NodeContext& context) {
 
     const auto quantized_mul = context.mark_node(std::make_shared<v1::Multiply>(x, y));
 
-    return {quantize(context, quantized_mul, scale, zero_point, x).get_node_shared_ptr()};
+    return {quantize(context, quantized_mul, scale, zero_point, x)};
 }
 
 }  // namespace op
