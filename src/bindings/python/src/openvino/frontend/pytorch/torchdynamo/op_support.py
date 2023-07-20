@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake: noqa
+# flake8: noqa
 # mypy: ignore-errors
 
 from typing import Dict
@@ -29,7 +29,9 @@ logger.setLevel(logging.WARNING)
 
 def aten_to_dtype(self, dtype: torch.dtype, **kwargs):
     if len(kwargs) > 0 or not dtype:
-        raise RuntimeError("No support for other to.dtype() formats other than to.dtype(self, dtype)")
+        raise RuntimeError(
+            "No support for other to.dtype() formats other than to.dtype(self, dtype)"
+        )
     return torch._prims.convert_element_type(self, dtype)
 
 
@@ -46,8 +48,8 @@ for op, decomp_fn in decomposition_table.items():
 
 aten2aten_decomp_skips = {
     "aten.native_layer_norm_backward.default",
-    "aten.embedding_dense_backward.default",   # This is hurting nvfuser's perf
-    "aten.addmm.default"
+    "aten.embedding_dense_backward.default",  # This is hurting nvfuser's perf
+    "aten.addmm.default",
 }
 
 for op, decomp_fn in decomposition_table.items():
@@ -72,7 +74,6 @@ class OperatorSupport(OperatorSupport):
     """
 
     def __init__(self):
-
         # TODO: current list copied from torch/csrc/jit/codegen/cuda/parser.cpp is incorrect,
         # as that file is solely for TorchScript and doesn't represent the actual status
         # whether operation would be runnable by primTorch+nvFuser.
@@ -237,10 +238,7 @@ class OperatorSupport(OperatorSupport):
 
         super().__init__(support_dict)
 
-    def is_node_supported(
-        self, submodules: t.Mapping[str, Module], node: Node
-    ) -> bool:
-
+    def is_node_supported(self, submodules: t.Mapping[str, Module], node: Node) -> bool:
         # OpenVINO FX subgraph should be purely functional
         if node.op not in CALLABLE_NODE_OPS:
             return False
