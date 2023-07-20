@@ -598,6 +598,8 @@ def add_args_by_description(args_group, params_description):
             param_alias = param_specifics['aliases'] if 'aliases' in param_specifics and param_name != 'input_model' else {}
             param_version = param_specifics['version'] if 'version' in param_specifics else None
             param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
+
+            # Bool params common setting
             if signature.parameters[param_name].annotation == bool and param_name != 'version':
                 args_group.add_argument(
                     cli_param_name, *param_alias,
