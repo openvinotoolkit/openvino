@@ -102,7 +102,7 @@ def validate_batch_in_shape(shape, layer_name: str):
                     .format(layer_name, shape))
 
 def deduce_legacy_frontend_by_namespace(argv):
-    if isinstance(argv.input_model, (list, tuple)):
+    if isinstance(argv.input_model, (list, tuple)) and len(argv.input_model) > 0:
         argv.framework = guess_framework_by_ext(argv.input_model[0])
     else:
         argv.framework = guess_framework_by_ext(argv.input_model)

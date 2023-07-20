@@ -81,7 +81,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     # FIXME: Removing these lines leads to stuck of convert_model() process, need to fix it.
     # Deduce frontend type and load frontend
-    if not argv.is_python_object:
+    if not argv.is_python_object and argv.input_model:
         _ = deduce_legacy_frontend_by_namespace(argv)
     _ = get_moc_frontends(argv)
     #
@@ -479,8 +479,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         argv.is_python_object = inp_model_is_object
 
         argv.feManager = FrontEndManager()
-        # frameworks = list(set(get_available_front_ends(argv.feManager)))
-        # framework = argv.framework if hasattr(argv, 'framework') and argv.framework is not None else framework
 
         # send telemetry with params info
         send_params_info(argv, cli_parser)
@@ -492,7 +490,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             argv.output_model = "model"   # TODO: Consider removing
         if not hasattr(argv, "output_model") or argv.output_model is None:
             argv.output_model = get_model_name_from_args(argv)
-        print(argv.output_model)
 
         argv.framework = model_framework
 
