@@ -101,31 +101,6 @@ def validate_batch_in_shape(shape, layer_name: str):
                      'You can also specify batch dimension by setting "layout". \n\n')
                     .format(layer_name, shape))
 
-def deduce_legacy_frontend_by_namespace(argv):
-    if isinstance(argv.input_model, (list, tuple)) and len(argv.input_model) > 0:
-        argv.framework = guess_framework_by_ext(argv.input_model[0])
-    else:
-        argv.framework = guess_framework_by_ext(argv.input_model)
-
-    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
-
-
-def guess_framework_by_ext(input_model_path: str) -> int:
-    if re.match(r'^.*\.caffemodel$', input_model_path):
-        return 'caffe'
-    elif re.match(r'^.*\.pb$', input_model_path):
-        return 'tf'
-    elif re.match(r'^.*\.pbtxt$', input_model_path):
-        return 'tf'
-    elif re.match(r'^.*\.params$', input_model_path):
-        return 'mxnet'
-    elif re.match(r'^.*\.nnet$', input_model_path):
-        return 'kaldi'
-    elif re.match(r'^.*\.mdl', input_model_path):
-        return 'kaldi'
-    elif re.match(r'^.*\.onnx$', input_model_path):
-        return 'onnx'
-
 def get_ir_version():
     """
     Default IR version.

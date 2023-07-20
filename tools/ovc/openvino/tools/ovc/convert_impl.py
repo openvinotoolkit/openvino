@@ -26,7 +26,7 @@ from openvino.tools.ovc.cli_parser import get_available_front_ends, \
 from openvino.tools.ovc.error import Error, FrameworkError
 from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
 from openvino.tools.ovc.version import VersionChecker
-from openvino.tools.ovc.utils import check_values_equal, deduce_legacy_frontend_by_namespace
+from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     get_tid
