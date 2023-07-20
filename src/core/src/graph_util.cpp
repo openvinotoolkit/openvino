@@ -5,6 +5,9 @@
 #include "ngraph/graph_util.hpp"
 
 #include <numeric>
+#include <transformations/common_optimizations/compress_float_constants.hpp>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -28,11 +31,6 @@
 #include "ngraph/rt_info.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
-
-#include <transformations/common_optimizations/compress_float_constants.hpp>
-#include <transformations/common_optimizations/fused_names_cleanup.hpp>
-#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
-
 
 using namespace std;
 
@@ -853,16 +851,14 @@ void ov::serialize(const std::shared_ptr<const ov::Model>& m,
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
 
-void ov::save_model(const std::shared_ptr<const ov::Model>& m,
-               const std::string& xml_path,
-               bool compress_to_fp16) {
+void ov::save_model(const std::shared_ptr<const ov::Model>& m, const std::string& xml_path, bool compress_to_fp16) {
     ov::pass::Manager manager;
-    if(compress_to_fp16) {
+    if (compress_to_fp16) {
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(xml_path, "");
-    auto cloned = ov::clone_model(*m);   // TODO: Implement on-the-fly compression in pass::Serialize
+    auto cloned = ov::clone_model(*m);  // TODO: Implement on-the-fly compression in pass::Serialize
     manager.run_passes(std::const_pointer_cast<ov::Model>(cloned));
 }
