@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the ov::IRemoteTensor interface as a base class for device-specific remote tensors.
+
+
 ov::RemoteTensor class functionality:
 
 * Provides an interface to work with device-specific memory.
@@ -47,7 +51,7 @@ The example implementation have two remote tensor classes:
 
 Based on that, an implementation of a type independent remote tensor class can look as follows:
 
-.. doxygensnippet:: src/plugins/template/src/remote_context.cpp
+.. doxygensnippet:: src/plugins/template/src/remote_tensor.hpp
    :language: cpp
    :fragment: [vector_impl:implementation]
 

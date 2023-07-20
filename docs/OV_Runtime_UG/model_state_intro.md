@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_lowlatency2
 
+.. meta::
+   :description: OpenVINO Runtime includes a special API to work with stateful 
+                 networks, where a state can be automatically read, set, saved 
+                 or reset between inferences.
+
 
 Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
 it can be processed with RNN like models that contain a cycle inside. However, in some cases (e.g., online speech recognition of time series 

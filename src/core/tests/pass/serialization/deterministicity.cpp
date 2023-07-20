@@ -8,11 +8,11 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
 
 class DeterministicityCommon {
 protected:
@@ -295,6 +295,6 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
     EXPECT_TRUE(files_equal(xml_2, xml_1));
 }
 
-INSTANTIATE_TEST_CASE_P(DeterministicityInputOutput,
-                        SerializationDeterministicityInputOutputTest,
-                        ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
+                         SerializationDeterministicityInputOutputTest,
+                         ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));

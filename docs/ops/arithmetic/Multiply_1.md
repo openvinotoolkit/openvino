@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Multiply-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Multiply-1*
 
 **Category**: *Arithmetic binary*
@@ -50,7 +54,8 @@ After broadcasting *Multiply* performs multiplication operation for the input te
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Multiply">
        <data auto_broadcast="none"/>
@@ -75,7 +80,8 @@ After broadcasting *Multiply* performs multiplication operation for the input te
 
 *Example 2: broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Multiply">
        <data auto_broadcast="numpy"/>

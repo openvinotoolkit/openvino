@@ -230,7 +230,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPaddedToValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class ConvertPaddedToValidConvTestInvalidFixture : public ov::test::TestsCommon,
                                                    public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;
@@ -292,7 +292,7 @@ void ConvertPaddedToValidConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPaddedToValidConvTestFixture : public CommonTestUtils::TestsCommon,
+class ConvertPaddedToValidConvTestFixture : public ov::test::TestsCommon,
                                             public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;

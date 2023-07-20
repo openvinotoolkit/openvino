@@ -19,7 +19,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     Internal function. Updates mean/scale values from array to dictionary
     :param: input_nodes Inputs of model
     :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
-    :param: scale Global scale factor for all inputs from --scale command line arguments
+    :param: scale Global scale factor for all inputs from scale command line arguments
     """
     if not isinstance(mean_scale_val, dict):
         if len(mean_scale_val) != len(input_nodes):

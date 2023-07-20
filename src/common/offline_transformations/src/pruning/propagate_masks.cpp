@@ -15,6 +15,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/op/util/pad_base.hpp>
 
 #include "mask_attribute.hpp"
 #include "openvino/util/log.hpp"
@@ -875,7 +876,7 @@ public:
                                            opset10::MaxPool,
                                            opset10::ROIPooling,
                                            opset10::PSROIPooling,
-                                           opset10::Pad,
+                                           ov::op::util::PadBase,
                                            opset10::MVN,
                                            op::v0::Gelu,
                                            opset10::Gelu>();

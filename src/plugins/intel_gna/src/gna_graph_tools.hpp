@@ -56,9 +56,9 @@ inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr
         if (outLayer.second.get() != layer.get()) {
             continue;
         }
-        for (int j = 0; j < layer->insData.size(); j++) {
+        for (size_t j = 0; j < layer->insData.size(); j++) {
             if (areEqualDatas(layer->insData[j].lock(), sourceData)) {
-                dataIdxes.push_back(j);
+                dataIdxes.push_back(static_cast<int>(j));
             }
         }
     }
@@ -173,12 +173,12 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>> CNNNetCheckNext
     int iidx,
     bool bOnlyCheck,
     const std::function<bool(CNNLayerPtr)>& shouldSkip) {
-    if (oidx >= layer->outData.size()) {
+    if (oidx >= static_cast<int>(layer->outData.size())) {
         if (bOnlyCheck)
             return {nullptr, {}};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx;
     }
-    if (getInputTo(layer->outData[oidx]).empty() || iidx >= getInputTo(layer->outData[oidx]).size()) {
+    if (getInputTo(layer->outData[oidx]).empty() || iidx >= static_cast<int>(getInputTo(layer->outData[oidx]).size())) {
         if (bOnlyCheck)
             return {nullptr, {}};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx
@@ -192,13 +192,13 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>> CNNNetCheckNext
     int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
 
     while (shouldSkip(outLayer->second)) {
-        if (outLayer->second->outData.size() <= new_oidx) {
+        if (static_cast<int>(outLayer->second->outData.size()) <= new_oidx) {
             if (bOnlyCheck)
                 return {nullptr, {}};
             THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx;
         }
 
-        if (getInputTo(outLayer->second->outData[new_oidx]).size() <= new_iidx) {
+        if (static_cast<int>(getInputTo(outLayer->second->outData[new_oidx]).size()) <= new_iidx) {
             if (bOnlyCheck)
                 return {nullptr, {}};
             THROW_GNA_LAYER_EXCEPTION(outLayer->second)
@@ -229,7 +229,7 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
 
     std::vector<std::map<std::string, CNNLayerPtr>> start;
     if (oDataIdx == -1) {
-        for (int i = 0; i != layer->outData.size(); i++) {
+        for (size_t i = 0; i != layer->outData.size(); i++) {
             start.push_back(getInputTo(layer->outData[i]));
         }
     } else {
@@ -249,7 +249,7 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
     int startIdx, endIdx;
     if (oDataIdx == -1) {
         startIdx = 0;
-        endIdx = layer->outData.size();
+        endIdx = static_cast<int>(layer->outData.size());
     } else {
         startIdx = oDataIdx;
         endIdx = oDataIdx + 1;
@@ -500,14 +500,14 @@ inline DataPtr CNNReplaceDataWithChangedTensorDescription(DataPtr old_data, Tens
     getInputTo(new_dataPtr) = getInputTo(old_data);
     auto creatorLayer = getCreatorLayer(old_data).lock();
     getCreatorLayer(new_dataPtr) = creatorLayer;
-    size_t idx = -1;
+    size_t idx = invalid_data_idx;
     for (size_t i = 0; i < creatorLayer->outData.size(); i++) {
         if (areEqualDatas(old_data, creatorLayer->outData[i])) {
             idx = i;
             break;
         }
     }
-    if (idx == -1)
+    if (idx == invalid_data_idx)
         THROW_GNA_EXCEPTION << "No idx for data was found";
 
     creatorLayer->outData[idx] = new_dataPtr;
@@ -571,8 +571,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
                 // located data
                 for (auto input_port_idx : CNNLayerFindInsDataIdxes(data, input)) {
-                    if (((size_t)inDataIndex != invalid_data_idx && (size_t)inDataIndex == input_port_idx) ||
-                        (size_t)inDataIndex == invalid_data_idx)
+                    if ((inDataIndex == static_cast<size_t>(input_port_idx)) || inDataIndex == invalid_data_idx)
                         input->insData[input_port_idx] = layerToInsert->outData.front();
                     number_of_connections_between_after_n_before++;
                 }
@@ -631,7 +630,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         if (!bLocated) {
             if (before != nullptr) {
                 IE_ASSERT(before->insData.size() == 1 ||
-                          inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
+                          (inDataIndex != invalid_data_idx && inDataIndex < before->insData.size()));
                 auto prevLayer = after;
                 for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
                     auto& outputports = getInputTo(*idx);
@@ -775,7 +774,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
 
     // remove osp->layer connection
     for (auto&& outData : getInputTo(osp)) {
-        for (int i = 0; i < outData.second->insData.size(); i++) {
+        for (size_t i = 0; i < outData.second->insData.size(); i++) {
             auto insData = outData.second->insData[i].lock();
             if (!insData) {
                 IE_THROW() << "Cannot remove layer : " << layer->name << ", its output layer(" << outData.first
@@ -886,7 +885,7 @@ inline uint32_t GetDimFromBack(const InferenceEngine::SizeVector& dims, const ui
     if (backOffset > dims.size()) {
         return 1;
     }
-    const auto indexFromFront = dims.size() - backOffset;
+    const auto indexFromFront = static_cast<uint32_t>(dims.size()) - backOffset;
     return GetDimFromFront(dims, indexFromFront);
 }
 
@@ -917,6 +916,40 @@ inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimN
         // 1 will be returned for offset 4
     case Layout::NCHW:
         backOffsets = std::vector<uint32_t>{4, 3, 2, 1};
+        break;
+    default:
+        THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();
+    }
+    auto dims = data->getDims();
+    return GetDimFromBack(dims, backOffsets[dimIxInNCHW]);
+}
+
+/**
+ * @brief returns a size of a specified data dimension depending on the layout
+ *        NHWC specialization
+ * @param data a pointer to the data
+ * @param dimName dimension name
+ */
+inline uint32_t GetDataDimSizeNHWC(InferenceEngine::DataPtr data, DataDimName dimName) {
+    uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
+    IE_ASSERT(dimIxInNCHW <= 3);
+
+    std::vector<uint32_t> backOffsets;
+    switch (data->getLayout()) {
+    case Layout::C:
+    case Layout::NC:
+        // 1 will be returned for offsets > 2
+        backOffsets = std::vector<uint32_t>{2, 1, 3, 4};
+        break;
+    case Layout::HWC:
+        // 1 will be returned for offset 4
+    case Layout::NHWC:
+        backOffsets = std::vector<uint32_t>{4, 3, 2, 1};
+        break;
+    case Layout::CHW:
+        // 1 will be returned for offset 4
+    case Layout::NCHW:
+        backOffsets = std::vector<uint32_t>{4, 1, 3, 2};
         break;
     default:
         THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();

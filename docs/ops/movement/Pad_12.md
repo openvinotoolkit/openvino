@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Pad-12 - a data movement operation, 
+                which can be performed on three required and one optional input tensor.
+
 **Versioned name**: *Pad-12*
 
 **Category**: *Data movement*
@@ -204,7 +208,8 @@ Mixed pads example:
 
 **Example**: constant mode (positive pads)
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="Pad" ...>
         <data pad_mode="constant"/>
@@ -239,7 +244,8 @@ Mixed pads example:
 
 **Example**: constant mode (positive and negative pads)
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Pad" ...>
         <data pad_mode="constant"/>
@@ -274,7 +280,8 @@ Mixed pads example:
 
 **Example**: edge mode
 
-.. code-block::  cpp   
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Pad" ...>
         <data pad_mode="edge"/>

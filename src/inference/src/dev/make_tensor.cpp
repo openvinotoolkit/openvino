@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dev/make_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 #include <memory>
 
-#include "dev/make_tensor.hpp"
 #include "ie_blob.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/plugin.hpp"
+#endif
 
 namespace ov {
 
@@ -439,19 +441,24 @@ public:
  */
 class TensorRemoteBlob : public ie::RemoteBlob {
 public:
-    TensorRemoteBlob(const std::shared_ptr<ITensor>& tensor)
+    TensorRemoteBlob(const ov::SoPtr<ITensor>& tensor)
         : ie::RemoteBlob{ie::TensorDesc{ie::details::convertPrecision(tensor->get_element_type()),
                                         tensor->get_shape(),
                                         ie::TensorDesc::getLayoutByRank(tensor->get_shape().size())}},
-          tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)} {
+          tensor{tensor} {
         OPENVINO_ASSERT(this->tensor);
     }
+    std::shared_ptr<ov::IRemoteTensor> cast_tensor() const {
+        auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
+        OPENVINO_ASSERT(remote);
+        return remote;
+    }
     AnyMap getParams() const override {
-        return tensor->get_properties();
+        return cast_tensor()->get_properties();
     }
     std::string getDeviceName() const noexcept override {
         try {
-            return tensor->get_device_name();
+            return cast_tensor()->get_device_name();
         } catch (...) {
             return {};
         }
@@ -486,7 +493,7 @@ public:
         return nullptr;
     }
 
-    std::shared_ptr<IRemoteTensor> tensor;
+    ov::SoPtr<ITensor> tensor;
 
 private:
     std::shared_ptr<ie::IAllocator> m_allocator;
@@ -501,7 +508,7 @@ template <typename T>
 class TensorMemoryBlob : public ie::TBlob<T> {
 public:
     ~TensorMemoryBlob() override = default;
-    explicit TensorMemoryBlob(const std::shared_ptr<ITensor>& tensor_) try : ie
+    explicit TensorMemoryBlob(const ov::SoPtr<ITensor>& tensor_) try : ie
         ::TBlob<T>{[&] {
                        auto element_type = tensor_->get_element_type();
                        auto shape = tensor_->get_shape();
@@ -533,7 +540,7 @@ public:
                    static_cast<T*>(tensor_->data()),
                    tensor_->get_byte_size()},
             tensor{tensor_} {
-            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor));
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr));
         }
     catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -541,13 +548,18 @@ public:
 
     void setShape(const ie::SizeVector& dims) override {
         tensor->set_shape(dims);
-        ie::TBlob<T>::setShape(dims);
+        ie::TBlob<T>::getTensorDesc().setDims(dims);
+        if (ie::TBlob<T>::buffer() != tensor->data()) {
+            ie::TBlob<T>::_allocator =
+                ie::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
+            ie::TBlob<T>::allocate();
+        }
     }
 
-    std::shared_ptr<ITensor> tensor;
+    ov::SoPtr<ITensor> tensor;
 };
 
-std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
         return tblob->tensor;                                                        \
@@ -557,7 +569,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
         return remote_blob->tensor;
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
-        return std::make_shared<RemoteBlobTensor>(remote_blob);
+        return {std::make_shared<RemoteBlobTensor>(remote_blob), nullptr};
     }
     ELSE_IF(float)
     ELSE_IF(double)
@@ -573,21 +585,54 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     ELSE_IF(uint64_t)
     ELSE_IF(int8_t)
     ELSE_IF(bool) else {
-        return std::make_shared<BlobTensor>(blob);
+        return {std::make_shared<BlobTensor>(blob), nullptr};
     }
 #undef IF
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
+ie::Blob* get_hardware_blob(ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap) {
+#ifdef PROXY_PLUGIN_ENABLED
+    const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
+#else
+    const auto& tensor = orig_tensor;
+#endif
     if (tensor == nullptr) {
         return {};
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
+    } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
+    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
-        return blob_tensor->blob;
-    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
+    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
         return std::make_shared<TensorRemoteBlob>(tensor);
     } else {
 #define CASE(precision, T)   \
@@ -619,4 +664,29 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
     }
     OPENVINO_THROW("Cannot convert tensor to blob!");
 }
+
+namespace util {
+
+ov::Tensor make_tensor(const std::shared_ptr<ITensor>& tensor, const std::shared_ptr<void>& so) {
+    return ov::Tensor(tensor, so);
+}
+
+void get_tensor_impl(const ov::Tensor& tensor, std::shared_ptr<ITensor>& tensor_impl, std::shared_ptr<void>& so) {
+    tensor_impl = tensor._impl;
+    so = tensor._so;
+}
+
+}  // namespace util
+
+ov::Tensor make_tensor(const ov::SoPtr<ITensor>& tensor) {
+    return util::make_tensor(tensor._ptr, tensor._so);
+}
+
+ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
+    std::shared_ptr<ov::ITensor> tensor_impl;
+    std::shared_ptr<void> so;
+    util::get_tensor_impl(tensor, tensor_impl, so);
+    return ov::SoPtr<ov::ITensor>(tensor_impl, so);
+}
+
 }  // namespace ov

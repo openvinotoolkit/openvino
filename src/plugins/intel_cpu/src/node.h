@@ -188,6 +188,9 @@ public:
     const std::vector<EdgePtr> getParentEdgesAtPort(size_t idx) const;
     const std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
 
+    int inPlaceInputPort(int portIdx) const;
+    int inPlaceOutPort(int portIdx) const;
+
     bool isDropped() {
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
     }
@@ -196,7 +199,7 @@ public:
         return engine;
     }
 
-    bool isInPlace();
+    bool isInPlace() const;
 
     // must be called only after Graph::InitEdges()
     virtual bool isExecutable() const {
@@ -354,7 +357,7 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    void resolveInPlaceEdges();
+    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
     virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
@@ -369,7 +372,7 @@ public:
      * @brief Filters supportedPrimitiveDescriptors according to the input layouts specified in inputMemoryFormatsFilter
      * and output layouts specified in outputMemoryFormatsFilter
      */
-    virtual void filterSupportedPrimitiveDescriptors();
+    void filterSupportedPrimitiveDescriptors();
 
     virtual void createPrimitive();
 
@@ -535,7 +538,7 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
-    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    void fuseDQScales(const float* scaleData, const size_t scaleSize);
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
@@ -546,6 +549,10 @@ public:
      */
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
+    virtual bool canBeExecutedInInt8() const {
+        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        return false;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -594,7 +601,7 @@ protected:
         Const,
         NoConst
     };
-    InPlaceType inplace = InPlaceType::Unknown;
+    mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
