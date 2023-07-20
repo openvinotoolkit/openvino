@@ -53,32 +53,33 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
         }
 
         auto priorBoxPrim = cldnn::prior_box(layerName,
-                                            inputs[0],
-                                            img_size,
-                                            clip,
-                                            variance,
-                                            step_w,
-                                            step_h,
-                                            offset,
-                                            width,
-                                            height,
-                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+                                             inputs,
+                                             img_size,
+                                             clip,
+                                             variance,
+                                             step_w,
+                                             step_h,
+                                             offset,
+                                             width,
+                                             height,
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
         p.add_primitive(*op, priorBoxPrim);
     } else {
         auto step_w = attrs.step_widths;
         auto step_h = attrs.step_heights;
-
+        cldnn::tensor img_size{};
         auto priorBoxPrim = cldnn::prior_box(layerName,
-                                            inputs,
-                                            clip,
-                                            variance,
-                                            step_w,
-                                            step_h,
-                                            offset,
-                                            width,
-                                            height,
-                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+                                             inputs,
+                                             img_size,
+                                             clip,
+                                             variance,
+                                             step_w,
+                                             step_h,
+                                             offset,
+                                             width,
+                                             height,
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
         p.add_primitive(*op, priorBoxPrim);
     }
@@ -102,9 +103,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     bool clip = attrs.clip;
     bool scale_all_sizes = attrs.scale_all_sizes;
     float offset = attrs.offset;
-
-    auto step_w = attrs.step;
-    auto step_h = attrs.step;
+    auto step = attrs.step;
 
     auto output_pshape = op->get_output_partial_shape(0);
     auto img_pshape = op->get_input_partial_shape(1);
@@ -117,41 +116,45 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
         auto wdim = img_shape.back();
         auto hdim = img_shape.at(img_shape.size()-2);
 
+        cldnn::tensor output_size{};
         cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(wdim), TensorValue(hdim));
         auto priorBoxPrim = cldnn::prior_box(layerName,
-                                            inputs[0],
-                                            img_size,
-                                            min_size,
-                                            max_size,
-                                            aspect_ratio,
-                                            flip,
-                                            clip,
-                                            variance,
-                                            step_w,
-                                            step_h,
-                                            offset,
-                                            scale_all_sizes,
-                                            fixed_ratio,
-                                            fixed_size,
-                                            density);
+                                             inputs,
+                                             output_size,
+                                             img_size,
+                                             min_size,
+                                             max_size,
+                                             aspect_ratio,
+                                             flip,
+                                             clip,
+                                             variance,
+                                             step,
+                                             offset,
+                                             scale_all_sizes,
+                                             fixed_ratio,
+                                             fixed_size,
+                                             density);
 
         p.add_primitive(*op, priorBoxPrim);
     } else {
+        cldnn::tensor output_size{};
+        cldnn::tensor img_size{};
         auto priorBoxPrim = cldnn::prior_box(layerName,
-                                            inputs,
-                                            min_size,
-                                            max_size,
-                                            aspect_ratio,
-                                            flip,
-                                            clip,
-                                            variance,
-                                            step_w,
-                                            step_h,
-                                            offset,
-                                            scale_all_sizes,
-                                            fixed_ratio,
-                                            fixed_size,
-                                            density);
+                                             inputs,
+                                             output_size,
+                                             img_size,
+                                             min_size,
+                                             max_size,
+                                             aspect_ratio,
+                                             flip,
+                                             clip,
+                                             variance,
+                                             step,
+                                             offset,
+                                             scale_all_sizes,
+                                             fixed_ratio,
+                                             fixed_size,
+                                             density);
 
         p.add_primitive(*op, priorBoxPrim);
     }
@@ -182,40 +185,47 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
         const cldnn::tensor img_size_tensor{cldnn::spatial(image_width, image_height)};
 
         const cldnn::prior_box prior_box{layer_name,
-                                        inputs,
-                                        output_size_tensor,
-                                        img_size_tensor,
-                                        attrs.min_size,
-                                        attrs.max_size,
-                                        attrs.aspect_ratio,
-                                        attrs.flip,
-                                        attrs.clip,
-                                        attrs.variance,
-                                        attrs.offset,
-                                        attrs.scale_all_sizes,
-                                        attrs.fixed_ratio,
-                                        attrs.fixed_size,
-                                        attrs.density,
-                                        attrs.step,
-                                        attrs.min_max_aspect_ratios_order};
+                                         inputs,
+                                         output_size_tensor,
+                                         img_size_tensor,
+                                         attrs.min_size,
+                                         attrs.max_size,
+                                         attrs.aspect_ratio,
+                                         attrs.flip,
+                                         attrs.clip,
+                                         attrs.variance,
+                                         attrs.step,
+                                         attrs.offset,
+                                         attrs.scale_all_sizes,
+                                         attrs.fixed_ratio,
+                                         attrs.fixed_size,
+                                         attrs.density,
+                                         true,
+                                         attrs.min_max_aspect_ratios_order};
 
         p.add_primitive(*op, prior_box);
     } else {
+        cldnn::tensor output_size{};
+        cldnn::tensor img_size{};
+
         const cldnn::prior_box prior_box{layer_name,
-                                        inputs,
-                                        attrs.min_size,
-                                        attrs.max_size,
-                                        attrs.aspect_ratio,
-                                        attrs.flip,
-                                        attrs.clip,
-                                        attrs.variance,
-                                        attrs.offset,
-                                        attrs.scale_all_sizes,
-                                        attrs.fixed_ratio,
-                                        attrs.fixed_size,
-                                        attrs.density,
-                                        attrs.step,
-                                        attrs.min_max_aspect_ratios_order};
+                                         inputs,
+                                         output_size,
+                                         img_size,
+                                         attrs.min_size,
+                                         attrs.max_size,
+                                         attrs.aspect_ratio,
+                                         attrs.flip,
+                                         attrs.clip,
+                                         attrs.variance,
+                                         attrs.step,
+                                         attrs.offset,
+                                         attrs.scale_all_sizes,
+                                         attrs.fixed_ratio,
+                                         attrs.fixed_size,
+                                         attrs.density,
+                                         true,
+                                         attrs.min_max_aspect_ratios_order};
 
         p.add_primitive(*op, prior_box);
     }

@@ -40,77 +40,8 @@ struct prior_box : public primitive_base<prior_box> {
     /// @param flip If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio "1.0/r" we will generated as well.
     /// @param clip If true, will clip the prior so that it is within [0, 1].
     /// @param variance Variance for adjusting the prior boxes.
-    /// @param step_width Step width.
-    /// @param step_height Step height.
-    /// @param offset Offset to the top left corner of each cell.
-    prior_box(const primitive_id& id,
-              const input_info& input,
-              const tensor& img_size,
-              const std::vector<float>& min_sizes,
-              const std::vector<float>& max_sizes = {},
-              const std::vector<float>& aspect_ratios = {},
-              const bool flip = true,
-              const bool clip = false,
-              const std::vector<float>& variance = {},
-              const float step_width = 0.f,
-              const float step_height = 0.f,
-              const float offset = 0.5f,
-              const bool scale_all_sizes = true,
-              const std::vector<float>& fixed_ratio = {},
-              const std::vector<float>& fixed_size = {},
-              const std::vector<float>& density = {},
-              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
-          img_size(img_size),
-          min_sizes(min_sizes),
-          max_sizes(max_sizes),
-          flip(flip),
-          clip(clip),
-          step_width(step_width),
-          step_height(step_height),
-          offset(offset),
-          scale_all_sizes(scale_all_sizes),
-          fixed_ratio(fixed_ratio),
-          fixed_size(fixed_size),
-          density(density),
-          clustered(false) {
-        init(aspect_ratios, variance);
-    }
-
-    /// @brief Constructs prior-box primitive for dynamic shape.
-    prior_box(const primitive_id& id,
-              const std::vector<input_info>& inputs,
-              const std::vector<float>& min_sizes,
-              const std::vector<float>& max_sizes = {},
-              const std::vector<float>& aspect_ratios = {},
-              const bool flip = true,
-              const bool clip = false,
-              const std::vector<float>& variance = {},
-              const float step_width = 0.f,
-              const float step_height = 0.f,
-              const float offset = 0.5f,
-              const bool scale_all_sizes = true,
-              const std::vector<float>& fixed_ratio = {},
-              const std::vector<float>& fixed_size = {},
-              const std::vector<float>& density = {},
-              const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
-          min_sizes(min_sizes),
-          max_sizes(max_sizes),
-          flip(flip),
-          clip(clip),
-          step_width(step_width),
-          step_height(step_height),
-          offset(offset),
-          scale_all_sizes(scale_all_sizes),
-          fixed_ratio(fixed_ratio),
-          fixed_size(fixed_size),
-          density(density),
-          clustered(false) {
-        init(aspect_ratios, variance);
-    }
-
-    /// @brief Constructs prior-box primitive, which supports v8 features.
+    /// @param step_width Step.
+        /// @param offset Offset to the top left corner of each cell.
     prior_box(const primitive_id& id,
               const std::vector<input_info>& inputs,
               const tensor& output_size,
@@ -121,62 +52,30 @@ struct prior_box : public primitive_base<prior_box> {
               const bool flip = true,
               const bool clip = false,
               const std::vector<float>& variance = {},
+              const float step = 0.0f,
               const float offset = 0.5f,
               const bool scale_all_sizes = true,
               const std::vector<float>& fixed_ratio = {},
               const std::vector<float>& fixed_size = {},
               const std::vector<float>& density = {},
-              const float step = 0.0f,
-              const bool min_max_aspect_ratios_order = true
+              const bool support_opset8 = false,
+              const bool min_max_aspect_ratios_order = true,
+              const padding& output_padding = padding()
               )
-        : primitive_base{id, inputs},
+        : primitive_base{id, inputs, {output_padding}},
           output_size(output_size),
           img_size(img_size),
           min_sizes(min_sizes),
           max_sizes(max_sizes),
           flip(flip),
           clip(clip),
+          step{step},
           offset(offset),
           scale_all_sizes(scale_all_sizes),
           fixed_ratio(fixed_ratio),
           fixed_size(fixed_size),
           density(density),
-          support_opset8{true},
-          step{step},
-          min_max_aspect_ratios_order{min_max_aspect_ratios_order},
-          clustered(false) {
-        init(aspect_ratios, variance);
-    }
-
-    /// @brief Constructs prior-box primitive for dynamic shape, which supports v8 features.
-    prior_box(const primitive_id& id,
-              const std::vector<input_info>& inputs,
-              const std::vector<float>& min_sizes,
-              const std::vector<float>& max_sizes = {},
-              const std::vector<float>& aspect_ratios = {},
-              const bool flip = true,
-              const bool clip = false,
-              const std::vector<float>& variance = {},
-              const float offset = 0.5f,
-              const bool scale_all_sizes = true,
-              const std::vector<float>& fixed_ratio = {},
-              const std::vector<float>& fixed_size = {},
-              const std::vector<float>& density = {},
-              const float step = 0.0f,
-              const bool min_max_aspect_ratios_order = true
-              )
-        : primitive_base{id, inputs},
-          min_sizes(min_sizes),
-          max_sizes(max_sizes),
-          flip(flip),
-          clip(clip),
-          offset(offset),
-          scale_all_sizes(scale_all_sizes),
-          fixed_ratio(fixed_ratio),
-          fixed_size(fixed_size),
-          density(density),
-          support_opset8{true},
-          step{step},
+          support_opset8{support_opset8},
           min_max_aspect_ratios_order{min_max_aspect_ratios_order},
           clustered(false) {
         init(aspect_ratios, variance);
@@ -184,7 +83,7 @@ struct prior_box : public primitive_base<prior_box> {
 
     /// @brief Constructs prior-box primitive, which executes clustered version.
     prior_box(const primitive_id& id,
-              const input_info& input,
+              const std::vector<input_info>& inputs,
               const tensor& img_size,
               const bool clip,
               const std::vector<float>& variance,
@@ -195,33 +94,8 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& heights,
               data_types output_dt,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}),
-          img_size(img_size),
-          flip(false),
-          clip(clip),
-          variance(variance),
-          step_width(step_width),
-          step_height(step_height),
-          offset(offset),
-          scale_all_sizes(false),
-          widths(widths),
-          heights(heights),
-          clustered(true) {
-    }
-
-    /// @brief Constructs prior-box primitive for dynamic shape, which executes clustered version.
-    prior_box(const primitive_id& id,
-              const std::vector<input_info>& inputs,
-              const bool clip,
-              const std::vector<float>& variance,
-              const float step_width,
-              const float step_height,
-              const float offset,
-              const std::vector<float>& widths,
-              const std::vector<float>& heights,
-              data_types output_dt,
-              const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_dt}}),
+          img_size(img_size),
           flip(false),
           clip(clip),
           variance(variance),
@@ -265,6 +139,7 @@ struct prior_box : public primitive_base<prior_box> {
         attrs.offset = offset;
         attrs.variance = variance;
         attrs.scale_all_sizes = scale_all_sizes;
+        attrs.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
         return attrs;
     }
 
@@ -297,10 +172,12 @@ struct prior_box : public primitive_base<prior_box> {
     bool clip{false};
     /// @brief Variance for adjusting the prior boxes.
     std::vector<float> variance{};
-    /// @brief Step width.
+    /// @brief Step width for clustered version.
     float step_width{0.0f};
-    /// @brief Step height.
+    /// @brief Step height for clustered version.
     float step_height{0.0f};
+    /// @brief Step.
+    float step{0.0f};
     /// @brief Offset to the top left corner of each cell.
     float offset{0.0f};
     /// @brief If false, only first min_size is scaled by aspect_ratios
@@ -312,7 +189,6 @@ struct prior_box : public primitive_base<prior_box> {
 
     // required for v8
     bool support_opset8{false};
-    float step{0.0f};
     bool min_max_aspect_ratios_order{true};
 
     /// @brief Required for clustered version.
