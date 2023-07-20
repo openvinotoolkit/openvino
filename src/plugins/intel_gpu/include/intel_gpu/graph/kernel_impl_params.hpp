@@ -58,7 +58,7 @@ struct kernel_impl_params {
     std::vector<std::shared_ptr<program>> inner_progs = {};
     std::vector<std::shared_ptr<network>> inner_nets = {};
     std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
-    // TODO : Thsese values are temporarily added for prior box. Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
+    // TODO : These values are temporarily added for prior box. Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
 
