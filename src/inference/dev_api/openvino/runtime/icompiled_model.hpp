@@ -140,13 +140,6 @@ public:
 
     virtual ~ICompiledModel() = default;
 
-    /**
-     * @brief Detects that compiled model supports caching and import/export
-     *
-     * @return true if caching is supported, else in other case
-     */
-    bool supports_caching() const;
-
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;
