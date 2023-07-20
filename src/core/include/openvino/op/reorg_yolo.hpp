@@ -35,6 +35,9 @@ public:
     Strides get_strides() const {
         return m_strides;
     }
+    void set_strides(const Strides& strides) {
+        m_strides = strides;
+    }
 
 private:
     Strides m_strides;
