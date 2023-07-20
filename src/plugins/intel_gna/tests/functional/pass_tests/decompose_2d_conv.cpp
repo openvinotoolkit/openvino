@@ -135,6 +135,11 @@ protected:
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights =
             CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.03f, 0.03f);
+        std::cout << "filterWeights: ";
+        for (size_t i = 0; i < 3; ++i) {
+            std::cout << filterWeights[i] << " ";
+        }
+        std::cout << std::endl;
         auto conv = builder::makeConvolution(transposeIn,
                                              ngPrc,
                                              kernel,

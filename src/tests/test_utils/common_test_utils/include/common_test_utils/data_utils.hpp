@@ -412,6 +412,12 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
             rawBlobDataPtr[i] = static_cast<T>(value);
         }
     }
+    std::cout << std::endl;
+    std::cout << "rawBlobDataPtr: ";
+    for (size_t i = 0; i < 3; ++i) {
+        std::cout << rawBlobDataPtr[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
 template<typename T>
