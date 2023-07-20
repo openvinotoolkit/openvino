@@ -168,6 +168,20 @@ void shape_infer_base(const DetectionOutputBase* op,
                                   ".");
             num_prior_boxes = box_logits_pshape_2nd_dim / (num_loc_classes * 4);
         }
+
+        if (num_prior_boxes > 0 && num_loc_classes > 0) {
+            NODE_VALIDATION_CHECK(op,
+                                  box_logits_pshape[1].compatible(num_prior_boxes * num_loc_classes * 4),
+                                  "The second dimension of the first input (box logits) is: ",
+                                  box_logits_pshape[1],
+                                  ", but must be compatible with (num_prior_boxes * num_loc_classes * 4) = (",
+                                  num_prior_boxes,
+                                  " * ",
+                                  num_loc_classes,
+                                  " * 4) = (",
+                                  num_prior_boxes * num_loc_classes * 4,
+                                  ").");
+        }
     }
     if (class_preds_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
