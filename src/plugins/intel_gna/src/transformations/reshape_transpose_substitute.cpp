@@ -8,6 +8,7 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -15,6 +16,7 @@ using namespace ov;
 using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
+using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 
 namespace {
@@ -91,8 +93,7 @@ AxisVector find_suitable_transpose_order(const Shape& input_shape,
                                          const std::vector<AxisVector>& orders) {
     for (const auto& order : orders) {
         const Shape transposed_shape = apply_permutation(input_shape, order);
-        if ((transposed_shape.size() == output_shape.size()) &&
-            std::equal(transposed_shape.begin(), transposed_shape.end(), output_shape.begin()))
+        if (graph_utils::are_shapes_equal(transposed_shape, output_shape))
             return order;
     }
 

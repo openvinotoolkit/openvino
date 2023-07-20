@@ -257,7 +257,7 @@ struct GatherInfo {
     bool operator==(const GatherInfo& another) {
         if (indices.size() != another.indices.size())
             return false;
-        if (!std::equal(indices.begin(), indices.end(), another.indices.begin()))
+        if (!are_shapes_equal(indices, another.indices))
             return false;
         return axis == another.axis;
     }
