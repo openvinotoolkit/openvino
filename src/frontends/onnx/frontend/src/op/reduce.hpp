@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/deprecated.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -172,3 +175,4 @@ OutputVector reduce_sum_square(const Node& node);
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END
