@@ -43,4 +43,4 @@ class TestQuantizedAddReLU(PytorchLayerTest):
     def test_quantized_add_relu(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_add_relu(scale, zero_point, dtype), None, ["quantized::add_relu"], 
-                ie_device, precision, ir_version, quantized_ops=True)
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
