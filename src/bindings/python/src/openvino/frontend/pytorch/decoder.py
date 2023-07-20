@@ -211,14 +211,9 @@ class TorchScriptPythonDecoder (Decoder):
                 return process_dict_inputs(inputs, input_params, model)
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-<<<<<<< HEAD
             input_signature = list(input_params)
             input_signature = input_signature[:len(inputs)]
             return {"example_inputs": inputs}, input_signature, model
-=======
-
-            return {"example_inputs": inputs}, input_signature
->>>>>>> 69d1b269fdf458245ba8ea934cc533b940a2e8c4
 
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -238,29 +233,7 @@ class TorchScriptPythonDecoder (Decoder):
                         scripted = torch.jit.script(pt_module)
                     except Exception:
                         scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
-<<<<<<< HEAD
-            skip_freeze = False
-            for n in scripted.inlined_graph.nodes():
-                # TODO: switch off freezing for all traced models
-                if "quantize" in n.kind():
-                    # do not freeze quantized models
-                    skip_freeze = True
-                    break
-                elif "aten::to" in n.kind():
-                    first_input = next(n.inputs())
-                    if first_input.node().kind() == "prim::Constant":
-                        ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8, torch.bfloat16, torch.float16]:
-                            # do not freeze models with compressed constants
-                            skip_freeze = True
-                            break
-            if not skip_freeze:
-                f_model = torch.jit.freeze(scripted)
-            else:
-                f_model = scripted
-=======
             f_model = scripted
->>>>>>> 69d1b269fdf458245ba8ea934cc533b940a2e8c4
         else:
             f_model = pt_module
 
