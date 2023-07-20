@@ -13,8 +13,9 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  ScheduleContext::Ptr context,
-                  Schedule::Ptr        scheduler);
+                  const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                  ScheduleContext::Ptr& schedule_context,
+                  Schedule::Ptr&        scheduler);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<const Plugin> get_auto_plugin();
