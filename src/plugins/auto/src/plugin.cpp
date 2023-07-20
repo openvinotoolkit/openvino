@@ -161,6 +161,8 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto get_device_config = [&] (const DeviceName & device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
+        // validate the device validity
+        get_core()->get_property(device_with_id, ov::supported_properties, device_config);
         return device_config;
     };
 
@@ -248,6 +250,8 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
                 } catch (ov::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
+                } catch (InferenceEngine::Exception&) {
+                    LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
             }
 
@@ -268,6 +272,11 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                                         unique_name,
                                         device_priority});
             } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            } catch (const InferenceEngine::Exception&) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),

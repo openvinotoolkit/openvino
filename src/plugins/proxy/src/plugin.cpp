@@ -451,7 +451,8 @@ std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     if (devices.empty())
         // Return low level device name in case of no devices wasn't found
         return m_device_order.at(0);
-    OPENVINO_ASSERT(devices.size() > idx);
+    if (devices.size() <= idx)
+        OPENVINO_THROW("devie with index", idx, " wasn't found!");
     return devices[idx];
 }
 

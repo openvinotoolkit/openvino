@@ -98,6 +98,8 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(metrics));
+    ON_CALL(*core, get_property(_, ov::supported_properties.name(), _))
+           .WillByDefault(Return(ov::Any(supported_props)));
     ON_CALL(*core, get_property(StrEq("GPU"),
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
     ON_CALL(*core, get_property(StrEq("GPU"),
