@@ -46,8 +46,11 @@ public:
      * @param info[0] Javascript Tensor object.
      */
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
-    /// @brief  Infers specified input in synchronous mode.
+    /// @brief  Infers specified inputs in synchronous mode.
     Napi::Value infer(const Napi::CallbackInfo& info);
+
+    Napi::Value infer(const Napi::Object& inputs);
+    Napi::Value infer(const Napi::Array& inputs);
 
     /**
      * @brief Gets an input/output tensor for inference.

@@ -95,7 +95,6 @@ describe('InferRequest', () => {
   const core = new ov.Core();
   const model = core.read_model(testXml);
   const compiledModel = core.compile_model(model, 'CPU');
-  const inferRequest = compiledModel.create_infer_request();
 
   const tensor = new ov.Tensor(
     ov.element.f32,
@@ -103,15 +102,20 @@ describe('InferRequest', () => {
     Float32Array.from({ length: 3072 }, () => Math.random()),
   );
 
-  inferRequest.infer({ data: tensor });
-  const result = inferRequest.getOutputTensors();
-
-  test('getOuputTensors() method', () => {
+  test('getOuputTensors() method  Object', () => {
+    const inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer({ data: tensor });
+    const result = inferRequest.getOutputTensors();
     expect(Object.keys(result)).toEqual(['fc_out']);
+    expect(result['fc_out'].data.length).toEqual(10);
   });
 
-  test('getOuputTensors() method', () => {
-    expect(result['fc_out'].data.length).toEqual(10);
+  test('getOuputTensors() method   Array', () => {
+    const inferRequest2 = compiledModel.create_infer_request();
+    inferRequest2.infer([tensor]);
+    const result2 = inferRequest2.getOutputTensors();
+    expect(Object.keys(result2)).toEqual(['fc_out']);
+    expect(result2['fc_out'].data.length).toEqual(10);
   });
 
 });
