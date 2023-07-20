@@ -11,7 +11,6 @@
 #include <cmath>
 #include <vector>
 #include <limits>
-#include <map>
 
 namespace cldnn {
 
