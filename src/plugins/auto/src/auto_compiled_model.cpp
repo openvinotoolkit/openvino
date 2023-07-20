@@ -177,7 +177,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                             iie.what());
                     }
                     real = (std::max)(requests, optimal_batch_size);
-                } else if (device_info.device_name.find("VPUX") != std::string::npos) {
+                } else if (device_info.device_name.find("VPU") != std::string::npos) {
                     real = 8u;
                 } else {
                     real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
