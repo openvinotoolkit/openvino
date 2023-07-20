@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. important::
+
+   All of the issues below refer to :doc:`legacy functionalities <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+
 If your question is not covered by the topics below, use the 
 `OpenVINO Support page <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__, 
 where you can participate in a free forum discussion.
@@ -10,7 +14,6 @@ where you can participate in a free forum discussion.
 
    Note that OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently being deprecated.
    As legacy formats, they will not be supported as actively as the main frontends and will be removed entirely in the future.
-
 
 .. _question-1:
 
@@ -77,7 +80,8 @@ Q3. What does the message "[ ERROR ]: Unable to create ports for node with id" m
 
 **A:** Most likely, Model Optimizer does not know how to infer output shapes of some layers in the given topology.
 To lessen the scope, compile the list of layers that are custom for Model Optimizer: present in the topology,
-absent in the :doc:`list of supported layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` for the target framework. Then, refer to available options in the corresponding section in the :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
+absent in the :doc:`list of supported operations <openvino_resources_supported_operations_frontend>` for the target framework. 
+Then, refer to available options in the corresponding section in the  :doc:`[Legacy] Custom Layers in Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` page.
 
 .. _question-7:
 
@@ -765,7 +769,8 @@ The name should be the compilation of the layer name with the module name separa
 
 For example, your topology contains this layer with type ``Python``:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    layer {
      name: 'proposal'
@@ -781,7 +786,8 @@ For example, your topology contains this layer with type ``Python``:
 
 The first step is to implement an extension for this layer in Model Optimizer as an ancestor of ``Op`` class:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    class ProposalPythonExampleOp(Op):
           op = 'Proposal'
@@ -792,7 +798,8 @@ The first step is to implement an extension for this layer in Model Optimizer as
 
 It is mandatory to call two functions right after the implementation of that class:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    class ProposalPythonExampleOp(Op):
          ...

@@ -67,7 +67,6 @@ class GNADeviceHelper : public GNADevice {
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
     static constexpr const char* kDumpDelimiter = ".";
-    const size_t m_mem_alignment;
 
 public:
     explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
@@ -124,12 +123,9 @@ public:
     void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
 
+    bool isHwAvailable();
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
-    }
-
-    size_t getMemAlignment() const {
-        return m_mem_alignment;
     }
 
     /**

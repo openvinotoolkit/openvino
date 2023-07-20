@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A detailed information on a new version of OpenVINO™ API 2.0, 
+                 as well as the new OpenVINO IR model format: IR v11.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -20,14 +25,14 @@ Introduction of API 2.0
 
 Versions of OpenVINO prior to 2022.1 required changes in the application logic when migrating an app from other frameworks, such as TensorFlow, ONNX Runtime, PyTorch, PaddlePaddle, etc. The changes were required because:
 
-- Model Optimizer changed input precisions for some inputs. For example, neural language processing models with ``I64`` inputs were changed to include ``I32`` ones.
-- Model Optimizer changed layouts for TensorFlow models (see the :doc:`Layouts in OpenVINO <openvino_docs_OV_UG_Layout_Overview>`). It lead to unusual requirement of using the input data with a different layout than that of the framework:
+- Model conversion API changed input precisions for some inputs. For example, neural language processing models with ``I64`` inputs were changed to include ``I32`` ones.
+- Model conversion API changed layouts for TensorFlow models (see the :doc:`Layouts in OpenVINO <openvino_docs_OV_UG_Layout_Overview>`). It lead to unusual requirement of using the input data with a different layout than that of the framework:
 
 .. image:: _static/images/tf_openvino.svg
    :alt: tf_openvino
 
 - Inference Engine API (`InferenceEngine::CNNNetwork <classInferenceEngine_1_1CNNNetwork.html#doxid-class-inference-engine-1-1-c-n-n-network>`__) applied some conversion rules for input and output precisions due to limitations in device plugins.
-- Users needed to specify input shapes during model conversions in Model Optimizer, and work with static shapes in the application.
+- Users needed to specify input shapes during model conversions in model conversion API, and work with static shapes in the application.
 
 OpenVINO™ 2022.1 has introduced API 2.0 (also called OpenVINO API v2) to align the logic of working with models as it is done in their origin frameworks - no layout and precision changes, operating with tensor names and indices to address inputs and outputs. OpenVINO Runtime has combined Inference Engine API used for inference and nGraph API targeted to work with models and operations. API 2.0 has a common structure, naming convention styles, namespaces, and removes duplicated structures. For more details, see the :doc:`Changes to Inference Pipeline in OpenVINO API v2 <openvino_2_0_inference_pipeline>`.
 
@@ -39,7 +44,7 @@ OpenVINO™ 2022.1 has introduced API 2.0 (also called OpenVINO API v2) to align
 The New OpenVINO IR v11
 #######################
 
-To support these features, OpenVINO has introduced OpenVINO IR v11, which is now the default version for Model Optimizer. The model represented in OpenVINO IR v11 fully matches the original model in the original framework format in terms of inputs and outputs. It is also not required to specify input shapes during conversion, which results in OpenVINO IR v11 containing ``-1`` to denote undefined dimensions. For more details on how to fully utilize this feature, see :doc:`Working with dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`. For information on how to reshape to static shapes in application, see :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>`.
+To support these features, OpenVINO has introduced OpenVINO IR v11, which is now the default version for model conversion API. The model represented in OpenVINO IR v11 fully matches the original model in the original framework format in terms of inputs and outputs. It is also not required to specify input shapes during conversion, which results in OpenVINO IR v11 containing ``-1`` to denote undefined dimensions. For more details on how to fully utilize this feature, see :doc:`Working with dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`. For information on how to reshape to static shapes in application, see :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>`.
 
 OpenVINO IR v11 is fully compatible with applications written with the Inference Engine API used by older versions of OpenVINO. This backward compatibility is allowed thanks to additional runtime information included in OpenVINO IR v11. This means that when OpenVINO IR v11 is read by an application based on Inference Engine, it is internally converted to OpenVINO IR v10.
 
@@ -55,7 +60,7 @@ Some of the OpenVINO Development Tools also support both OpenVINO IR v10 and v11
 - Accuracy checker uses API 2.0 for model accuracy measurement by default. It also supports switching to the old API by using the ``--use_new_api False`` command-line parameter. Both launchers accept OpenVINO IR v10 and v11, but in some cases configuration files should be updated. For more details, see the `Accuracy Checker documentation <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/openvino/tools/accuracy_checker/launcher/openvino_launcher_readme.md>`__.
 - :doc:`Compile tool <openvino_ecosystem>` compiles the model to be used in API 2.0 by default. To use the resulting compiled blob under the Inference Engine API, the additional ``ov_api_1_0`` option should be passed.
 
-However, Post-Training Optimization Tool of OpenVINO 2022.1 does not support OpenVINO IR v10. They require the latest version of Model Optimizer to generate OpenVINO IR v11 files.
+However, Post-Training Optimization Tool of OpenVINO 2022.1 does not support OpenVINO IR v10. They require the latest version of model conversion API to generate OpenVINO IR v11 files.
 
 .. note::
 
@@ -76,14 +81,14 @@ To understand the differences between Inference Engine API and API 2.0, see the 
 
 - **Old behavior** of OpenVINO assumes that:
 
-  - Model Optimizer can change input element types and order of dimensions (layouts) for the model from the original framework.
+  - Model Conversion API can change input element types and order of dimensions (layouts) for the model from the original framework.
   - Inference Engine can override input and output element types.
   - Inference Engine API uses operation names to address inputs and outputs (e.g. `InferenceEngine::InferRequest::GetBlob <classInferenceEngine_1_1InferRequest.html#doxid-class-inference-engine-1-1-infer-request-1a9601a4cda3f309181af34feedf1b914c>`__).
   - Inference Engine API does not support compiling of models with dynamic input shapes.
 
 - **New behavior** implemented in 2022.1 assumes full model alignment with the framework:
 
-  - Model Optimizer preserves input element types and order of dimensions (layouts), and stores tensor names from the original models.
+  - Model Conversion API preserves input element types and order of dimensions (layouts), and stores tensor names from the original models.
   - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, TensorFlow (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names for addressing, which is the standard approach among the compatible model frameworks.
   - API 2.0 can also address input and output tensors by the index. Some model formats like ONNX are sensitive to the input and output order, which is preserved by OpenVINO 2022.1.

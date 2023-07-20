@@ -11,19 +11,19 @@
 #include "common_test_utils/test_common.hpp"
 
 using namespace InferenceEngine;
-class SystemAllocatorReleaseTests : public CommonTestUtils::TestsCommon {};
+class SystemAllocatorReleaseTests : public ov::test::TestsCommon {};
 
-class SystemAllocatorTests : public CommonTestUtils::TestsCommon {
+class SystemAllocatorTests : public ov::test::TestsCommon {
 protected:
     void SetUp() override {
-        CommonTestUtils::TestsCommon::SetUp();
+        ov::test::TestsCommon::SetUp();
         ASSERT_EQ(allocator.get(), nullptr);
         allocator = createSystemMemoryAllocator();
         ASSERT_NE(allocator.get(), nullptr);
     }
 
     void TearDown() override {
-        CommonTestUtils::TestsCommon::TearDown();
+        ov::test::TestsCommon::TearDown();
         ASSERT_NE(allocator.get(), nullptr);
         allocator.reset();
         ASSERT_EQ(allocator.get(), nullptr);

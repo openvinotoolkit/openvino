@@ -6,6 +6,8 @@
 
 #include "pass.hpp"
 
+#include "snippets/lowered/loop_manager.hpp"
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -26,12 +28,13 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
-                   const std::vector<ExpressionPort>& loop_entries, const std::vector<ExpressionPort>& loop_exits);
+    void insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
+                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
+                   const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits);
 
     LinearIR::constExprIt insertion_position(const LinearIR& linear_ir,
                                              const LinearIR::LoopManagerPtr& loop_manager,
-                                             const ExpressionPtr& up_expr,
+                                             const ExpressionPtr& expr,
                                              const ExpressionPtr& down_expr);
 
     int32_t m_buffer_allocation_rank;

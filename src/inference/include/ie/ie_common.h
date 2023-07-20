@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <algorithm>
 #include <cstdlib>
 #include <iterator>
@@ -22,6 +32,7 @@
 
 #include "ie_api.h"
 
+IE_SUPPRESS_DEPRECATED_START
 #ifndef NDEBUG
 #    include <cassert>
 #endif
@@ -58,7 +69,7 @@ using DataWeakPtr = std::weak_ptr<Data>;
  * @union UserValue
  * @brief The method holds the user values to enable binding of data per graph node.
  */
-union UserValue {
+union INFERENCE_ENGINE_1_0_DEPRECATED UserValue {
     int v_int;      //!< An integer value
     float v_float;  //!< A floating point value
     void* v_ptr;    //!< A pointer to a void
@@ -68,7 +79,7 @@ union UserValue {
  * @enum Layout
  * @brief Layouts that the inference engine supports
  */
-enum Layout : uint8_t {
+enum INFERENCE_ENGINE_1_0_DEPRECATED Layout : uint8_t {
     ANY = 0,  //!< "any" layout
 
     // I/O data layouts
@@ -107,7 +118,7 @@ enum Layout : uint8_t {
  * @param p A layout value to print to a stream
  * @return A reference to the `out` stream
  */
-inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
 #define PRINT_LAYOUT(name) \
     case name:             \
@@ -143,18 +154,12 @@ inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
  * @enum ColorFormat
  * @brief Extra information about input color format for preprocessing
  */
-enum ColorFormat : uint32_t {
+enum INFERENCE_ENGINE_1_0_DEPRECATED ColorFormat : uint32_t {
     RAW = 0u,  ///< Plain blob (default), no extra color processing required
     RGB,       ///< RGB color format
     BGR,       ///< BGR color format, default in OpenVINO
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
-    NV12 INFERENCE_ENGINE_ENUM_DEPRECATED(
-        "This type is deprecated and will be removed in 2023.1 release"),  ///< NV12 color format represented as
-                                                                           ///< compound Y+UV blob
-    I420 INFERENCE_ENGINE_ENUM_DEPRECATED(
-        "This type is deprecated and will be removed in 2023.1 release"),  ///< I420 color format represented as
-                                                                           ///< compound Y+U+V blob
 };
 
 /**
@@ -163,7 +168,7 @@ enum ColorFormat : uint32_t {
  * @param fmt A color format value to print to a stream
  * @return A reference to the `out` stream
  */
-inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
 #define PRINT_COLOR_FORMAT(name) \
     case name:                   \
@@ -175,10 +180,6 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
         PRINT_COLOR_FORMAT(BGR);
         PRINT_COLOR_FORMAT(RGBX);
         PRINT_COLOR_FORMAT(BGRX);
-        IE_SUPPRESS_DEPRECATED_START
-        PRINT_COLOR_FORMAT(NV12);
-        PRINT_COLOR_FORMAT(I420);
-        IE_SUPPRESS_DEPRECATED_END
 #undef PRINT_COLOR_FORMAT
 
     default:
@@ -195,11 +196,11 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * If the layer is executed using tiling, the sum time per each tile is indicated as the total execution time.
  * Due to parallel execution, the total execution time for all layers might be greater than the total inference time.
  */
-struct InferenceEngineProfileInfo {
+struct INFERENCE_ENGINE_1_0_DEPRECATED InferenceEngineProfileInfo {
     /**
      * @brief Defines the general status of the layer
      */
-    enum LayerStatus {
+    enum INFERENCE_ENGINE_1_0_DEPRECATED LayerStatus {
         NOT_RUN,        //!< A layer is not executed
         OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
         EXECUTED        //!< A layer is executed
@@ -239,7 +240,7 @@ struct InferenceEngineProfileInfo {
  * @enum StatusCode
  * @brief This enum contains codes for all possible return values of the interface functions
  */
-enum StatusCode : int {
+enum INFERENCE_ENGINE_1_0_DEPRECATED StatusCode : int {
     OK = 0,
     GENERAL_ERROR = -1,
     NOT_IMPLEMENTED = -2,
@@ -263,7 +264,7 @@ enum StatusCode : int {
  * @struct ResponseDesc
  * @brief  Represents detailed information for an error
  */
-struct ResponseDesc {
+struct INFERENCE_ENGINE_1_0_DEPRECATED ResponseDesc {
     /**
      * @brief A character buffer that holds the detailed information for an error.
      */
@@ -273,7 +274,7 @@ struct ResponseDesc {
 /**
  * @brief Response structure encapsulating information about supported layer
  */
-struct QueryNetworkResult {
+struct INFERENCE_ENGINE_1_0_DEPRECATED QueryNetworkResult {
     /**
      * @brief A map of supported layers:
      * - key - a layer name
@@ -303,7 +304,7 @@ using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 namespace details {
-struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGINE_API_CLASS(InferenceEngineException)
+struct INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(InferenceEngineException)
     : public std::runtime_error {
     using std::runtime_error::runtime_error;
     bool hasStatus() const {
@@ -317,7 +318,8 @@ struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGI
  * @brief Base Inference Engine exception class
  */
 IE_SUPPRESS_DEPRECATED_START
-struct INFERENCE_ENGINE_API_CLASS(Exception) : public details::InferenceEngineException {
+struct INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(Exception)
+    : public details::InferenceEngineException {
     using InferenceEngineException::InferenceEngineException;
 };
 IE_SUPPRESS_DEPRECATED_END
@@ -326,19 +328,27 @@ IE_SUPPRESS_DEPRECATED_END
 namespace details {
 template <typename ExceptionType>
 struct ExceptionTraits;
-}
 
-#define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                            \
-    struct INFERENCE_ENGINE_API_CLASS(ExceptionType) final : public InferenceEngine::Exception { \
-        using Exception::Exception;                                                              \
-    };                                                                                           \
-    namespace details {                                                                          \
-    template <>                                                                                  \
-    struct ExceptionTraits<ExceptionType> {                                                      \
-        static const char* string() {                                                            \
-            return "[ " #statusCode " ]";                                                        \
-        }                                                                                        \
-    };                                                                                           \
+template <>
+struct INFERENCE_ENGINE_1_0_DEPRECATED ExceptionTraits<InferenceEngineException> {
+    static const char* string() {
+        return "";
+    }
+};
+}  // namespace details
+
+#define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                      \
+    struct INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ExceptionType) final \
+        : public InferenceEngine::Exception {                                              \
+        using Exception::Exception;                                                        \
+    };                                                                                     \
+    namespace details {                                                                    \
+    template <>                                                                            \
+    struct INFERENCE_ENGINE_1_0_DEPRECATED ExceptionTraits<ExceptionType> {                \
+        static const char* string() {                                                      \
+            return "[ " #statusCode " ]";                                                  \
+        }                                                                                  \
+    };                                                                                     \
     }
 /// @endcond
 
@@ -392,25 +402,50 @@ namespace details {
 /**
  * @brief Rethrow a copy of exception. UShould be used in catch blocks
  */
-[[noreturn]] INFERENCE_ENGINE_API_CPP(void) Rethrow();
+[[noreturn]] INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(void) Rethrow();
 
 /**
  * @brief Tag struct used to throw exception
  */
+#ifndef NDEBUG
 template <typename ExceptionType>
-struct ThrowNow final {
-    [[noreturn]] void operator<<=(const std::ostream& ostream) {
-        std::ostringstream stream;
-        stream << ostream.rdbuf();
+struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
+    const char* const file;
+    const int line;
+
+    [[noreturn]] static void create(const std::ostream& ostream, const char* file, int line) {
+        std::stringstream stream;
+        stream << '\n' << file << ':' << line << ' ';
+        stream << ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
         throw ExceptionType{stream.str()};
     }
+
+    [[noreturn]] void operator<<=(const std::ostream& ostream) {
+        create(ostream, file, line);
+    }
 };
+#else
+template <typename ExceptionType>
+struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
+    [[noreturn]] static void create(const std::ostream& ostream) {
+        std::stringstream stream;
+        stream << ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
+        throw ExceptionType{stream.str()};
+    }
+
+    [[noreturn]] void operator<<=(const std::ostream& ostream) {
+        create(ostream);
+    }
+};
+#endif
 
 /// @cond
 #ifndef NDEBUG
-#    define IE_LOCATION '\n' << __FILE__ << ':' << __LINE__ << ' '
+#    define IE_LOCATION       '\n' << __FILE__ << ':' << __LINE__ << ' '
+#    define IE_LOCATION_PARAM __FILE__, __LINE__
 #else
 #    define IE_LOCATION ""
+#    define IE_LOCATION_PARAM
 #endif  // NDEBUG
 
 // WARNING: DO NOT USE THIS MACRO! Use openvino/util/pp.hpp macro library
@@ -427,13 +462,10 @@ struct ThrowNow final {
 // ENDWARNING
 
 #define IE_THROW_0() \
-    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{} <<= std::stringstream{} << IE_LOCATION
+    (InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{IE_LOCATION_PARAM}) <<= std::stringstream {}
 
-#define IE_THROW_1(ExceptionType)                                                                                  \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<=                                       \
-        std::stringstream{} << IE_LOCATION                                                                         \
-                            << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() \
-                            << ' '
+#define IE_THROW_1(ExceptionType) \
+    (InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{IE_LOCATION_PARAM}) <<= std::stringstream {}
 /// @endcond
 
 /**
@@ -449,7 +481,7 @@ struct ThrowNow final {
 #ifdef NDEBUG
 #    define IE_ASSERT(EXPRESSION) \
         if (!(EXPRESSION))        \
-        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION
+        IE_THROW(GeneralError) << " AssertionError " #EXPRESSION
 #else
 /**
  * @private
@@ -467,9 +499,9 @@ struct NullStream {
 #endif  // NDEBUG
 
 /// @cond
-#define THROW_IE_EXCEPTION                                                                                           \
-    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
-                                                                                                 << IE_LOCATION
+#define THROW_IE_EXCEPTION                                                                                          \
+    (InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{IE_LOCATION_PARAM}) <<= \
+        std::stringstream {}
 
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
     case InferenceEngine::STATUS_CODE: {                                \
@@ -510,3 +542,4 @@ struct NullStream {
 #else
 #    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
 #endif
+IE_SUPPRESS_DEPRECATED_END

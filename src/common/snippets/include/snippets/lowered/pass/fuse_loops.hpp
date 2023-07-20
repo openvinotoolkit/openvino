@@ -42,17 +42,25 @@ public:
     FuseLoops();
     bool run(LinearIR& linear_ir) override;
 
+    // This method checks that all ports which connect lower and upper loops are incremented.
+    // This helps to avoid fusing for the ports with incompleted data
+    static bool loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
+                                          const size_t loop_lower_id,
+                                          const size_t loop_upper_id);
+
 private:
     static bool can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_current,
                              const LinearIR::LoopManager::LoopInfoPtr& loop_target);
-    static bool fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_entry_point,
-                                        size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
+    static bool fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+                                        size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static bool fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPort& current_entry_point,
-                                        size_t current_loop_id, size_t target_loop_id, size_t dim_idx,
+    static bool fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+                                        size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static void fuse_points(std::vector<ExpressionPort>& exit_points, std::vector<ExpressionPort>& entry_points,
-                            LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos);
+    static void move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+                     LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos, LinearIR::constExprIt pos);
 };
 
 } // namespace pass

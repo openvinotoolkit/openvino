@@ -36,7 +36,8 @@ namespace intel_gpu {
 void CreateElementwiseOp(Program& p,
                          const std::shared_ptr<ngraph::Node>& op,
                          cldnn::eltwise_mode mode,
-                         std::vector<float> coefficients) {
+                         std::vector<float> coefficients,
+                         bool pythondiv) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -84,7 +85,8 @@ void CreateElementwiseOp(Program& p,
                                       mode,
                                       std::move(coefficients),
                                       out_dt,
-                                      op->get_autob());
+                                      op->get_autob(),
+                                      pythondiv);
 
     p.add_primitive(*op, eltwisePrim);
 }
@@ -110,7 +112,7 @@ static void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::op::v1::S
 }
 
 static void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::op::v1::Divide>& op) {
-    CreateElementwiseOp(p, op, cldnn::eltwise_mode::div);
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::div, {}, op->is_pythondiv());
 }
 
 static void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::SquaredDifference>& op) {
@@ -160,7 +162,7 @@ static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Powe
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;
             if (!ov::op::util::get_single_value(power_node, pow))
-                IE_THROW() << "Invalid parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+                OPENVINO_THROW("Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
             CreateUnaryEltwiseOp(p, op, cldnn::activation_func::pow, {pow});
             return;
         }

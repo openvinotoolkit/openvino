@@ -2,17 +2,38 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn what checks you may perform after encountering problems during 
+                 the installation and configuration of OpenVINO™ on your system.
+
+
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
 Check the versions of OpenVINO Runtime and Development Tools
 #############################################################
 
 * To check the version of OpenVINO Development Tools, use the following command:
-   
-  .. code-block:: sh
-     
-     mo --version
-   
+
+
+  .. tab-set::
+
+      .. tab-item:: Python
+          :sync: py
+
+          .. code-block:: py
+             :force:
+
+             from openvino.tools.mo import convert_model
+             ov_model = convert_model(version=True)
+
+      .. tab-item:: CLI
+          :sync: cli
+
+          .. code-block:: sh
+
+              mo --version
+
+
 * To check the version of OpenVINO Runtime, use the following code:
    
   .. code-block:: sh
@@ -71,9 +92,9 @@ Verify that OpenVINO is correctly installed
 
   .. code-block:: sh
 
-     python -c "from openvino.runtime import Core"
+     python -c "from openvino.runtime import Core; print(Core().available_devices)"
    
-  If OpenVINO was successfully installed, nothing will happen. If not, an error will be displayed.
+  If OpenVINO was successfully installed, you will see a list of available devices.
 
 * If you installed OpenVINO Runtime using the archive file, you can search "openvino" in Apps & Features on a Windows system, or check your installation directory on Linux to see if OpenVINO is there.
 

@@ -6,7 +6,9 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -14,8 +16,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -2663,11 +2663,11 @@ void range_test(T start, T stop, T step, const vector<T>& values_expected) {
     vector<T> values_stop{stop};
     vector<T> values_step{step};
 
-    auto constant_start = make_shared<op::Constant>(element::from<T>(), Shape{}, values_start);
+    auto constant_start = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_start);
     constant_start->set_friendly_name("constant_start");
-    auto constant_stop = make_shared<op::Constant>(element::from<T>(), Shape{}, values_stop);
+    auto constant_stop = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_stop);
     constant_stop->set_friendly_name("constant_stop");
-    auto constant_step = make_shared<op::Constant>(element::from<T>(), Shape{}, values_step);
+    auto constant_step = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_step);
     constant_step->set_friendly_name("constant_step");
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
     range->set_friendly_name("test");

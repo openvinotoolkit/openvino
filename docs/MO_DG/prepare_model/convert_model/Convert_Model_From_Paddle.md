@@ -2,12 +2,20 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 PaddlePaddle format to the OpenVINO Intermediate Representation. 
+
+
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
+
+.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 Converting PaddlePaddle Model Inference Format
 ##############################################
 
 PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+
 
 To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
 
@@ -24,7 +32,7 @@ To convert a PaddlePaddle model, use the ``mo`` script and specify the path to t
 Converting PaddlePaddle Model From Memory Using Python API
 ##########################################################
 
-MO Python API supports passing PaddlePaddle models directly from memory.
+Model conversion API supports passing PaddlePaddle models directly from memory.
 
 Following PaddlePaddle model formats are supported:
 
@@ -36,24 +44,25 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
 * Example of converting ``paddle.hapi.model.Model`` format model:
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
-    import paddle
-    from openvino.tools.mo import convert_model
-    
-    # create a paddle.hapi.model.Model format model
-    resnet50 = paddle.vision.models.resnet50()
-    x = paddle.static.InputSpec([1,3,224,224], 'float32', 'x')
-    y = paddle.static.InputSpec([1,1000], 'float32', 'y')
-
-    model = paddle.Model(resnet50, x, y)
-
-    # convert to OpenVINO IR format
-    ov_model = convert_model(model)
-
-    # optional: serialize OpenVINO IR to *.xml & *.bin
-    from openvino.runtime import serialize
-    serialize(ov_model, "ov_model.xml", "ov_model.bin")
+     import paddle
+     from openvino.tools.mo import convert_model
+     
+     # create a paddle.hapi.model.Model format model
+     resnet50 = paddle.vision.models.resnet50()
+     x = paddle.static.InputSpec([1,3,224,224], 'float32', 'x')
+     y = paddle.static.InputSpec([1,1000], 'float32', 'y')
+ 
+     model = paddle.Model(resnet50, x, y)
+ 
+     # convert to OpenVINO IR format
+     ov_model = convert_model(model)
+ 
+     # optional: serialize OpenVINO IR to *.xml & *.bin
+     from openvino.runtime import serialize
+     serialize(ov_model, "ov_model.xml", "ov_model.bin")
 
 * Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
 
@@ -61,17 +70,18 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
   ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
   
-    import paddle
-    from openvino.tools.mo import convert_model
-  
-    # create a paddle.fluid.dygraph.layers.Layer format model
-    model = paddle.vision.models.resnet50()
-    x = paddle.rand([1,3,224,224])
-
-    # convert to OpenVINO IR format
-    ov_model = convert_model(model, example_input=[x])
+     import paddle
+     from openvino.tools.mo import convert_model
+   
+     # create a paddle.fluid.dygraph.layers.Layer format model
+     model = paddle.vision.models.resnet50()
+     x = paddle.rand([1,3,224,224])
+ 
+     # convert to OpenVINO IR format
+     ov_model = convert_model(model, example_input=[x])
 
 * Example of converting ``paddle.fluid.executor.Executor`` format model:
 
@@ -79,30 +89,31 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
   ``list`` or ``tuple`` with variable(``paddle.static.data``)
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
-    import paddle
-    from openvino.tools.mo import convert_model
-
-    paddle.enable_static()
-
-    # create a paddle.fluid.executor.Executor format model
-    x = paddle.static.data(name="x", shape=[1,3,224])
-    y = paddle.static.data(name="y", shape=[1,3,224])
-    relu = paddle.nn.ReLU()
-    sigmoid = paddle.nn.Sigmoid()
-    y = sigmoid(relu(x))
-
-    exe = paddle.static.Executor(paddle.CPUPlace())
-    exe.run(paddle.static.default_startup_program())
-
-    # convert to OpenVINO IR format
-    ov_model = convert_model(exe, example_input=[x], example_output=[y])
+     import paddle
+     from openvino.tools.mo import convert_model
+ 
+     paddle.enable_static()
+ 
+     # create a paddle.fluid.executor.Executor format model
+     x = paddle.static.data(name="x", shape=[1,3,224])
+     y = paddle.static.data(name="y", shape=[1,3,224])
+     relu = paddle.nn.ReLU()
+     sigmoid = paddle.nn.Sigmoid()
+     y = sigmoid(relu(x))
+ 
+     exe = paddle.static.Executor(paddle.CPUPlace())
+     exe.run(paddle.static.default_startup_program())
+ 
+     # convert to OpenVINO IR format
+     ov_model = convert_model(exe, example_input=[x], example_output=[y])
 
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Officially Supported PaddlePaddle Models
 ########################################
@@ -162,7 +173,7 @@ The following PaddlePaddle models have been officially validated and confirmed t
 Frequently Asked Questions (FAQ)
 ################################
 
-When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+When model conversion API is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Additional Resources
 ####################

@@ -41,9 +41,6 @@ test_ops = [
 
     # This op could not be converted standalone -- tries to become FlexOp (offload from tfl to tf)
     # {'op_name': 'SIGN', 'op_func': tf.math.sign},
-
-    # TF has no such standalone operation
-    # {'op_name': 'HARD_SWISH'}
 ]
 
 test_params = [

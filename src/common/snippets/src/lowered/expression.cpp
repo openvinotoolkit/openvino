@@ -14,8 +14,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-size_t Expression::LOOP_NULL_ID = SIZE_MAX;
-
 Expression::Expression(const std::shared_ptr<Node>& n)
         : m_source_node{n}, m_emitter{nullptr}, m_input_port_connectors{}, m_output_port_connectors{} {
     m_input_port_descriptors.reserve(n->get_input_size());
@@ -98,21 +96,14 @@ void Expression::replace_input(size_t port, PortConnectorPtr to) {
     m_input_port_connectors[port] = std::move(to);
 }
 
-void Expression::set_loop_id(size_t id, size_t idx) {
-    if (id != LOOP_NULL_ID) {
-        OPENVINO_ASSERT((std::find(m_loop_ids.begin(), m_loop_ids.end(), id) == m_loop_ids.end()),
-                        "Expression cannot have several the same Loops");
-    }
-    if (m_loop_ids.size() <= idx) {
-        m_loop_ids.resize(idx + 1, LOOP_NULL_ID);
-    }
-    m_loop_ids[idx] = id;
+std::vector<size_t> Expression::get_loop_ids() const {
+    return m_loop_ids;
 }
 
-void Expression::remove_loop_id(size_t id) {
-    auto it = std::find(m_loop_ids.begin(), m_loop_ids.end(), id);
-    OPENVINO_ASSERT(it == m_loop_ids.end(), "Expression doesn't have the Loop with ID " + std::to_string(id));
-    *it = Expression::LOOP_NULL_ID;
+void Expression::set_loop_ids(const std::vector<size_t>& loops) {
+    std::unordered_set<size_t> s(loops.begin(), loops.end());
+    OPENVINO_ASSERT(s.size() == loops.size(), "Loop IDs must be unique");
+    m_loop_ids = loops;
 }
 
 ExpressionPort Expression::get_input_port(size_t i) {

@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to infer an acoustic model based on Kaldi 
+                 neural networks and speech feature vectors using Asynchronous 
+                 Inference Request (Python) API.
+
+
 This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural models and speech feature vectors.
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
@@ -77,7 +83,7 @@ Several execution modes are supported via the ``-d`` flag:
 
 - ``CPU`` - All calculations are performed on CPU device using CPU Plugin.
 - ``GPU`` - All calculations are performed on GPU device using GPU Plugin.
-- ``VPUX`` - All calculations are performed on VPUX device using VPUX Plugin.
+- ``VPU`` - All calculations are performed on VPU device using VPU Plugin.
 - ``GNA_AUTO`` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - ``GNA_HW`` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - ``GNA_SW`` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -102,7 +108,7 @@ Running
 
 Run the application with the ``-h`` option to see the usage message:
 
-.. code-block:: bash
+.. code-block:: sh
    
    python speech_sample.py -h
 
@@ -137,7 +143,7 @@ Usage message:
                            Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>.
                            Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.
      -d DEVICE, --device DEVICE
-                           Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
+                           Optional. Specify a target device to infer on. CPU, GPU, VPU, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
                            GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
                            HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.      
                            Default value is CPU.
@@ -180,7 +186,7 @@ Usage message:
 Model Preparation
 #################
 
-You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
+You can use the following model conversion command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
 .. code-block:: sh
    
@@ -206,7 +212,7 @@ You can do inference on Intel® Processors with the GNA co-processor (or emulati
 
 .. note::
 
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample supports input and output in numpy file format (.npz)
 
    - Stating flags that take only single option like `-m` multiple times, for example `python classification_sample_async.py -m model.xml -m model2.xml`, results in only the last value being used.
@@ -366,7 +372,7 @@ See Also
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
 

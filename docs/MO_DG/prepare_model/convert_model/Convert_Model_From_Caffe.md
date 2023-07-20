@@ -2,13 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 Caffe format to the OpenVINO Intermediate Representation.
+
 
 .. warning::
 
    Note that OpenVINO support for Caffe is currently being deprecated and will be removed entirely in the future.
 
-
-To convert a Caffe model, run Model Optimizer with the path to the input model ``.caffemodel`` file:
+To convert a Caffe model, run ``mo`` with the path to the input model ``.caffemodel`` file:
 
 .. code-block:: cpp
 
@@ -44,13 +47,13 @@ The following list provides the Caffe-specific parameters.
 CLI Examples Using Caffe-Specific Parameters
 ++++++++++++++++++++++++++++++++++++++++++++
 
-* Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `prototxt` file. This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
+* Launching model conversion for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `prototxt` file. This is needed when the name of the Caffe model and the `.prototxt` file are different or are placed in different directories. Otherwise, it is enough to provide only the path to the input `model.caffemodel` file.
   
   .. code-block:: cpp
       
     mo --input_model bvlc_alexnet.caffemodel --input_proto bvlc_alexnet.prototxt
    
-* Launching Model Optimizer for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer. Example of ``CustomLayersMapping.xml`` can be found in ``<OPENVINO_INSTALLATION_DIR>/mo/front/caffe/CustomLayersMapping.xml.example``. The optional parameters without default values and not specified by the user in the ``.prototxt`` file are removed from the Intermediate Representation, and nested parameters are flattened:
+* Launching model conversion for `bvlc_alexnet.caffemodel <https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet>`__ with a specified `CustomLayersMapping` file. This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer. Example of ``CustomLayersMapping.xml`` can be found in ``<OPENVINO_INSTALLATION_DIR>/mo/front/caffe/CustomLayersMapping.xml.example``. The optional parameters without default values and not specified by the user in the ``.prototxt`` file are removed from the Intermediate Representation, and nested parameters are flattened:
 
   .. code-block:: cpp
 
@@ -77,7 +80,7 @@ CLI Examples Using Caffe-Specific Parameters
       }
     }
 
-* Launching the Model Optimizer for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the Model Optimizer. In particular, for data, set the shape to ``1,3,227,227``. For rois, set the shape to ``1,6,1,1``:
+* Launching model conversion for a multi-input model with two inputs and providing a new shape for each input in the order they are passed to the model conversion API. In particular, for data, set the shape to ``1,3,227,227``. For rois, set the shape to ``1,6,1,1``:
 
   .. code-block:: cpp
 
@@ -86,26 +89,26 @@ CLI Examples Using Caffe-Specific Parameters
 Custom Layer Definition
 ########################
 
-Internally, when you run Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Optimizer classifies them as custom.
+For the definition of custom layers, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` page.
 
 Supported Caffe Layers
 #######################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`  page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
 
-Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`  which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
+Model conversion API provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`  which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`to help you understand what went wrong.
 
 Summary
 #######
 
 In this document, you learned:
 
-* Basic information about how the Model Optimizer works with Caffe models.
+* Basic information about how model conversion works with Caffe models.
 * Which Caffe models are supported.
-* How to convert a trained Caffe model by using Model Optimizer with both framework-agnostic and Caffe-specific command-line options.
+* How to convert a trained Caffe model by using model conversion API with both framework-agnostic and Caffe-specific command-line parameters.
 
 Additional Resources
 ####################

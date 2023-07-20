@@ -2,14 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux and macOS 
+                 operating systems, using Homebrew, which is a recommended 
+                 installation method for C++ developers.
+
+
 .. note::
-   
-   Only CPU is supported for inference if you install OpenVINO via Homebrew.
 
    Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-
-   The current Homebrew package provides inference support for CPU only.
 
 You can use `Homebrew <https://brew.sh/>`__ to install OpenVINO Runtime on macOS and Linux. 
 OpenVINO™ Development Tools can be installed via PyPI only. 
@@ -22,29 +24,36 @@ See `Installing Additional Components <#optional-installing-additional-component
    `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
 
 
+.. tab-set::
 
-.. tab:: System Requirements
+   .. tab-item:: System Requirements
+      :sync: system-requirements
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-.. tab:: Software Requirements
-
-   .. tab:: macOS
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-     * `Homebrew <https://brew.sh/>`_
-     * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation). 
-     * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.10). Install and add it to path.
-     * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
-     * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
-   
-   .. tab:: Linux
-   
-     * `Homebrew <https://brew.sh/>`_
-     * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-     * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
-     * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
+   .. tab-item:: Software Requirements
+      :sync: software-requirements
 
+      .. tab-set::
+
+         .. tab-item:: Linux
+            :sync: linux
+         
+            * `Homebrew <https://brew.sh/>`_
+            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
+            * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
+
+         .. tab-item:: macOS
+            :sync: macos
+         
+            * `Homebrew <https://brew.sh/>`_
+            * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation). 
+            * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
+            * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
+            * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
+         
 
 
 Installing OpenVINO Runtime
@@ -98,9 +107,6 @@ Now that you've installed OpenVINO Runtime, you can try the following things:
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 * Check out the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
-Additional Resources
-####################
 
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 @endsphinxdirective

@@ -23,7 +23,7 @@
 
 using namespace ::testing;
 
-class OVRemoteTensor_Test : public CommonTestUtils::TestsCommon {
+class OVRemoteTensor_Test : public ov::test::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
@@ -1362,7 +1362,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     FuncTestUtils::compare_tensor(out_tensor, output_tensor_regular, thr);
 }
 
-class OVRemoteTensorBatched_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
+class OVRemoteTensorBatched_Test : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
     };
@@ -2039,4 +2039,18 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
         // Check that default ctx is untouched
         check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
     }
+}
+
+TEST(OVRemoteContextGPU, smoke_RemoteTensorSetShape) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    auto context = core.get_default_context(CommonTestUtils::DEVICE_GPU);
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, ov::Shape{1, 2, 3, 4});
+
+    ASSERT_NO_THROW(remote_tensor.set_shape({2, 3, 4, 5}));
+    ASSERT_NO_THROW(remote_tensor.set_shape({1, 3, 4, 5}));
+    ASSERT_NO_THROW(remote_tensor.set_shape({3, 3, 4, 5}));
 }

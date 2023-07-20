@@ -16,6 +16,10 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
 
+.. meta::
+   :description: In OpenVINO, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite 
+                 models do not require any prior conversion, while MxNet, Caffe and Kaldi do.
+
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary format of OpenVINO™, benefiting from the full extent of its features.
 
@@ -24,8 +28,9 @@ OpenVINO Runtime without any prior conversion. For a guide on how to run inferen
 see how to :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
 
 **MXNet, Caffe, Kaldi** - legacy formats that need to be converted to OpenVINO IR before running inference. 
-The conversion is done with Model Optimizer and in some cases may involve intermediate steps. OpenVINO is currently proceeding 
+The model conversion in some cases may involve intermediate steps. OpenVINO is currently proceeding 
 **to deprecate these formats** and **remove their support entirely in the future**.
+
 
 Refer to the following articles for details on conversion for different formats and models:
 

@@ -11,6 +11,8 @@
 
 using Box = MemorySolver::Box;
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST(MemSolverTest, CanConstruct) {
     {  // Empty vector<Box>
         MemorySolver ms(std::vector<Box>{});

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Numpy and PDPD broadcast types in OpenVINO, that 
+                enable performing element-wise operation for inputs of arbitrary 
+                number of dimensions.
+
 The purpose of this document is to provide a set of common rules which are applicable for ops using broadcasting.
 
 Description
@@ -27,7 +32,7 @@ Rules
 1. First input tensor A is of any rank, second input B has rank smaller or equal to the first input.
 2. Input tensor B is a continuous subsequence of input A.
 3. Apply broadcast B to match the shape of A, where provided *axis* is the start dimension index for broadcasting B onto A.
-4. If *axis* is set to default (-1) calculate new value: ``axis = rank(A) - rank(B)``. Except (-1) for default valule, no other negative values are allowed for *axis*.
+4. If *axis* is set to default (-1) calculate new value: ``axis = rank(A) - rank(B)``. Except (-1) for default value, no other negative values are allowed for *axis*.
 5. The trailing dimensions of size 1 for input B will be ignored for the consideration of subsequence, such as ``shape(B) = (3, 1) => (3)``.
 
 Numpy examples

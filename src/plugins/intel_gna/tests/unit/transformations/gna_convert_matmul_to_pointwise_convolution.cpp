@@ -245,7 +245,7 @@ Graph createReferenceGraph() {
 // -------------------------------------------------------------------------------------------------------
 
 class ConvertMatmulToPointWiseConvolutionFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<
           std::tuple<Graph /* tranformed */, Graph /* reference */, ngraph::pass::Manager>> {
 public:
@@ -412,7 +412,7 @@ struct FixtureData {
 using FixtureInputShapes = std::tuple<ngraph::Shape /* input data */, ngraph::Shape /* input const */>;
 
 class ConvertMatmulToPointWiseConvolutionInvalidInputFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<std::tuple<FixtureData, FixtureInputShapes>> {
 public:
     void SetUp() override;

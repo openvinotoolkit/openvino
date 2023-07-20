@@ -27,6 +27,7 @@ class Result;
 namespace InferenceEngine {
 
 class IInferencePlugin;
+class IPluginWrapper;
 class IInferRequestInternal;
 class RemoteContext;
 class IVariableStateInternal;
@@ -37,7 +38,7 @@ class ICompiledModelWrapper;
  * @brief An internal API of executable network to be implemented by plugin,
  * @ingroup ie_dev_api_exec_network_api
  */
-class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
     : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
@@ -216,6 +217,7 @@ protected:
     bool _loadedFromCache = false;
 
     friend InferenceEngine::ICompiledModelWrapper;
+    friend InferenceEngine::IPluginWrapper;
 };
 
 /**

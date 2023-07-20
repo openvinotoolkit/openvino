@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the
+                 MXNet format to the OpenVINO Intermediate Representation.
+
+
 .. warning::
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
@@ -13,7 +18,7 @@ To convert an MXNet model, run Model Optimizer with the path to the ``.params`` 
   mo --input_model model-file-0000.params
 
 
-Using MXNet-Specific Conversion Parameters 
+Using MXNet-Specific Conversion Parameters
 ##########################################
 
 The following list provides the MXNet-specific parameters.
@@ -39,33 +44,33 @@ The following list provides the MXNet-specific parameters.
               Use only if your topology is one of ssd gluoncv topologies
 
 
-.. note:: 
+.. note::
 
-   By default, Model Optimizer does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the ``--legacy_mxnet_model`` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually recompile Apache MXNet with custom layers and install it in your environment.
+   By default, model conversion API does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the ``--legacy_mxnet_model`` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually recompile Apache MXNet with custom layers and install it in your environment.
 
 Custom Layer Definition
 #######################
 
-Internally, when you run Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Optimizer classifies them as custom.
+For the definition of custom layers, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` page.
 
 Supported MXNet Layers
 #######################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
 
-Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>` which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
+Model conversion API provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>` which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Summary
 ########
 
 In this document, you learned:
 
-* Basic information about how Model Optimizer works with MXNet models.
+* Basic information about how model conversion API works with MXNet models.
 * Which MXNet models are supported.
-* How to convert a trained MXNet model by using the Model Optimizer with both framework-agnostic and MXNet-specific command-line options.
+* How to convert a trained MXNet model by using model conversion API with both framework-agnostic and MXNet-specific command-line parameters.
 
 Additional Resources
 ####################
@@ -76,4 +81,3 @@ See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_conv
 * :doc:`Convert MXNet Style Transfer Model <openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet>`
 
 @endsphinxdirective
-

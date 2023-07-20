@@ -197,8 +197,8 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedM
                                           unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
     const bool inpIsBlk = srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c);
     const bool outIsBlk = dstDesc.hasLayoutType(LayoutType::nCsp16c) || dstDesc.hasLayoutType(LayoutType::nCsp8c);
-    int expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
-    int expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
+    size_t expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
+    size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
     auto inBlkDims = srcDesc.getBlockDims();
     auto outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
@@ -214,14 +214,14 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedM
     outputChannelsPadding = dstDesc.getBlockDims()[1] * outBlockSize;
     outBlockCount = outputChannelsPadding / outBlockSize;
 
-    int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
+    size_t hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
     const auto& outOrder = dstDesc.getOrder();
     const auto& inOrder = srcDesc.getOrder();
-    for (int i = 0; i < outOrder.size(); i++) {
+    for (size_t i = 0; i < outOrder.size(); i++) {
         if (outOrder[i] == 2) hOutStrIndex = i;
         if (outOrder[i] == 3) wOutStrIndex = i;
     }
-    for (int i = 0; i < inOrder.size(); i++) {
+    for (size_t i = 0; i < inOrder.size(); i++) {
         if (inOrder[i] == 2) hInStrIndex = i;
         if (inOrder[i] == 3) wInStrIndex = i;
     }
@@ -482,12 +482,12 @@ void PSROIPooling::executeBilinearDeformable(const inputType *srcData, outputTyp
 
 template <typename inputType, typename outputType>
 void PSROIPooling::executeSpecified() {
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
@@ -503,7 +503,7 @@ void PSROIPooling::executeSpecified() {
     int channelsEachClass = outputDim;
     if (!noTrans) {
         const auto mem = getParentEdgeAt(2)->getMemoryPtr();
-        bottomTrans = reinterpret_cast<const float *>(mem->GetPtr());
+        bottomTrans = reinterpret_cast<const float *>(mem->getData());
         numClasses = static_cast<int>(mem->getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }

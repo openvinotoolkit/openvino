@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GroupNormalization-12 - a normalization operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name**: *GroupNormalization-12*
 
 **Category**: *Normalization*
@@ -22,7 +26,7 @@ The operation is applied per batch, per group of channels. This means that the e
 
 * *num_groups*
 
-  * **Description**: Specifies the number of groups ``G`` that the channel dimesion will be divided into.
+  * **Description**: Specifies the number of groups ``G`` that the channel dimension will be divided into.
   * **Range of values**: between ``1`` and the number of channels ``C`` in the input tensor
   * **Type**: ``int``
   * **Required**: *yes*
@@ -38,9 +42,9 @@ The operation is applied per batch, per group of channels. This means that the e
 
 * **1**: ``data`` - The input tensor to be normalized. The type of this tensor is *T*. The tensor's shape is arbitrary but the first two dimensions are interpreted as ``batch`` and ``channels`` respectively. **Required.**
 
-* **2**: ``scale`` - 1D tensor of type *T* containing the scale values for each group. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
+* **2**: ``scale`` - 1D tensor of type *T* containing the scale values for each channel. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
 
-* **3**: ``bias`` - 1D tensor of type *T* containing the bias values for each group. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
+* **3**: ``bias`` - 1D tensor of type *T* containing the bias values for each channel. The expected shape of this tensor is ``[C]`` where ``C`` is the number of channels in the ``data`` tensor. **Required.**
 
 **Outputs**
 
@@ -52,7 +56,8 @@ The operation is applied per batch, per group of channels. This means that the e
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
 <layer ... type="GroupNormalization">
     <data epsilon="1e-5" num_groups="4"/>

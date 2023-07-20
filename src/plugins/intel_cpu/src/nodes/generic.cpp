@@ -180,7 +180,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
             IE_THROW() << resp.msg;
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
-            if (t == selectedPrimitiveDescriptorIndex) {
+            if (t == static_cast<size_t>(selectedPrimitiveDescriptorIndex)) {
                 selectedImpl = impls[k];
             }
         }
@@ -194,7 +194,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
         }
     }
     for (auto &outConf : rightConfig.outConfs) {
-        if (outConf.inPlace() < getParentEdges().size() &&
+        if (outConf.inPlace() < static_cast<int>(getParentEdges().size()) &&
             getParentEdgeAt(static_cast<size_t>(outConf.inPlace()))->getParent()->getChildEdges().size() > 1) {
             outConf.inPlace(-1);
         }

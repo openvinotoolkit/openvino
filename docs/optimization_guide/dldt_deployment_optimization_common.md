@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: General optimizations include application-level optimization 
+                 methods that improve data pipelining, pre-processing 
+                 acceleration and both latency and throughput.
+
+
 This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 
@@ -12,7 +18,7 @@ Inputs Pre-Processing with OpenVINO
 
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 
-* Model Optimizer can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant Model Optimizer command-line options <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`.
+* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`.
 * Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <openvino_docs_OV_UG_Preprocessing_Overview>`
 * Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
 

@@ -97,11 +97,6 @@ ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
-void safe_copy_runtime_info(const std::shared_ptr<ov::Node>& from, const std::shared_ptr<ov::Node>& to) {
-    ov::copy_runtime_info(from, to);
-    lowered::PortDescriptorUtils::clean(to);
-}
-
 } // namespace utils
 } // namespace snippets
 } // namespace ov

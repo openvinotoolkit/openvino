@@ -81,6 +81,7 @@ def absolutizePaths(cfg):
     pl = sys.platform
     if pl == "linux" or pl == "linux2":
         cfg["workPath"] = cfg["linWorkPath"]
+        cfg["os"] = "linux"
     elif pl == "win32":
         wp = cfg["winWorkPath"]
         wp = "echo {path}".format(path=wp)
@@ -88,6 +89,7 @@ def absolutizePaths(cfg):
         wp = wp.decode()
         wp = wp.rstrip()
         cfg["workPath"] = wp
+        cfg["os"] = "win"
     else:
         raise CfgError(
             "No support for current OS: {pl}".format(pl=pl)
@@ -103,6 +105,20 @@ def absolutizePaths(cfg):
         prepFile = cfg["runConfig"]["preprocess"]["file"]
         prepFile = os.path.abspath(prepFile)
         cfg["runConfig"]["preprocommArgcess"]["file"] = prepFile
+    if "envVars" in cfg:
+        updatedEnvVars = []
+        for env in cfg["envVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            # format ov-path in envvars for e2e case
+            if "{gitPath}" in envVal:
+                envVal = envVal.format(gitPath=cfg["gitPath"])
+                envVal = os.path.abspath(envVal)
+                updatedVar = {"name": envKey, "val": envVal}
+                updatedEnvVars.append(updatedVar)
+            else:
+                updatedEnvVars.append(env)
+        cfg["envVars"] = updatedEnvVars
     return cfg
 
 
@@ -199,7 +215,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     raise CmdError(checkOut)
 
 
-def fetchAppOutput(cfg):
+def fetchAppOutput(cfg, commit):
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -208,13 +224,20 @@ def fetchAppOutput(cfg):
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
     appPath = cfg["appPath"]
+    commitLogger = getCommitLogger(cfg, commit)
+    commitLogger.info("Run command: {command}".format(
+        command=appCmd)
+    )
+    shellFlag = True
+    if cfg["os"] == "linux":
+        shellFlag = False
     p = subprocess.Popen(
         appCmd.split(),
         cwd=appPath,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
-        shell=True
+        shell=shellFlag
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
@@ -273,10 +296,19 @@ def getActualPath(pathName, cfg):
     return curPath.format(workPath=workPath)
 
 
-def safeClearDir(path):
+def safeClearDir(path, cfg):
     if not os.path.exists(path):
         os.makedirs(path)
-    shutil.rmtree(path)
+    if cfg["os"] == "win":
+        shutil.rmtree(path)
+    else:
+        # WA, because of unstability of rmtree()
+        # in linux environment
+        p = subprocess.Popen(
+            "rm -rf *", cwd=path,
+            stdout=subprocess.PIPE, shell=True
+        )
+        p.wait()
     return
 
 

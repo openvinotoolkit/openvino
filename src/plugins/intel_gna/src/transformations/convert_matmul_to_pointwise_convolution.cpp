@@ -15,6 +15,7 @@
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
+using namespace ov::intel_gna::limitations;
 
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);
@@ -46,12 +47,12 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(
     }
 
     // Check if MatMul or corresponding pointwise convolution are supported by GNA
-    const uint32_t width = input1_shape.front();
-    const uint32_t in_channels = input2_shape.back();
-    const uint32_t out_channels = input2_shape.front();
-    if (input1_shape.front() <= limitations::affineMaxBatchSize ||
-        out_channels % limitations::convFiltersNumDivider != 0 || out_channels > limitations::convMaxFiltersNum ||
-        in_channels > limitations::convFilterMaxSize) {
+    const uint32_t width = static_cast<uint32_t>(input1_shape.front());
+    const uint32_t in_channels = static_cast<uint32_t>(input2_shape.back());
+    const uint32_t out_channels = static_cast<uint32_t>(input2_shape.front());
+    if (input1_shape.front() <= Limitations::kAffineMaxBatchSize ||
+        out_channels % Limitations::kConvFiltersNumDivider != 0 || out_channels > Limitations::kConvMaxFiltersNum ||
+        in_channels > Limitations::kConvFilterMaxSize) {
         return std::make_tuple(false, 0, 0, 0);
     }
 

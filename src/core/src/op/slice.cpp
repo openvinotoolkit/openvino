@@ -163,6 +163,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
         constant_data.emplace(i, tensor);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto starts = host_tensor_2_vector<int64_t>(inputs[1]);
     const auto stops = host_tensor_2_vector<int64_t>(inputs[2]);
     const auto steps = host_tensor_2_vector<int64_t>(inputs[3]);
@@ -174,6 +175,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     } else {
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto output_shapes = std::vector<PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes, constant_data);

@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
+    set(OV_VCPKG_BUILD ON)
+elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
+    set(OV_CONAN_BUILD)
+endif()
+
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
 
@@ -29,16 +35,22 @@ endif()
 if(ENABLE_PROFILING_ITT)
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
-        # conan defines 'ittapi::ittapi' target
-        set_target_properties(ittapi::ittapi PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        if(TARGET ittapi::ittapi)
+            # conan defines 'ittapi::ittapi' target
+            set_target_properties(ittapi::ittapi PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        elseif(TARGET ittapi::ittnotify)
+            # official 'ittapi::ittnotify' target
+            set_target_properties(ittapi::ittnotify PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        endif()
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
     add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
 endif()
 
-if(X86_64 OR UNIVERSAL2)
+if(X86_64 OR X86 OR UNIVERSAL2)
     find_package(xbyak QUIET)
     if(xbyak_FOUND)
         # conan creates alias xbyak::xbyak, no extra steps are required
@@ -57,39 +69,13 @@ endif()
 if(ENABLE_INTEL_GPU)
     if(ENABLE_SYSTEM_OPENCL)
         # try to find system OpenCL:
-        # - 'brew install opencl-icd-loader'
-        # - 'conan install opencl-icd-loader'
-        find_package(OpenCLICDLoader QUIET)
-
-        if(OpenCLICDLoader_FOUND)
-            # examples:
-            # - 'brew install opencl-headers'
-            # - 'conan install opencl-headers'
-            find_package(OpenCLHeaders QUIET)
-            if(NOT OpenCLHeaders_FOUND)
-                message(WARNING "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
-            else()
-                set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenCL::Headers)
-            endif()
-
-            # examples:
-            # - 'brew install opencl-clhpp-headers'
-            # - 'conan install opencl-clhpp-headers'
-            find_package(OpenCLHeadersCpp QUIET)
-            if(NOT OpenCLHeadersCpp_FOUND)
-                message(WARNING "OpenCLHeadersCpp not found, but OpenCLICDLoader is installed. Please, install OpenCL C++ headers")
-            else()
-                get_target_property(opencl_cpp_include_dirs OpenCL::HeadersCpp INTERFACE_INCLUDE_DIRECTORIES)
-                set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenCL::HeadersCpp)
-            endif()
-        else()
-            # try to find system OpenCL:
-            # - 'apt-get install opencl-headers ocl-icd-opencl-dev'
-            # - 'yum install ocl-icd-devel opencl-headers'
-            # - 'conda install khronos-opencl-icd-loader -c conda-forge'
-            # - 'vcpkg install opencl:<triplet>'
-            find_package(OpenCL QUIET)
-        endif()
+        # - 'apt-get install opencl-headers ocl-icd-opencl-dev'
+        # - 'yum install ocl-icd-devel opencl-headers'
+        # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+        # - 'vcpkg install opencl:<triplet>'
+        # - 'conan install opencl-headers opencl-clhpp-headers opencl-icd-loader'
+        # - 'brew install opencl-headers opencl-clhpp-headers opencl-icd-loader'
+        find_package(OpenCL QUIET)
     endif()
 
     if(TARGET OpenCL::OpenCL)
@@ -111,18 +97,6 @@ if(ENABLE_INTEL_GPU)
 
             set_target_properties(OpenCL::OpenCL PROPERTIES
                 INTERFACE_COMPILE_DEFINITIONS "${opencl_interface_definitions}")
-        endif()
-
-        # set variables for onednn_gpu
-        if(OpenCLHeaders_FOUND)
-            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>")
-            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>")
-        elseif(OpenCL_FOUND)
-            # find_package(OpenCL) already defines OpenCL_INCLUDE_DIR and OpenCL_LIBRARY
-            # see https://cmake.org/cmake/help/latest/module/FindOpenCL.html
-            message(STATUS "Found OpenCL (ver. ${OpenCL_VERSION_STRING}, include dirs ${OpenCL_INCLUDE_DIRS})")
-        else()
-            message(FATAL_ERROR "Internal error: cannot find OpenCL headers")
         endif()
     else()
         add_subdirectory(thirdparty/ocl)
@@ -255,8 +229,13 @@ if(ENABLE_SYSTEM_PUGIXML)
         # we need to install dynamic library for wheel package
         get_target_property(target_type ${pugixml_target} TYPE)
         if(target_type STREQUAL "SHARED_LIBRARY")
-            get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
-            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
+            get_target_property(imported_configs ${pugixml_target} IMPORTED_CONFIGURATIONS)
+            foreach(imported_config RELEASE RELWITHDEBINFO DEBUG NONE ${imported_configs})
+                if(imported_config IN_LIST imported_configs)
+                    get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
+                    break()
+                endif()
+            endforeach()
             get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
             get_filename_component(name_we "${pugixml_loc}" NAME_WE)
             # grab all tbb files matching pattern
@@ -351,9 +330,8 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg          " OR DEFINED VCPKG_VERBOSE OR
-       CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
         # vcpkg contains only libs compiled with threads
         # conan case
         find_package(gflags QUIET)
@@ -431,12 +409,23 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     if(ENABLE_SYSTEM_PROTOBUF)
         # Note: Debian / Ubuntu / RHEL libprotobuf.a can only be used with -DBUILD_SHARED_LIBS=OFF
         # because they are compiled without -fPIC
-        set(Protobuf_USE_STATIC_LIBS ON)
+        if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
+            set(Protobuf_USE_STATIC_LIBS ON)
+        endif()
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # Note: we also specify 'protobuf' in NAMES because vcpkg
-        find_package(Protobuf 3.20.3 REQUIRED NAMES Protobuf protobuf)
+        if(OV_VCPKG_BUILD)
+            set(protobuf_config CONFIG)
+        endif()
+        # try to find newer version first (major is changed)
+        # see https://protobuf.dev/support/version-support/ and
+        # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
+        find_package(Protobuf 4.22.0 QUIET ${protobuf_config})
+        if(NOT Protobuf_FOUND)
+            # otherwise, fallback to existing default
+            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
+        endif()
         set(PROTOC_EXECUTABLE protobuf::protoc)
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
@@ -583,14 +572,14 @@ endif()
 #
 
 if(ENABLE_SAMPLES)
-    # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+    # Note: VPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         # conan and vcpkg create imported target nlohmann_json::nlohmann_json
     else()
-        add_subdirectory(thirdparty/json)
+        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of VPUX plugin reused this
+        # this is required only because of VPU plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
         # for nlohmann library versions older than v3.0.0
@@ -607,17 +596,17 @@ endif()
 # Install
 #
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN)$")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     # These libraries are dependencies for openvino-samples package
-
-    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-        if(NOT gflags_FOUND)
+    if(ENABLE_SAMPLES OR ENABLE_TESTS)
+        if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
         endif()
         if(NOT (zlib_FOUND OR ZLIB_FOUND))
             message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
         endif()
     endif()
+
     if(NOT ENABLE_SYSTEM_PUGIXML)
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
@@ -625,6 +614,7 @@ elseif(APPLE OR WIN32)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
             PATTERN bazel EXCLUDE
             PATTERN doc EXCLUDE
             PATTERN .git EXCLUDE
@@ -645,14 +635,17 @@ elseif(APPLE OR WIN32)
                            ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
     install(FILES ${zlib_sources}
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
             PATTERN ChangeLog.md EXCLUDE
             PATTERN CITATION.cff EXCLUDE
             PATTERN .clang-format EXCLUDE
@@ -673,7 +666,8 @@ endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
 # restore state
 

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a BERT model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 Pretrained models for BERT (Bidirectional Encoder Representations from Transformers) are
 `publicly available <https://github.com/google-research/bert>`__.
 
@@ -38,7 +43,7 @@ Pretrained model meta-graph files are ``bert_model.ckpt.*``.
 Converting a TensorFlow BERT Model to IR
 #########################################
 
-To generate the BERT Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
+To generate the BERT Intermediate Representation (IR) of the model, run model conversion with the following parameters:
 
 .. code-block:: sh
 
@@ -59,96 +64,99 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 2. Clone google-research/bert git repository:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   https://github.com/google-research/bert.git
+      https://github.com/google-research/bert.git
 
 3. Go to the root directory of the cloned repository:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   cd bert
+      cd bert
 
 4. (Optional) Checkout to the commit that the conversion was tested on:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   git checkout eedf5716c
+      git checkout eedf5716c
 
 5. Download script to load GLUE data:
 
    * For UNIX-like systems, run the following command:
 
-   .. code-block:: sh
+     .. code-block:: sh
 
-      wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
+        wget https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py
 
    * For Windows systems:
 
-      Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
+     Download the `Python script <https://gist.githubusercontent.com/W4ngatang/60c2bdb54d156a41194446737ce03e2e/raw/17b8dd0d724281ed7c3b2aeeda662b92809aadd5/download_glue_data.py>`__ to the current working directory.
 
 6. Download GLUE data by running:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   python3 download_glue_data.py --tasks MRPC
+      python3 download_glue_data.py --tasks MRPC
 
 7. Open the file ``modeling.py`` in the text editor and delete lines 923-924. They should look like this:
 
-.. code-block:: python
+   .. code-block:: py
+      :force:
 
-    if not non_static_indexes:
-        return shape
+       if not non_static_indexes:
+           return shape
 
 8. Open the file ``run_classifier.py`` and insert the following code after the line 645:
 
-.. code-block:: python
+   .. code-block:: py
+      :force:
 
-    import os, sys
-    import tensorflow as tf
-    from tensorflow.python.framework import graph_io
-    with tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph()) as sess:
-        (assignment_map, initialized_variable_names) = \
-            modeling.get_assignment_map_from_checkpoint(tf.compat.v1.trainable_variables(), init_checkpoint)
-        tf.compat.v1.train.init_from_checkpoint(init_checkpoint, assignment_map)
-        sess.run(tf.compat.v1.global_variables_initializer())
-        frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["bert/pooler/dense/Tanh"])
-        graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
-    print('BERT frozen model path {}'.format(os.path.join(os.path.dirname(__file__), 'inference_graph.pb')))
-    sys.exit(0)
+       import os, sys
+       import tensorflow as tf
+       from tensorflow.python.framework import graph_io
+       with tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph()) as sess:
+           (assignment_map, initialized_variable_names) = \
+               modeling.get_assignment_map_from_checkpoint(tf.compat.v1.trainable_variables(), init_checkpoint)
+           tf.compat.v1.train.init_from_checkpoint(init_checkpoint, assignment_map)
+           sess.run(tf.compat.v1.global_variables_initializer())
+           frozen = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def, ["bert/pooler/dense/Tanh"])
+           graph_io.write_graph(frozen, './', 'inference_graph.pb', as_text=False)
+       print('BERT frozen model path {}'.format(os.path.join(os.path.dirname(__file__), 'inference_graph.pb')))
+       sys.exit(0)
 
-Lines before the inserted code should look like this:
+   Lines before the inserted code should look like this:
 
-.. code-block:: python
+   .. code-block:: py
+      :force:
 
-    (total_loss, per_example_loss, logits, probabilities) = create_model(
-        bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
-        num_labels, use_one_hot_embeddings)
+       (total_loss, per_example_loss, logits, probabilities) = create_model(
+           bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
+           num_labels, use_one_hot_embeddings)
 
 
 9. Set environment variables ``BERT_BASE_DIR``, ``BERT_REPO_DIR`` and run the script ``run_classifier.py`` to create ``inference_graph.pb`` file in the root of the cloned BERT repository.
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   export BERT_BASE_DIR=/path/to/bert/uncased_L-12_H-768_A-12
-   export BERT_REPO_DIR=/current/working/directory
+      export BERT_BASE_DIR=/path/to/bert/uncased_L-12_H-768_A-12
+      export BERT_REPO_DIR=/current/working/directory
 
-   python3 run_classifier.py \
-       --task_name=MRPC \
-       --do_eval=true \
-       --data_dir=$BERT_REPO_DIR/glue_data/MRPC \
-       --vocab_file=$BERT_BASE_DIR/vocab.txt \
-       --bert_config_file=$BERT_BASE_DIR/bert_config.json \
-       --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt \
-       --output_dir=./
+      python3 run_classifier.py \
+          --task_name=MRPC \
+          --do_eval=true \
+          --data_dir=$BERT_REPO_DIR/glue_data/MRPC \
+          --vocab_file=$BERT_BASE_DIR/vocab.txt \
+          --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+          --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt \
+          --output_dir=./
 
-Run Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
+   Run model conversion with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 
-.. code-block:: sh
+   .. code-block:: sh
 
-    mo \
-   --input_model inference_graph.pb \
-   --input "IteratorGetNext:0{i32}[1,128],IteratorGetNext:1{i32}[1,128],IteratorGetNext:4{i32}[1,128]"
+       mo \
+      --input_model inference_graph.pb \
+      --input "IteratorGetNext:0{i32}[1,128],IteratorGetNext:1{i32}[1,128],IteratorGetNext:4{i32}[1,128]"
 
 For other applicable parameters, refer to the :doc:`Convert Model from TensorFlow <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
 

@@ -10,17 +10,28 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <memory>
 #include <vector>
 
 #include "ie_blob.h"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This structure stores info about pre-processing of network inputs (scale, mean image, ...)
  */
-struct PreProcessChannel {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PreProcessChannel {
     /** @brief Scale parameter for a channel */
     float stdScale = 1;
 
@@ -37,7 +48,7 @@ struct PreProcessChannel {
 /**
  * @brief Defines available types of mean
  */
-enum MeanVariant {
+enum INFERENCE_ENGINE_1_0_DEPRECATED MeanVariant {
     MEAN_IMAGE, /**< mean value is specified for each input pixel */
     MEAN_VALUE, /**< mean value is specified for each input channel */
     NONE,       /**< no mean value specified */
@@ -47,12 +58,12 @@ enum MeanVariant {
  * @enum ResizeAlgorithm
  * @brief Represents the list of supported resize algorithms.
  */
-enum ResizeAlgorithm { NO_RESIZE = 0, RESIZE_BILINEAR, RESIZE_AREA };
+enum INFERENCE_ENGINE_1_0_DEPRECATED ResizeAlgorithm { NO_RESIZE = 0, RESIZE_BILINEAR, RESIZE_AREA };
 
 /**
  * @brief This class stores pre-process information for the input
  */
-class PreProcessInfo {
+class INFERENCE_ENGINE_1_0_DEPRECATED PreProcessInfo {
     // Channel data
     std::vector<PreProcessChannel::Ptr> _channelsInfo;
     MeanVariant _variant = NONE;
@@ -221,4 +232,5 @@ public:
         return _colorFormat;
     }
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

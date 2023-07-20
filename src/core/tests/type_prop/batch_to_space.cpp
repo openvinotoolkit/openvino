@@ -4,9 +4,9 @@
 
 #include <array>
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -353,6 +353,7 @@ TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_static) {
                             {100, 150},
                             {10 * 16, 20 * 16}}));
 }
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
     auto data_shape = PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}};

@@ -31,6 +31,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_AUTO_BATCH` enables Auto Batch plugin build:
         * `ON` is default.
+    * `ENABLE_PROXY` enables Proxy plugin compilation:
+        * `ON` is default.
 * Frontends to work with models from frameworks:
     * `ENABLE_OV_ONNX_FRONTEND` enables [ONNX] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
@@ -189,8 +191,8 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[deployment manager]:https://docs.openvino.ai/latest/openvino_docs_install_guides_deployment_manager_tool.html
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/latest/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
+[deployment manager]:https://docs.openvino.ai/2023.0/openvino_docs_install_guides_deployment_manager_tool.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

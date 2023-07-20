@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Einsum-7 - a matrix multiplication operation, 
+                which can be performed on multiple input tensors of different shape.
+
 **Versioned name**: *Einsum-7*
 
 **Category**: *Matrix multiplication*
@@ -18,7 +22,7 @@ The operation supports ``equation`` in explicit and implicit modes. The formats 
 In explicit mode, the einsum ``equation`` has the output subscript separated from the input subscripts by ``->``, and has the following format for ``n`` operands: 
 ``<subscript for input1>, <subscript for input2>, ..., <subscript for inputn> -> <subscript for output>``.
 Each input subscript ``<subscript for input1>`` contains a sequence of labels (alphabetic letters ``['A',...,'Z','a',...,'z']``), 
-where each label refers to a dimension of the corresponsing operand. Labels are case sensitive and capital letters precede lowercase letters in alphabetical sort.
+where each label refers to a dimension of the corresponding operand. Labels are case sensitive and capital letters precede lowercase letters in alphabetical sort.
 Labels do not need to appear in a subscript in alphabetical order. 
 The subscript for a scalar input is empty. The input subscripts are separated with a comma ``,``.
 The output subscript ``<subscript for output>`` represents a sequence of labels (alphabetic letters ``['A',...,'Z','a',...,'z']``).
@@ -179,7 +183,8 @@ Example 8 shows how *Einsum* operates with an equation containing both capital a
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Einsum" version="opset7">
        <data equation="ij,ij->i"/>
@@ -200,7 +205,8 @@ Example 8 shows how *Einsum* operates with an equation containing both capital a
        </output>
    </layer>
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Einsum" version="opset7">
        <data equation="ab...,ac...,ade->...bc"/>

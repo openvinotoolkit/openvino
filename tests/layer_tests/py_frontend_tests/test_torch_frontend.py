@@ -130,20 +130,17 @@ def test_conversion_extension():
 
 
     def convert_vector_norm(node: NodeContext):
-        try:
-            inp = node.get_input(0)
-            ord = node.get_values_from_const_input(1)
-            assert ord == math.inf
-            dim = node.get_values_from_const_input(2)
-            if dim is None:
-                inp = ops.reshape(inp, ops.constant(np.array([-1])), False)
-                reduce_axes = np.array([0])
-            else:
-                reduce_axes = np.array(dim)
-            rm = ops.reduce_max(ops.abs(inp), reduce_axes, False)
-            return rm.outputs()
-        except Exception as e:
-            print(e)
+        inp = node.get_input(0)
+        ord = node.get_values_from_const_input(1)
+        assert ord == math.inf
+        dim = node.get_values_from_const_input(2)
+        if dim is None:
+            inp = ops.reshape(inp, ops.constant(np.array([-1])), False)
+            reduce_axes = np.array([0])
+        else:
+            reduce_axes = np.array(dim)
+        rm = ops.reduce_max(ops.abs(inp), reduce_axes, False)
+        return rm.outputs()
 
 
     fem = FrontEndManager()
@@ -180,7 +177,7 @@ def get_builtin_extensions_path():
         base_paths.append(repo_dir)
 
     for base_path in base_paths:
-        paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+        paths = glob.glob(os.path.join(base_path, "**", "*test_builtin_extensions*"), recursive=True)
         for path in paths:
             if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
                 return path

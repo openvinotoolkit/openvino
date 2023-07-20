@@ -32,12 +32,14 @@ protected:
         int input_idx = DNNL_ARG_FROM;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            args.insert({input_idx++, input.get_onednn_memory(_pd.src_desc())});
+            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(i));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            args.insert({DNNL_ARG_TO, output.get_onednn_memory(_pd.dst_desc())});
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
         return args;

@@ -1944,12 +1944,12 @@ void TopK::initSupportedPrimitiveDescriptors() {
 }
 
 bool TopK::needShapeInfer() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     return inputShapesModified() || src_k != top_k;
 }
 
 bool TopK::needPrepareParams() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     return inputShapesModified() || top_k != src_k;
 }
 
@@ -1981,8 +1981,8 @@ void TopK::preset_params() {
 }
 
 void TopK::prepareParams() {
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -1994,14 +1994,14 @@ void TopK::prepareParams() {
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
-        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
-        if (src_k > src_dims[axis])
+        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
+        if (static_cast<size_t>(src_k) > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
         if (top_k != src_k) {
             top_k = src_k;
         }
     } else {
-        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     }
 
     if (jit_mode) {
@@ -2010,7 +2010,7 @@ void TopK::prepareParams() {
             preset_params_done = true;
         }
 
-        auto layout_dims = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        auto layout_dims = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
         calc_dims_size(layout_dims);
 
         axis_dim = src_dims[axis];
@@ -2030,7 +2030,7 @@ void TopK::prepareParams() {
         //           which algorithm should be used for specific N and K.
         if (!isDynamicNode()) {
             const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_core
-            if (top_k <= count_xmm / 2 - 2) {
+            if (static_cast<size_t>(top_k) <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = topk_innermost && top_k == 1 ? false : true;
             } else if (stable) {
@@ -2064,7 +2064,7 @@ void TopK::prepareParams() {
 }
 
 void TopK::createPrimitive() {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = TopKLayoutType::topk_ncsp;
     } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
@@ -2108,7 +2108,7 @@ void TopK::createPrimitive() {
         jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            size_t src_count = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
 
@@ -2137,13 +2137,13 @@ void TopK::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void TopK::execute(dnnl::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
-    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->GetPtr());
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->getData());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
+    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->getData());
 
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);

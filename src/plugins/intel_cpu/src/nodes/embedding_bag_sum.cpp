@@ -53,8 +53,8 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
 
     initFromInputs();
 
-    const size_t outputBagsNum = outMemory->GetShape().getStaticDims()[0];
-    auto *dstData = reinterpret_cast<T *>(outMemory->GetPtr());
+    const size_t outputBagsNum = outMemory->getShape().getStaticDims()[0];
+    auto *dstData = reinterpret_cast<T *>(outMemory->getData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -75,7 +75,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
                 withWeights = withWeights & _withWeights;
 
                 size_t inIdx = 0lu;
-                if (indices[inIdx] >= inDataDims[0]) {
+                if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
                     IE_THROW() << msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
                 }
                 size_t srcIndex = indices[inIdx] * _embDepth;
@@ -92,7 +92,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
                 }
 
                 for (inIdx = 1lu; inIdx < indicesSize; inIdx++) {
-                    if (indices[inIdx] >= inDataDims[0]) {
+                    if (static_cast<size_t>(indices[inIdx]) >= inDataDims[0]) {
                         IE_THROW() << msgPrefix + "' has invalid embedding bag index: " + std::to_string(indices[inIdx]);
                     }
                     size_t srcIndex = indices[inIdx] * _embDepth;

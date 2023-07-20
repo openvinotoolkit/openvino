@@ -23,22 +23,18 @@ using namespace ov::pass::transpose_sinking::utils;
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), wrap_type<ov::op::v0::Constant>()});
-    auto gather_label =
-        wrap_type<ov::op::v8::Gather>({transpose_label, any_input(), wrap_type<ov::op::v0::Constant>()});
+    create_pattern<ov::op::v8::Gather>(true, {0});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_map();
-
-        auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
-        auto main_node = as_type_ptr<ov::op::v8::Gather>(pattern_to_output.at(gather_label));
-        if (transformation_callback(main_node) || !main_node) {
+    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
+                                      const TransposeInputsInfo& transpose_info) -> bool {
+        auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
+        if (!gather) {
             return false;
         }
 
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = transpose_info.transpose_const;
         auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
-        if (!transpose || !transpose_order || !gather_axis) {
+        if (!gather_axis) {
             return false;
         }
 
@@ -53,7 +49,7 @@ TSGatherForward::TSGatherForward() {
         }
 
         const auto& order_val = transpose_order->cast_vector<size_t>();
-        auto batch_dims = static_cast<size_t>(main_node->get_batch_dims());
+        auto batch_dims = static_cast<size_t>(gather->get_batch_dims());
         for (size_t i = 0; i < batch_dims; ++i) {
             // transpose changes the order of batch dims
             if (order_val[i] != i) {
@@ -88,7 +84,7 @@ TSGatherForward::TSGatherForward() {
         auto new_order_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
                                                             {new_transpose_order.size()},
                                                             new_transpose_order);
-        TransposeInputsInfo transpose_input_info = {transpose, new_order_const, 0};
+        TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_order_const, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
         if (!success) {
@@ -98,17 +94,12 @@ TSGatherForward::TSGatherForward() {
             ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {order_val[axis]});
         main_node->input(2).replace_source_output(new_axis);
         copy_runtime_info(gather_axis, new_axis);
-        main_node->validate_and_infer_types();
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            UpdateForwardSinkingAbility(new_node);
-        }
 
+        default_outputs_update(main_node, transpose_input_info);
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(gather_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, sinking_transformation);
 }
 
 TSGatherBackward::TSGatherBackward() {
