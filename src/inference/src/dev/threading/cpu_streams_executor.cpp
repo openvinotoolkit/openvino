@@ -15,11 +15,9 @@
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor_internal.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace threading {
@@ -120,6 +118,9 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+            if (_impl->_config._name.find("StreamsExecutor") == std::string::npos) {
+                set_cpu_used(_cpu_ids, NOT_USED);
+            }
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
@@ -127,51 +128,29 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-        void init_stream() {
-            std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
-            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
-            const auto concurrency =
-                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
-                    ? _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][THREADS_PER_STREAM]
-                    : 0;
-            const auto cpu_core_type =
-                (_impl->_config._streams_info_table.size() > 0 && _impl->_config._stream_ids.size() > 0)
-                    ? static_cast<ColumnOfProcessorTypeTable>(
-                          _impl->_config._streams_info_table[_impl->_config._stream_ids[stream_id]][PROC_TYPE])
-                    : static_cast<ColumnOfProcessorTypeTable>(0);
-            if (concurrency <= 0) {
-                return;
-            }
-            if (_impl->_config._orig_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-                const auto selected_core_type =
-                    (cpu_core_type == MAIN_CORE_PROC || cpu_core_type == HYPER_THREADING_PROC)
-                        ? custom::info::core_types().back()
-                        : custom::info::core_types().front();
-                if (_impl->_config._cpu_pinning) {
-#    if defined(_WIN32) || defined(__APPLE__)
-                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                .set_core_type(selected_core_type)
-                                                                .set_max_concurrency(concurrency)});
-#    else
-                    _taskArena.reset(new custom::task_arena{concurrency});
-#    endif
-                } else {
-                    if (cpu_core_type == ALL_PROC) {
-                        _taskArena.reset(new custom::task_arena{concurrency});
-                    } else {
-                        _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                    .set_core_type(selected_core_type)
-                                                                    .set_max_concurrency(concurrency)});
-                    }
-                }
-            } else if (_impl->_config._proc_type_table.size() > 1 && !_impl->_config._cpu_pinning) {
+        void create_tbb_task_arena(const int stream_id,
+                                   const StreamCreateType stream_type,
+                                   const int concurrency,
+                                   const int core_type,
+                                   const int numa_node_id) {
+            _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
+                              ? -1  // macOS
+                              : std::max(0, numa_node_id);
+            _socketId = get_socket_by_numa_node(_numaNodeId);
+            if (stream_type == STREAM_WITHOUT_PARAM) {
+                _taskArena.reset(new custom::task_arena{concurrency});
+            } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+            } else if (stream_type == STREAM_WITH_CORE_TYPE) {
+                const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
+                                                ? custom::info::core_types().back()
+                                                : custom::info::core_types().front();
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}.set_core_type(real_core_type).set_max_concurrency(concurrency)});
             } else {
                 _taskArena.reset(new custom::task_arena{concurrency});
-            }
-            if (_impl->_config._cpu_pinning) {
-                _cpu_ids = static_cast<int>(_impl->_config._stream_core_ids.size()) == _impl->_config._streams
-                               ? _impl->_config._stream_core_ids[stream_id]
+                _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
+                               ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
@@ -191,6 +170,27 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             }
+        }
+        void init_stream() {
+            int concurrency;
+            int cpu_core_type;
+            int numa_node_id;
+            StreamCreateType stream_type;
+            const auto org_proc_type_table = get_org_proc_type_table();
+            const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+
+            get_cur_stream_info(stream_id,
+                                _impl->_config._cpu_reservation,
+                                org_proc_type_table,
+                                _impl->_config._streams_info_table,
+                                stream_type,
+                                concurrency,
+                                cpu_core_type,
+                                numa_node_id);
+            if (concurrency <= 0) {
+                return;
+            }
+            create_tbb_task_arena(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
         }
 
         void init_stream_legacy() {
@@ -303,6 +303,7 @@ struct CPUStreamsExecutor::Impl {
         Impl* _impl = nullptr;
         int _streamId = 0;
         int _numaNodeId = 0;
+        int _socketId = 0;
         bool _execute = false;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
@@ -326,7 +327,6 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
-        _config._streams = _config._streams == 0 ? 1 : _config._streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
         if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
@@ -423,7 +423,6 @@ struct CPUStreamsExecutor::Impl {
     std::queue<int> _streamIdQueue;
     std::vector<std::thread> _threads;
     std::mutex _mutex;
-    std::mutex _cpumap_mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
@@ -449,6 +448,11 @@ int CPUStreamsExecutor::get_stream_id() {
 int CPUStreamsExecutor::get_numa_node_id() {
     auto stream = _impl->_streams.local();
     return stream->_numaNodeId;
+}
+
+int CPUStreamsExecutor::get_socket_id() {
+    auto stream = _impl->_streams.local();
+    return stream->_socketId;
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}

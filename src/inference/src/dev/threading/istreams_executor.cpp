@@ -13,7 +13,7 @@
 #include "ie_plugin_config.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
@@ -498,6 +498,31 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(c
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
     return streamExecutorConfig;
+}
+
+IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial) {
+    auto config = initial;
+    int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
+
+    if (config._streams_info_table.size() == 0 || (status == CPU_USED && !config._cpu_reservation)) {
+        return config;
+    }
+
+    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, status);
+
+    config._streams = 0;
+    config._threads = 0;
+    for (size_t i = 0; i < config._streams_info_table.size(); i++) {
+        if (config._streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
+            config._threads +=
+                config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
+        }
+    }
+    OPENVINO_DEBUG << "[ threading ] " << config._name << " reserve_cpu_threads " << config._streams << "("
+                   << config._threads << ")";
+
+    return config;
 }
 
 }  // namespace threading

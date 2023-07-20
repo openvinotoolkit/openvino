@@ -23,7 +23,6 @@ CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
     std::vector<std::string> node_info_table;
 
-    _num_threads = parallel_get_max_threads();
     auto get_cache_info_linux = [&]() {
         int cpu_index = 0;
         int cache_index = 0;
@@ -124,14 +123,56 @@ CPU::CPU() {
         }
 
         std::vector<int> phy_core_list;
+        std::vector<int> socket_list;
+        std::vector<std::vector<int>> numa_node_list;
         std::vector<std::vector<int>> valid_cpu_mapping_table;
 
+        numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
             if (CPU_ISSET(i, &mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
                 }
+                if (_sockets > 1) {
+                    if (std::find(socket_list.begin(), socket_list.end(), _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]) ==
+                        socket_list.end()) {
+                        socket_list.push_back(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
+                    }
+                    if (std::find(numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].begin(),
+                                  numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].end(),
+                                  _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) ==
+                        numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].end()) {
+                        numa_node_list[_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]].push_back(
+                            _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]);
+                    }
+                }
+            }
+        }
+        if (_sockets > 1) {
+            std::sort(socket_list.begin(), socket_list.end());
+            for (int n = _sockets - 1; n >= 0; n--) {
+                if (numa_node_list[n].size() == 0) {
+                    numa_node_list.erase(numa_node_list.begin() + n);
+                } else {
+                    std::sort(numa_node_list[n].begin(), numa_node_list[n].end());
+                }
+            }
+            std::map<int, int> sockets_map;
+            std::map<int, int> numa_node_map;
+            for (int i = 0; i < static_cast<int>(socket_list.size()); i++) {
+                sockets_map.insert(std::pair<int, int>(socket_list[i], i));
+            }
+            for (int i = 0; i < static_cast<int>(numa_node_list.size()); i++) {
+                for (int j = 0; j < static_cast<int>(numa_node_list[i].size()); j++) {
+                    numa_node_map.insert(std::pair<int, int>(numa_node_list[i][j], i * _numa_nodes / _sockets + j));
+                }
+            }
+            for (size_t i = 0; i < valid_cpu_mapping_table.size(); i++) {
+                valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] =
+                    numa_node_map.at(valid_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]);
+                valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID] =
+                    sockets_map.at(valid_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
             }
         }
 
@@ -220,7 +261,7 @@ CPU::CPU() {
                            _cores);
         }
     }
-
+    _org_proc_type_table = _proc_type_table;
     std::vector<std::vector<std::string>>().swap(system_info_table);
 
     if (check_valid_cpu() < 0) {
@@ -655,8 +696,8 @@ void update_valid_processor_linux(const std::vector<int> phy_core_list,
         _proc_type_table[0][ALL_PROC]++;
         _proc_type_table[0][row[CPU_MAP_CORE_TYPE]]++;
         if (_proc_type_table.size() > 1) {
-            _proc_type_table[row[CPU_MAP_SOCKET_ID] + 1][ALL_PROC]++;
-            _proc_type_table[row[CPU_MAP_SOCKET_ID] + 1][row[CPU_MAP_CORE_TYPE]]++;
+            _proc_type_table[row[CPU_MAP_NUMA_NODE_ID] + 1][ALL_PROC]++;
+            _proc_type_table[row[CPU_MAP_NUMA_NODE_ID] + 1][row[CPU_MAP_CORE_TYPE]]++;
         }
     }
 

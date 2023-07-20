@@ -39,6 +39,10 @@ int CPUStreamsExecutor::GetNumaNodeId() {
     return _impl->get_numa_node_id();
 }
 
+int CPUStreamsExecutor::GetSocketId() {
+    return _impl->get_socket_id();
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl(config)} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {}
