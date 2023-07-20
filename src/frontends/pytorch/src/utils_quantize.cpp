@@ -80,9 +80,9 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
         } else if (dtype == element::i8) {
             out_low_i64 = (int64_t)std::numeric_limits<char>::lowest();
             out_high_i64 = (int64_t)std::numeric_limits<char>::max();
-        } else { // in other cases, also force u8
-            out_low_i64 = (int64_t)std::numeric_limits<unsigned char>::lowest();
-            out_high_i64 = (int64_t)std::numeric_limits<unsigned char>::max();
+        } else {  // i32
+            out_low_i64 = (int64_t)std::numeric_limits<int>::lowest();
+            out_high_i64 = (int64_t)std::numeric_limits<int>::max();
         }
         int64_t levels = out_high_i64 - out_low_i64 + 1;
         const auto out_low = context.mark_node(v0::Constant::create(element::f32, Shape{}, {out_low_i64}));
