@@ -119,7 +119,7 @@ def test_pytorch_decoder_can_convert_fp16_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_bf16_tensor():
-    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
 
     class SomeTensor(torch.nn.Module):
