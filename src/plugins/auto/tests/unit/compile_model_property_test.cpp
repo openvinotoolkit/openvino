@@ -87,7 +87,7 @@ public:
     }
 
     void SetUp() override {
-        std::vector<std::string> availableDevs = {"CPU", "GPU", "VPUX"};
+        std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
             ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _))
