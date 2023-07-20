@@ -39,7 +39,7 @@ std::vector<std::shared_ptr<ov::Node>> SinkForward(std::shared_ptr<ov::Node> tra
     std::vector<int8_t> reshape_in_dims = {1, -1};
     for (size_t i = reshape_in_dims.size(); i < shape_out.size(); ++i) {
         if (shape_out[i] == 1) {
-            reshape_in_dims.push_back(shape_out[i]);
+            reshape_in_dims.push_back(1);
         }
     }
     // reshape
@@ -78,7 +78,7 @@ std::vector<std::shared_ptr<ov::Node>> SinkBackward(std::shared_ptr<ov::Node> re
     std::vector<int8_t> reshape_in_dims = {1, -1};
     for (size_t i = reshape_in_dims.size(); i < shape_out.size(); ++i) {
         if (shape_out[i] == 1) {
-            reshape_in_dims.push_back(shape_out[i]);
+            reshape_in_dims.push_back(1);
         }
     }
 
