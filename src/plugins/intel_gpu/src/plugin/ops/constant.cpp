@@ -106,12 +106,22 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         }
     };
 
+    auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
+        for (size_t i = 0; i < op->get_input_size(); i++) {
+            auto& in_shape = op->get_input_partial_shape(i);
+            if (in_shape.size() > 1)
+                return false;
+        }
+        return true;
+    };
+
     auto is_convert_into_binary_eltwise = [&] (ov::Node* op) -> bool {
         if (ngraph::is_type<ngraph::op::v0::Convert>(op)) {
             for (size_t i = 0; i < op->get_output_size(); ++i) {
                 auto convertUsers = op->get_output_target_inputs(i);
                 for (auto user : convertUsers) {
-                    if (is_binary_eltwise(user.get_node())) {
+                    if (is_binary_eltwise(user.get_node()) &&
+                        is_all_inputs_1d(user.get_node())) {
                         return true;
                     }
                 }
@@ -133,13 +143,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
         } else if (is_binary_eltwise(outOp) ||
                    is_convert_into_binary_eltwise(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
-            bool all_inputs_1d = true;
-            for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                auto& in_shape = outOp->get_input_partial_shape(j);
-                if (in_shape.size() > 1)
-                    all_inputs_1d = false;
-            }
-            consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
+            consts[op].needsBatchInterpretation = is_all_inputs_1d(outOp) && constDims.size() == 1;
         } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v7::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v8::Gather>(outOp) ||
