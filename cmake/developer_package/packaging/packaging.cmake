@@ -155,8 +155,8 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
     # python
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
-    set(OV_CPACK_COMP_PYTHON_BENCHMARK_APP "benchmark_app")
-    set(OV_CPACK_COMP_PYTHON_OVC "ovc")
+    set(OV_CPACK_COMP_BENCHMARK_APP "benchmark_app")
+    set(OV_CPACK_COMP_OVC "ovc")
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
@@ -184,8 +184,8 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL)
     # python
     unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
-    unset(OV_CPACK_COMP_PYTHON_BENCHMARK_APP_EXCLUDE_ALL)
-    unset(OV_CPACK_COMP_PYTHON_OVC_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_OVC_EXCLUDE_ALL)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
     # tools
