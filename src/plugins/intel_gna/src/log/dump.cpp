@@ -442,10 +442,14 @@ inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t cou
 
 class GnaMemStats {
 public:
-    void Add(const std::string memory_tag, const std::string operation_type, const std::string operation_name, const uint32_t size) {
+    void Add(const std::string memory_tag,
+             const std::string operation_type,
+             const std::string operation_name,
+             const uint32_t size) {
         if (size == 0)
             return;
-        const std::pair<std::string, std::string> key = std::make_pair(operation_name, memory_tag + " " + operation_type);
+        const std::pair<std::string, std::string> key =
+            std::make_pair(operation_name, memory_tag + " " + operation_type);
         if (stats_.count(key) == 0) {
             stats_[key] = size;
         } else {
@@ -455,7 +459,8 @@ public:
     std::string GetFormattedMemStats() {
         std::stringstream output;
         output << "Per Layer memory statistics: " << std::endl;
-        // Assumes that std::map with pair keys is lexicographically ordered which is true in this and previous versions of C++.
+        // Assumes that std::map with pair keys is lexicographically ordered which is true in this and previous versions
+        // of C++.
         std::string previous_layer = "";
         for (auto pair : stats_) {
             std::string current_layer = pair.first.first;
@@ -544,7 +549,10 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
                      << " tag: " << foundName << " offset: " << offset << " size: " << size << " data: " << operand.Data
                      << " baseAlloc: " << foundPtr << " layout: ";
-            gnaStats.Add(foundName, GetOperandName(operation.Type, j), std::to_string(i) + " " + GetLayerType(operation.Type), size);
+            gnaStats.Add(foundName,
+                         GetOperandName(operation.Type, j),
+                         std::to_string(i) + " " + GetLayerType(operation.Type),
+                         size);
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
 
             if (operand.Type == Gna2DataTypePwlSegment) {
