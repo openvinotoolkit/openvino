@@ -112,7 +112,7 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 
 FrontEnd::FrontEnd() {
     const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-    if ((torch_tracing_mode != NULL) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0) {
+    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0) {
         m_op_translators = get_supported_ops_fx();
     } else {
         m_op_translators = get_supported_ops_ts();

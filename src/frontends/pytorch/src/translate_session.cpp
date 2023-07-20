@@ -166,7 +166,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     std::shared_ptr<v0::Parameter> parameter;
                     // TODO: Use decoder type or explore adding the missing cast types to Torchscript path
                     const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-                    if ((torch_tracing_mode != NULL) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0)
+                    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0)
                         parameter = std::make_shared<v0::Parameter>(type.as<element::Type>(), ps);
                     else
                         parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
