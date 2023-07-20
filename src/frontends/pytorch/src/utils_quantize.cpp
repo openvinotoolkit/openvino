@@ -180,7 +180,7 @@ ov::Output<ov::Node> quantize(const NodeContext& context,
                         scale.get_node_shared_ptr(),
                         zero_point.get_node_shared_ptr(),
                         quantized_pt_node->get_axis(),
-                        zero_point.get_element_type(),
+                        quantized_pt_node->get_dtype(),
                         quantized_pt_node->get_type());
     }
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
