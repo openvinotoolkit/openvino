@@ -131,7 +131,7 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 const std::vector<ConfigParams> testConfigs = {
     ConfigParams{"CPU,GPU.2,VPU",
                  {{"CPU", {}, -1, "", "CPU_", 0},
-                  {"VPUX", {}, -1, "", "VPUX_", 2}},
+                  {"VPU", {}, -1, "", "VPU_", 2}},
                  false,
                  3},
     ConfigParams{"CPU,GPU,VPU",
