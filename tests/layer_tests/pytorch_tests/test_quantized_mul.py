@@ -34,12 +34,10 @@ class TestQuantizedMul(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("dtype", [
         torch.quint8, 
-        torch.qint8, 
-        pytest.param(torch.qint32, marks=pytest.mark.skip(
-            reason="Not supported with FakeQuantize."))
+        torch.qint8
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - accuracy issues
+    @pytest.mark.precommit
     def test_quantized_mul(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(quantized_mul(scale, zero_point, dtype), None, ["quantized::mul"], 

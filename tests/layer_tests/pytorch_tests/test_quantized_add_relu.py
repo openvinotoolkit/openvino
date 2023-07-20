@@ -34,9 +34,7 @@ class TestQuantizedAddReLU(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("dtype", [
         torch.quint8, 
-        torch.qint8, 
-        pytest.param(torch.qint32, marks=pytest.mark.skip(
-            reason="Not supported with FakeQuantize."))
+        torch.qint8
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
