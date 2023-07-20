@@ -75,8 +75,7 @@ OutputVector translate_quantized_convnd(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
-    return {context.mark_output(
-        quantize(context, translate_quantized_convnd_base(context), scale, zero_point, context.get_input(0)))};
+    return {quantize(context, translate_quantized_convnd_base(context), scale, zero_point, context.get_input(0))};
 }
 
 OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
@@ -87,7 +86,7 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     auto zero_point = context.get_input(3);
     auto conv = translate_quantized_convnd_base(context);
     auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
-    return {context.mark_output(quantize(context, relu->output(0), scale, zero_point, context.get_input(0)))};
+    return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
 }
 
 }  // namespace op
