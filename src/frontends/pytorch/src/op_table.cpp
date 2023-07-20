@@ -162,6 +162,7 @@ OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
+OP_CONVERTER(translate_quantized_linear);
 
 }  // namespace op
 
@@ -426,6 +427,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::mul", op::translate_quantized_mul},
+        {"quantized::linear", op::translate_quantized_linear},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
