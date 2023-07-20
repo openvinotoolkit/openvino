@@ -201,6 +201,12 @@ void ov::IAsyncInferRequest::check_state() const {
     }
 }
 
+void ov::IAsyncInferRequest::check_cancelled_state() const {
+    std::lock_guard<std::mutex> lock{m_mutex};
+    if (m_state == InferState::CANCELLED)
+        ov::Cancelled::create("Infer Request was canceled");
+}
+
 std::vector<ov::ProfilingInfo> ov::IAsyncInferRequest::get_profiling_info() const {
     check_state();
     return m_sync_request->get_profiling_info();

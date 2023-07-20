@@ -173,6 +173,10 @@ protected:
      */
     void check_state() const;
     /**
+     * @brief Throws exception if inference request is cancelled
+     */
+    void check_cancelled_state() const;
+    /**
      * @brief Performs inference of pipeline in syncronous mode
      * @note Used by Infer which ensures thread-safety and calls this method after.
      */
