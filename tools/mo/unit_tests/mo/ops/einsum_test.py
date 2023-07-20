@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.einsum import Einsum
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -35,9 +34,9 @@ def create_einsum_graph(input_shapes: list, equation: str) -> Graph:
     return graph
 
 
-@generator
 class TestEinsum(unittest.TestCase):
-    @generate(*[
+    def test_einsum(self):
+        test_cases=[
         # dot product
         ([int64_array([10]), int64_array([10])], "i,i->", int64_array([])),
         # matrix multiplication
@@ -65,31 +64,34 @@ class TestEinsum(unittest.TestCase):
         # equation with ellipsis and repeated labels in implicit mode
         # "a...b,b..." is equivalent to "a...b,b...->...a"
         ([int64_array([9, 1, 4, 3]), int64_array([3, 11, 7, 1])], "a...b,b...", int64_array([11, 7, 4, 9])),
-    ])
-    def test_einsum(self, input_shapes, equation, ref_output_shape):
-        graph = create_einsum_graph(input_shapes, equation)
-        einsum_node = Node(graph, 'einsum_node')
-        Einsum.infer(einsum_node)
+    ]
+        for idx, (input_shapes, equation, ref_output_shape) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = create_einsum_graph(input_shapes, equation)
+                einsum_node = Node(graph, 'einsum_node')
+                Einsum.infer(einsum_node)
 
-        # get the result
-        res_output_shape = graph.node['einsum_node_d']['shape']
+                # get the result
+                res_output_shape = graph.node['einsum_node_d']['shape']
 
-        self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
+                self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
                         'shape does not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
 
-    @generate(*[
+    def test_invalid_cases(self):
+        test_cases=[
         # incorrect subscript numbers or inputs
         ([int64_array([3, 11]), int64_array([11, 4])], "ab,bc,cd->ac", None),
         # invalid labels
         ([int64_array([3, 11]), int64_array([11, 4])], "a$,Bc->ac", None),
         # incompatible shapes
         ([int64_array([3, 11]), int64_array([12, 4])], "ab,bc->ac", None),
-        # not broadcastable shapes
+        # not broadcast-able shapes
         ([int64_array([11, 1, 4, 3]), int64_array([3, 11, 7, 5])], "a...b,b...->a...", None),
         # missed ellipsis
         ([int64_array([11, 1, 4, 3]), int64_array([3, 11, 7, 4])], "a...b,b...->a", None),
-    ])
-    def test_invalid_cases(self, input_shapes, equation, ref_output_shape):
-        graph = create_einsum_graph(input_shapes, equation)
-        einsum_node = Node(graph, 'einsum_node')
-        self.assertRaises(AssertionError, Einsum.infer, einsum_node)
+    ]
+        for idx, (input_shapes, equation, ref_output_shape) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = create_einsum_graph(input_shapes, equation)
+                einsum_node = Node(graph, 'einsum_node')
+                self.assertRaises(AssertionError, Einsum.infer, einsum_node)
