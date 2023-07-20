@@ -59,8 +59,9 @@ CompiledModel::GetWorkerInferRequest() const {
     if (!batch_id) {  // need new request
         m_worker_requests.push_back(std::make_shared<WorkerInferRequest>());
         auto workerRequestPtr = m_worker_requests.back().get();
-        workerRequestPtr->_infer_request_batched = {m_compiled_model_with_batch->create_infer_request(),
-                                                    m_compiled_model_with_batch._so};
+        workerRequestPtr->_infer_request_batched._ptr = m_compiled_model_with_batch->create_infer_request();
+        if (workerRequestPtr->_infer_request_batched._so == nullptr)
+            workerRequestPtr->_infer_request_batched._so = m_compiled_model_with_batch._so;
         workerRequestPtr->_batch_size = m_device_info.device_batch_size;
         workerRequestPtr->_completion_tasks.resize(workerRequestPtr->_batch_size);
         workerRequestPtr->_infer_request_batched->set_callback(
@@ -179,13 +180,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (it != m_config.end()) {
         return it->second;
     } else {
-        // find config key among networks config keys
-        auto modelSupportedProperties = m_compiled_model_without_batch->get_property(ov::supported_properties.name());
-        for (auto&& property : modelSupportedProperties.as<std::vector<ov::PropertyName>>()) {
-            if (property == name) {
-                return m_compiled_model_without_batch->get_property(property);
-            }
-        }
         if (name == ov::optimal_number_of_infer_requests.name()) {
             uint32_t num_request = 0;
             try {
@@ -217,7 +211,23 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return m_compiled_model_without_batch->get_property(name);
         } else if (name == ov::loaded_from_cache) {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
+        } else if (name == ov::supported_properties) {
+            return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{METRIC_KEY(SUPPORTED_METRICS), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{METRIC_KEY(SUPPORTED_CONFIG_KEYS), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
         } else {
+            // find config key among networks config keys
+            auto modelSupportedProperties =
+                m_compiled_model_without_batch->get_property(ov::supported_properties.name());
+            for (auto&& property : modelSupportedProperties.as<std::vector<ov::PropertyName>>()) {
+                if (property == name) {
+                    return m_compiled_model_without_batch->get_property(property);
+                }
+            }
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
     }

@@ -124,8 +124,6 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         } else if (name == ov::auto_batch_timeout.name()) {
             try {
                 auto t = val.as<uint32_t>();
-                if (t < 0)
-                    OPENVINO_THROW("The value for ", ov::auto_batch_timeout.name(), " should > 0, which is  ", t);
             } catch (const std::exception&) {
                 OPENVINO_THROW(" Expecting unsigned int value for ",
                                ov::auto_batch_timeout.name(),
