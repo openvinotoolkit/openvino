@@ -9,39 +9,43 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
     const auto data_pattern = pass::pattern::any_input();
     const auto ru_min_input_pattern = pass::pattern::any_input();
     const auto ru_max_input_pattern = pass::pattern::any_input();
-    const auto random_uniform_pattern =
-        ngraph::pattern::wrap_type<opset8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
-                                                          pattern::consumers_count(1));
-    const auto const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
+    const auto random_uniform_pattern = ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>(
+        {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
+        pattern::consumers_count(1));
+    const auto const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
 
-    const auto convert_pattern = ngraph::pattern::wrap_type<opset8::Convert>({random_uniform_pattern});
+    const auto convert_pattern = ngraph::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
     const auto random_uniform_or_convert_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
 
-    const auto mul_add_pattern =
-        ngraph::pattern::wrap_type<opset8::Multiply, opset8::Add>({random_uniform_or_convert_pattern, const_pattern});
+    const auto mul_add_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
+        {random_uniform_or_convert_pattern, const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto data = pattern_map.at(data_pattern);
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto constant = pattern_map.at(const_pattern);
-        const auto ru = std::dynamic_pointer_cast<opset8::RandomUniform>(random_uniform.get_node_shared_ptr());
+        const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
         if (!ru->get_out_type().is_real())
             return false;
 
-        const auto old_const = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());
+        const auto old_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant.get_node_shared_ptr());
         if (!old_const)
             return false;
         if (!old_const->get_element_type().is_real())
@@ -52,7 +56,7 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
             return false;
 
         const auto& value = old_const->cast_vector<double>();
-        auto new_const = opset8::Constant::create(ru->get_out_type(), Shape{}, value);
+        auto new_const = ov::op::v0::Constant::create(ru->get_out_type(), Shape{}, value);
 
         const auto& mul_add = pattern_map.at(mul_add_pattern);
         const auto mul_add_ptr = std::dynamic_pointer_cast<ngraph::Node>(mul_add.get_node_shared_ptr());
@@ -69,7 +73,7 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
 
         if (pattern_map.count(convert_pattern)) {
             const auto& convert = pattern_map.at(convert_pattern);
-            const auto cvt = std::dynamic_pointer_cast<opset8::Convert>(convert.get_node_shared_ptr());
+            const auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(convert.get_node_shared_ptr());
             if (!cvt)
                 return false;
             if (!cvt->get_element_type().is_real())

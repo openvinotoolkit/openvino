@@ -78,71 +78,17 @@ used for text generation wheras PersonaGPT is used for Conversation.
 
 .. code:: ipython3
 
-    # Install Gradio for Interactive Inference
-    !pip install gradio
+    # Install Gradio for Interactive Inference and other requirements
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q gradio
+    !pip install -q transformers[torch] onnx
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: gradio in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (3.11.0)
-    Requirement already satisfied: aiohttp in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.8.4)
-    Requirement already satisfied: fastapi in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.95.2)
-    Requirement already satisfied: ffmpy in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.3.0)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (2023.5.0)
-    Requirement already satisfied: h11<0.13,>=0.11 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.12.0)
-    Requirement already satisfied: httpx in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.24.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.1.2)
-    Requirement already satisfied: markdown-it-py[linkify,plugins] in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (2.2.0)
-    Requirement already satisfied: matplotlib in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.5.2)
-    Requirement already satisfied: numpy in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (1.23.4)
-    Requirement already satisfied: orjson in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.8.14)
-    Requirement already satisfied: pandas in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (1.3.5)
-    Requirement already satisfied: paramiko in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.2.0)
-    Requirement already satisfied: pillow in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (9.5.0)
-    Requirement already satisfied: pycryptodome in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (3.18.0)
-    Requirement already satisfied: pydantic in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (1.10.8)
-    Requirement already satisfied: pydub in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.25.1)
-    Requirement already satisfied: python-multipart in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.0.6)
-    Requirement already satisfied: pyyaml in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (6.0)
-    Requirement already satisfied: requests in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (2.31.0)
-    Requirement already satisfied: uvicorn in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (0.22.0)
-    Requirement already satisfied: websockets>=10.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from gradio) (11.0.3)
-    Requirement already satisfied: attrs>=17.3.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (23.1.0)
-    Requirement already satisfied: charset-normalizer<4.0,>=2.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (3.1.0)
-    Requirement already satisfied: multidict<7.0,>=4.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (6.0.4)
-    Requirement already satisfied: async-timeout<5.0,>=4.0.0a3 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (4.0.2)
-    Requirement already satisfied: yarl<2.0,>=1.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (1.9.2)
-    Requirement already satisfied: frozenlist>=1.1.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (1.3.3)
-    Requirement already satisfied: aiosignal>=1.1.2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from aiohttp->gradio) (1.3.1)
-    Requirement already satisfied: starlette<0.28.0,>=0.27.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from fastapi->gradio) (0.27.0)
-    Requirement already satisfied: typing-extensions>=4.2.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pydantic->gradio) (4.6.2)
-    Requirement already satisfied: certifi in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from httpx->gradio) (2023.5.7)
-    Requirement already satisfied: httpcore<0.18.0,>=0.15.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from httpx->gradio) (0.15.0)
-    Requirement already satisfied: idna in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from httpx->gradio) (3.4)
-    Requirement already satisfied: sniffio in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from httpx->gradio) (1.3.0)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->gradio) (2.1.2)
-    Requirement already satisfied: mdurl~=0.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from markdown-it-py[linkify,plugins]->gradio) (0.1.2)
-    Requirement already satisfied: linkify-it-py<3,>=1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from markdown-it-py[linkify,plugins]->gradio) (2.0.2)
-    Requirement already satisfied: mdit-py-plugins in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from markdown-it-py[linkify,plugins]->gradio) (0.3.5)
-    Requirement already satisfied: cycler>=0.10 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (0.11.0)
-    Requirement already satisfied: fonttools>=4.22.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (4.39.4)
-    Requirement already satisfied: kiwisolver>=1.0.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (1.4.4)
-    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (23.1)
-    Requirement already satisfied: pyparsing>=2.2.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (2.4.7)
-    Requirement already satisfied: python-dateutil>=2.7 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->gradio) (2.8.2)
-    Requirement already satisfied: pytz>=2017.3 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from pandas->gradio) (2023.3)
-    Requirement already satisfied: bcrypt>=3.2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from paramiko->gradio) (4.0.1)
-    Requirement already satisfied: cryptography>=3.3 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from paramiko->gradio) (40.0.2)
-    Requirement already satisfied: pynacl>=1.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from paramiko->gradio) (1.5.0)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->gradio) (1.26.16)
-    Requirement already satisfied: click>=7.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from uvicorn->gradio) (8.1.3)
-    Requirement already satisfied: cffi>=1.12 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from cryptography>=3.3->paramiko->gradio) (1.15.1)
-    Requirement already satisfied: anyio==3.* in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from httpcore<0.18.0,>=0.15.0->httpx->gradio) (3.7.0)
-    Requirement already satisfied: exceptiongroup in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from anyio==3.*->httpcore<0.18.0,>=0.15.0->httpx->gradio) (1.1.1)
-    Requirement already satisfied: uc-micro-py in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from linkify-it-py<3,>=1->markdown-it-py[linkify,plugins]->gradio) (1.0.2)
-    Requirement already satisfied: six>=1.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from python-dateutil>=2.7->matplotlib->gradio) (1.16.0)
-    Requirement already satisfied: pycparser in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from cffi>=1.12->cryptography>=3.3->paramiko->gradio) (2.21)
-
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.23.4 which is incompatible.
+    
 
 .. code:: ipython3
 
@@ -151,8 +97,8 @@ used for text generation wheras PersonaGPT is used for Conversation.
     
     style = {'description_width': 'initial'}
     model_name = widgets.Select(
-        options=['GPT-2', 'GPT-Neo', 'PersonaGPT (Converastional)'],
-        value='GPT-Neo',
+        options=['PersonaGPT (Converastional)', 'GPT-2', 'GPT-Neo'],
+        value='PersonaGPT (Converastional)',
         description='Select Model:',
         disabled=False
     )
@@ -164,7 +110,7 @@ used for text generation wheras PersonaGPT is used for Conversation.
 
 .. parsed-literal::
 
-    VBox(children=(Select(description='Select Model:', index=1, options=('GPT-2', 'GPT-Neo', 'PersonaGPT (Converas…
+    VBox(children=(Select(description='Select Model:', options=('PersonaGPT (Converastional)', 'GPT-2', 'GPT-Neo')…
 
 
 
@@ -211,7 +157,7 @@ While ONNX models are directly supported by OpenVINO runtime, it can be
 useful to convert them to IR format to take advantage of OpenVINO
 optimization tools and features. ``mo.convert_model`` python function
 can be used for converting model using `OpenVINO Model
-Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__.
+Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
 The function returns instance of OpenVINO Model class, which is ready to
 use in Python interface but can also be serialized to OpenVINO IR format
 for future execution using ``openvino.runtime.serialize``. In our case,
@@ -256,24 +202,8 @@ function) for optimization of memory consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt_neo/modeling_gpt_neo.py:555: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:810: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt_neo/modeling_gpt_neo.py:196: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(attn_weights.device)
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
 
 
 Load the model
@@ -504,10 +434,7 @@ sequence.
 
 .. parsed-literal::
 
-    Generation took 5.323 s
-    Input Text:  Deep learning is a type of machine learning that uses neural networks
-    
-    GPT-Neo:  Deep learning is a type of machine learning that uses neural networks to learn new ways of conveying information. Although many people are trying to learn more about how to make a given decision, learning the right word or phrase and passing it on to another person is a common technique. This technique is called a ��learning agent.�� As a result, we often hear the word ��learn��, ��learn a��, ��learn a bad��, ��learn�� or ��learn a good word�� used to describe our thinking on the job. When you hear these words or phrases in
+    Selected Model is PersonaGPT. Please select GPT-Neo or GPT-2 in the first cell to generate text sequences
 
 
 Conversation with PersonaGPT using OpenVINO™
@@ -673,5 +600,24 @@ The style of inference can be selected in the next cell.
 
 .. parsed-literal::
 
-    Selected Model is not PersonaGPT, Please select PersonaGPT in the first cell to have a conversation
+    Person: Hi,How are you?
+    PersonaGPT: good, how are you doing?
+    Person: What are you doing?
+    PersonaGPT: i'm good thanks what are you up too
+    Person: I like to dance,do you?
+    PersonaGPT: i like to read books
+    Person: Can you recommend me some books?
+    PersonaGPT: yes i can i like books about dance
+    Person: Hi,How are you?
+    PersonaGPT: i am good thanks for asking
+    Person: What are you doing?
+    PersonaGPT: i'm just sitting at home reading
+    Person: I like to dance,do you?
+    PersonaGPT: no but i love reading
+    Person: Can you recommend me some books?
+    PersonaGPT: yes i like to read too
+    Person: Hi,How are you?
+    PersonaGPT: good. do you like to cook?
+    Person: What are you doing?
+    PersonaGPT: i'm cooking right now.
 

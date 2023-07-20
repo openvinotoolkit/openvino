@@ -103,72 +103,6 @@ The following settings can be changed:
 Download a Model from Open Model Zoo
 ------------------------------------
 
-.. code:: ipython3
-
-    import shutil
-    
-    if Path("open_model_zoo").exists():
-        shutil.rmtree("open_model_zoo")
-        
-    !git clone https://github.com/openvinotoolkit/open_model_zoo.git
-    %cd open_model_zoo
-    !git checkout aa02473c20c1b62763de5385229ffde476e8119c
-    %cd tools/model_tools
-    
-    !pip install .
-    %cd ../../../
-
-
-.. parsed-literal::
-
-    Cloning into 'open_model_zoo'...
-    remote: Enumerating objects: 103165, done.[K
-    remote: Counting objects: 100% (889/889), done.[K
-    remote: Compressing objects: 100% (525/525), done.[K
-    remote: Total 103165 (delta 291), reused 825 (delta 268), pack-reused 102276[K
-    Receiving objects: 100% (103165/103165), 303.37 MiB | 3.87 MiB/s, done.
-    Resolving deltas: 100% (70208/70208), done.
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/open_model_zoo
-    Note: switching to 'aa02473c20c1b62763de5385229ffde476e8119c'.
-    
-    You are in 'detached HEAD' state. You can look around, make experimental
-    changes and commit them, and you can discard any commits you make in this
-    state without impacting any branches by switching back to a branch.
-    
-    If you want to create a new branch to retain commits you create, you may
-    do so (now or later) by using -c with the switch command. Example:
-    
-      git switch -c <new-branch-name>
-    
-    Or undo this operation with:
-    
-      git switch -
-    
-    Turn off this advice by setting config variable advice.detachedHead to false
-    
-    HEAD is now at aa02473c2 Merge pull request #3621 from eaidova/ea/fix_imports_order
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/open_model_zoo/tools/model_tools
-    Processing /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/open_model_zoo/tools/model_tools
-      Installing build dependencies ... - \ | done
-      Getting requirements to build wheel ... - done
-      Preparing metadata (pyproject.toml) ... - done
-    Requirement already satisfied: openvino-telemetry>=2022.1.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from omz-tools==1.0.2) (2022.3.0)
-    Requirement already satisfied: pyyaml>=5.4.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from omz-tools==1.0.2) (6.0)
-    Requirement already satisfied: requests>=2.25.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from omz-tools==1.0.2) (2.31.0)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->omz-tools==1.0.2) (3.1.0)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->omz-tools==1.0.2) (3.4)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->omz-tools==1.0.2) (1.26.16)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests>=2.25.1->omz-tools==1.0.2) (2023.5.7)
-    Building wheels for collected packages: omz-tools
-      Building wheel for omz-tools (pyproject.toml) ... - \ | / - \ done
-      Created wheel for omz-tools: filename=omz_tools-1.0.2-py3-none-any.whl size=3364798 sha256=3180da2c121c85b9de8ca19bcdd1b0d774d203a28f153a893b993431c328c30b
-      Stored in directory: /tmp/pip-ephem-wheel-cache-tlfkktz2/wheels/fa/a1/e1/1a73fbbacdfff3d1371ea61c64d2882179d286cc1c8521f629
-    Successfully built omz-tools
-    Installing collected packages: omz-tools
-    Successfully installed omz-tools-1.0.2
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools
-
-
 Specify, display and run the Model Downloader command to download the
 model.
 
@@ -243,21 +177,21 @@ Converting mobilenet-v2-pytorch…
 .. parsed-literal::
 
     ========== Converting mobilenet-v2-pytorch to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-name=mobilenet_v2 --weights=model/public/mobilenet-v2-pytorch/mobilenet_v2-b0353104.pth --import-module=torchvision.models --input-shape=1,3,224,224 --output-file=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx --input-names=data --output-names=prob
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-name=mobilenet_v2 --weights=model/public/mobilenet-v2-pytorch/mobilenet_v2-b0353104.pth --import-module=torchvision.models --input-shape=1,3,224,224 --output-file=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx --input-names=data --output-names=prob
     
-    Traceback (most recent call last):
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py", line 187, in <module>
-        main()
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py", line 179, in main
-        model = load_model(args.model_name, args.weights,
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py", line 126, in load_model
-        with prepend_to_path(model_paths):
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py", line 49, in __enter__
-        sys.path = self._preprended_paths + sys.path
-    TypeError: unsupported operand type(s) for +: 'NoneType' and 'list'
+    ONNX check passed successfully.
     
-    FAILED:
-    mobilenet-v2-pytorch
+    ========== Converting mobilenet-v2-pytorch to IR (FP16)
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmpe5yh3lmf --model_name=mobilenet-v2-pytorch --input=data '--mean_values=data[123.675,116.28,103.53]' '--scale_values=data[58.624,57.12,57.375]' --reverse_input_channels --output=prob --input_model=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 224, 224]' --compress_to_fp16=True
+    
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
+    Find more information about compression to FP16 at https://docs.openvino.ai/latest/openvino_docs_MO_DG_FP16_Compression.html
+    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    [ SUCCESS ] Generated IR version 11 model.
+    [ SUCCESS ] XML file: /tmp/tmpe5yh3lmf/mobilenet-v2-pytorch.xml
+    [ SUCCESS ] BIN file: /tmp/tmpe5yh3lmf/mobilenet-v2-pytorch.bin
+    
 
 
 Get Model Information
@@ -306,8 +240,8 @@ information in a dictionary.
       'description': 'MobileNet V2 is image classification model pre-trained on ImageNet dataset. This is a PyTorch* implementation of MobileNetV2 architecture as described in the paper "Inverted Residuals and Linear Bottlenecks: Mobile Networks for Classification, Detection and Segmentation" <https://arxiv.org/abs/1801.04381>.\nThe model input is a blob that consists of a single image of "1, 3, 224, 224" in "RGB" order.\nThe model output is typical object classifier for the 1000 different classifications matching with those in the ImageNet database.',
       'framework': 'pytorch',
       'license_url': 'https://raw.githubusercontent.com/pytorch/vision/master/LICENSE',
-      'accuracy_config': '/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/accuracy-check.yml',
-      'model_config': '/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/model.yml',
+      'accuracy_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/accuracy-check.yml',
+      'model_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/model.yml',
       'precisions': ['FP16', 'FP32'],
       'quantization_output_precisions': ['FP16-INT8', 'FP32-INT8'],
       'subdirectory': 'public/mobilenet-v2-pytorch',
@@ -336,7 +270,7 @@ file.
 
 .. parsed-literal::
 
-    model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml exists: False
+    model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml exists: True
 
 
 Run Benchmark Tool
@@ -376,24 +310,64 @@ seconds…
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ ERROR ] Model file /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml cannot be opened!
-    Traceback (most recent call last):
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 368, in main
-        model = benchmark.read_model(args.path_to_model)
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
-        return self.core.read_model(model_filename, weights_filename)
-    RuntimeError: Model file /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml cannot be opened!
+    [ INFO ] Read model took 30.53 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,224,224]
+    [ INFO ] Model outputs:
+    [ INFO ]     prob (node: prob) : f32 / [...] / [1,1000]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,224,224]
+    [ INFO ] Model outputs:
+    [ INFO ]     prob (node: prob) : f32 / [...] / [1,1000]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 149.89 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: torch_jit
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   NUM_STREAMS: 6
+    [ INFO ]   AFFINITY: Affinity.CORE
+    [ INFO ]   INFERENCE_NUM_THREADS: 24
+    [ INFO ]   PERF_COUNT: False
+    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+    [ INFO ] Fill input 'data' with random values 
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 6.66 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            20136 iterations
+    [ INFO ] Duration:         15007.99 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        4.33 ms
+    [ INFO ]    Average:       4.34 ms
+    [ INFO ]    Min:           3.20 ms
+    [ INFO ]    Max:           11.84 ms
+    [ INFO ] Throughput:   1341.69 FPS
 
 
 Benchmark with Different Settings
@@ -482,11 +456,11 @@ Benchmark command:
 
     command ended
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 368, in main
-        model = benchmark.read_model(args.path_to_model)
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
-        return self.core.read_model(model_filename, weights_filename)
-    RuntimeError: Model file /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml cannot be opened!
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
+        benchmark.set_allow_auto_batching(False)
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
+        self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
+    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:238:
 
 
 .. code:: ipython3
@@ -507,12 +481,16 @@ Benchmark command:
 .. parsed-literal::
 
     command ended
+    Check 'false' failed at src/plugins/auto/src/plugin_config.cpp:55:
+    property: ALLOW_AUTO_BATCHING: not supported
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 368, in main
-        model = benchmark.read_model(args.path_to_model)
-      File "/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
-        return self.core.read_model(model_filename, weights_filename)
-    RuntimeError: Model file /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/104-model-tools/model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml cannot be opened!
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
+        benchmark.set_allow_auto_batching(False)
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
+        self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
+    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:238:
+    Check 'false' failed at src/plugins/auto/src/plugin_config.cpp:55:
+    property: ALLOW_AUTO_BATCHING: not supported
 
 
 .. code:: ipython3

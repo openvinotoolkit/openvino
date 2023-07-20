@@ -28,13 +28,30 @@ Additionally, you can also upload a video file.
    server, the webcam will not work but you can run inference, using a
    video file.
 
+Preparation
+-----------
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q opencv-python requests tqdm
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+
 Imports
--------
+~~~~~~~
 
 .. code:: ipython3
 
     import collections
-    import sys
     import time
     
     import cv2
@@ -44,7 +61,6 @@ Imports
     from ipywidgets import interactive, ToggleButtons
     from openvino.runtime import Core
     
-    sys.path.append("../utils")
     import notebook_utils as utils
 
 Select one of the styles below: Mosaic, Rain Princess, Candy, Udnie, and
@@ -60,15 +76,6 @@ Pointilism to do the style transfer.
         style={'description_width': '300px'})
        
     interactive(lambda option: print(option), option=styleButtons)
-
-
-
-
-.. parsed-literal::
-
-    interactive(children=(ToggleButtons(description='Click one of the styles you want to use for the style transfe…
-
-
 
 The Model
 ---------
@@ -94,21 +101,6 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
-
-
-
-.. parsed-literal::
-
-    model/mosaic-9.onnx:   0%|          | 0.00/6.42M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/home/ea/work/openvino_notebooks/notebooks/404-style-transfer-webcam/model/mosaic-9.onnx')
-
-
 
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -172,7 +164,7 @@ results.
     # Read the network and corresponding weights from IR Model.
     model = ie_core.read_model(model=ir_path)
     
-    # Compile the model for CPU (or change to GPU, MYRIAD etc. for other devices)
+    # Compile the model for CPU (or change to GPU, etc. for other devices)
     # or let OpenVINO select the best available device with AUTO.
     compiled_model = ie_core.compile_model(model=model, device_name="AUTO")
     
@@ -192,14 +184,6 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
-
-
-.. parsed-literal::
-
-    input1 output1
-    [1,3,224,224]
-    [1,3,224,224]
-
 
 Preprocess the image
 ~~~~~~~~~~~~~~~~~~~~
@@ -374,18 +358,6 @@ experience flickering, set ``use_popup=True``.
 
     run_style_transfer(source=0, flip=True, use_popup=False)
 
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@5.406] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@5.407] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
-
-
 Run Style Transfer on a Video File
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -402,12 +374,12 @@ is running.
 
 .. code:: ipython3
 
-    video_file = "../data/video/Coco Walking in Berkeley.mp4"
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     run_style_transfer(source=video_file, flip=False, use_popup=False)
 
 
 
-.. image:: 404-style-transfer-with-output_files/404-style-transfer-with-output_23_0.png
+.. image:: 404-style-transfer-with-output_files/404-style-transfer-with-output_25_0.png
 
 
 .. parsed-literal::

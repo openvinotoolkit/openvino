@@ -28,6 +28,7 @@ copyright = '2023, Intel®'
 author = 'Intel®'
 
 language = 'en'
+version_name = 'nightly'
 
 # -- General configuration ---------------------------------------------------
 
@@ -48,7 +49,13 @@ extensions = [
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
 
+# -- Sitemap configuration ---------------------------
+
 sitemap_url_scheme = "{link}"
+site_url = f'https://docs.openvino.ai/{version_name}/'
+
+# ----------------------------------------------------
+
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
@@ -181,6 +188,6 @@ def setup(app):
     app.connect('build-finished',replace_index_with_redirect)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/newsletter.js')
     app.add_js_file('js/graphs_ov_tf.js')
     app.add_js_file('js/open_sidebar.js')
-    

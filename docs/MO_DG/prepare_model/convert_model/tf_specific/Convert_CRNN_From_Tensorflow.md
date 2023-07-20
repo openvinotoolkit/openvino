@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a CRNN model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 This tutorial explains how to convert a CRNN model to OpenVINO™ Intermediate Representation (IR).
 
 There are several public versions of TensorFlow CRNN model implementation available on GitHub. This tutorial explains how to convert the model from
@@ -49,7 +54,8 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       from tensorflow.python.framework import graph_io
       frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])

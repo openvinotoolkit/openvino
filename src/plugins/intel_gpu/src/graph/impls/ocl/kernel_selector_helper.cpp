@@ -668,6 +668,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_is_yx_isv16_osv16;
         case format::lstm_weights_dio:
             return kernel_selector::weights_layout::dlstm_dir_io;
+        case format::os_i_yxs_osv4_yxsv4:
+            return kernel_selector::weights_layout::os_i_yxs_osv4_yxsv4;
         default:
             throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
@@ -796,6 +798,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_yx_osv32_isv32p;
         case kernel_selector::weights_layout::oizyx:
             return cldnn::format::oizyx;
+        case kernel_selector::weights_layout::iozyx:
+            return cldnn::format::iozyx;
         case kernel_selector::weights_layout::os_is_zyx_isv16_osv16:
             return cldnn::format::os_is_zyx_isv16_osv16;
         case kernel_selector::weights_layout::is_os_zyx_isv16_osv16:
@@ -960,6 +964,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_y_is_x_osv8_isv2;
         case kernel_selector::weights_layout::g_os_y_is_x_osv8_isv4:
             return cldnn::format::g_os_y_is_x_osv8_isv4;
+        case kernel_selector::weights_layout::giozyx:
+            return cldnn::format::giozyx;
         default:
             throw std::invalid_argument("Unable to convert kernel selector Weights layout " +
                                          std::to_string(static_cast<int>(l)) + " to cldnn format");

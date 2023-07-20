@@ -5,79 +5,75 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
+#include <condition_variable>
+#include <thread>
 
-#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
-#include "ie_metric_helpers.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "plugin.hpp"
-#include "threading/ie_thread_safe_containers.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
 
 class AsyncInferRequest;
 
-class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class CompiledModel : public ov::ICompiledModel {
 public:
-    using Ptr = std::shared_ptr<CompiledModel>;
     struct WorkerInferRequest {
-        using Ptr = std::shared_ptr<WorkerInferRequest>;
-        InferenceEngine::SoIInferRequestInternal _inferRequestBatched;
-        int _batchSize;
-        InferenceEngine::ThreadSafeQueueWithSize<std::pair<AsyncInferRequest*, InferenceEngine::Task>> _tasks;
-        std::vector<InferenceEngine::Task> _completionTasks;
+        ov::SoPtr<ov::IAsyncInferRequest> _infer_request_batched;
+        int _batch_size;
+        ov::threading::ThreadSafeQueueWithSize<std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task>>
+            _tasks;
+        std::vector<ov::threading::Task> _completion_tasks;
         std::thread _thread;
         std::condition_variable _cond;
         std::mutex _mutex;
-        std::exception_ptr m_exceptionPtr;
+        std::exception_ptr _exception_ptr;
     };
 
-    CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
-                  const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
-                  const DeviceInformation& networkDevices,
-                  const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-                  const std::set<std::string>& batchedIntputs,
-                  const std::set<std::string>& batchedOutputs);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& config,
+                  const DeviceInformation& device_info,
+                  const std::set<std::string>& batched_inputs,
+                  const std::set<std::string>& batched_outputs,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
+                  const ov::SoPtr<ov::IRemoteContext>& context);
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
+    void set_property(const ov::AnyMap& properties) override;
 
-    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
+    ov::Any get_property(const std::string& name) const override;
 
-    InferenceEngine::Parameter GetMetric(const std::string& name) const override;
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        InferenceEngine::InputsDataMap networkInputs,
-        InferenceEngine::OutputsDataMap networkOutputs) override;
-
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-
-    std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
-
-    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
+    void export_model(std::ostream& model) const override;
 
     virtual ~CompiledModel();
 
 protected:
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     static unsigned int ParseTimeoutValue(const std::string&);
     std::atomic_bool m_terminate = {false};
+    ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    InferenceEngine::SoExecutableNetworkInternal m_model_with_batch;
-    InferenceEngine::SoExecutableNetworkInternal m_model_without_batch;
 
-    std::pair<WorkerInferRequest&, int> GetWorkerInferRequest();
-    std::vector<WorkerInferRequest::Ptr> m_worker_requests;
-    std::mutex m_worker_requests_mutex;
+    std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest()
+        const;
+    mutable std::vector<std::shared_ptr<WorkerInferRequest>> m_worker_requests;
+    mutable std::mutex m_worker_requests_mutex;
 
-    std::unordered_map<std::string, InferenceEngine::Parameter> m_config;
-    std::atomic_size_t m_num_requests_created = {0};
-    std::atomic_int m_timeout = {0};  // in ms
+    mutable std::atomic_size_t m_num_requests_created = {0};
+    std::atomic<std::uint32_t> m_time_out = {0};  // in ms
 
     const std::set<std::string> m_batched_inputs;
     const std::set<std::string> m_batched_outputs;
+
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov

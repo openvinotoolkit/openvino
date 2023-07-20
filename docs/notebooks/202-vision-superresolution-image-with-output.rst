@@ -5,7 +5,7 @@ Super Resolution is the process of enhancing the quality of an image by
 increasing the pixel count using deep learning. This notebook shows the
 Single Image Super Resolution (SISR) which takes just one low resolution
 image. A model called
-`single-image-super-resolution-1032 <https://docs.openvino.ai/latest/omz_models_model_single_image_super_resolution_1032.html>`__,
+`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.0/omz_models_model_single_image_super_resolution_1032.html>`__,
 which is available in Open Model Zoo, is used in this tutorial. It is
 based on the research paper cited below.
 
@@ -17,6 +17,15 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 Preparation
 -----------
 
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q 'openvino>=2023.0.0'
+    !pip install -q opencv-python
+    !pip install -q pillow matplotlib
+
 Imports
 ~~~~~~~
 
@@ -24,7 +33,6 @@ Imports
 
     import os
     import time
-    import requests
     from pathlib import Path
     
     import cv2
@@ -36,17 +44,68 @@ Imports
     from PIL import Image
     from openvino.runtime import Core
 
+.. code:: ipython3
+
+    # Define a download file helper function
+    def download_file(url: str, path: Path) -> None:
+        """Download file."""
+        import urllib.request
+        path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(url, path)
+
 Settings
 ~~~~~~~~
 
+Select inference device
+^^^^^^^^^^^^^^^^^^^^^^^
+
+select device from dropdown list for running inference using OpenVINO
+
 .. code:: ipython3
 
-    # Device to use for inference. For example, "CPU", or "GPU".
-    DEVICE = "CPU"
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # 1032: 4x superresolution, 1033: 3x superresolution
-    MODEL_FILE = "model/single-image-super-resolution-1032.xml"
-    model_name = os.path.basename(MODEL_FILE)
-    model_xml_path = Path(MODEL_FILE)
+    model_name = 'single-image-super-resolution-1032'
+    
+    base_model_dir = Path("./model").expanduser()
+    
+    model_xml_name = f'{model_name}.xml'
+    model_bin_name = f'{model_name}.bin'
+    
+    model_xml_path = base_model_dir / model_xml_name
+    model_bin_path = base_model_dir / model_bin_name
+    
+    if not model_xml_path.exists():
+        base_url = f'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{model_name}/FP16/'
+        model_xml_url = base_url + model_xml_name
+        model_bin_url = base_url + model_bin_name
+    
+        download_file(model_xml_url, model_xml_path)
+        download_file(model_bin_url, model_bin_path)
+    else:
+        print(f'{model_name} already downloaded to {base_model_dir}')
 
 Functions
 ~~~~~~~~~
@@ -88,24 +147,6 @@ Functions
         return textim.get()
     
     
-    def load_image(path: str) -> np.ndarray:
-        """
-        Loads an image from `path` and returns it as BGR numpy array.
-    
-        :param path: path to an image filename or url
-        :return: image as numpy array, with BGR channel order
-        """
-        if path.startswith("http"):
-            # Set User-Agent to Mozilla because some websites block requests
-            # with User-Agent Python.
-            response = requests.get(path, headers={"User-Agent": "Mozilla/5.0"})
-            array = np.asarray(bytearray(response.content), dtype="uint8")
-            image = cv2.imdecode(array, -1)  # Loads the image as BGR.
-        else:
-            image = cv2.imread(path)
-        return image
-    
-    
     def convert_result_to_image(result) -> np.ndarray:
         """
         Convert network result of floating point numbers to image with integer
@@ -143,7 +184,7 @@ about the network inputs and outputs.
 
     ie = Core()
     model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name=DEVICE)
+    compiled_model = ie.compile_model(model=model, device_name=device.value)
     
     # Network inputs and outputs are dictionaries. Get the keys for the
     # dictionaries.
@@ -184,11 +225,13 @@ Load and Show the Input Image
 
 .. code:: ipython3
 
-    IMAGE_PATH = Path("../data/image/tower.jpg")
+    IMAGE_PATH = Path("./data/tower.jpg")
     OUTPUT_PATH = Path("output/")
     
     os.makedirs(str(OUTPUT_PATH), exist_ok=True)
-    full_image = load_image(str(IMAGE_PATH))
+    
+    download_file('https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg', IMAGE_PATH)
+    full_image = cv2.imread(str(IMAGE_PATH))
     
     # Uncomment these lines to load a raw image as BGR.
     # import rawpy
@@ -205,7 +248,7 @@ Load and Show the Input Image
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_10_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_15_1.png
 
 
 Superresolution on a Crop of the Image
@@ -257,7 +300,7 @@ as the crop size.
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_12_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_17_1.png
 
 
 Reshape/Resize Crop for Model Input
@@ -323,7 +366,7 @@ Show the bicubic image and the enhanced superresolution image.
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_18_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_23_1.png
 
 
 Save Superresolution and Bicubic Image Crop
@@ -391,7 +434,7 @@ Write Animated GIF with Bicubic/Superresolution Comparison
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_22_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_27_1.png
    :width: 960px
 
 
@@ -403,7 +446,9 @@ This may take a while. For the video, the superresolution and bicubic
 image are resized by a factor of 2 to improve processing speed. This
 gives an indication of the superresolution effect. The video is saved as
 an ``.avi`` file. You can click on the link to download the video, or
-open it directly from the images directory, and play it locally.
+open it directly from the ``output/`` directory, and play it locally. >
+Note: If you run the example in Google Colab, download video files using
+the ``Files`` tool.
 
 .. code:: ipython3
 
@@ -636,8 +681,8 @@ as total time to process each patch.
 
 .. parsed-literal::
 
-    Processed 42 patches in 4.63 seconds. Total patches per second (including processing): 9.08.
-    Inference patches per second: 20.79 
+    Processed 42 patches in 4.73 seconds. Total patches per second (including processing): 8.87.
+    Inference patches per second: 17.65 
 
 
 Save superresolution image and the bicubic image

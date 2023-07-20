@@ -4,6 +4,9 @@
 
 include(CPackComponent)
 
+# we don't need RPATHs, because setupvars.sh is used
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 #
 # ov_install_static_lib(<target> <comp>)
 #
@@ -13,6 +16,12 @@ macro(ov_install_static_lib target comp)
         if(target_type STREQUAL "STATIC_LIBRARY")
             set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
         endif()
+
+        # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
+        list(APPEND openvino_installed_targets ${target})
+        set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
+            "A list of OpenVINO internal targets" FORCE)
+
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
     endif()

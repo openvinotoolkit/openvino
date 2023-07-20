@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -37,11 +38,13 @@ TEST(weights_factory, shape_types) {
 
 TEST(weights_factory, reorder_test) {
     auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
     const int input_f = 32, output_f = 32;
+
 
     auto weights_layout = layout(ov::PartialShape{ output_f, input_f }, data_types::f32, format::bfyx);
     auto weights_data_input = engine.allocate_memory(weights_layout);
-    auto weights_data_vec = generate_random_1d<float>(output_f * input_f, -1, 1);
+    auto weights_data_vec = rg.generate_random_1d<float>(output_f * input_f, -1, 1);
     set_values(weights_data_input, weights_data_vec);
 
     cldnn::topology topology {
@@ -93,6 +96,7 @@ TEST(weights_factory, reorder_test) {
     args.outputs.push_back(weights_data_output);
 
     auto reorder_inst = std::make_shared<cldnn::reorder_inst>(network);
+
     reorder_inst->set_impl(reorder_impl->clone());
 
     reorder_inst->get_impl()->set_arguments(*reorder_inst, args);

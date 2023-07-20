@@ -9,8 +9,9 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
-#include "so_extension.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {
@@ -156,7 +157,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, context, config);
+        auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -222,7 +223,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->import_model(modelStream, context, config);
+        auto exec = _impl->import_model(modelStream, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -253,8 +254,8 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
 }
 
-void Core::register_plugin(const std::string& plugin, const std::string& device_name) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name););
+void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {
@@ -279,7 +280,7 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(device_name, params);
         auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._impl, {remoteContext._so}};
+        return {remoteContext._ptr, remoteContext._so};
     });
 }
 
@@ -292,7 +293,7 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(device_name, AnyMap{});
         auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._impl, {remoteContext._so}};
+        return {remoteContext._ptr, remoteContext._so};
     });
 }
 

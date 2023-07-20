@@ -36,7 +36,7 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const override;
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                       const ov::AnyMap& properties) const override;
@@ -55,16 +55,16 @@ public:
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::RemoteContext& context,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
 protected:
@@ -83,7 +83,6 @@ private:
     static std::mutex m_mtx;
     static std::map<unsigned int, std::list<std::string>> m_priority_map;
     PluginConfig m_plugin_config;
-    mutable SoCompiledModel m_hw_compiledmodel;
 };
 
 }  // namespace auto_plugin

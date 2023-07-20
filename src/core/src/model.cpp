@@ -10,7 +10,6 @@
 
 #include "itt.hpp"
 #include "layout_utils.hpp"
-#include "meta_data.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
@@ -20,6 +19,7 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"

@@ -16,7 +16,11 @@ Imports
 
 .. code:: ipython3
 
-    import sys
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q opencv-python matplotlib
+
+.. code:: ipython3
+
     import cv2
     import time
     import numpy as np
@@ -24,7 +28,14 @@ Imports
     import openvino.runtime as ov
     from IPython import display
     import matplotlib.pyplot as plt
-    sys.path.append("../utils")
+    
+    # Fetch the notebook utils script from the openvino_notebooks repo
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     import notebook_utils as utils
 
 Prepare model and data processing
@@ -80,7 +91,7 @@ Load the model
     # read the network and corresponding weights from file
     model = ie.read_model(model=model_path)
     
-    # compile the model for the CPU (you can choose manually CPU, GPU, MYRIAD etc.)
+    # compile the model for the CPU (you can choose manually CPU, GPU, etc.)
     # or let the engine choose the best available device (AUTO)
     compiled_model = ie.compile_model(model=model, device_name="CPU")
     
@@ -136,7 +147,7 @@ Get the test video
 
 .. code:: ipython3
 
-    video_path = "../data/video/CEO Pat Gelsinger on Leading Intel.mp4"
+    video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
 How to improve the throughput of video processing
 -------------------------------------------------
@@ -150,6 +161,8 @@ Sync Mode (default)
 Let us see how video processing works with the default approach. Using
 the synchronous approach, the frame is captured with OpenCV and then
 immediately processed:
+
+.. image:: https://camo.githubusercontent.com/b77ae49e3c46a0fe3931ad02a7767d6def49aa7b2a7a8ad620a4e12ae31d43a5/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f39313233373932342f3136383435323537332d64333534656135622d373936362d343465352d383133642d6639303533626534333338612e706e67
 
 ::
 
@@ -237,13 +250,11 @@ Test performance in Sync Mode
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_14_0.png
-
 
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 41.15 fps
+    average throuput in sync mode: 38.25 fps
 
 
 Async Mode
@@ -255,6 +266,8 @@ follows: while a device is busy with the inference, the application can
 do other things in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
 complete first.
+
+.. image:: https://camo.githubusercontent.com/7bcadb7cf72aefc84d74d8e971a31dab1710bb4303fef814619df638dff8be92/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f39313233373932342f3136383435323537322d63326666316335392d643437302d346238352d623166362d6236653164616339353430652e706e67
 
 In the example below, inference is applied to the results of the video
 decoding. So it is possible to keep multiple infer requests, and while
@@ -365,14 +378,10 @@ Test the performance in Async Mode
     print(f"average throuput in async mode: {async_fps:.2f} fps")
 
 
-
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_18_0.png
-
-
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 71.19 fps
+    average throuput in async mode: 71.88 fps
 
 
 Compare the performance
@@ -400,14 +409,11 @@ Compare the performance
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_20_0.png
-
-
 AsyncInferQueue
 ---------------
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of InferRequest
 objects (also called “jobs”) and provides synchronization mechanisms to
 control the flow of the pipeline. It is a simpler way to manage the
@@ -502,10 +508,7 @@ Test the performance with AsyncInferQueue
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_26_0.png
-
-
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 111.22 fps
+    average throughput in async mode with async infer queue: 104.69 fps
 

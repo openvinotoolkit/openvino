@@ -52,8 +52,7 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& 
     validate_inputs_count(op, {2});
 
     auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!inConst)
-        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    OPENVINO_ASSERT(inConst != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
     OPENVINO_SUPPRESS_DEPRECATED_START

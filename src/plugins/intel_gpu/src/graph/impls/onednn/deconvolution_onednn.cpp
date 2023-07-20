@@ -36,12 +36,14 @@ protected:
 
         {
             auto weights = instance.weights_memory();
-            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.bias_term()) {
             auto bias = instance.bias_memory();
-            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
@@ -61,7 +63,7 @@ protected:
         auto output_weights_layout = input_weights_layout;
         output_weights_layout.format = out_fmt;
 
-        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false);
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, grouped_weights);
     }
 
 public:

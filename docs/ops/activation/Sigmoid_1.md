@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Sigmoid-1 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Sigmoid-1*
 
 **Category**: *Activation function*
@@ -31,7 +35,8 @@ For each element from the input tensor calculates corresponding element in the o
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Sigmoid">
         <input>

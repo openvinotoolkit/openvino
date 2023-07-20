@@ -110,7 +110,7 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
 
 std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
                                                                                const ExecutionConfig& config,
-                                                                               std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor) {
+                                                                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 

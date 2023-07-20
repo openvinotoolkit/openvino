@@ -27,14 +27,42 @@ namespace ov {
 namespace test {
 namespace utils {
 
+// todo: remove w/a to generate correct constant data (replace parameter to const) in conformance with defined range
+struct ConstRanges {
+    static double max, min;
+    static bool is_defined;
+
+    static void set(double _min, double _max) {
+        min = _min;
+        max = _max;
+        is_defined = true;
+    }
+
+    static void reset() {
+        min = std::numeric_limits<double>::max();
+        max = std::numeric_limits<double>::min();
+        is_defined = false;
+    }
+};
+
 struct InputGenerateData {
-    int32_t start_from;
+    double_t start_from;
     uint32_t range;
     int32_t resolution;
     int seed;
 
-    InputGenerateData(int32_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
-            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {}
+    InputGenerateData(double_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
+            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {
+        if (ConstRanges::is_defined) {
+            auto min_orig = start_from;
+            auto max_orig = start_from + range * resolution;
+            auto min_ref = ConstRanges::min;
+            auto max_ref = ConstRanges::max;
+            if (min_orig < min_ref || min_orig == 0)
+                start_from = min_ref;
+            range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from;
+        }
+    }
 };
 
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> inputRanges = {
