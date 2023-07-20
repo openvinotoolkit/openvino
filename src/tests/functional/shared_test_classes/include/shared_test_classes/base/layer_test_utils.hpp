@@ -49,7 +49,7 @@ enum RefMode {
     IE
 };
 
-class LayerTestsCommon : public CommonTestUtils::TestsCommon {
+class LayerTestsCommon : public ov::test::TestsCommon {
 public:
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 

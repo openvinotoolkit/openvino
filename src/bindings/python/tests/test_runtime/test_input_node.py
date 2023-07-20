@@ -7,7 +7,7 @@ import os
 from ..conftest import model_path
 from openvino.runtime import Input, Shape, PartialShape, Type, RTMap
 from openvino._pyopenvino import DescriptorTensor
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset12 as ops
 
 from openvino.runtime import Core, OVAny
 

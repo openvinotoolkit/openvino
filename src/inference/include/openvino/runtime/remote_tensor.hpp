@@ -14,10 +14,6 @@
 
 namespace ov {
 
-namespace proxy {
-class RemoteTensor;
-}
-
 class RemoteContext;
 
 /**
@@ -26,8 +22,6 @@ class RemoteContext;
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
-    friend class ov::RemoteContext;
-    friend class ov::proxy::RemoteTensor;
 
 public:
     /**
