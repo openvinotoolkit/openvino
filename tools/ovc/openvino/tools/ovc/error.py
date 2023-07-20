@@ -46,8 +46,3 @@ def classify_error_type(e):
         if m:
             return m.group(0)
     return "undefined"
-
-
-def legacy_path_error(functionality_description):
-    raise Exception("{}Please try to install openvino-dev and use convert_model() "
-                    "from openvino.tools.mo.".format(functionality_description))

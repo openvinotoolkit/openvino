@@ -12,31 +12,9 @@ from openvino.tools.ovc.convert import convert_model
 
 @generator
 class TestMoFreezePlaceholderTFFE(unittest.TestCase):
-    @generate(
-        *[
-            # the default frontend
-            (
-                    False, False, None
-            ),
-            (
-                    False, False, "tf"
-            ),
-            # new frontend
-            (
-                    True, False, None
-            ),
-            (
-                    True, False, "tf"
-            ),
-        ],
-    )
-    def test_conversion_fake_pb_model(self, use_new_frontend, use_legacy_frontend, framework):
-        with self.assertRaisesRegex(Exception,
-                                    "Internal error or inconsistent input model: the frontend supports frozen formats"
-                                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."):
+    def test_conversion_fake_pb_model(self):
+        # TODO: Should FEs give detailed report why a model is rejected and should we print out the report?
+        with self.assertRaisesRegex(Exception, "Cannot recognize input model."):
             path = os.path.dirname(__file__)
             input_model = os.path.join(path, "test_models", "fake.pb")
-
-            convert_model(input_model,
-                          use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend,
-                          framework=framework)
+            convert_model(input_model)

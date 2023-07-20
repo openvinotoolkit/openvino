@@ -20,7 +20,8 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension, Layout, InputCutInfo, LayoutMap
+from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.tools.mo import LayoutMap, InputCutInfo
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
