@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use frontend extension classes to facilitate the mapping 
+                 of custom operations from the framework model representation to the OpenVINO 
+                 representation.
+
+
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate 
 mapping of custom operations from framework model representation to OpenVINO representation. 
 Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to 
@@ -88,19 +94,19 @@ In this case, you can directly say that 'MyRelu' -> ``Relu`` mapping should be u
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_MyRelu]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_MyRelu]
-
-   .. tab-item:: Python
-      :sync: python
-   
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
-         :fragment: [py_frontend_extension_MyRelu]
 
 
 In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation 
@@ -329,6 +335,13 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU_header]
+
    .. tab-item:: C++
       :sync: cpp
  
@@ -336,14 +349,14 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU_header]
 
-   .. tab-item:: Python
-      :sync: python
+.. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+ 
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
-         :fragment: [py_frontend_extension_ThresholdedReLU_header]
-
-.. tab-set::
+         :fragment: [py_frontend_extension_ThresholdedReLU]
 
    .. tab-item:: C++
       :sync: cpp
@@ -351,13 +364,6 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU]
-
-   .. tab-item:: Python
-      :sync: python
- 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
-         :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
 The next example shows how to use ``ConversionExtension`` to convert PyTorch 

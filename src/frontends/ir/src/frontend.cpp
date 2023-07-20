@@ -8,13 +8,12 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "mmap_object.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
-#include "transformations/resolve_names_collisions.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;
@@ -202,9 +201,13 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::load_mmap_object(weights_path);
-        else {
+        if (enable_mmap) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights =
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                               mapped_memory->size(),
+                                                                                               mapped_memory);
+        } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())
@@ -235,19 +238,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
-    const auto& converted_model = ir_model->convert();
-    normalize(converted_model);
-    return converted_model;
+    return ir_model->convert();
 }
 
 std::string FrontEnd::get_name() const {
     return "ir";
-}
-
-void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
-    manager.register_pass<pass::ResolveNameCollisions>();
-    manager.run_passes(model);
 }
 
 }  // namespace ir

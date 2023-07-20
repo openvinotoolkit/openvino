@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to build a pipeline with Graph API (G-API) and ensure its portability, using custom kernel interfaces.
+
 The core idea behind Graph API (G-API) is portability – a pipeline built with G-API must be portable (or at least able to be portable). It means that either it works out-of-the box when compiled for new platform, or G-API provides necessary tools to make it running there, with little-to-no changes in the algorithm itself.
 
 This idea can be achieved by separating kernel interface from its implementation. Once a pipeline is built using kernel interfaces, it becomes implementation-neutral – the implementation details (i.e. which kernels to use) are passed on a separate stage (graph compilation).

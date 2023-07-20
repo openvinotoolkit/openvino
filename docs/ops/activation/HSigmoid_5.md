@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about HSigmoid-5 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *HSigmoid-5*
 
 **Category**: *Activation function*
@@ -34,7 +38,8 @@ The HSigmoid operation is introduced in the following `article <https://arxiv.or
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="HSigmoid">
        <input>

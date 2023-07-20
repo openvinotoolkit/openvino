@@ -56,7 +56,7 @@ void InputConvTest::SetUp() {
         std::vector<float> res;
         for (std::size_t i = 0; i < out_channels; ++i) {
             for (std::size_t j = 0; j < kernel_size; ++j) {
-                j == 0 ? res.emplace_back(1.0f) : res.emplace_back(0.0f);
+                j == 0 ? res.emplace_back(0.2f) : res.emplace_back(0.0f);
             }
         }
 

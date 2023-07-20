@@ -25,11 +25,9 @@ void pre_replace_deconv::run(program& p) {
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr).second;
-        // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
+        // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
             if (node->is_dynamic())
-                continue;
-            if (!p.get_config().get_property(ov::intel_gpu::optimize_data))
                 continue;
 
             auto& deconv_node = node->as<deconvolution>();
@@ -61,7 +59,6 @@ void pre_replace_deconv::run(program& p) {
                 if (!perform_opt)
                     continue;
 
-
                 // setting convolution parameters based on deconvolution params
                 auto output_layout = deconv_node.get_output_layout();
                 auto output_pshape = output_layout.get_partial_shape();
@@ -73,8 +70,7 @@ void pre_replace_deconv::run(program& p) {
                 auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
-                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
-                // list
+                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
                 p.remove_connection(input_node, deconv_node);
                 std::vector<std::shared_ptr<program_node>> weight_connections;
                 for (auto& weights_id : weights_nodes_id) {

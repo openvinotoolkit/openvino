@@ -378,14 +378,6 @@ void Convolution::getSupportedDescriptors() {
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
-    if (!customImplPriorities.empty()) {
-        isPrimitivesPriorityDefined = true;
-        // winograd support only constant weights and bias
-        isWino = std::find(customImplPriorities.begin(), customImplPriorities.end(), impl_desc_type::jit_avx512_winograd) != customImplPriorities.end() &&
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
-            getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input;
-    }
-
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
@@ -890,8 +882,6 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     std::vector<dnnl::algorithm> algorithms;
 
-    if (isWinograd())
-        algorithms.push_back(dnnl::algorithm::convolution_winograd);
     algorithms.push_back(baseConvAlgorithm);
 
     updatePadding();
@@ -914,9 +904,8 @@ void Convolution::addZeroPoints(dnnl::primitive_attr& attr) {
     attr.set_zero_points_mask(DNNL_ARG_SRC, 0);
 
     if (!stockInputZeroPointsMemPtr) {
-        stockInputZeroPointsMemPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {inputZeroPoints.size()});
-        stockInputZeroPointsMemPtr->Create(memoryDesc, inputZeroPoints.data());
+        stockInputZeroPointsMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, inputZeroPoints.data());
     }
 }
 
@@ -925,9 +914,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         DEBUG_LOG(getName(), ": Set legacy input zero points");
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
-            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine()));
             DnnlBlockedMemoryDesc memoryDesc(Precision::U8, {legacyInputZeroPoints.size()});
-            legacyInputZeroPointsMemPtr->Create(memoryDesc, legacyInputZeroPoints.data());
+            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyInputZeroPoints.data()));
         }
     }
 
@@ -936,9 +924,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_weights_zero_points(legacyWeightsZeroPoints.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyWeightsZeroPointsMemPtr) {
-            legacyWeightsZeroPointsMemPtr.reset(new Memory(getEngine()));
             DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {legacyWeightsZeroPoints.size()});
-            legacyWeightsZeroPointsMemPtr->Create(memoryDesc, legacyWeightsZeroPoints.data());
+            legacyWeightsZeroPointsMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyWeightsZeroPoints.data());
         }
     }
 
@@ -947,9 +934,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_output_compensations(legacyOutputCompensation.size(), 1 << 1 /*through C dim*/);
 
         if (!legacyOutputCompensationMemPtr) {
-            legacyOutputCompensationMemPtr.reset(new Memory(getEngine()));
             DnnlBlockedMemoryDesc memoryDesc(Precision::I32, {legacyOutputCompensation.size()});
-            legacyOutputCompensationMemPtr->Create(memoryDesc, legacyOutputCompensation.data());
+            legacyOutputCompensationMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyOutputCompensation.data());
         }
     }
 }
@@ -1089,11 +1075,11 @@ bool Convolution::canFuse(const NodePtr& node) const {
 }
 
 dnnl::memory Convolution::getWeights() const {
-    return getParentEdgeAt(1)->getMemory().GetPrimitive();
+    return getParentEdgeAt(1)->getMemory().getPrimitive();
 }
 
 dnnl::memory Convolution::getBias() const {
-    return getParentEdgeAt(2)->getMemory().GetPrimitive();
+    return getParentEdgeAt(2)->getMemory().getPrimitive();
 }
 
 InferenceEngine::Precision Convolution::getRuntimePrecision() const {
@@ -1103,7 +1089,7 @@ InferenceEngine::Precision Convolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -1194,7 +1180,7 @@ InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::Size
     if (blb == nullptr)
         IE_THROW() << "Cannot get const blob for node " << getName() << ".";
 
-    auto const elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    auto const elementsCount = blb->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, dims, getWeightsLayoutByDims(dims, isGrouped));
 
@@ -1205,9 +1191,9 @@ InferenceEngine::Blob::Ptr Convolution::createInternalBlob(InferenceEngine::Size
         IE_THROW() << "Created internal blob and const blob has different size for node: " << getName() << ".";
     }
 
-    cpu_convert(blb->GetPtr(),
+    cpu_convert(blb->getData(),
                 internalBlob->buffer(),
-                DnnlExtensionUtils::DataTypeToIEPrecision(blb->GetDataType()),
+                DnnlExtensionUtils::DataTypeToIEPrecision(blb->getDataType()),
                 internalBlob->getTensorDesc().getPrecision(),
                 elementsCount);
 
@@ -1235,12 +1221,12 @@ void Convolution::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr weightMemoryDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr outMemoryDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->getDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr weightMemoryDesc = wghMemPtr->getDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr outMemoryDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc;
     if (biasMemPtr) {
-        biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+        biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
 
     auto initPrimitiveAttr = [&]() {
@@ -1319,7 +1305,6 @@ void Convolution::prepareParams() {
                 attr);
         };
 
-        const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : convAlg;
         dnnl::primitive_desc prim_desc = createDnnlConvDesc(
             engine,
             key.inp0->getDnnlDesc(),
@@ -1330,7 +1315,7 @@ void Convolution::prepareParams() {
             key.dilation,
             key.paddingL,
             key.paddingR,
-            alg,
+            convAlg,
             key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
@@ -1389,8 +1374,8 @@ void Convolution::prepareParams() {
     if (!execPtr)
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
 
-    primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
 
     if (key.constWeight) {
         // const weight preparation/reordering needs to be done once at next execution
@@ -1399,15 +1384,15 @@ void Convolution::prepareParams() {
         auto it = primArgs.find(DNNL_ARG_WEIGHTS);
         if (it == primArgs.end() || !prevExecPtr ||
             !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
         }
     } else {
         // non-const weight will be reordered by executor on every exec
-        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->getPrimitive();
     }
 
     if (withBiases) {
-        primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
     }
 
     if (preferLegacyZeroPoint)
@@ -1418,7 +1403,7 @@ void Convolution::prepareParams() {
     Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
@@ -1465,7 +1450,8 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
         const size_t sumPortNum = getParentEdges().size() - 1;
         const auto& sumInpMem = getParentEdgesAtPort(sumPortNum).front()->getMemory();
         auto inp1 = subgraph->getInput(1);
-        inp1->getChildEdgesAtPort(0).front()->getMemoryPtr()->setDataHandle(sumInpMem.GetData());
+        auto inp1Mem = inp1->getChildEdgesAtPort(0).front()->getMemoryPtr();
+        inp1Mem->getMemoryMngr()->setExtBuff(sumInpMem.getData(), sumInpMem.getSize());
 
         subgraph->infer();
 
@@ -1473,7 +1459,7 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
         const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
         auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
         Node::redefineOutputMemory({outMem.getStaticDims()});
-        convOutMem->SetData(outMem);
+        convOutMem->load(outMem);
     }
 }
 
@@ -1550,20 +1536,20 @@ void Convolution::addFusedNode(const NodePtr &fusingNode) {
 
 void Convolution::appendLegacyZeroPointsArgs() {
     if (legacyInputZeroPointsMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = legacyInputZeroPointsMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = legacyInputZeroPointsMemPtr->getPrimitive();
     }
     if (legacyWeightsZeroPointsMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = legacyWeightsZeroPointsMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = legacyWeightsZeroPointsMemPtr->getPrimitive();
     }
     if (legacyOutputCompensationMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = legacyOutputCompensationMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = legacyOutputCompensationMemPtr->getPrimitive();
     }
 }
 
 
 void Convolution::appendZeroPointsArgs() {
     if (stockInputZeroPointsMemPtr != nullptr) {
-        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->GetPrimitive();
+        primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->getPrimitive();
     }
 }
 
@@ -1584,6 +1570,8 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+    else
+        inputZeroPointType = zpType::PerChannel;
 }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {

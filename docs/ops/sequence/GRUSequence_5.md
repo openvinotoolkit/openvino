@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GRUSequence-5 - a sequence processing operation, which 
+                can be performed on six required input tensors.
+
 **Versioned name**: *GRUSequence-5*
 
 **Category**: *Sequence processing*
@@ -100,7 +104,8 @@ are in sync with the specification of ONNX GRU operator defined
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GRUSequence" ...>
        <data hidden_size="128"/>
