@@ -12,7 +12,13 @@ add_library(openvino::itt ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
 
 if(ENABLE_PROFILING_ITT)
-    target_link_libraries(${TARGET_NAME} PUBLIC ittapi::ittapi)
+    if(TARGET ittapi::ittnotify)
+        set(itt_dependency ittapi::ittnotify)
+    else()
+        set(itt_dependency ittapi::ittapi)
+    endif()
+    target_link_libraries(${TARGET_NAME} PUBLIC ${itt_dependency})
+
     if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
         target_compile_definitions(${TARGET_NAME} PUBLIC
             ENABLE_PROFILING_ALL

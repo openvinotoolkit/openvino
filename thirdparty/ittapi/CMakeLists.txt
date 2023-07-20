@@ -22,9 +22,9 @@ else()
                     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/src/ittnotify>
                     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/include>)
 
-    # create alias ittapi::ittapi
-    add_library(ittapi::ittapi ALIAS ittnotify)
+    # create alias ittapi::ittnotify
+    add_library(ittapi::ittnotify ALIAS ittnotify)
 
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittapi::ittapi)
-    ov_install_static_lib(ittapi::ittapi ${OV_CPACK_COMP_CORE})
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittapi::ittnotify)
+    ov_install_static_lib(ittnotify ${OV_CPACK_COMP_CORE})
 endif()

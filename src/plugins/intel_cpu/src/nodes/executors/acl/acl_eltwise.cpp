@@ -48,7 +48,6 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
         case Algorithm::EltwiseSigmoid:
-//            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
         case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
@@ -254,15 +253,6 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseSquaredDiff>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
-                acl_op->run();
-            };
-            break;
-        case Algorithm::EltwisePowerDynamic:
-            if (!NEElementwisePower::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0]))
-                return false;
-            exec_func = [this]{
-                auto acl_op = std::make_unique<NEElementwisePower>();
                 acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
                 acl_op->run();
             };
@@ -475,10 +465,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
 void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst,
                               const void *post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
-        srcTensors[i].allocator()->import_memory(src[i]->GetPtr());
+        srcTensors[i].allocator()->import_memory(src[i]->getData());
     }
     for (size_t i = 0; i < dst.size(); i++) {
-        dstTensors[i].allocator()->import_memory(dst[i]->GetPtr());
+        dstTensors[i].allocator()->import_memory(dst[i]->getData());
     }
 
     exec_func();

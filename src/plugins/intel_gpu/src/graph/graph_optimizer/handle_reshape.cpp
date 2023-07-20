@@ -104,7 +104,7 @@ void handle_reshape::run(program& p) {
                         if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
                             bool is_fc = user->is_type<fully_connected>();
                             auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                    user->as<gemm>().get_dependency(1).get_output_layout().data_type;
+                                                    user->as<gemm>().get_input_layout(1).data_type;
                             onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
                         } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
                             bool is_conv = user->is_type<convolution>();

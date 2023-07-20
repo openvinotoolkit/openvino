@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use frontend extension classes to facilitate the mapping 
+                 of custom operations from the framework model representation to the OpenVINO 
+                 representation.
+
+
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate 
 mapping of custom operations from framework model representation to OpenVINO representation. 
 Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to 
@@ -88,19 +94,19 @@ In this case, you can directly say that 'MyRelu' -> ``Relu`` mapping should be u
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_MyRelu]
+
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_MyRelu]
-
-   .. tab-item:: Python
-      :sync: python
-   
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
-         :fragment: [py_frontend_extension_MyRelu]
 
 
 In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation 
@@ -181,7 +187,7 @@ input name at position ``i`` maps to OpenVINO operation input at position ``i`` 
 
 Let's see the following example. Like previously, we'd like to map ``CustomOperation`` in the original model, 
 to OpenVINO ``CustomOperation`` as is (so their name and attributes names match). This time, that framework operation 
-inputs and outputs are not stricly ordered and can be identified  by their names ``A``, ``B``, ``C`` for inputs 
+inputs and outputs are not strictly ordered and can be identified  by their names ``A``, ``B``, ``C`` for inputs 
 and ``X``, ``Y`` for outputs. Those inputs and outputs can be mapped to OpenVINO operation, such that inputs 
 ``A``, ``B``, ``C`` map to OpenVINO ``CustomOperation`` first, second and third input and ``X`` and ``Y`` 
 outputs map to OpenVINO ``CustomOperation`` first and second output respectively. 
@@ -329,6 +335,13 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU_header]
+
    .. tab-item:: C++
       :sync: cpp
  
@@ -336,14 +349,14 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU_header]
 
-   .. tab-item:: Python
-      :sync: python
+.. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+ 
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
-         :fragment: [py_frontend_extension_ThresholdedReLU_header]
-
-.. tab-set::
+         :fragment: [py_frontend_extension_ThresholdedReLU]
 
    .. tab-item:: C++
       :sync: cpp
@@ -351,13 +364,6 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU]
-
-   .. tab-item:: Python
-      :sync: python
- 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
-         :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
 The next example shows how to use ``ConversionExtension`` to convert PyTorch 
@@ -380,6 +386,25 @@ To access original framework operation attribute value and connect to inputs, ``
 
 The conversion function should return a vector of node outputs that are mapped to 
 corresponding outputs of the original framework operation in the same order.
+
+Some frameworks require output names of the operation to be provided during conversion.
+For PaddlePaddle operations, it is generally necessary to provide names for all outputs using the ``NamedOutputs`` container.
+Usually those names can be found in source code of the individual operation in PaddlePaddle code.
+The following example shows such conversion for the ``top_k_v2`` operation.
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_paddle_TopK]
+
+For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to
+those outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
+For a description of TensorFlow operations, including the names of their outputs, refer to the
+`tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ documentation page.
+The next example shows such conversion for the ``TopKV2`` operation.
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_tf_TopK]
 
 @endsphinxdirective
 

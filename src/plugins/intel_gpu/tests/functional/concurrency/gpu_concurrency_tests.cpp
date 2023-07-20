@@ -24,7 +24,7 @@ using namespace ::testing;
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
                                          size_t>;  // number of requests
 
-class OVConcurrencyTest : public CommonTestUtils::TestsCommon,
+class OVConcurrencyTest : public ov::test::TestsCommon,
     public testing::WithParamInterface<ConcurrencyTestParams> {
     void SetUp() override {
         std::tie(num_streams, num_requests) = this->GetParam();

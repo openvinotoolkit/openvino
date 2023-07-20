@@ -26,7 +26,7 @@ struct MVNData {
     size_t W;
     size_t num_parts;
     float eps;
-    op::MVNEpsMode eps_mode;
+    ov::op::MVNEpsMode eps_mode;
     bool normalize_variance;
     element::Type element_type;
     std::string name;
@@ -47,7 +47,7 @@ static bool ValidateAxes(const std::shared_ptr<opset8::Constant> axes_const, con
     }
 
     // Verify supported first axes value
-    if (axes_value != 2 && axes_value != 2 - mvn_shape_size)
+    if (axes_value != 2 && axes_value != static_cast<T>(2 - mvn_shape_size))
         return false;
 
     return true;
@@ -138,7 +138,7 @@ static std::shared_ptr<Node> NormalizeVariance(const std::shared_ptr<opset8::MVN
                                                                        CoordinateDiff{0, 0},
                                                                        CoordinateDiff{0, 0},
                                                                        Strides{1, 1},
-                                                                       op::PadType::VALID);
+                                                                       ov::op::PadType::VALID);
     transposed_avg_conv_3->set_friendly_name(mvn_data.name + "_Avg3");
     auto avg_conv_3 =
         std::make_shared<opset8::Transpose>(transposed_avg_conv_3,
@@ -156,7 +156,7 @@ static std::shared_ptr<Node> NormalizeVariance(const std::shared_ptr<opset8::MVN
                                                                        CoordinateDiff{0, 0},
                                                                        CoordinateDiff{0, 0},
                                                                        Strides{1, 1},
-                                                                       op::PadType::VALID);
+                                                                       ov::op::PadType::VALID);
     transposed_avg_conv_4->set_friendly_name(mvn_data.name + "_Avg4");
     auto avg_conv_4 =
         std::make_shared<opset8::Transpose>(transposed_avg_conv_4,
@@ -243,7 +243,7 @@ static void Decompose(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn
                                                                        CoordinateDiff{0, 0},
                                                                        CoordinateDiff{0, 0},
                                                                        Strides{1, 1},
-                                                                       op::PadType::VALID);
+                                                                       ov::op::PadType::VALID);
     transposed_avg_conv_1->set_friendly_name(mvn_data.name + "_Avg1");
     auto avg_conv_1 =
         std::make_shared<opset8::Transpose>(transposed_avg_conv_1,
@@ -261,7 +261,7 @@ static void Decompose(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn
                                                                        CoordinateDiff{0, 0},
                                                                        CoordinateDiff{0, 0},
                                                                        Strides{1, 1},
-                                                                       op::PadType::VALID);
+                                                                       ov::op::PadType::VALID);
     transposed_avg_conv_2->set_friendly_name(mvn_data.name + "_Avg2");
     auto avg_conv_2 =
         std::make_shared<opset8::Transpose>(transposed_avg_conv_2,

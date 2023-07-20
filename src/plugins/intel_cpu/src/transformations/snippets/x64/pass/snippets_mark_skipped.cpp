@@ -253,7 +253,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     ov::PartialShape matmul_shape;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (ov::is_type<ov::op::v0::Constant>(parent)) {
+        if (ov::is_type<ov::op::v0::Constant>(parent) || ov::is_type<ov::op::v0::Convert>(parent)) {
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
@@ -264,7 +264,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
             // first check that weights are constant and both activations and weights have static shape
             if (grandparents.size() == 2 &&
                 grandparents[1].get_partial_shape().is_static() &&
-                ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())) {
+                (ov::is_type<ov::op::v0::Constant>(grandparents[1].get_node_shared_ptr())
+                    || ov::is_type<ov::op::v0::Convert>(grandparents[1].get_node_shared_ptr()))) {
                 auto rank_a = grandparents[0].get_partial_shape().rank().get_length();
                 auto rank_w = grandparents[1].get_partial_shape().rank().get_length();
                 if (rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3)
@@ -427,7 +428,7 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
 bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
     if (!ov::is_type<ov::op::v0::Convert>(node))
         return false;
-    auto hasResult = [](const std::shared_ptr<const Node>& node){
+    auto hasResult = [](const std::shared_ptr<const Node>& node) {
         auto consumers = node->output(0).get_target_inputs();
         bool findResult = false;
         if (consumers.size() == 1) {
@@ -449,13 +450,19 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
         return false;
     }
 }
+
+auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
+    return ov::is_type<ov::op::v0::Constant>(op) ||
+           ov::is_type<ov::op::v0::Parameter>(op) ||
+           ov::is_type<ov::op::v0::Result>(op);
+}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     int channelAxis = DEFAULT_AXIS;
     for (auto &node : m->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Result>(node))
+        if (is_skipped_op(node))
             continue;
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain

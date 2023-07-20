@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -14,10 +15,13 @@
 #include "softmax_inst.h"
 #include "reduce_inst.h"
 #include "fully_connected_inst.h"
-#include "convolution_inst.h"
 #include "permute_inst.h"
 #include "reshape_inst.h"
 #include "activation_inst.h"
+#include "mvn_inst.h"
+#include "concatenation_inst.h"
+#include "shape_of_inst.h"
+#include "gather_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -140,6 +144,7 @@ TEST(remove_redundant_reorders, skip_reorder_fusing_when_sibling_not_support_pad
 }
 
 TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto data0_layout = engine.allocate_memory({ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx });
     auto in_layout = layout{ ov::PartialShape{1, 32, 2, 2}, data_types::f16, format::bfyx };
@@ -169,7 +174,7 @@ TEST(remove_redundant_reorders, not_to_fuse_reshape_with_fused_prims) {
     network network(engine, topology, config);
 
     auto input = engine.allocate_memory(in_layout);
-    VVVVF<float> input_all_neg = generate_random_4d<float>(1, 32, 2, 2, -10.f, 0.f);
+    VVVVF<float> input_all_neg = rg.generate_random_4d<float>(1, 32, 2, 2, -10.f, 0.f);
     set_values(input, input_all_neg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -239,4 +244,138 @@ TEST(remove_redundant_reorders, remove_fused) {
     ASSERT_NE(prog, nullptr);
     network network(engine, topology, config);
     ASSERT_TRUE(has_node(*prog, "reorder2"));
+}
+
+TEST(remove_redundant_reorders, fuse_reorder_to_prev_mvn_dyn) {
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ ov::PartialShape{ 1024, 256 }, data_types::f16, format::bfyx });
+    auto in_layout = layout{ov::PartialShape{ ov::Dimension::dynamic(), ov::Dimension::dynamic(), 256 }, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({ ov::PartialShape{ 1, 33, 256 }, data_types::f32, format::bfyx });
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", in_layout));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, { 2 }));
+    topology.add(reorder("reorder", input_info("mvn"), format::any, data_types::f16,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(fully_connected("fc", input_info("reorder"), { "weights" }, "", data_types::f16, padding(), 3, 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<reorder>(*prog));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    EXPECT_NO_THROW(network.execute());
+
+    auto& mvn_node = prog->get_node("mvn");
+    auto mvn_layout = mvn_node.get_output_layout();
+
+    ASSERT_EQ(mvn_layout.data_type, data_types::f16);
+}
+
+TEST(remove_redundant_reorders, fuse_reorder_to_prev_concat_dyn) {
+    auto& engine = get_test_engine();
+    auto in_layout1 = layout{ov::PartialShape{ ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), 80 }, data_types::f16, format::bfyx};
+    auto in_layout2 = layout{ov::PartialShape{ ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), 80 }, data_types::f16, format::bfyx};
+    auto input1 = engine.allocate_memory({ ov::PartialShape{ 2, 32, 30, 80 }, data_types::f16, format::bfyx });
+    auto input2 = engine.allocate_memory({ ov::PartialShape{ 2, 32, 30, 80 }, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(reshape("reshape1", input_info("input1"), false, {0},
+                         ov::PartialShape{ 1, ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), 80 },
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(reshape("reshape2", input_info("input2"), false, {0},
+                         ov::PartialShape{ 1, ov::Dimension::dynamic(), 32, ov::Dimension::dynamic(), 80 },
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 0, data_types::f16));
+    topology.add(reorder("reorder", input_info("concat"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(softmax("softmax", input_info("reorder"), 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+    bool optimize_data = config.get_property(ov::intel_gpu::optimize_data);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo, optimize_data);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<reorder>(*prog));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    EXPECT_NO_THROW(network.execute());
+
+    auto& concat_node = prog->get_node("concat");
+    auto concat_layout = concat_node.get_output_layout();
+
+    ASSERT_EQ(concat_layout.data_type, data_types::f32);
+}
+
+TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_subgraph) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{1, 32, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{1, 32, 32, 32}, data_types::f16, format::bfyx});
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{}, data_types::f32, format::bfyx });
+    auto data_2 = engine.allocate_memory({ ov::PartialShape{2}, data_types::i32, format::bfyx });
+
+    const ov::op::AutoBroadcastSpec& broadcast_spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("data_1", data_1));
+    topology.add(data("data_2", data_2));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise0", input_info("reorder0"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder1", input_info("gather1"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise1", input_info("reorder1"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape1", input_info("eltwise1"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(concatenation("concat0", {input_info("reshape0"), input_info("reshape1")}, 0, data_types::f32));
+    topology.add(reorder("reorder3", input_info("concat0"), format::any, data_types::i32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(concatenation("concat1", {input_info("reorder3"), input_info("data_2")}, 0, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(has_node(*prog, "reorder3"));
+    auto& concat_node = prog->get_node("concat0");
+    auto concat_layout = concat_node.get_output_layout();
+
+    ASSERT_EQ(concat_layout.data_type, data_types::f32);
 }

@@ -54,7 +54,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
 
         // Legacy API properties
-        std::make_tuple(ov::intel_gpu::enable_dynamic_batch, false),
         std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
@@ -71,7 +70,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
-        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false));
+        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
+        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {

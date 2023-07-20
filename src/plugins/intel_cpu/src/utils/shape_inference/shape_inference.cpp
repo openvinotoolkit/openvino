@@ -5,7 +5,9 @@
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset12.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset7.hpp>
 
@@ -54,6 +56,7 @@
 #include "interpolate_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
+#include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -70,6 +73,8 @@
 #include "reorg_yolo_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
+#include "rnn_cell_shape_inference.hpp"
+#include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roi_pooling_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
@@ -315,6 +320,11 @@ public:
         OPENVINO_THROW("Not implemented by base class");
     }
 
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                    const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_THROW("Not implemented by base class");
+    }
+
     const ov::CoordinateDiff& get_pads_begin() override {
         OPENVINO_ASSERT(false, "ShapeInferBase do not support get_pads_begin() by default.");
     }
@@ -350,6 +360,46 @@ public:
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const ov::ITensorAccessor& tensor_accessor) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor), ShapeInferStatus::success};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return MASK;
+    }
+};
+
+template <class TOp, uint32_t MASK>
+class ShapeInferenceTA : public ShapeInferBase {
+public:
+    using ShapeInferBase::ShapeInferBase;
+
+    IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
+                                    const ov::ITensorAccessor& tensor_accessor) override {
+        // Temporary support of StaticShape.
+        auto in_shapes = std::vector<StaticShapeRef>();
+        in_shapes.reserve(input_shapes.size());
+        for (auto& s : input_shapes) {
+            in_shapes.emplace_back(reinterpret_cast<const VectorDims&>(s));
+        }
+
+        auto out_shapes = infer(in_shapes, tensor_accessor);
+        Result result{{}, out_shapes ? ShapeInferStatus::success : ShapeInferStatus::skip};
+
+        if (out_shapes) {
+            result.shapes.reserve(out_shapes->size());
+            std::transform(out_shapes->begin(),
+                           out_shapes->end(),
+                           std::back_inserter(result.shapes),
+                           [](StaticShapeCon& s) {
+                               return std::move(reinterpret_cast<StaticShape&&>(*s));
+                           });
+        }
+
+        return result;
+    }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                    const ov::ITensorAccessor& tensor_accessor) override {
+        return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, tensor_accessor)};
     }
 
     port_mask_t get_port_mask() const override {
@@ -634,7 +684,6 @@ template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
     _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
@@ -645,12 +694,21 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
+    // opset11
+    _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
+    // opset5
+    _OV_OP_SHAPE_INFER_MASK_REG(opset5::LSTMSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset5::RNNSequence, ShapeInferTA, util::bit::mask()),
+    // opset4
+    _OV_OP_SHAPE_INFER_MASK_REG(opset4::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2)),
     // opset1
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::RNNCell, ShapeInferTA, util::bit::mask()),
 };
 
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG

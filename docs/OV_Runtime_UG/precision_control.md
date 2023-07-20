@@ -11,7 +11,7 @@ Previously, these 2 precisions were interrelated, and model storage precision co
 
 With the ``2023.0`` release this behavior has been changed and the inference precision no longer depends on the precision of IR. Now users have several knobs to find the balance between model performance and accuracy.
 
-Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devicess was different. 
+Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different. 
 
 This guide will focus on how to control inference precision. And using lower precision is important for performance because compute bandwidth tends to be higher for smaller data types, and hardware often has special blocks for efficient multiply-accumulate operations with smaller data types only (e.g. Intel Xᵉ Matrix Extensions (XMX) on GPU and Intel Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O operations requires less memory due to the smaller tensor byte size. This guide will focus on how to control inference precision.
 
@@ -28,17 +28,22 @@ If the model has been quantized using :doc:`OpenVINO optimization tools <ptq_int
 
 Code examples:
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
-      :language: cpp
-      :fragment: [ov:execution_mode:part0]
+   .. tab-item:: Python
+      :sync: py
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
+         :language: python
+         :fragment: [ov:execution_mode:part0]
 
-.. tab:: Python
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
+         :language: cpp
+         :fragment: [ov:execution_mode:part0]
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
-      :language: python
-      :fragment: [ov:execution_mode:part0]
 
 Inference Precision
 ###################

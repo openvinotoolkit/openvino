@@ -62,6 +62,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 114262
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 68712
@@ -126,5 +128,20 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
+            // New plugin API doesn't support changes of pre-processing
+            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+            // New plugin work with tensors, so it means that blob in old API can have different pointers
+            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
+            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
+            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
+            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+            // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
+            // because it crashes in some random places during "reorder_inputs" pass.
+            R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
+#ifdef PROXY_PLUGIN_ENABLED
+            // Plugin version was changed to ov::Version
+            R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+#endif
     };
 }

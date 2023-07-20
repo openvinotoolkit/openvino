@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Interpolate-11 - an image processing operation, which 
+                can be performed on two required and one optional tensor.
+
 **Versioned name**: *Interpolate-11*
 
 **Category**: *Image processing*
@@ -110,7 +114,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Interpolate" ...>
        <data shape_calculation_mode="scales" pads_begin="0" pads_end="0" mode="bicubic_pillow"/>

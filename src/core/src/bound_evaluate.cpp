@@ -4,12 +4,14 @@
 
 #include "bound_evaluate.hpp"
 
-#include "dimension_tracker.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "shape_util.hpp"
 #include "tensor_conversion_util.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/is_shape_subgraph.hpp"
 
 namespace {
 using namespace ov;
@@ -247,7 +249,9 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
             bool can_add = true;
             size_t arg_count = node->get_input_size();
 
-            if (arg_count == 0 && !is_type<op::v0::Constant>(node)) {
+            auto node_shared_ptr = node->shared_from_this();
+            bool is_decompress_data_path = is_decompression(node_shared_ptr) && !is_shape_subgraph(node_shared_ptr);
+            if ((arg_count == 0 && !is_type<op::v0::Constant>(node)) || is_decompress_data_path) {
                 status = false;
                 continue;
             } else if (is_type<op::v0::ShapeOf>(node) || is_type<op::v3::ShapeOf>(node)) {

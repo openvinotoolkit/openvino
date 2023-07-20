@@ -62,8 +62,6 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (!one_of(getParentEdges().size(), 3u, 4u))
         THROW_ERROR << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -110,7 +108,7 @@ void Eye::executeSpecified() {
     auto outPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!outPtr || !outPtr ->isAllocated())
             THROW_ERROR << errorPrefix << "Destination memory didn't allocate.";
-    T *dst = reinterpret_cast<T *>(outPtr->GetPtr());
+    T *dst = reinterpret_cast<T *>(outPtr->getData());
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
     const size_t spatialCount = colNum * rowNum;

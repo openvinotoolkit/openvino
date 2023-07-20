@@ -138,7 +138,6 @@ private:
             jg(ow_tail, T_NEAR);
 
             oc_loop(jcp_.ur_w);
-            add(reg_input, jcp_.ur_w * jcp_.stride_w * jcp_.ic * jcp_.typesize_in);
             add(reg_sampled_wei, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_wei);  // type = float
             add(reg_sampled_offs, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_offsets);  // type = int
 
@@ -310,7 +309,6 @@ private:
                         Label nullify_v4_end_tail;
 
                         mov(aux2_reg_input, aux_reg_input);
-                        add(aux2_reg_input, (ow * jcp_.stride_w * jcp_.ic) * jcp_.typesize_in);
 
                         mov(aux3_reg_input_buffer, aux2_reg_input_buffer);
                         add(aux3_reg_input_buffer, (ow * jcp_.kh * jcp_.kw * jcp_.ic) * jcp_.typesize_in);
@@ -915,9 +913,6 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const int waOffsetH = (enforceRef ? 0 : h_in);
-        const int waOffsetW = (enforceRef ? 0 : w_in);
-
         const float *data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
         const float *modulation_offset_ptr = nullptr;
         if (modulation != nullptr) {
@@ -964,10 +959,10 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
                     float lw = map_w - w_low;
                     float hh = 1 - lh, hw = 1 - lw;
 
-                    int h_ind_low = std::max(h_low, 0) - waOffsetH;
-                    int h_ind_high = std::min(h_high, cur_h_end - 1) - waOffsetH;
-                    int w_ind_low = std::max(w_low, 0) - waOffsetW;
-                    int w_ind_high = std::min(w_high, cur_w_end - 1) - waOffsetW;
+                    int h_ind_low = std::max(h_low, 0);
+                    int h_ind_high = std::min(h_high, cur_h_end - 1);
+                    int w_ind_low = std::max(w_low, 0);
+                    int w_ind_high = std::min(w_high, cur_w_end - 1);
 
                     hh = (h_low >= 0 ? hh : 0);
                     hw = (w_low >= 0 ? hw : 0);
@@ -1165,10 +1160,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 }
 
 void DeformableConvolution::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
-    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
@@ -1180,7 +1175,7 @@ void DeformableConvolution::prepareParams() {
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
-        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        auto modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
         if (!modMemPtr || !modMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }
@@ -1195,15 +1190,15 @@ void DeformableConvolution::prepareParams() {
     updatePadding();
 
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
-        getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(OFF_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(WEI_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()
+        getParentEdgeAt(DATA_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(OFF_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()
     };
 
     if (withModulation) {
-        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>());
+        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
-    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
+    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>());
 
     DefConvKey key = {
         descVector,
@@ -1262,8 +1257,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
         const size_t _oc = g * jcp.nb_oc;
         const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1] +
-                            (oh * jcp.stride_h - jcp.t_pad) * srcStrides[2] - jcp.l_pad * srcStrides[3]];
+        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1]];
         par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
@@ -1284,15 +1278,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.getData());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.getData());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.getData());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetPtr());
+        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().getData());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.getData());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

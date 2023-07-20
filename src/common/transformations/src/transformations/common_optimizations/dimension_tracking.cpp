@@ -6,13 +6,20 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
@@ -25,7 +32,7 @@ void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov:
     }
 }
 
-void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
+void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
                                 P2Btype& map,
                                 const std::unordered_set<label_t>& batches) {
     auto& shape = parameter->get_partial_shape();
@@ -57,7 +64,7 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& pa
     parameter->validate_and_infer_types();
 }
 
-void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
+void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
                                                    const std::shared_ptr<ov::Node>& result,
                                                    P2Btype& map) {
     TensorLabel p_labels, r_labels;
@@ -77,7 +84,7 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::ops
     mark_no_batch(parameter, map);
 }
 
-void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter, P2Btype& map) {
+void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::op::v0::Parameter>& parameter, P2Btype& map) {
     if (map.count(parameter))
         map.erase(parameter);
     auto& shape = parameter->get_partial_shape();
@@ -89,12 +96,12 @@ void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>&
 
 P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
     std::unordered_map<ov::Node::type_info_t, std::pair<size_t, size_t>> type_input_port_batch_index = {
-        {ov::opset1::Convolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::GroupConvolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::ConvolutionBackpropData::get_type_info_static(), {0, 0}},
-        {ov::opset1::GroupConvolutionBackpropData::get_type_info_static(), {0, 0}},
-        {ov::opset1::DeformableConvolution::get_type_info_static(), {0, 0}},
-        {ov::opset1::MatMul::get_type_info_static(), {0, 0}},  // transpose_a situation
+        {ov::op::v1::Convolution::get_type_info_static(), {0, 0}},
+        {ov::op::v1::GroupConvolution::get_type_info_static(), {0, 0}},
+        {ov::op::v1::ConvolutionBackpropData::get_type_info_static(), {0, 0}},
+        {ov::op::v1::GroupConvolutionBackpropData::get_type_info_static(), {0, 0}},
+        {ov::op::v1::DeformableConvolution::get_type_info_static(), {0, 0}},
+        {ov::op::v0::MatMul::get_type_info_static(), {0, 0}},  // transpose_a situation
     };
 
     P2Btype parameter_to_batch_labels;
@@ -137,15 +144,15 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                 continue;  // label propagation stopped
             }
 
-            if (ov::is_type<ov::opset1::Result>(curr_node))
+            if (ov::is_type<ov::op::v0::Result>(curr_node))
                 layout_independent_results.push_back(curr_node);
 
             for (const auto& output : curr_node->outputs()) {
                 // we do not need to walk through shape-of sub-graphs
                 for (const auto& t_input : output.get_target_inputs()) {
-                    if (ov::is_type<ov::opset1::ConvertLike>(t_input.get_node()) ||
-                        ov::is_type<ov::opset1::ShapeOf>(t_input.get_node()) ||
-                        ov::is_type<ov::opset3::ShapeOf>(t_input.get_node()))
+                    if (ov::is_type<ov::op::v1::ConvertLike>(t_input.get_node()) ||
+                        ov::is_type<ov::op::v0::ShapeOf>(t_input.get_node()) ||
+                        ov::is_type<ov::op::v3::ShapeOf>(t_input.get_node()))
                         continue;
                     nodes.push_back(t_input.get_node());
                 }
@@ -161,7 +168,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
 }
 
 void ov::batch_util::restore_original_dimensions(
-    const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape,
+    const std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape>& parameter_to_shape,
     bool leave_batch_dynamic) {
     for (const auto& item : parameter_to_shape) {
         const auto& batch_marked_shape = item.first->get_partial_shape();
@@ -207,8 +214,8 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
                     name_stays = true;
             all_outputs_has_batch &= name_stays;  // && others_are_static;
         }
-        if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::opset3::ShapeOf>(node) &&
-            !ov::is_type<ov::opset1::ShapeOf>(node) && !ov::is_type<ov::opset1::ConvertLike>(node)) {
+        if (any_input_has_batch && !all_outputs_has_batch && !ov::is_type<ov::op::v3::ShapeOf>(node) &&
+            !ov::is_type<ov::op::v0::ShapeOf>(node) && !ov::is_type<ov::op::v1::ConvertLike>(node)) {
             failed_to_propagate_batch = true;
             node->validate_and_infer_types();
         }
@@ -228,11 +235,11 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     ResultVector new_outputs, outputs_to_delete;
     for (auto& result_node : f->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
-        if (ov::is_type<opset1::Convert>(do_node))  // cases with do->convert->result
+        if (ov::is_type<ov::op::v0::Convert>(do_node))  // cases with do->convert->result
             do_node = do_node->get_input_node_shared_ptr(0);
-        if (ov::is_type<opset1::DetectionOutput>(do_node) || ov::is_type<opset8::DetectionOutput>(do_node)) {
+        if (ov::is_type<ov::op::v0::DetectionOutput>(do_node) || ov::is_type<ov::op::v8::DetectionOutput>(do_node)) {
             for (auto& new_result_src : do_node->input_values()) {
-                auto new_result = std::make_shared<opset1::Result>(new_result_src);
+                auto new_result = std::make_shared<ov::op::v0::Result>(new_result_src);
                 ngraph::copy_runtime_info(result_node, new_result);
                 new_outputs.push_back(new_result);
             }
@@ -255,7 +262,7 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
         model_has_changed |= batch_util::detach_detection_output(m);
 
     const auto& parameters = m->get_parameters();
-    std::map<std::shared_ptr<ov::opset1::Parameter>, PartialShape> parameter_to_shape;
+    std::map<std::shared_ptr<ov::op::v0::Parameter>, PartialShape> parameter_to_shape;
     for (const auto& parameter : parameters) {
         auto shape = parameter->get_partial_shape();
         if (shape.rank().is_dynamic())

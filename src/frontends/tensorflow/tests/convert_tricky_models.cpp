@@ -8,9 +8,9 @@
 #include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 
+#include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "test_common.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
 
@@ -391,8 +391,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithEmptyTensorListAndPushBac
         auto x_flatten = make_shared<Reshape>(x, minus_one_const, false);
         auto zero_const = make_shared<Constant>(i32, Shape{1}, 0);
         auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
-        auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
-        auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
+        auto list_push_back = make_shared<Concat>(OutputVector{x_unsqueeze_flatten}, 0);
         auto list_push_back_shape = make_shared<ShapeOf>(list_push_back, element::i32);
         auto start = make_shared<Constant>(i32, Shape{1}, 0);
         auto stop = make_shared<Constant>(i32, Shape{1}, 1);
@@ -699,5 +698,49 @@ TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallsWithConvInBodyGrap
                                              op::PadType::SAME_UPPER);
 
         model_ref = make_shared<Model>(OutputVector{conv}, ParameterVector{input1, filter});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ControlDependencyNumberOutputs) {
+    // The test aims to check a number of outputs of the resulted model
+    // If the node has dependent nodes by conditional edge, it is not terminating
+    // and it should not go to the Result node
+    { model = convert_model("control_dependency/control_dependency.pb"); }
+    {
+        auto input1 = make_shared<Parameter>(f32, Shape{2, 3});
+        auto input2 = make_shared<Parameter>(f32, Shape{2, 3});
+
+        // AddV2 node is excluded since it is not terminating
+        auto sub = make_shared<Subtract>(input1, input2);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{input1, input2});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
+    // This test aims to check conversion of a model with TF1 If operation that
+    // contains unsupported operation in one branch
+    // the conversion must avoid such branch in case proper condition freezing
+    {
+        bool cond_value = false;
+        model = convert_model("tf1_if_with_nonexistent_op/tf1_if_with_nonexistent_op.pb",
+                              nullptr,
+                              {},
+                              {},
+                              {},
+                              {"cond"},
+                              {&cond_value});
+    }
+    {
+        auto y = make_shared<Parameter>(f32, Shape{2, 3});
+        auto ind = make_shared<Parameter>(i32, Shape{3});
+
+        auto const_two = make_shared<Constant>(i32, Shape{}, 2);
+        auto sub = make_shared<Subtract>(ind, const_two);
+
+        auto convert = make_shared<Convert>(sub, f32);
+        auto mul = make_shared<Multiply>(convert, y);
+
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
     }
 }

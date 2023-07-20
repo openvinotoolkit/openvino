@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SoftSign-9 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *SoftSign-9*
 
 **Category**: *Activation function*
@@ -33,7 +37,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="SoftSign">
         <input>

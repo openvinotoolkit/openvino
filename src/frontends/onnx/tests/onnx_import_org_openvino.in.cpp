@@ -33,14 +33,14 @@
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
@@ -186,6 +186,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    Shape shape{2, 8, 2, 2};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0.f);
+    std::vector<float> output = {
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_squeeze_bias_and_scale) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/group_norm_4D_bias_and_scale.onnx"));
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     const auto size = shape_size(shape);
@@ -574,12 +600,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
 
     // deformations
-    test_case.add_input<float>({0.5f, -0.5f, 0.0f, 1.0f});
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
 
-    test_case.add_expected_output<float>(
-        Shape{1, 1, 3, 3},
-        {4.5999999f, 5.2000003f, 6.4000001f, 8.4000006f, 9.8000002f, 9.6999998f, 11.5f, 13.4000006f, 14.3999996f});
-
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {6.9000001f,
+                                          2.8500001f,
+                                          6.4000001f,
+                                          13.4000006f,
+                                          11.8999996f,
+                                          7.9000006f,
+                                          12.4000006f,
+                                          4.6999998f,
+                                          1.6000000f});
     test_case.run();
 }
 

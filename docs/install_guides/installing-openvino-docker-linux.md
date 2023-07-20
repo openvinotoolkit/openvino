@@ -1,177 +1,43 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
 
-
 @sphinxdirective
 
-This guide provides steps on creating a Docker image with Intel® Distribution of OpenVINO™ toolkit for Linux and using the image on different devices. 
-
-System Requirements
-###################
-
-.. tab:: Target Operating Systems with Python Versions
-  
-   +----------------------------------------------+-------------------------+
-   | Operating System                             | Included Python Version |
-   +==============================================+=========================+
-   | Ubuntu 18.04 long-term support (LTS), 64-bit |  3.8                    |
-   +----------------------------------------------+-------------------------+
-   | Ubuntu 20.04 long-term support (LTS), 64-bit |  3.8                    |
-   +----------------------------------------------+-------------------------+
-   | Red Hat Enterprise Linux 8, 64-bit           |  3.8                    |
-   +----------------------------------------------+-------------------------+
-
-.. tab:: Host Operating Systems
-
-   * Linux
-   * Windows Subsystem for Linux 2 (WSL2) on CPU or GPU
-   * macOS on CPU only
-   
-   To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
- 
-   * Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-   * Intel GPU driver for Windows, version 30.0.100.9684 or newer needs to be installed. For more details, refer to
-     `this article at intel.com <https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434>`__.
-   * Currently, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
+.. meta::
+   :description: Learn how to use a prebuilt Docker image or create an image 
+                 manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
 
-Installation
-#############
+Supported operating systems for the Docker Base image: 
 
-* Use a prebuilt image:
-  
-  1. `Get a prebuilt image from provided sources <#getting-a-prebuilt-image-from-provided-sources>`__
-  2. `Run the image on different devices <#running-the-docker-image-on-different-devices>`__
-  3. `Run samples in the Docker image <#running-samples-in-docker-image>`__
+- Ubuntu 22.04 LTS
+- Ubuntu 20.04 LTS
+- RedHat UBI 8
+- Windows (WSL2)
 
-* If you want to customize your image, you can also build a Docker image manually:
-  
-  1. `Prepare a Dockerfile <#preparing-a-dockerfile>`__
-  2. `Configure the Docker image <#configuring-the-image-for-different-devices>`__
-  3. `Run the image on different devices <#running-the-docker-image-on-different-devices>`__
-  4. `Run samples in the Docker image <#running-samples-in-docker-image>`__
+.. important::
 
+   While Windows is listed as a supported system, there is no dedicated Docker Image for it. To work with Windows, use Windows Subsystem for Linux (WSL2).
 
-Getting a Prebuilt Image from Provided Sources
-++++++++++++++++++++++++++++++++++++++++++++++
+The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
-You can find prebuilt images on:
+To start using them, the following conditions must be met:
 
-- `Docker Hub <https://hub.docker.com/u/openvino>`__
-- `Red Hat Quay.io <https://quay.io/organization/openvino>`__
-- `Red Hat Ecosystem Catalog (runtime image) <https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3>`__
-- `Red Hat Ecosystem Catalog (development image) <https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7>`__
-- `Azure Marketplace <https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino>`__
+- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl-install>`)
+- Installed docker engine or compatible container engine
+- Permissions to run containers (sudo or docker group membership)
 
-Preparing a Dockerfile
-++++++++++++++++++++++
-
-You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__
-or generate a Dockerfile with your settings via `DockerHub CI Framework <https://github.com/openvinotoolkit/docker_ci>`__
-which can generate a Dockerfile, build, test and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
-You can also try our `Tutorials <https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials>`__ 
-which demonstrate the usage of Docker containers with OpenVINO. 
-
-Configuring the Image for Different Devices
-+++++++++++++++++++++++++++++++++++++++++++
-
-If you want to run inference on a CPU no extra configuration is needed. 
-Go to `Run the image on different devices <running-the-docker-image-on-different-devices>`__ for the next step.
-
-If you want to run inference on a GPU, follow the instructions provided in the guide on 
-:doc:`Configuration for Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
-
-
-Running the Docker Image on Different Devices
-+++++++++++++++++++++++++++++++++++++++++++++
-
-Running the Image on CPU
--------------------------
-
-Run the Docker image with the following command:
-
-.. code-block:: sh
-
-   docker run -it --rm <image_name>
-
-
-Note the following:
-
-- Kernel reports the same information for all containers as for native application, 
-  for example, CPU, memory information.
-- All instructions that are available to host process available for process in container, 
-  including, for example, AVX2, AVX512. No restrictions.
-- Docker does not use virtualization or emulation. The process in Docker is just a regular 
-  Linux process, but it is isolated from external world on kernel level. Performance loss is minor.
-
-
-Running the Image on GPU
--------------------------
+OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>`__ distributions are identical, so the documentation applies to both.
 
 .. note:: 
-  
-   Only Intel® integrated graphics are supported.
 
-Note the following:
+   The OpenVINO development environment in a docker container is also available in the `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be implemented in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
 
-- GPU is not available in the container by default. You must attach it to the container.
-- Kernel driver must be installed on the host.
-- In the container, non-root user must be in the ``video`` and ``render`` groups. 
-  To add a user to the render group, follow the 
-  `Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu 20.04 <https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md>`__.
+More information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 
-To make GPU available in the container, attach the GPU to the container using ``--device /dev/dri`` option and run the container:
-
-* Ubuntu 18 or RHEL 8:
-  
-  .. code-block:: sh
-
-     docker run -it --rm --device /dev/dri <image_name>
-
-  .. note:: 
-   
-     If your host system is Ubuntu 20, follow the 
-     `Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04 <https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md>`__.
-
-* WSL2:
-  
-  .. code-block:: sh
-
-     docker run -it --rm --device /dev/dxg --volume /usr/lib/wsl:/usr/lib/wsl <image_name>
-
-  .. note::
-   
-     To launch a Linux image on WSL2, make sure that the additional `System Requirements <system-requirements>`__ are met.
-
-
-Running Samples in Docker Image
-###############################
-
-To run the ``Hello Classification Sample`` on a specific inference device, run the following commands:
-
-**CPU**:
-
-.. code-block:: sh
-
-   docker run -it --rm <image_name>
-   /bin/bash -c "cd ~ && omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 /opt/intel/openvino/samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp CPU"
-
-**GPU**:
-
-.. code-block:: sh
-
-   docker run -itu root:root  --rm --device /dev/dri:/dev/dri <image_name>
-   /bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp GPU"
-
-
-Additional Resources
-###############################
-
-- `DockerHub CI Framework <https://github.com/openvinotoolkit/docker_ci>`__ for Intel® Distribution of OpenVINO™ toolkit. 
-  The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. 
-  You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
-- `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
-
+* `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
+* `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
+* `Using OpenVINO™ Toolkit containers with GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
+* `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
 
 @endsphinxdirective
 

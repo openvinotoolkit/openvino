@@ -34,7 +34,7 @@ bool MarkupFusableTranspose::run_on_model(const std::shared_ptr<ngraph::Function
 
     for (auto& node : f->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) &&
-            !std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
+            !std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node)) {
             continue;
         }
         auto in_dims = node->input(0).get_shape();
