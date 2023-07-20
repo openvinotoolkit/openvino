@@ -17,7 +17,7 @@
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
-#include "threading/ie_cpu_streams_info.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
@@ -286,7 +286,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     // save hints parameters to model rt_info
     ov::AnyMap hints_props;
     std::string hint_name;
-    const int latency_streams = get_num_numa_nodes();
+    const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams;
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
