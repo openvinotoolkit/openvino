@@ -77,8 +77,6 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
         }
-            proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
-        }
         if (num_streams == 1 && _streams_info_table[0][PROC_TYPE] == MAIN_CORE_PROC &&
             _streams_info_table[0][THREADS_PER_STREAM] > _proc_type_table[0][MAIN_CORE_PROC]) {
             proc_types.push_back(std::to_string(HYPER_THREADING_PROC));
