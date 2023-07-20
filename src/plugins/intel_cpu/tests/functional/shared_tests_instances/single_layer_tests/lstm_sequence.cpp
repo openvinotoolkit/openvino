@@ -44,6 +44,22 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            LSTMSequenceTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonZeroClipNonconstantWRB, LSTMSequenceTest,
+                            ::testing::Combine(
+                                    ::testing::Values(ngraph::helpers::SequenceTestsMode::PURE_SEQ),
+                                    ::testing::ValuesIn(seq_lengths_zero_clip),
+                                    ::testing::ValuesIn(batch),
+                                    ::testing::ValuesIn(hidden_size),
+                                    ::testing::ValuesIn(input_size),
+                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(clip),
+                                    ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
@@ -58,6 +74,7 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);

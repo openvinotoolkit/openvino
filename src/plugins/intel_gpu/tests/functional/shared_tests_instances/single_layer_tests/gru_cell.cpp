@@ -18,6 +18,10 @@ namespace {
                                                          {"tanh", "relu"}};
     std::vector<float> clip = {0.0f, 0.7f};
     std::vector<bool> linear_before_reset = {true, false};
+    std::vector<ngraph::helpers::InputLayerType> layer_types = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER
+    };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
 
@@ -30,6 +34,9 @@ namespace {
             ::testing::ValuesIn(activations),
             ::testing::ValuesIn(clip),
             ::testing::ValuesIn(linear_before_reset),
+            ::testing::ValuesIn(layer_types),
+            ::testing::ValuesIn(layer_types),
+            ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
             GRUCellTest::getTestCaseName);

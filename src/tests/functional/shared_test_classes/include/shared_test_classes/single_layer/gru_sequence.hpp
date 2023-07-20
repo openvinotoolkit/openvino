@@ -26,6 +26,7 @@ using GRUSequenceParams = typename std::tuple<
         float,                                    // clip
         bool,                                     // linear_before_reset
         ngraph::op::RecurrentSequenceDirection,   // direction
+        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 

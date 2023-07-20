@@ -22,6 +22,9 @@ using RNNCellParams = typename std::tuple<
         size_t,                            // input size
         std::vector<std::string>,          // activations
         float,                             // clip
+        ngraph::helpers::InputLayerType,   // W input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // R input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // B input type (Constant or Parameter)
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 

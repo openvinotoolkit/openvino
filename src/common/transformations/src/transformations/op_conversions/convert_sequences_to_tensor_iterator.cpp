@@ -130,17 +130,29 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
 
     const auto squeezed_x = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(X_body_param, axis_1);
     const auto squeezed_w = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(W, axis_0);
+    std::shared_ptr<ov::op::v0::Parameter> W_body_param;
+    if (!ov::is_type<ov::op::v0::Constant>(squeezed_w))
+        W_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_w->get_element_type(),
+                                                               squeezed_w->get_output_partial_shape(0));
     const auto squeezed_r = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(R, axis_0);
+    std::shared_ptr<ov::op::v0::Parameter> R_body_param;
+    if (!ov::is_type<ov::op::v0::Constant>(squeezed_r))
+        R_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_r->get_element_type(),
+                                                               squeezed_r->get_output_partial_shape(0));
     const auto squeezed_b = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(B, axis_0);
+    std::shared_ptr<ov::op::v0::Parameter> B_body_param;
+    if (!ov::is_type<ov::op::v0::Constant>(squeezed_b))
+        B_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_b->get_element_type(),
+                                                               squeezed_b->get_output_partial_shape(0));
 
     std::shared_ptr<ngraph::Node> cell;
     if (const auto lstm_sequence = ngraph::as_type_ptr<ov::op::v5::LSTMSequence>(sequence)) {
         cell = std::make_shared<ov::op::v4::LSTMCell>(squeezed_x,
                                                       H_body_param,
                                                       C_body_param,
-                                                      squeezed_w,
-                                                      squeezed_r,
-                                                      squeezed_b,
+                                                      W_body_param ? W_body_param : squeezed_w,
+                                                      R_body_param ? R_body_param : squeezed_r,
+                                                      B_body_param ? B_body_param : squeezed_b,
                                                       lstm_sequence->get_hidden_size(),
                                                       lstm_sequence->get_activations(),
                                                       lstm_sequence->get_activations_alpha(),
@@ -149,9 +161,9 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     } else if (const auto rnn_sequence = ngraph::as_type_ptr<ov::op::v5::RNNSequence>(sequence)) {
         cell = std::make_shared<ov::op::v0::RNNCell>(squeezed_x,
                                                      H_body_param,
-                                                     squeezed_w,
-                                                     squeezed_r,
-                                                     squeezed_b,
+                                                     W_body_param ? W_body_param : squeezed_w,
+                                                     R_body_param ? R_body_param : squeezed_r,
+                                                     B_body_param ? B_body_param : squeezed_b,
                                                      rnn_sequence->get_hidden_size(),
                                                      rnn_sequence->get_activations(),
                                                      rnn_sequence->get_activations_alpha(),
@@ -160,9 +172,9 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     } else if (const auto gnn_sequence = ngraph::as_type_ptr<ov::op::v5::GRUSequence>(sequence)) {
         cell = std::make_shared<ov::op::v3::GRUCell>(squeezed_x,
                                                      H_body_param,
-                                                     squeezed_w,
-                                                     squeezed_r,
-                                                     squeezed_b,
+                                                     W_body_param ? W_body_param : squeezed_w,
+                                                     R_body_param ? R_body_param : squeezed_r,
+                                                     B_body_param ? B_body_param : squeezed_b,
                                                      gnn_sequence->get_hidden_size(),
                                                      gnn_sequence->get_activations(),
                                                      gnn_sequence->get_activations_alpha(),
@@ -201,6 +213,12 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     if (cell_state_defined)
         body_params.push_back(C_body_param);
     body_params.push_back(seq_body_param);
+    if (W_body_param)
+        body_params.push_back(W_body_param);
+    if (R_body_param)
+        body_params.push_back(R_body_param);
+    if (B_body_param)
+        body_params.push_back(B_body_param);
 
     body_results.push_back(concat_res);
     body_results.push_back(H_res);
@@ -230,6 +248,12 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     if (cell_state_defined)
         tensor_iterator->set_merged_input(C_body_param, squeezed_c, C_res);
     tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
+    if (W_body_param)
+        tensor_iterator->set_invariant_input(W_body_param, squeezed_w);
+    if (R_body_param)
+        tensor_iterator->set_invariant_input(R_body_param, squeezed_r);
+    if (B_body_param)
+        tensor_iterator->set_invariant_input(B_body_param, squeezed_b);
 
     ngraph::Output<ngraph::Node> H_out = H_res;
     ngraph::Output<ngraph::Node> C_out = C_res;

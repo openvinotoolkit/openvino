@@ -45,6 +45,23 @@ namespace {
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            GRUSequenceTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTest,
+                            ::testing::Combine(
+                                    ::testing::Values(ngraph::helpers::SequenceTestsMode::PURE_SEQ),
+                                    ::testing::ValuesIn(seq_lengths_zero_clip),
+                                    ::testing::ValuesIn(batch),
+                                    ::testing::ValuesIn(hidden_size),
+                                    // ::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
+                                    ::testing::ValuesIn(activations),
+                                    ::testing::ValuesIn(clip),
+                                    ::testing::ValuesIn(linear_before_reset),
+                                    ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);
@@ -60,6 +77,7 @@ namespace {
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);

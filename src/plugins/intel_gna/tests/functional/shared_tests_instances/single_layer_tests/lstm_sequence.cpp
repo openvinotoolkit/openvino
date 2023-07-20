@@ -13,6 +13,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 class LSTMSequenceGNATest : public LSTMSequenceTest {
 protected:
     void SetUp() override {
@@ -27,6 +29,7 @@ protected:
         std::vector<float> activations_beta;
         float clip;
         ngraph::op::RecurrentSequenceDirection direction;
+        InputLayerType WRBType;
         InferenceEngine::Precision netPrecision;
         std::tie(m_mode,
                  seq_lengths,
@@ -36,8 +39,11 @@ protected:
                  activations,
                  clip,
                  direction,
+                 WRBType,
                  netPrecision,
                  targetDevice) = this->GetParam();
+
+        ASSERT_EQ(InputLayerType::CONSTANT, WRBType);
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
@@ -156,6 +162,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonZeroClip,
                                             ::testing::ValuesIn(activations),
                                             ::testing::ValuesIn(clip),
                                             ::testing::ValuesIn(direction),
+                                            ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          LSTMSequenceTest::getTestCaseName);
@@ -170,6 +177,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip,
                                             ::testing::ValuesIn(activations),
                                             ::testing::ValuesIn(clip_non_zeros),
                                             ::testing::ValuesIn(direction),
+                                            ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          LSTMSequenceTest::getTestCaseName);

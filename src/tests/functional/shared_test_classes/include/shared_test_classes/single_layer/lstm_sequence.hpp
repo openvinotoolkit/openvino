@@ -24,8 +24,10 @@ using LSTMSequenceParams = typename std::tuple<
         std::vector<std::string>,                 // activations
         float,                                    // clip
         ngraph::op::RecurrentSequenceDirection,   // direction
+        ngraph::helpers::InputLayerType,          // WRB input type (Constant or Parameter)
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
+
 
 class LSTMSequenceTest : public testing::WithParamInterface<LSTMSequenceParams>,
                      virtual public LayerTestsUtils::LayerTestsCommon {
