@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.one_hot import OneHot
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float_array
@@ -32,27 +31,40 @@ edges = [
 ]
 
 
-@generator
 class TestOneHotInfer(unittest.TestCase):
-    @generate(*[
-        # 0d input
-        (1, [0, 1, 0, 0]),
-        # 1d input
-        ([1, 2], [[0, 1, 0, 0], [0, 0, 1, 0]]),
-        # 2D input
-        ([[1, 2], [3, 4]], [[[0, 1, 0, 0], [0, 0, 1, 0]],
-                            [[0, 0, 0, 1], [0, 0, 0, 0]]]),
-        # 3d input
-        ([[[0, 2], [1, 2]], [[2, 1], [3, 0]]],
-         [[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 1, 0]]],
-          [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]]),
-        # 1d input with negative indices
-        ([-2, 2], [[0, 0, 1, 0], [0, 0, 1, 0]]),
-        # check if axis is neither 0 nor -1
-        ([[1, 2], [3, 4]], [[[0, 0], [1, 0], [0, 1], [0, 0]],
-                            [[0, 0], [0, 0], [0, 0], [1, 0]]], 1)
-    ])
-    def test_infer(self, input_value, exp_value, axis=-1):
+    def test_case_1(self):
+        input_value = 1
+        exp_value = [0, 1, 0, 0]
+        self._test_infer(input_value, exp_value)
+
+    def test_case_2(self):
+        input_value = [1, 2]
+        exp_value = [[0, 1, 0, 0], [0, 0, 1, 0]]
+        self._test_infer(input_value, exp_value)
+
+    def test_case_3(self):
+        input_value = [[1, 2], [3, 4]]
+        exp_value = [[[0, 1, 0, 0], [0, 0, 1, 0]], [[0, 0, 0, 1], [0, 0, 0, 0]]]
+        self._test_infer(input_value, exp_value)
+
+    def test_case_4(self):
+        input_value = [[[0, 2], [1, 2]], [[2, 1], [3, 0]]]
+        exp_value = [[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 1, 0]]],
+                     [[[0, 0, 1, 0], [0, 1, 0, 0]], [[0, 0, 0, 1], [1, 0, 0, 0]]]]
+        self._test_infer(input_value, exp_value)
+
+    def test_case_5(self):
+        input_value = [-2, 2]
+        exp_value = [[0, 0, 1, 0], [0, 0, 1, 0]]
+        self._test_infer(input_value, exp_value)
+
+    def test_case_6(self):
+        input_value = [[1, 2], [3, 4]]
+        exp_value = [[[0, 0], [1, 0], [0, 1], [0, 0]], [[0, 0], [0, 0], [0, 0], [1, 0]]]
+        axis = 1
+        self._test_infer(input_value, exp_value, axis)
+
+    def _test_infer(self, input_value, exp_value, axis=-1):
         graph = build_graph(generate_nodes(int64_array(input_value), axis), edges)
         onehot_node = Node(graph, 'one_hot')
         OneHot.infer(onehot_node)
