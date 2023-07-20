@@ -86,8 +86,8 @@ bool Reshape::evaluate_reshape(const HostTensorVector& outputs, const HostTensor
 bool Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Reshape_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, 2));
-    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluate_reshape(outputs, inputs);
 }
