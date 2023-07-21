@@ -56,18 +56,16 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.
  *               - input "0" mean function generate the optimal number of streams
  *               - LATENCY hint equals 1 stream.
- * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
- *               - user can select all processors per numa node, per socket, or per platform.
  * @param[in]  proc_type_table candidate processors available at this time
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
  * @param[in]  ngraphFunc ngraph function
+ * @param[in]  config intel cpu configuration
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
-                             const Config::LatencyThreadingMode latency_threading_mode,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const ov::threading::IStreamsExecutor::Config streamExecutorConfig);
+                             Config& config);
 
 /**
  * @brief      Generate streams information according to processors type table
