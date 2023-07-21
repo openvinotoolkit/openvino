@@ -34,3 +34,10 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
+
+if(ENABLE_TESTS)
+    install(DIRECTORY unit_tests
+            DESTINATION tests/ovc
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
