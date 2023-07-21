@@ -108,7 +108,15 @@ OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
+OP_CONVERTER(translate_quantized_add);
+OP_CONVERTER(translate_quantized_add_relu);
+OP_CONVERTER(translate_quantized_hardswish);
+OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
+OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_randn);
+OP_CONVERTER(translate_rand_like);
+OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -158,6 +166,8 @@ OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
+OP_CONVERTER(translate_quantized_convnd);
+OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
 
 }  // namespace op
@@ -333,6 +343,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::pow", op::translate_pow},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
+        {"aten::rand", op::translate_rand},
+        {"aten::randn", op::translate_randn},
+        {"aten::rand_like", op::translate_rand_like},
+        {"aten::randn_like", op::translate_randn_like},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
@@ -419,6 +433,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"quantized::add", op::translate_quantized_add},
+        {"quantized::add_relu", op::translate_quantized_add_relu},
+        {"quantized::conv2d", op::translate_quantized_convnd},
+        {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
+        {"quantized::hardswish", op::translate_quantized_hardswish},
+        {"quantized::mul", op::translate_quantized_mul},
         {"quantized::linear", op::translate_quantized_linear},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
