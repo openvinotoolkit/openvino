@@ -45,12 +45,11 @@ static bool intersects(const Set& lhs, const Set& rhs) {
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg,
-                                         bool loaded_from_cache)
+                                         const Configuration& cfg)
     : ov::ICompiledModel(model, plugin),
       m_cfg(cfg),
       m_name(model->get_friendly_name()),
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(false) {
     bool dumpDotFile = m_cfg.dump_graph;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         dumpDotFile = true;
@@ -362,7 +361,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     m_inputs_to_submodels_inputs[j] = {id, i};
         }
         for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
-            for (size_t j = 0; j < ICompiledModel::outputs().size(); j++)
+            for (size_t j = 0; j < orig_results.size(); j++)
                 if (orderedSubgraphs[id]._results[i] == orig_results[j])
                     m_outputs_to_submodels_outputs[j] = {id, i};
         }
@@ -402,7 +401,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                        subgraph._sinks,
                                                        subgraph._parameters,
                                                        m_name + '_' + std::to_string(id));
-        m_compiled_submodels[id].model = subFunctions[id]->clone();
+        m_compiled_submodels[id].model = subFunctions[id];
 
         auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
                                                                           m_cfg.get_device_properties());
@@ -422,12 +421,11 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         const Configuration& cfg,
-                                         bool loaded_from_cache)
+                                         const Configuration& cfg)
     : ov::ICompiledModel(nullptr, plugin),
       m_cfg(cfg),
       m_name(),
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(true) {
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 
@@ -690,26 +688,32 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
 
     for (const auto& comp_model_desc : m_compiled_submodels) {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
-            comp_model_desc.compiled_model->export_model(model_stream);
-        } else {
-            auto model = comp_model_desc.model;
-            if (!model)
-                OPENVINO_THROW("OpenVINO Model is empty");
-
-            std::stringstream xmlFile, binFile;
-            ov::pass::Serialize serializer(xmlFile, binFile);
-            serializer.run_on_model(model);
-
-            auto constants = binFile.str();
-            auto model_str = xmlFile.str();
-
-            auto dataSize = static_cast<std::uint64_t>(model_str.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(model_str.c_str(), dataSize);
-
-            dataSize = static_cast<std::uint64_t>(constants.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
+            try {
+                // Batch plugin reports property of low level plugin
+                // If we use Batch plugin inside hetero, we won't be able to call export
+                // Auto batch plugin will throw NOT_IMPLEMENTED
+                comp_model_desc.compiled_model->export_model(model_stream);
+                continue;
+            } catch (ov::NotImplemented&) {
+            }
         }
+        auto model = comp_model_desc.model;
+        if (!model)
+            OPENVINO_THROW("OpenVINO Model is empty");
+
+        std::stringstream xmlFile, binFile;
+        ov::pass::Serialize serializer(xmlFile, binFile);
+        serializer.run_on_model(model);
+
+        auto constants = binFile.str();
+        auto model_str = xmlFile.str();
+
+        auto dataSize = static_cast<std::uint64_t>(model_str.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(model_str.c_str(), dataSize);
+
+        dataSize = static_cast<std::uint64_t>(constants.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
     }
 }

@@ -57,6 +57,7 @@ const std::vector<InferenceEngine::Layout> netLayouts = {
 
 const std::vector<InferenceEngine::Layout> ioLayouts = {
     InferenceEngine::Layout::NCHW,
+    InferenceEngine::Layout::NHWC,
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessConversionTest,
