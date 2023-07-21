@@ -448,8 +448,7 @@ public:
              const uint32_t size) {
         if (size == 0)
             return;
-        const std::pair<std::string, std::string> key =
-            std::make_pair(operation_name, memory_tag + " " + operand_name);
+        const std::pair<std::string, std::string> key = std::make_pair(operation_name, memory_tag + " " + operand_name);
         m_stats[key] = size;
     }
     std::string GetFormattedMemStats() {
@@ -546,9 +545,9 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                      << " tag: " << foundName << " offset: " << offset << " size: " << size << " data: " << operand.Data
                      << " baseAlloc: " << foundPtr << " layout: ";
             gna_stats.Add(foundName,
-                         GetOperandName(operation.Type, j),
-                         std::to_string(i) + " " + GetLayerType(operation.Type),
-                         size);
+                          GetOperandName(operation.Type, j),
+                          std::to_string(i) + " " + GetLayerType(operation.Type),
+                          size);
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
 
             if (operand.Type == Gna2DataTypePwlSegment) {
