@@ -108,6 +108,10 @@ OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
+OP_CONVERTER(translate_quantized_add);
+OP_CONVERTER(translate_quantized_add_relu);
+OP_CONVERTER(translate_quantized_hardswish);
+OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rand);
 OP_CONVERTER(translate_randn);
@@ -429,8 +433,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"quantized::add", op::translate_quantized_add},
+        {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::conv2d", op::translate_quantized_convnd},
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
+        {"quantized::hardswish", op::translate_quantized_hardswish},
+        {"quantized::mul", op::translate_quantized_mul},
         {"quantized::linear", op::translate_quantized_linear},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
