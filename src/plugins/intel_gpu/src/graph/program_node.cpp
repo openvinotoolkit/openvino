@@ -935,6 +935,10 @@ void program_node::init_onednn_primitive_attributes() {
     // Added this for debug purposes only
     size_t empty_mem = 0xff;
 
+    // Change scratchpad mode to user
+    if (attrs->get_scratchpad_mode() == dnnl::scratchpad_mode::library)
+        attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
