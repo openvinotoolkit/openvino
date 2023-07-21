@@ -72,7 +72,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
 }
 
 SocketsWeights::SocketsWeights() {
-    int num_sockets = get_num_numa_nodes();
+    int num_sockets = get_num_sockets();
     for (int socket_id = 0; socket_id < num_sockets; socket_id++)
          _cache_map[socket_id] = std::make_shared<WeightsSharing>();
 }
