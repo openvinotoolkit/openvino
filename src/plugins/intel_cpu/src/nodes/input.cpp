@@ -363,12 +363,15 @@ void Input::cloneBlobIfRequired() {
     };
 
     auto weightCache = context->getWeightsCache();
+    auto constOpAddrAligned64 = ((reinterpret_cast<uintptr_t>(constOp->get_data_ptr()) % 64) == 0);
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
-    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
+    } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()
+                // Only  also the const address is cache-line alignment, we reuse ngraph const data.
+                && constOpAddrAligned64) {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
