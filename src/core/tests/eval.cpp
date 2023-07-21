@@ -1510,7 +1510,6 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
 }
 
 TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
-    // on MAC rounding towards -infinity doesn't work as expected, to be investigated
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::i32, data_shape);
