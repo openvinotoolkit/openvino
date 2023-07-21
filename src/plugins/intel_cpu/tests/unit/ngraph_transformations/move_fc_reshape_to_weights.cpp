@@ -86,7 +86,6 @@ protected:
         ref_weights_shape.erase(ref_weights_shape.begin());
         model = initModel(input_shapes.first, input_shapes.second, add_transpose, add_subtract, true);
         model_ref = initModel(input_shapes.first, ref_weights_shape, add_transpose, add_subtract, false);
-        manager.register_pass<ov::pass::Serialize>("/home/vgolubev/models/test.xml", "");
         manager.register_pass<MoveFCReshapeToWeights>();
     }
 };

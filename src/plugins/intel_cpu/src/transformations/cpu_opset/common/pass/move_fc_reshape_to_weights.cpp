@@ -62,32 +62,46 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         };
 
         const auto mul = reshape->get_input_node_shared_ptr(0);
-        if (!check_decompression_const(mul->get_input_node_shared_ptr(1))) {
+        if (!check_decompression_const(mul->get_input_node_shared_ptr(1)))
             return false;
-        }
         const auto mul_parent = mul->get_input_node_shared_ptr(0);
         const bool with_subtract = ov::is_type<ov::opset1::Subtract>(mul_parent);
-        if (with_subtract && !check_decompression_const(mul_parent->get_input_node_shared_ptr(1))) {
+        if (with_subtract && !check_decompression_const(mul_parent->get_input_node_shared_ptr(1)))
             return false;
-        }
+
         const auto convert = with_subtract ? mul_parent->get_input_node_shared_ptr(0) : mul_parent;
         const auto weights = convert->get_input_node_shared_ptr(0);
         ov::Shape expected_weights_shape(3, 1);
         expected_weights_shape[1] = fc_input_shape[with_transpose ? 1 : 0];
         expected_weights_shape[2] = fc_input_shape[with_transpose ? 0 : 1];
-        if (weights->get_output_shape(0) != expected_weights_shape) {
+        if (weights->get_output_shape(0) != expected_weights_shape)
             return false;
-        }
 
-        std::cout << "All is OK\n\n" << std::endl;
-        // // Create FullyConnected
-        // auto output_rank = matmul->get_output_partial_shape(0).rank();
-        // auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
-        //         matmul->get_output_element_type(0));
-        // fc->set_friendly_name(matmul->get_friendly_name());
-        // new_ops.push_back(fc);
-        // ov::copy_runtime_info(matmul, new_ops);
-        // ov::replace_node(matmul, fc);
+        auto squeeze_constant = [](const std::shared_ptr<ov::Node>& node) {
+            const auto constant = ov::as_type_ptr<ov::opset1::Constant>(node);
+            auto shape = constant->get_shape();
+            OPENVINO_ASSERT(shape[0] == 1);
+            shape.erase(shape.begin());
+            const auto new_constant = std::make_shared<ov::opset1::Constant>(*constant, shape);
+            ov::replace_node(constant, new_constant);
+            ov::copy_runtime_info(constant, new_constant);
+            new_constant->set_friendly_name(constant->get_friendly_name());
+        };
+
+        // We can remove 3D->2D reshape if we manually reshape all constants in the weights subgraph
+        ov::replace_output_update_name(reshape->output(0), reshape->input_value(0));
+        squeeze_constant(mul->get_input_node_shared_ptr(1));
+        squeeze_constant(weights);
+        if (with_subtract)
+            squeeze_constant(mul_parent->get_input_node_shared_ptr(1));
+
+        // We have to call validate manually because validation pass doesn't change these shapes
+        // TODO: investigate
+        convert->validate_and_infer_types();
+        if (with_subtract)
+            mul_parent->validate_and_infer_types();
+        mul->validate_and_infer_types();
+
         return true;
     };
 
