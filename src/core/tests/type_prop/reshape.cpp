@@ -807,6 +807,13 @@ TEST(type_prop, reshape_default_ctor) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
 }
 
+TEST(type_prop, reshape_data_2d_dynamic_pattern_has_minus_one_i32) {
+    const auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    const auto op = make_shared<op::v1::Reshape>(param, op::Constant::create(element::i32, {2}, {-1, 4}), false);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 4}));
+}
+
 TEST(type_prop, reshape_deduce_wrong_output_shape) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
 

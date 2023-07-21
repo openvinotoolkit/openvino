@@ -95,12 +95,11 @@ TDim resolve_minus_one_dim(const Product<TDim>& product_in, const TDim& product_
         using namespace ov::util;
         out *= product_in.not_labeled;
         auto& out_interval = out.get_interval();
-        if (product_out.get_max_length() != 0) {
-            out_interval.set_min_val(ceil_div(out_interval.get_min_val(), product_out.get_max_length()));
-        }
-
-        if (product_out.get_min_length() != 0) {
+        if (product_out.get_min_length() != 0 && out_interval != Interval{} && product_out != TDim{}) {
             out_interval.set_max_val(out_interval.get_max_val() / product_out.get_min_length());
+        }
+        if (product_out.get_max_length() != 0) {
+            out_interval.set_min_val(ceil_div(out_interval.get_min_val(), product_out.get_interval().get_max_val()));
         }
     }
     return out;
@@ -125,7 +124,7 @@ template <class TShape>
 std::pair<TShape, int64_t> get_pattern_and_minus_one_idx(const Node* const op,
                                                          const std::vector<std::pair<int64_t, int64_t>>& bounds) {
     using namespace ov::util;
-    constexpr auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
+    const auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
 
     auto result = std::make_pair(TShape{}, dim::inf_bound);
     auto& shape = std::get<0>(result);
@@ -136,9 +135,10 @@ std::pair<TShape, int64_t> get_pattern_and_minus_one_idx(const Node* const op,
 
     for (size_t i = 0; i < bounds.size(); ++i, ++bounds_iter) {
         if (*bounds_iter == minus_one_bound) {
-            NODE_VALIDATION_CHECK(op, minus_one_idx == -1, "More than one dimension has size of -1");
+            NODE_VALIDATION_CHECK(op, minus_one_idx == dim::inf_bound, "More than one dimension has size of -1");
             minus_one_idx = static_cast<int64_t>(i);
         }
+        NODE_VALIDATION_CHECK(op, *bounds_iter >= minus_one_bound, "Dim size cannot be less than -1");
         shape.emplace_back(bounds_iter->first, bounds_iter->second);
     }
 

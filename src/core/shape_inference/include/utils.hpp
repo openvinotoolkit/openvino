@@ -379,19 +379,14 @@ inline element::Type get_input_const_element_type(const ov::Node* const op, size
  */
 template <class TShape, class TData, class TResult = std::vector<std::pair<TData, TData>>>
 ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const ITensorAccessor& ta) {
-    const auto make_bound = [](element::Type_t et) {
-        return [et](TData lb, TData ub) -> typename TResult::value_type {
-            return {element::get_value_or_limit_of(et, lb), element::get_value_or_limit_of(et, ub)};
-        };
-    };
-
     ov::optional<TResult> out;
 
-    if (auto lowers = op::get_input_const_data_as<TShape, TData>(op, port, ta)) {
-        const auto& et = get_input_const_element_type(op, port, ta);
-        out.emplace();
-        out->reserve(lowers->size());
-        std::transform(lowers->cbegin(), lowers->cend(), lowers->begin(), std::back_inserter(*out), make_bound(et));
+    if (const auto t = ta(port)) {
+        const auto& et = t.get_element_type();
+        out = get_tensor_data_as<TData, TResult>(t, [&et](TData d) {
+            auto v = element::get_value_or_limit_of(et, d);
+            return typename TResult::value_type{v, v};
+        });
     } else {
         auto bounds = ov::evaluate_both_bounds(op->get_input_source_output(port));
 
@@ -403,8 +398,19 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
 
             out.emplace();
             out->reserve(lowers.size());
-            std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound(et));
+            std::transform(
+                lowers.begin(),
+                lowers.end(),
+                uppers.begin(),
+                std::back_inserter(*out),
+                [&et](TData lb, TData ub) -> typename TResult::value_type {
+                    return {element::get_value_or_limit_of(et, lb), element::get_value_or_limit_of(et, ub)};
+                });
         }
+    }
+
+    if (!std::is_same<TShape, PartialShape>::value) {
+        NODE_VALIDATION_CHECK(op, out, "Static shape inference lacks constant data on port ", port);
     }
     return out;
 }
