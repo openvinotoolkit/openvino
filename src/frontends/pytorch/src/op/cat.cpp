@@ -7,6 +7,7 @@
 #include "openvino/op/parameter.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -15,9 +16,9 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_cat(const NodeContext& context) {
+namespace {
+ov::Output<ov::Node> translate_cat_base(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
-    num_inputs_check(context, 2, 2);
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     auto axis = context.const_input<int64_t>(1);
     if (list_elems.empty()) {
@@ -35,8 +36,21 @@ OutputVector translate_cat(const NodeContext& context) {
                                       "This case is not supported.");
     }
     auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
-    return {context.mark_node(concat)};
+    return context.mark_node(concat);
 };
+};  // namespace
+
+OutputVector translate_cat(const NodeContext& context) {
+    // This translator is only needed to get axis as constant from external scope
+    num_inputs_check(context, 2, 2);
+    return {translate_cat_base(context)};
+};
+
+OutputVector translate_quantized_cat(const NodeContext& context) {
+    num_inputs_check(context, 4, 4);
+    return {quantize(context, translate_cat_base(context), context.get_input(2), context.get_input(3), context.get_input(0))};
+};
+
 
 }  // namespace op
 }  // namespace pytorch
