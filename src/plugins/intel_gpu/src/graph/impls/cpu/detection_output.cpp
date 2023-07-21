@@ -855,10 +855,16 @@ public:
 namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
-    implementation_map<detection_output>::add(impl_types::cpu, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    auto formats = {
+        format::bfyx
+    };
+
+    auto types = {
+        data_types::f32,
+        data_types::f16
+    };
+
+    implementation_map<detection_output>::add(impl_types::cpu, shape_types::any, detection_output_impl::create, types, formats);
 }
 
 }  // namespace detail
