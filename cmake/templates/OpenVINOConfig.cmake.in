@@ -403,15 +403,17 @@ macro(_ov_find_onnx_frontend_dependencies)
 endmacro()
 
 function(_ov_target_no_deprecation_error)
-    if(NOT MSVC)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # older macOS x86_64 does not support this linker option
+        if(CMAKE_CROSSCOMPILING AND NOT APPLE)
+            set_target_properties(${ARGV} PROPERTIES
+                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(flags "-diag-warning=1786")
         else()
             set(flags "-Wno-error=deprecated-declarations")
-        endif()
-        if(CMAKE_CROSSCOMPILING)
-            set_target_properties(${ARGV} PROPERTIES
-                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
 
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
