@@ -20,6 +20,7 @@ const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {}, {}, {}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::I8,
+        Precision::FP16,
         Precision::FP32
 };
 
