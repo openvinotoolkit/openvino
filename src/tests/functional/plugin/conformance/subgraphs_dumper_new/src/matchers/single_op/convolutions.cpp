@@ -4,7 +4,7 @@
 
 #include "openvino/op/ops.hpp"
 
-#include "single_op_matchers/convolutions.hpp"
+#include "matchers/single_op/convolutions.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
@@ -27,7 +27,6 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
     if (cfg->ignore_matching) {
         return false;
     }
-
     if (!same_op_type(node, ref)) {
         return false;
     }
@@ -45,7 +44,7 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
 
 bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                        const std::shared_ptr<ov::Node> &ref) const {
-    if (!BaseMatcher::match_inputs(node, ref)) {
+    if (!SingleOpMatcher::match_inputs(node, ref)) {
         return false;
     }
     bool has_groups = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||

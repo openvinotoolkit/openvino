@@ -17,7 +17,7 @@ struct ModelInfo {
 
     ModelInfo(const std::string& model_path = "", size_t total_ops_in_model = 1, size_t _model_priority = 1) :
         total_op_cnt(total_ops_in_model), model_paths({model_path}),
-        this_op_cnt(1), model_priority(_model_priority) {};
+        this_op_cnt(1), model_priority(_model_priority) {}
 
     bool operator==(const ModelInfo& model_info_ref) const {
         if (this->model_priority != model_info_ref.model_priority || this->this_op_cnt != model_info_ref.this_op_cnt ||

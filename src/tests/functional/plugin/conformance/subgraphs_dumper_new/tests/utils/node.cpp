@@ -37,10 +37,10 @@ TEST(NodeUtilsTest, get_input_info_by_node) {
 }
 
 TEST(NodeUtilsTest, clone_node) {
-    std::vector<float> values = {-1, -2.05, -3.65, 0, 5, 7};
-    auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 3}), values);
+    std::vector<float> values(512, 1.f);
+    auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 256}), values);
     const_node->set_friendly_name("const_0");
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({2, 3}));
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({2, 256}));
     param->set_friendly_name("param_0");
     auto add_node_0 = std::make_shared<ov::op::v1::Add>(param, const_node);
     auto erf_node_0 = std::make_shared<ov::op::v0::Erf>(add_node_0);

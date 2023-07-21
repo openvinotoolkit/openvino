@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "single_op_matchers/base.hpp"
+#include "matchers/single_op/single_op.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class ConvolutionsMatcher : public BaseMatcher {
+class ConvolutionsMatcher : public SingleOpMatcher {
 public:
     ConvolutionsMatcher();
 

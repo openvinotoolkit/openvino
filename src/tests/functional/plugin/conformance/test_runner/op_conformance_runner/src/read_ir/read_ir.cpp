@@ -448,4 +448,3 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 } // namespace test
 } // namespace ov
 
-

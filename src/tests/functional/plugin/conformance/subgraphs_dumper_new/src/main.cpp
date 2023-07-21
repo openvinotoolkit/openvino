@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
-    // SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
 
     std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
@@ -41,6 +40,9 @@ int main(int argc, char *argv[]) {
         caches.push_back(GraphCache::get());
     }
 
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(FLAGS_output_folder);
+    }
     std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
     // Upload previously cached graphs to cache
     if (!FLAGS_local_cache.empty()) {

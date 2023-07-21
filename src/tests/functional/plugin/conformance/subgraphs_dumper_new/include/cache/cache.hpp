@@ -9,6 +9,7 @@
 #include "openvino/openvino.hpp"
 
 #include "cache/meta/meta_info.hpp"
+#include "matchers/single_op/manager.hpp"
 
 namespace ov {
 namespace tools {
@@ -19,6 +20,7 @@ public:
     virtual void update_cache(const std::shared_ptr<ov::Model>& model,
                               const std::string& source_model, bool extract_body = true) {};
     virtual void serialize_cache() {};
+    virtual void reset_cache() {};
 
     void set_serialization_dir(const std::string& serialization_dir) {
         m_serialization_dir = serialization_dir;
@@ -26,7 +28,6 @@ public:
 
 protected:
     size_t m_serialization_timeout = 60;
-    // NOLINT Static/global string variables are not permitted
     std::string m_serialization_dir = ".";
 
     ICache() = default;

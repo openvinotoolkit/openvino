@@ -13,6 +13,7 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/src/main.cpp
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils

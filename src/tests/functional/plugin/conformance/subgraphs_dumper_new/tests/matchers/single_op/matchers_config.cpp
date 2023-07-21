@@ -3,7 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "single_op_matchers/base.hpp"
+#include "matchers/single_op/single_op.hpp"
 #include "openvino/op/ops.hpp"
 
 namespace {
