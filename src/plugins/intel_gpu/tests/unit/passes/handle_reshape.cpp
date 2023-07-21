@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -182,6 +183,7 @@ TEST(handle_reshape, correct_parameters_propagation_2_inputs) {
 }
 
 TEST(handle_reshape, reshape_input_reorder) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto shape_memory = engine.allocate_memory({ ov::PartialShape{5}, data_types::i32, format::bfyx });
     auto in0_layout = layout{ ov::PartialShape{1, -1, 16, 64, 64}, data_types::f16, format::bfzyx };
@@ -189,8 +191,8 @@ TEST(handle_reshape, reshape_input_reorder) {
     auto in1_layout = layout{ ov::PartialShape{-1, 16, 64, 64}, data_types::f16, format::bfyx };
     auto in1_memory = engine.allocate_memory({ ov::PartialShape{2, 16, 64, 64}, data_types::f16, format::bfyx });
 
-    auto in0 = generate_random_1d<FLOAT16>(in0_memory->count(), -10, 10);
-    auto in1 = generate_random_1d<FLOAT16>(in1_memory->count(), -10, 10);
+    auto in0 = rg.generate_random_1d<FLOAT16>(in0_memory->count(), -10, 10);
+    auto in1 = rg.generate_random_1d<FLOAT16>(in1_memory->count(), -10, 10);
     set_values<FLOAT16>(in0_memory, in0);
     set_values<int32_t>(shape_memory, {1, 2, 16, 64, 64});
     set_values<FLOAT16>(in1_memory, in1);

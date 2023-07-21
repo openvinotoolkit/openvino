@@ -58,7 +58,8 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
 *Example 1*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="ScatterUpdate">
         <input>
@@ -95,7 +96,8 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
 *Example 2*
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="ScatterUpdate">
         <input>

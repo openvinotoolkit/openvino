@@ -37,7 +37,7 @@ macro(ov_common_libraries_cpack_set_dirs)
     ov_get_pyversion(pyversion)
     if(pyversion)
         # should not be used in production; only by setup.py install
-        set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
+        set(OV_CPACK_PYTHONDIR lib/${pyversion}/site-packages)
     endif()
 
     # non-native stuff
@@ -53,10 +53,6 @@ macro(ov_common_libraries_cpack_set_dirs)
     set(IE_CPACK_LIBRARY_PATH ${OV_CPACK_LIBRARYDIR})
     set(IE_CPACK_RUNTIME_PATH ${OV_CPACK_RUNTIMEDIR})
     set(IE_CPACK_ARCHIVE_PATH ${OV_CPACK_ARCHIVEDIR})
-
-    if(CPACK_GENERATOR STREQUAL "BREW")
-        set(CMAKE_SKIP_INSTALL_RPATH OFF)
-    endif()
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
@@ -123,3 +119,8 @@ macro(ov_define_component_include_rules)
 endmacro()
 
 ov_define_component_include_rules()
+
+if(CPACK_GENERATOR STREQUAL "BREW")
+    # brew relies on RPATH
+    set(CMAKE_SKIP_INSTALL_RPATH OFF)
+endif()

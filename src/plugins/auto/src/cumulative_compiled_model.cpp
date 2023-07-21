@@ -18,11 +18,10 @@ namespace ov {
 namespace auto_plugin {
 AutoCumuCompiledModel::AutoCumuCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             ScheduleContext::Ptr context,
-                                             Schedule::Ptr scheduler)
-    : CompiledModel(model, plugin, context, scheduler),
-      m_model(model),
-      m_context(context) {
+                                             const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                                             ScheduleContext::Ptr& schedule_context,
+                                             Schedule::Ptr& scheduler)
+    : CompiledModel(model, plugin, remote_context, schedule_context, scheduler) {
       m_scheduler = std::dynamic_pointer_cast<CumuSchedule>(scheduler);
 }
 

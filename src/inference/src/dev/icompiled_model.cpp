@@ -18,7 +18,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                   const ov::RemoteContext& context,
+                                   const ov::SoPtr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
@@ -48,6 +48,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             }
         }
 
+        std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
         for (const auto& param : model->get_parameters()) {
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
@@ -64,6 +65,12 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             new_param->set_element_type(param->get_element_type());
             new_param->set_layout(param->get_layout());
             new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
+            auto old_tensor = param->output(0).get_tensor_ptr();
+            if (tensor_map.count(old_tensor)) {
+                new_param->output(0).set_tensor_ptr(tensor_map[old_tensor]);
+            } else {
+                tensor_map[old_tensor] = new_param->output(0).get_tensor_ptr();
+            }
             new_param->validate_and_infer_types();
             m_inputs.emplace_back(new_param->output(0));
         }
@@ -88,6 +95,12 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
             new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+            auto old_tensor = result->output(0).get_tensor_ptr();
+            if (tensor_map.count(old_tensor)) {
+                new_result->output(0).set_tensor_ptr(tensor_map[old_tensor]);
+            } else {
+                tensor_map[old_tensor] = new_result->output(0).get_tensor_ptr();
+            }
             m_outputs.emplace_back(new_result->output(0));
         }
     }
@@ -123,11 +136,11 @@ void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threadi
     m_callback_executor = callback_executor;
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
+ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
     }
     if (m_context)
-        return m_context._impl;
+        return m_context;
     return m_plugin->get_default_context({});
 }

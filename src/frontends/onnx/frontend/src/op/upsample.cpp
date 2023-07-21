@@ -10,6 +10,7 @@
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -115,3 +116,4 @@ OutputVector upsample(const onnx_import::Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

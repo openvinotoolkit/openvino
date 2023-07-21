@@ -30,20 +30,15 @@ endfunction()
 
 add_helpers(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PUBLIC commonTestUtils
+target_link_libraries(${TARGET_NAME} PUBLIC common_test_utils
                                      PRIVATE inference_engine_legacy)
 
 add_helpers(${TARGET_NAME}_s USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_s PUBLIC commonTestUtils_s
+target_link_libraries(${TARGET_NAME}_s PUBLIC common_test_utils_s
                                        PRIVATE inference_engine_legacy_s)
 
 if (ENABLE_DATA)
     add_dependencies(${TARGET_NAME} data)
     add_dependencies(${TARGET_NAME}_s data)
 endif()
-
-# developer package
-
-openvino_developer_export_targets(COMPONENT tests
-                                  TARGETS ieTestHelpers ieTestHelpers_s)

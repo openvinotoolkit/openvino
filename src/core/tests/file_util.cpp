@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "openvino/util/file_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -109,4 +110,65 @@ TEST(file_util, sanitize_path) {
         string path = "C:\\workspace\\tensor.data";
         EXPECT_STREQ("workspace\\tensor.data", file_util::sanitize_path(path).c_str());
     }
+}
+
+NGRAPH_SUPPRESS_DEPRECATED_END
+
+using namespace testing;
+
+class TrimFileTest : public Test {
+protected:
+    void SetUp() override {
+        project_dir_name = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR);
+    }
+
+    std::string project_dir_name;
+};
+
+TEST_F(TrimFileTest, relative_path_to_source) {
+    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"});
+
+    const auto file_path = ov::util::path_join({"..", "..", "..", project_dir_name, "src", "test_src.cpp"});
+
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(exp_path, str_ptr);
+}
+
+TEST_F(TrimFileTest, relative_path_to_source_but_no_project_dir) {
+    const auto file_path = ov::util::path_join({"..", "..", "..", "src", "test_src.cpp"});
+
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(file_path, str_ptr);
+}
+
+TEST_F(TrimFileTest, absolute_path_to_source) {
+    const auto exp_path = ov::util::path_join({"src", "test_src.cpp"});
+
+    const auto file_path = ov::util::path_join({"home", "user", project_dir_name, "src", "test_src.cpp"});
+
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(exp_path, str_ptr);
+}
+
+TEST_F(TrimFileTest, absolute_path_to_source_but_no_project_dir) {
+    const auto file_path = ov::util::path_join({"home", "user", "src", "test_src.cpp"});
+
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(file_path, str_ptr);
+}
+
+TEST_F(TrimFileTest, absolute_path_to_source_forward_slash_always_supported) {
+    const auto exp_path = std::string("src/test_src.cpp");
+
+    const auto file_path = std::string("home/user/") + project_dir_name + "/src/test_src.cpp";
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(exp_path, str_ptr);
+}
+
+TEST_F(TrimFileTest, relatice_path_to_source_forward_slash_always_supported) {
+    const auto exp_path = std::string("src/test_src.cpp");
+
+    const auto file_path = std::string("../../") + project_dir_name + "/src/test_src.cpp";
+    auto str_ptr = ov::util::trim_file_name(file_path.c_str());
+    EXPECT_EQ(exp_path, str_ptr);
 }
