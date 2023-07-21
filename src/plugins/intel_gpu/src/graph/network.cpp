@@ -353,13 +353,13 @@ network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
                  bool is_internal,
-                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
     : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
                  const ExecutionConfig& config,
-                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
     : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
@@ -674,7 +674,7 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
@@ -682,7 +682,7 @@ network::ptr network::build_network(engine& engine,
 network::ptr network::build_network(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, nodes, config, task_executor, is_internal);
 }
@@ -740,7 +740,7 @@ void network::reset_execution(bool wait) {
     _events.clear();
 }
 
-void network::set_input_data(const primitive_id& id, memory::ptr data) {
+event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
@@ -754,10 +754,7 @@ void network::set_input_data(const primitive_id& id, memory::ptr data) {
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
 
-    // Wait for previous execution completion
-    reset_execution(true);
-
-    input->set_data(data);
+    return input->set_data(data);
 }
 
 void network::add_default_output_chains() {
@@ -885,9 +882,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     return _output_chains.insert({ p_inst->id(), chain }).first;
 }
 
-void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     std::shared_ptr<primitive_inst> p_inst;
-
+    std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
 
     if (!p_inst)
@@ -896,9 +893,6 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
         throw std::runtime_error("primitive: " + id + " is not a network output");
-
-    // Wait for previous execution completion
-    reset_execution(true);
 
     auto& eng = get_engine();
     // locate primitive chain for this output
@@ -909,12 +903,13 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
     }
 
     for (auto& prim : o_iter->second) {
-        prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+        ret_ev.push_back(prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
         }
     }
+    return ret_ev;
 }
 
 void cldnn::network::check_names() {

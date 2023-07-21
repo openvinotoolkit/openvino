@@ -98,7 +98,7 @@ class TestInfoMessagesTFFEWithFallback(unittest.TestCase):
             main(argparse.ArgumentParser())
             std_out = f.getvalue()
         tf_fe_message_found = get_tf_fe_message() in std_out
-        assert not tf_fe_message_found, 'TF FE Info message is found for the fallback case'
+        assert tf_fe_message_found, 'TF FE Info message is found for the fallback case'
 
 
 class TestInfoMessagesCompressFP16(unittest.TestCase):

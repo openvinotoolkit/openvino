@@ -106,6 +106,8 @@ OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
+OP_CONVERTER(translate_quantize_per_channel);
+OP_CONVERTER(translate_quantize_per_tensor);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
@@ -144,6 +146,8 @@ OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
+OP_CONVERTER(translate_upsample_bicubic2d_aa);
+OP_CONVERTER(translate_upsample_bilinear2d_aa);
 OP_CONVERTER(translate_upsample_linear1d);
 OP_CONVERTER(translate_upsample_nearest1d);
 OP_CONVERTER(translate_upsample_nearest2d);
@@ -154,6 +158,9 @@ OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
+OP_CONVERTER(translate_quantized_convnd);
+OP_CONVERTER(translate_quantized_convnd_relu);
+OP_CONVERTER(translate_quantized_linear);
 
 }  // namespace op
 
@@ -326,6 +333,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten::pow", op::translate_pow},
+        {"aten::quantize_per_channel", op::translate_quantize_per_channel},
+        {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
@@ -387,6 +396,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
+        {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
+        {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
         {"aten::upsample_linear1d", op::translate_upsample_linear1d},
         {"aten::upsample_nearest1d", op::translate_upsample_nearest1d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
@@ -410,6 +421,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
+        {"quantized::conv2d", op::translate_quantized_convnd},
+        {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
+        {"quantized::linear", op::translate_quantized_linear},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
