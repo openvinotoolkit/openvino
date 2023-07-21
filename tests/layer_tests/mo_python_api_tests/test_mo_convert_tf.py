@@ -738,7 +738,10 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
-        ov_model = convert_model(keras_model, input_shape=[1])
+        # When constants are compressed zero_copy scenario does not work since original constants have been
+        # replaced with compressed ones and numpy memory block from Keras is not present ov::Model anymore.
+        # TODO: double check if we are aware of that peculiarities
+        ov_model = convert_model(keras_model, input_shape=[1], compress_to_fp16=False)
         cmp_model = compile_model(ov_model)
 
         # Check model inference
