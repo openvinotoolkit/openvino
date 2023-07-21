@@ -102,6 +102,13 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
     const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
+        case Precision::FP16: {
+            auto *pln_blob_ptr = reinterpret_cast<float16 *>(data.data());
+            auto *blob_ptr = reinterpret_cast<const float16 *>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
+            break;
+        }
         case Precision::FP32:
         case Precision::I32: {
             auto *pln_blob_ptr = reinterpret_cast<int32_t *>(data.data());
