@@ -137,5 +137,9 @@ std::vector<std::string> disabledTestPatterns() {
             // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
             // because it crashes in some random places during "reorder_inputs" pass.
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
+#ifdef PROXY_PLUGIN_ENABLED
+            // Plugin version was changed to ov::Version
+            R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+#endif
     };
 }

@@ -104,7 +104,8 @@ are in sync with the specification of ONNX GRU operator defined
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GRUSequence" ...>
        <data hidden_size="128"/>

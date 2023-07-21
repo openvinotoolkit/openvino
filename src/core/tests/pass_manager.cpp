@@ -7,12 +7,12 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_tools.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;

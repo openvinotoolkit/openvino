@@ -9,6 +9,7 @@
 #include "nodes/pooling.h"
 #include "nodes/eltwise.h"
 #include "nodes/concat.h"
+#include "nodes/convert.h"
 #include "nodes/reorder.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -84,6 +85,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndScaleShift");
     MergeConvertAndScaleShift(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndConvertOnWeights");
+    FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
@@ -242,7 +247,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (scalesBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal scales blob";
 
-        auto scalesData = static_cast<const float*>(scalesBlob->GetPtr());
+        auto scalesData = static_cast<const float*>(scalesBlob->getData());
         if (scalesData == nullptr)
             IE_THROW() << "scalesBlob has not allocated buffer";
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
@@ -691,6 +696,20 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     }
 }
 
+void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+    // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
+    // (e.g. fuse conversion with weights reordering)
+    auto& graphNodes = graph.GetNodes();
+
+    for (auto parent : graphNodes) {
+        if (parent->getType() == Type::Convert && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
+                && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)) {
+            graph.DropNode(parent);
+        }
+    }
+}
+
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -756,8 +775,10 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                 return false;
         }
 
-        auto subtractArg0 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-        if (subtractArg0->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        const auto& parentEdge = parent0->getParentEdgeAt(0);
+        const auto& subtractArg0 = parentEdge->getParent();
+        const size_t portNum = parentEdge->getInputNum();
+        if (subtractArg0->getOriginalOutputPrecisionAtPort(portNum) != Precision::U8)
             return false;
 
         auto zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());
@@ -768,7 +789,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (zeroPointsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal zero points blob";
 
-        auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->GetPtr());
+        auto zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->getData());
         if (zeroPointsData == nullptr)
             IE_THROW() << "zeroPointsBlob has not allocated buffer";
 
@@ -798,7 +819,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (weightsBlob == nullptr)
             IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->GetPtr());
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 
@@ -2243,6 +2264,15 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             }
         }
 
+        // to prevent inPlace conflict we must check that the memory reference is unidirectional or
+        // inPlace memory is not used
+        const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+        const auto& childEdges = childNode->getChildEdgesAtPort(0);
+        const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(),
+            [](const EdgePtr& edge){ return edge->inPlace(Edge::LOOK_DOWN); });
+
+        bool isOptimized = !(parentInPlace && childInPlace);
+
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
@@ -2269,7 +2299,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             IE_THROW() << "Transpose node '" << parentNode->getName() << "' has invalid edges.";
         }
 
-        bool isOptimized = true;
         std::vector<int> srcPerm;
         auto configReorder = [&]() {
             // transposeNode support blocked input & non-blocked output, in the case, the reorder

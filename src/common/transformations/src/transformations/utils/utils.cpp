@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 #include <ngraph/op/util/op_annotations.hpp>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/op/broadcast.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
@@ -340,6 +341,31 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+float cast_eps_to_float(double eps_d) {
+    auto eps_f = static_cast<float>(eps_d);
+    if (eps_d > 0.) {  // zero is fine; negative values have no sense
+        if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
+            eps_f = std::numeric_limits<float>::min();
+        else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                 static_cast<double>(std::numeric_limits<float>::max()))
+            eps_f = std::numeric_limits<float>::max();
+    }
+    return eps_f;
+}
+
+bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (const auto& constant = ov::get_constant_from_source(output)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& values = constant->cast_vector<int64_t>();
+        return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
+            return i == v;
+        });
+    }
+    return false;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

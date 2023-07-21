@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
@@ -10,7 +11,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

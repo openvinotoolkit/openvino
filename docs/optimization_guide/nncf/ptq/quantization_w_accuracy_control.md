@@ -24,7 +24,7 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
          :language: python
@@ -38,7 +38,7 @@ Validation function receives ``openvino.runtime.CompiledModel`` object and valid
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
          :language: python
@@ -52,7 +52,7 @@ Run quantization with accuracy control
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
          :language: python
@@ -67,7 +67,7 @@ After that the model can be compiled and run with OpenVINO:
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_openvino.py
          :language: python

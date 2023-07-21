@@ -13,8 +13,9 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  ScheduleContext::Ptr context,
-                  Schedule::Ptr        scheduler);
+                  const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                  ScheduleContext::Ptr& schedule_context,
+                  Schedule::Ptr&        scheduler);
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
     std::shared_ptr<const Plugin> get_auto_plugin();
@@ -25,9 +26,9 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     std::string get_log_tag() const noexcept;
     static ov::AnyMap get_device_supported_properties(AutoCompileContext& context);
+    ScheduleContext::Ptr   m_context;
 
 private:
-    ScheduleContext::Ptr   m_context;
     Schedule::Ptr          m_scheduler;
     std::once_flag         m_oc;
     bool m_inputs_outputs_from_hardware;
