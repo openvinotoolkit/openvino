@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_test_uint,
                          ::testing::Combine(::testing::Values(std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
                                                               CommonTestUtils::DEVICE_TEMPLATE),
                                             ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
-                                                                               InferenceEngine::Parameter{1000}})),
+                                                                               InferenceEngine::Parameter{uint32_t(1000)}})),
                          DefaultConfigurationTest::getTestCaseName);
 
 }  // namespace

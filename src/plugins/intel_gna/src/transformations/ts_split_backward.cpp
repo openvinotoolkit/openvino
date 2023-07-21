@@ -18,17 +18,21 @@
 using namespace ov;
 using namespace ov::opset12;
 using namespace ov::pass::pattern;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
 using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::graph_utils;
 
 namespace {
+
 bool is_split_sinked(const Output<Node>& output) {
     auto split_node = output.get_node_shared_ptr();
     for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
         for (auto& input : split_node->get_output_target_inputs(output_idx)) {
-            auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
+            auto target_node =
+                get_next_node_skipping_certain(input.get_node()->shared_from_this(), is_gna_non_functional_node);
+            std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(target_node);
             if (transpose && !Limitations::is_transpose_supported(transpose))
                 return true;
         }
@@ -40,19 +44,25 @@ bool is_split_sinked(const Output<Node>& output) {
 TSSplitBackward::TSSplitBackward() {
     MATCHER_SCOPE(TSSplitBackward);
 
-    auto split_node_label = wrap_type<Split>(is_split_sinked);
+    auto split_node_label = wrap_type<Split, VariadicSplit>(is_split_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto& split_node_label_output = pattern_to_output.at(split_node_label);
-        auto split_node = as_type_ptr<Split>(split_node_label_output.get_node_shared_ptr());
+        std::shared_ptr<ov::Node> split_node = as_type_ptr<Split>(split_node_label_output.get_node_shared_ptr());
+        if (!split_node) {
+            split_node = as_type_ptr<VariadicSplit>(split_node_label_output.get_node_shared_ptr());
+        }
 
         ov::AxisVector gather_ids = {};
         std::vector<AxisVector> gather_indices_vecs;
+        std::vector<size_t> split_slices;
         for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
             for (auto& input : split_node->get_output_target_inputs(output_idx)) {
-                auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
+                auto target_node =
+                    get_next_node_skipping_certain(input.get_node()->shared_from_this(), is_gna_non_functional_node);
+                std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(target_node);
 
                 ov::Shape transpose_shape = split_node->get_output_shape(output_idx);
                 ov::AxisVector transpose_order(transpose_shape.size());
@@ -74,6 +84,8 @@ TSSplitBackward::TSSplitBackward() {
                     i += id;
                 });
                 gather_ids.insert(gather_ids.end(), slice_ids.begin(), slice_ids.end());
+                // collect slice sizes
+                split_slices.push_back(slice_ids.size());
             }
         }
 
@@ -89,18 +101,27 @@ TSSplitBackward::TSSplitBackward() {
 
         ov::copy_runtime_info(split_node, {reshape_input, reshape_input_const});
 
+        std::shared_ptr<ov::Node> gather;
         auto gather_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
         auto gather_indices = std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_ids.size()}, gather_ids);
-        auto gather = std::make_shared<Gather>(reshape_input, gather_indices, gather_axis);
+        if (graph_utils::are_shapes_equal(split_input_shape, reshape_input_shape)) {
+            gather = std::make_shared<Gather>(split_node->input_value(0), gather_indices, gather_axis);
+        } else {
+            gather = std::make_shared<Gather>(reshape_input, gather_indices, gather_axis);
+        }
 
-        auto split_axis_new = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
-        auto split_new = std::make_shared<Split>(gather, split_axis_new, split_node->get_num_splits());
+        auto split_new_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
+        auto split_new_lengths =
+            std::make_shared<Constant>(ov::element::i64, ov::Shape{split_slices.size()}, split_slices);
+        auto split_new = std::make_shared<VariadicSplit>(gather, split_new_axis, split_new_lengths);
 
-        ov::copy_runtime_info(split_node, {gather_axis, gather_indices, gather, split_axis_new, split_new});
+        ov::copy_runtime_info(split_node, {gather_axis, gather_indices, gather, split_new_axis, split_new});
 
         for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
             for (auto& input : split_node->get_output_target_inputs(output_idx)) {
-                auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
+                auto target_node = get_next_node_skipping_certain(input.get_node()->shared_from_this(),
+                                                                  graph_utils::is_gna_non_functional_node);
+                std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(target_node);
                 if (transpose) {
                     auto reshape_output_const_new =
                         std::make_shared<Constant>(ov::element::i64,

@@ -56,7 +56,7 @@ public:
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<detection_output>());
+        OPENVINO_ASSERT(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
     }
@@ -855,10 +855,16 @@ public:
 namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
-    implementation_map<detection_output>::add(impl_types::cpu, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    auto formats = {
+        format::bfyx
+    };
+
+    auto types = {
+        data_types::f32,
+        data_types::f16
+    };
+
+    implementation_map<detection_output>::add(impl_types::cpu, shape_types::any, detection_output_impl::create, types, formats);
 }
 
 }  // namespace detail
