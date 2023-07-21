@@ -5,7 +5,6 @@
 import numpy as np
 import copy
 import pytest
-import os
 import platform
 from PIL import Image
 
@@ -13,7 +12,8 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 
-from openvino.runtime import Core, Tensor, convert_model
+from openvino.runtime import Core, Tensor
+from openvino.tools.mo import convert_model
 
 from openvino.preprocess.torchvision import PreprocessConverter
 
