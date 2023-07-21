@@ -199,6 +199,8 @@ std::vector<ov::test::InputShape> inShapesDynamic = {
             {1, 3, -1, -1},
             {
                 { 1, 3, 30, 30 },
+                { 1, 3, 20, 20 },
+                { 1, 3, 40, 40 }
             }
         },
 };
@@ -207,6 +209,8 @@ std::vector<ov::test::InputShape> imgShapesDynamic = {
             {1, 3, -1, -1},
             {
                 { 1, 3, 224, 224 },
+                { 1, 3, 300, 300 },
+                { 1, 3, 200, 200 }
             }
         },
 };

@@ -36,7 +36,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
             width = impl_param.output_size[0];
             height = impl_param.output_size[1];
             image_width = impl_param.img_size[0];
-            image_height = impl_param.img_size[0];
+            image_height = impl_param.img_size[1];
         }
         params.min_size = primitive->min_sizes;
         params.max_size = primitive->max_sizes;

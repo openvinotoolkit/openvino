@@ -469,20 +469,42 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
             auto img_height = reinterpret_cast<int64_t*>(img_size_lock.data())[0];
             auto img_width = reinterpret_cast<int64_t*>(img_size_lock.data())[1];
 
-            p_param->output_size.push_back(static_cast<size_t>(output_width));
-            p_param->output_size.push_back(static_cast<size_t>(output_height));
-            p_param->img_size.push_back(static_cast<size_t>(img_width));
-            p_param->img_size.push_back(static_cast<size_t>(img_height));
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
+            } else {
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
+            }
         } else { //int32_t
             auto output_height = reinterpret_cast<int32_t*>(output_size_lock.data())[0];
             auto output_width = reinterpret_cast<int32_t*>(output_size_lock.data())[1];
             auto img_height = reinterpret_cast<int32_t*>(img_size_lock.data())[0];
             auto img_width = reinterpret_cast<int32_t*>(img_size_lock.data())[1];
 
-            p_param->output_size.push_back(static_cast<size_t>(output_width));
-            p_param->output_size.push_back(static_cast<size_t>(output_height));
-            p_param->img_size.push_back(static_cast<size_t>(img_width));
-            p_param->img_size.push_back(static_cast<size_t>(img_height));
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
+            } else {
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
+            }
         }
     }
 
