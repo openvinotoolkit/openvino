@@ -28,7 +28,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto one_consumer_rank_2 = [](const ov::Output<ov::Node>& out) {
         return consumers_count(1)(out) && rank_equals(2)(out);
     };
-    auto reshape_const_m = wrap_type<ov::opset1::Constant>();
+    auto reshape_const_m = wrap_type<ov::opset1::Constant>(consumers_count(1));
     auto reshape_m = wrap_type<ov::opset1::Reshape>({mul_m, reshape_const_m}, one_consumer_rank_2);
 
     auto transpose_const_m = wrap_type<ov::opset1::Constant>();
@@ -49,7 +49,36 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
             }
         }
 
+        const auto& fc_input_shape = fully_connected->get_input_shape(1);
         const auto reshape = with_transpose ? weights_path->get_input_node_shared_ptr(0) : weights_path;
+
+        auto check_decompression_const = [&](const std::shared_ptr<ov::Node>& node) {
+            if (!ov::is_type<ov::opset1::Constant>(node))
+                return false;
+            ov::Shape expected_shape(3, 1);
+            const size_t out_channels_idx = with_transpose ? 2 : 1;
+            expected_shape[out_channels_idx] = fc_input_shape[0];
+            return node->get_output_shape(0) == expected_shape;
+        };
+
+        const auto mul = reshape->get_input_node_shared_ptr(0);
+        if (!check_decompression_const(mul->get_input_node_shared_ptr(1))) {
+            return false;
+        }
+        const auto mul_parent = mul->get_input_node_shared_ptr(0);
+        const bool with_subtract = ov::is_type<ov::opset1::Subtract>(mul_parent);
+        if (with_subtract && !check_decompression_const(mul_parent->get_input_node_shared_ptr(1))) {
+            return false;
+        }
+        const auto convert = with_subtract ? mul_parent->get_input_node_shared_ptr(0) : mul_parent;
+        const auto weights = convert->get_input_node_shared_ptr(0);
+        ov::Shape expected_weights_shape(3, 1);
+        expected_weights_shape[1] = fc_input_shape[with_transpose ? 1 : 0];
+        expected_weights_shape[2] = fc_input_shape[with_transpose ? 0 : 1];
+        if (weights->get_output_shape(0) != expected_weights_shape) {
+            return false;
+        }
+
         std::cout << "All is OK\n\n" << std::endl;
         // // Create FullyConnected
         // auto output_rank = matmul->get_output_partial_shape(0).rank();

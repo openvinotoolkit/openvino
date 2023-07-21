@@ -38,17 +38,20 @@ public:
     }
 
     static std::shared_ptr<ov::Model> initModel(const ov::PartialShape& data_shape,
-                                                const ov::Shape& weigths_shape,
+                                                const ov::Shape& weights_shape,
                                                 const bool add_transpose,
                                                 const bool add_subtract,
                                                 const bool add_reshape) {
         auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, data_shape);
-        std::shared_ptr<ov::Node> weights_path = ov::opset1::Constant::create(ov::element::u8, weigths_shape, {1});
+        auto transposed_shape = weights_shape;
+        if (add_transpose)
+            std::swap(*(transposed_shape.rbegin() + 1), *transposed_shape.rbegin());
+        std::shared_ptr<ov::Node> weights_path = ov::opset1::Constant::create(ov::element::u8, transposed_shape, {1});
         weights_path = std::make_shared<ov::opset1::Convert>(weights_path, ov::element::f32);
 
-        ov::Shape decompression_shape(weigths_shape.size(), 1);
-        const size_t n_idx = add_transpose ? weigths_shape.size() - 1 : weigths_shape.size() - 2;
-        decompression_shape[n_idx] = weigths_shape[n_idx];
+        ov::Shape decompression_shape(weights_shape.size(), 1);
+        const size_t n_idx = add_transpose ? transposed_shape.size() - 1 : transposed_shape.size() - 2;
+        decompression_shape[n_idx] = transposed_shape[n_idx];
 
         if (add_subtract) {
             auto sub_const = ov::opset1::Constant::create(ov::element::f32, decompression_shape, {1});
@@ -58,7 +61,9 @@ public:
         weights_path = std::make_shared<ov::opset1::Multiply>(weights_path, mul_const);
 
         if (add_reshape) {
-            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {2}, {2, -1});
+            auto target_shape = transposed_shape;
+            target_shape.erase(target_shape.begin());
+            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {2}, target_shape);
             weights_path = std::make_shared<ov::opset1::Reshape>(weights_path, reshape_const, false);
         }
         if (add_transpose) {
@@ -71,7 +76,7 @@ public:
 
 protected:
     void SetUp() override {
-        // TransformationTestsF::SetUp();
+        TransformationTestsF::SetUp();
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
         bool add_transpose;
         bool add_subtract;
@@ -88,15 +93,16 @@ protected:
 
 TEST_P(MoveFCReshapeToWeightsTests, CompareFunctions) {}
 
-const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes = {
-    {{1, 2, 4}, {1, 4, 3}}
-};
 const std::vector<bool> add_transpose = {false, true};
 const std::vector<bool> add_subtract = {false, true};
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, MoveFCReshapeToWeightsTests,
+const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {
+    {{1, 2, 3}, {1, 4, 3}}
+};
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose, MoveFCReshapeToWeightsTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(input_shapes),
+                                ::testing::ValuesIn(input_shapes_wo_transpose),
                                 ::testing::ValuesIn(add_transpose),
                                 ::testing::ValuesIn(add_subtract)),
                             MoveFCReshapeToWeightsTests::getTestCaseName);
