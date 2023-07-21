@@ -90,6 +90,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/convert_shapeof3.hpp>
+#include <transformations/op_conversions/convert_topk11_downgrade.hpp>
 
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
@@ -442,6 +443,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertShapeOf3>();
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
+        pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
