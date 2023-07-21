@@ -6,7 +6,7 @@
 from openvino.runtime import Core, Model, Tensor, PartialShape, Type
 from openvino.runtime import opset8 as opset
 from openvino.runtime.op import Constant, Parameter, tensor_iterator
-from openvino.runtime.passes import Manager
+from openvino.runtime.passes import Manager, Serialize
 from openvino.runtime.utils.types import get_dtype
 import openvino as ov
 import numpy as np
@@ -76,6 +76,7 @@ def fill_tensors_from_image(input, input_file):
 class IEB:
     precision_table = {
         10:(np.float32, 4),
+        11:(np.float16, 2),
         12:(np.int16, 2),
         40:(np.uint8, 1),
         50:(np.int8, 1),
@@ -157,7 +158,7 @@ class DumpIndex:
         (self.ExecIndex, self.Name, self.OriginalLayers, self.tag, self.itag, self.ieb_file) = args
 
 
-def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_target="CPU", infer_bf16=False, filter_type=""):
+def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_target="CPU", infer_f16=False, filter_type=""):
     os.environ["OV_CPU_BLOB_DUMP_DIR"] = dump_dir
     os.environ["OV_CPU_BLOB_DUMP_FORMAT"] = "BIN"
     os.environ["OV_CPU_BLOB_DUMP_NODE_PORTS"] = dump_ports
@@ -168,13 +169,12 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     device_config = {"PERF_COUNT": "NO",
                 "AFFINITY": "CORE",
                 "PERFORMANCE_HINT_NUM_REQUESTS":0,
-                "PERFORMANCE_HINT":"",
+                "PERFORMANCE_HINT":"LATENCY",
                 "INFERENCE_PRECISION_HINT": "f32",
                 "NUM_STREAMS":1,
                 "INFERENCE_NUM_THREADS":1}
-    if infer_bf16 == True:
-        device_config["INFERENCE_PRECISION_HINT"] = "bf16"
-        device_config["ENFORCE_BF16"] = "YES"
+    if infer_f16 == True:
+        device_config["INFERENCE_PRECISION_HINT"] = "f16"
     print("compiling model with {}".format(device_config))
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()
@@ -207,7 +207,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     xml_path = f"{base_name[-1]}.xml"
     bin_path = f"{base_name[-1]}.bin"
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(xml_path, bin_path))
     pass_manager.run_passes(runtime_func)
     
     print(f"{device_target} Runtime model (exec_graph) is serialized to {xml_path}.")
@@ -399,7 +399,7 @@ def main():
     parser.add_argument("-v", action="store_true", help="visualize error")
     parser.add_argument("-p", "--ports", type=str, default="OUT", help="dump ports: OUT | ALL")
     parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders or files")
-    parser.add_argument("-bf16", help="Enables infer with BF16 precision", action='store_true')
+    parser.add_argument("-f16", help="Enables infer with F16 precision", action='store_true')
     parser.add_argument("-f", "--filter_op", type=str, default="", help="op type filter: Convolution | ConvolutionBackpropData")
     args = parser.parse_args()
 
@@ -408,7 +408,7 @@ def main():
     model = core.read_model(args.m)
 
     if len(args.dumps) == 1:
-        dump_tensors(core, model, args.dumps[0],  args.ports, "CPU", args.bf16, args.filter_op)
+        dump_tensors(core, model, args.dumps[0],  args.ports, "CPU", args.f16, args.filter_op)
     else:
         assert(len(args.dumps) == 2)
         if (os.path.isdir(args.dumps[0])):
