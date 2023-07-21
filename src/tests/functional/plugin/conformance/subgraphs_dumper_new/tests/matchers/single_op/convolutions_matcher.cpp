@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 
-#include "single_op_matchers/convolutions.hpp"
+#include "matchers/single_op/convolutions.hpp"
 #include "openvino/op/ops.hpp"
 
 namespace {

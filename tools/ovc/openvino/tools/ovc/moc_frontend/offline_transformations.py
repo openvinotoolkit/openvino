@@ -4,7 +4,6 @@
 import argparse
 from typing import List
 
-from openvino.tools.ovc.cli_parser import parse_transform
 from openvino.tools.ovc.error import Error
 from openvino.runtime import Model # pylint: disable=no-name-in-module,import-error
 
@@ -117,7 +116,6 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
 
     params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)
-    apply_user_transformations(func, parse_transform(argv.transform))
 
     if "compress_to_fp16" in argv and argv.compress_to_fp16:
         compress_model(func)
