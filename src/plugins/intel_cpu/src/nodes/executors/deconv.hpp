@@ -53,13 +53,6 @@ struct DeconvAttrs {
     size_t groupNum = 1;
     size_t IC;
     size_t OC;
-    dnnl::engine engine;
-    DeconvKey key;
-    MultiCachePtr cache;
-    std::function<std::vector<int32_t>()> readOutputSpatialDimsFunc;
-    std::string layerName;
-    std::function<void(std::shared_ptr<std::unordered_map<int, dnnl::memory>>,
-            std::shared_ptr<DnnlExecutor>, CacheEntryBase::LookUpStatus lookUpStatus)> initPrimArgs;
 };
 
 class DeconvExecutor {

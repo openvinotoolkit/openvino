@@ -7,6 +7,7 @@
 #include "nodes/executors/deconv.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
+#include "acl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,9 +15,6 @@ namespace intel_cpu {
 class AclDeconvExecutor : public DeconvExecutor {
 public:
     explicit AclDeconvExecutor(const ExecutorContext::CPtr context);
-    static bool customInit(const DeconvAttrs& deconvAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs);
     bool init(const DeconvAttrs& deconvAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
@@ -100,6 +98,60 @@ public:
                       " dst=", dstDescs[0]->serializeFormat());
             return false;
         }
+
+        auto srcDims  = srcDescs[0]->getShape().getDims();
+        auto weiDims  = srcDescs[1]->getShape().getDims();
+        // swap input and output channels dimensions to be align with ACL
+        // weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
+        std::swap(weiDims[0], weiDims[1]);
+        auto dstDims  = dstDescs[0]->getShape().getDims();
+
+        VectorDims biasDims;
+        arm_compute::TensorInfo biasTensorInfo;
+        if (deconvAttrs.withBiases) {
+            biasDims = srcDescs[2]->getShape().getStaticDims();
+            //bias presicion is I32 but ACL requests bias precision as input ones
+            biasTensorInfo = arm_compute::TensorInfo(shapeCast(biasDims), 1,
+                                        precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[2]));
+        }
+
+        arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
+                                              precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[0]));
+        arm_compute::TensorInfo weiTensorInfo = arm_compute::TensorInfo(shapeCast(weiDims), 1,
+                                              precisionToAclDataType(srcDescs[1]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[1]));
+        arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
+                                              precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
+
+        unsigned int pad_l = deconvAttrs.paddingL.at(1);
+        unsigned int pad_r = deconvAttrs.paddingR.at(1);
+        unsigned int pad_t = deconvAttrs.paddingL.at(0);
+        unsigned int pad_b = deconvAttrs.paddingR.at(0);
+        unsigned int stride_x = deconvAttrs.stride.at(1);
+        unsigned int stride_y = deconvAttrs.stride.at(0);
+
+        arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
+
+        try {
+            size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[2] : srcDims[1];
+            size_t in_w = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[3] : srcDims[2];
+            arm_compute::deconvolution_output_dimensions(in_w, in_h,
+                                                         deconvAttrs.kernel.at(1), deconvAttrs.kernel.at(0),
+                                                         deconv_info);
+        } catch (...) {
+            DEBUG_LOG("NEDeconvolutionLayer arm_compute::deconvolution_output_dimensions failed");
+            return false;
+        }
+
+        arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
+                                                                                 &weiTensorInfo,
+                                                                                 deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                                 &dstTensorInfo,
+                                                                                 deconv_info);
+        if (!status) {
+            DEBUG_LOG("NEDeconvolutionLayer validation failed: ", status.error_description());
+            return false;
+        }
+
         return true;
     }
 
