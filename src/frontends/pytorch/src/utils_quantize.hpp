@@ -89,16 +89,16 @@ private:
  * Quantizes input node with the given parameters. Returns a shared pointer to the new QuantizedPtNode.
  */
 Output<Node> quantize(const NodeContext& context,
-                      Output<Node> input,
-                      Output<Node> scale,
-                      Output<Node> zero_point,
+                      const Output<Node>& input,
+                      const Output<Node>& scale,
+                      const Output<Node>& zero_point,
                       element::Type dtype,
                       QuantizedPtNodeType quantization_type);
 Output<Node> quantize(const NodeContext& context,
-                      Output<Node> input,
-                      Output<Node> scale,
-                      Output<Node> zero_point,
-                      Output<Node> axis,
+                      const Output<Node>& input,
+                      const Output<Node>& scale,
+                      const Output<Node>& zero_point,
+                      const Output<Node>& axis,
                       element::Type dtype,
                       QuantizedPtNodeType quantization_type);
 
@@ -112,22 +112,25 @@ Output<Node> quantize(const NodeContext& context, Output<Node> input, Output<Nod
  * the new QuantizedPtNode.
  */
 Output<Node> quantize(const NodeContext& context,
-                      Output<Node> input,
-                      Output<Node> scale,
-                      Output<Node> zero_point,
-                      Output<Node> quantized_node);
+                      const Output<Node>& input,
+                      const Output<Node>& scale,
+                      const Output<Node>& zero_point,
+                      const Output<Node>& quantized_node);
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node);
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node, const std::string& type);
 
 namespace op {
-template <OutputVector (*T)(const NodeContext&)>
+/**
+ * Modifies conversion function to support quantized case. When input is quantized it is processed as quantized op.
+ */
+template <OutputVector (*T)(const NodeContext&), size_t in_idx = 0, size_t out_idx = 0>
 OutputVector quantizable_op(const NodeContext& context) {
     auto translation_res = T(context);
-    FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1, "Only single output ops are supported.");
-    if (const auto quantized_pt_node = cast_quantized_fw_node(context.get_input(0).get_node_shared_ptr())) {
+    FRONT_END_OP_CONVERSION_CHECK(translation_res.size() > out_idx, "Not enough outputs to apply quantization.");
+    if (const auto quantized_pt_node = cast_quantized_fw_node(context.get_input(in_idx).get_node_shared_ptr())) {
         return {quantize(context,
-                         translation_res[0],
+                         translation_res[out_idx],
                          quantized_pt_node->get_scale(),
                          quantized_pt_node->get_zero_point(),
                          quantized_pt_node->get_axis(),
