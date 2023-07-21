@@ -28,11 +28,11 @@
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
-#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;

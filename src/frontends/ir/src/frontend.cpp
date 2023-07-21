@@ -14,8 +14,8 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
-#include "xml_parse_utils.h"
 #include "transformations/resolve_names_collisions.hpp"
+#include "xml_parse_utils.h"
 
 using namespace ov;
 

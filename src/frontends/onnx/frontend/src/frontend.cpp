@@ -29,8 +29,8 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
-#include "utils/common.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "utils/common.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
