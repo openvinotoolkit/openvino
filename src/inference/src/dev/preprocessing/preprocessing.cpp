@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AddPreprocessing);
@@ -111,8 +112,10 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         if (const_input.get_partial_shape().is_static() && const_input.get_shape().size() == 4)
             preproc.input(i).model().set_layout("NCHW");
     }
-    for (size_t i = 0; i < model->outputs().size(); i++) {
+    std::vector<std::string> legacy_names(model->get_output_size());
+    for (size_t i = 0; i < model->get_output_size(); i++) {
         ov::Output<const Node> const_output(model->output(i).get_node(), model->output(i).get_index());
+        legacy_names[i] = ov::op::util::create_ie_output_name(const_output.get_node()->input_value(0));
         InferenceEngine::DataPtr output_info;
         // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
         // ExecutableNetwork
@@ -141,6 +144,11 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
     manager.run_passes(model);
 
     preproc.build();
+
+    for (size_t i = 0; i < model->get_output_size(); i++) {
+        ov::descriptor::set_ov_tensor_legacy_name(model->output(i).get_node()->input_value(0).get_tensor(),
+                                                  legacy_names[i]);
+    }
 
     return false;
 }
