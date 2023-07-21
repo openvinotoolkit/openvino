@@ -462,7 +462,6 @@ void Deconvolution::getSupportedDescriptors() {
     if (getChildEdges().empty()) {
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
     }
-
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
