@@ -64,7 +64,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported executor is not found";
+        IE_THROW() << "DeconvExecutorFactory: Supported executor is not found";
     }
 
 private:
