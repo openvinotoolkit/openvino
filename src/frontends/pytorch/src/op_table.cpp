@@ -109,6 +109,10 @@ OP_CONVERTER(translate_pythonop);
 OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
 OP_CONVERTER(translate_range_length);
+OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_randn);
+OP_CONVERTER(translate_rand_like);
+OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -335,6 +339,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::pow", op::translate_pow},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
+        {"aten::rand", op::translate_rand},
+        {"aten::randn", op::translate_randn},
+        {"aten::rand_like", op::translate_rand_like},
+        {"aten::randn_like", op::translate_randn_like},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
