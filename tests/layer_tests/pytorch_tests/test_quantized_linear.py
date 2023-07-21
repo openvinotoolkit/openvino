@@ -44,7 +44,7 @@ class TestQuantizedLinear(PytorchLayerTest):
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.parametrize("trace", [True, False])
     @pytest.mark.nightly
-    @pytest.mark.precommit
+    # @pytest.mark.precommit Test disabled due to sporadic issues
     def test_quantized_linear(self, params, scale, zero_point, trace, ie_device, precision, ir_version):
         input_shape = params.get("input_shape")
         weight_shape = params.get("weight_shape")

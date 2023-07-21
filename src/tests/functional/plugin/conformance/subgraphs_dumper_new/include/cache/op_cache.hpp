@@ -6,9 +6,8 @@
 
 #include "cache/cache.hpp"
 
-#include "single_op_matchers/manager.hpp"
-#include "single_op_matchers/base.hpp"
-#include "single_op_matchers/convolutions.hpp"
+#include "matchers/single_op/single_op.hpp"
+#include "matchers/single_op/convolutions.hpp"
 
 namespace ov {
 namespace tools {
@@ -32,6 +31,10 @@ public:
         m_cache_instance = nullptr;
     }
 
+    void reset_cache() override {
+        reset();
+    };
+
 protected:
     std::map<std::shared_ptr<ov::Node>, MetaInfo> m_ops_cache;
     static std::shared_ptr<OpCache> m_cache_instance;
@@ -39,7 +42,7 @@ protected:
 
     OpCache() {
         MatchersManager::MatchersMap matchers = {
-            { "generic_single_op", BaseMatcher::Ptr(new BaseMatcher) },
+            { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
             { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
         };
         m_manager.set_matchers(matchers);
