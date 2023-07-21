@@ -515,6 +515,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
 
     // If we have 1 alias we use simple hetero mode
     if (m_alias_for.size() == 1) {
+        std::cout << "Proxy hidden alias = 1" << std::endl;
         auto device = *m_alias_for.begin();
         // Allow to get runtime error, because only one plugin under the alias
         std::vector<std::string> real_devices_ids;
@@ -539,6 +540,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             } else {
                 devices.emplace_back(full_device_name);
             }
+            std::cout << "Proxy hidden alias = 1 devices " << ov::Any(devices).as<std::string>() << std::endl;
             m_hidden_devices.emplace_back(devices);
         }
     } else {
@@ -662,6 +664,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                 device_order.emplace_back(device.device_to_full_name.begin()->second);
                 real_fallback_order.emplace_back(device.device_to_full_name.begin()->first);
             }
+            std::cout << "Proxy hidden alias != 1 devices " << ov::Any(device_order).as<std::string>() << std::endl;
             m_hidden_devices.emplace_back(device_order);
             std::string new_fallback;
             for (const auto& dev : real_fallback_order) {
