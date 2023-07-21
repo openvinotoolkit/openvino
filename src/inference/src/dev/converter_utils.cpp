@@ -544,14 +544,28 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return tensor_to_blob(m_request->get_tensor(find_port(name)));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        return tensor_to_blob(m_request->get_tensor(port), true, desc);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
-        auto tensors = m_request->get_tensors(find_port(name));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        auto tensors = m_request->get_tensors(port);
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor));
+            blobs.emplace_back(tensor_to_blob(tensor, true, desc));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
