@@ -10,6 +10,15 @@
 namespace ov {
 namespace intel_cpu {
 
+//inherited from ORT SizeToDimension
+inline int64_t calcShapeSize(Shape shape, size_t start, size_t end) {
+    int64_t size = 1;
+    for (size_t i = start; i < end; i++) {
+        size *= shape.getDims()[i];
+    }
+    return size;
+}
+
 /**
 * @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
 * NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)

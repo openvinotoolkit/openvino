@@ -19,8 +19,13 @@ public:
     void exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst, const int MB) override;
     impl_desc_type getImplType() const override { return implType; }
 private:
+    void SingleAxisTranspose(InferenceEngine::SizeVector permutations, const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    void TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    bool IsTransposeMovingSingleAxis(InferenceEngine::SizeVector permutations, size_t& from, size_t& to);
     static const impl_desc_type implType = impl_desc_type::ref;
     jit_permute_config_params jcp;
+    InferenceEngine::SizeVector permutations;
 };
 
 class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
