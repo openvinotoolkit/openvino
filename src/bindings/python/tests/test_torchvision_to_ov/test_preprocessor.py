@@ -6,6 +6,7 @@ import numpy as np
 import copy
 import pytest
 import os
+import platform
 from PIL import Image
 
 import torch
@@ -73,7 +74,7 @@ def test_normalize():
     ],
 )
 def test_resize(interpolation, tolerance):
-    if os.environ.get("TEST_DEVICE") == "ARM":
+    if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
         pytest.skip("Ticket: 114816")
     test_input = np.random.randint(255, size=(220, 220, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
@@ -215,7 +216,7 @@ def test_pipeline_1():
 
 
 def test_pipeline_2():
-    if os.environ.get("TEST_DEVICE") == "ARM":
+    if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
         pytest.skip("Ticket: 114816")
     test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
