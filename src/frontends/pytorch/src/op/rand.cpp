@@ -109,7 +109,8 @@ OutputVector translate_rand(const NodeContext& context) {
             low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
             high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
         } else if (const auto& fw_node =
-                       cast_fw_node(context.get_input(static_cast<int>(dtype_id)).get_node_shared_ptr(), "prim::dtype")) {
+                       cast_fw_node(context.get_input(static_cast<int>(dtype_id)).get_node_shared_ptr(),
+                                    "prim::dtype")) {
             convert_like_out = fw_node->input_value(0);
             dtype_applied = false;
 
