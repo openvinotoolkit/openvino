@@ -61,8 +61,18 @@ public:
         testConfigs.clear();
         testConfigs.push_back(
             ConfigParams{"AUTO", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU"},
+                                           {{"NUM_STREAMS", "12"},
+                                            {"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
             ConfigParams{"AUTO", {"CPU", "GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+        testConfigs.push_back(ConfigParams{"AUTO",
+                                           {"CPU", "GPU"},
+                                           {{"NUM_STREAMS", "15"},
+                                            {"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
+                                            {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(
             ConfigParams{"AUTO:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
