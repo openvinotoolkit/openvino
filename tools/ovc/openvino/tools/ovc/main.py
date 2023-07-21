@@ -6,6 +6,7 @@ import sys
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 from openvino.tools.ovc.convert_impl import _convert
