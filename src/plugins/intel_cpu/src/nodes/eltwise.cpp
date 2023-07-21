@@ -2023,7 +2023,47 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     auto filterPrecision = [&](Precision& prc) {
 #if defined (OV_CPU_WITH_ACL)
-        return one_of(prc, Precision::FP16, Precision::FP32) ? prc : Precision(Precision::FP32);
+        if (one_of(getAlgorithm(), Algorithm::EltwiseSqrt,
+                                   Algorithm::EltwiseDivide,
+                                   Algorithm::EltwiseRelu,
+#ifdef OPENVINO_ARCH_ARM64
+                                   Algorithm::EltwiseGeluErf,
+#endif
+                                   Algorithm::EltwiseElu,
+                                   Algorithm::EltwiseTanh,
+                                   Algorithm::EltwiseSigmoid,
+                                   Algorithm::EltwiseSoftRelu,
+                                   Algorithm::EltwiseClamp,
+                                   Algorithm::EltwiseSwish,
+                                   Algorithm::EltwisePrelu,
+                                   Algorithm::EltwiseHswish,
+                                   Algorithm::EltwiseAbs,
+                                   Algorithm::EltwiseExp,
+                                   Algorithm::EltwiseLog,
+                                   Algorithm::EltwiseMaximum,
+                                   Algorithm::EltwiseMinimum,
+                                   Algorithm::EltwiseSquaredDifference,
+                                   Algorithm::EltwiseAdd,
+                                   Algorithm::EltwiseSubtract,
+                                   Algorithm::EltwiseMultiply,
+                                   Algorithm::EltwiseEqual,
+                                   Algorithm::EltwiseNotEqual,
+                                   Algorithm::EltwiseGreater,
+                                   Algorithm::EltwiseGreaterEqual,
+                                   Algorithm::EltwiseLess,
+                                   Algorithm::EltwiseLessEqual)) {
+            Precision forcedPrec;
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+                    if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                        forcedPrec = getOriginalInputPrecisionAtPort(i);
+                    }
+                }
+            }
+            return forcedPrec;
+        } else {
+            return Precision(Precision::FP32);
+        }
 #else
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
@@ -2039,18 +2079,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
     };
 
-    Precision forcedPrec;
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (!getParentEdgeAt(i)->getParent()->isConstant()) {
-            if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
-                forcedPrec = getOriginalInputPrecisionAtPort(i);
-            }
-        }
-    }
     for (size_t i = 0; i < inputPrecisions.size(); i++) {
-        inputPrecisions[i] = forcedPrec;
+        inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
     }
-    outputPrecision = forcedPrec;
+    outputPrecision = filterPrecision(outputPrecision);
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
