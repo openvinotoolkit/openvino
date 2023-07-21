@@ -36,7 +36,6 @@ class TestBasicConversion(unittest.TestCase):
         checkpoint_byte_stream = self.prepare_checkpoint_v1()
         ckpt_file.write(bytes(checkpoint_byte_stream))
         ckpt_file.close()
-        basic_check(input_model="model_with_variable_v1.pbtxt", argv_input=None,
+        basic_check(input_model=["model_with_variable_v1.pbtxt", ckpt_file.name], argv_input=None,
                     input_data={'input1': np.array([[1]], dtype=np.int64)},
-                    expected_dtype=np.int64, expected_value=np.array([[14108583]], dtype=np.int64),
-                    use_new_frontend=True, use_legacy_frontend=False, input_checkpoint=ckpt_file.name)
+                    expected_dtype=np.int64, expected_value=np.array([[14108583]], dtype=np.int64))

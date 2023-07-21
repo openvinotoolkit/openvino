@@ -16,10 +16,11 @@
 namespace ov {
 namespace auto_plugin {
 AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      ScheduleContext::Ptr context,
-                                                      Schedule::Ptr scheduler)
-    : CompiledModel(model, plugin, context, scheduler),
+                                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                                     const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                                     ScheduleContext::Ptr& schedule_context,
+                                     Schedule::Ptr& scheduler)
+    : CompiledModel(model, plugin, remote_context, schedule_context, scheduler),
       m_model(model) {
       m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
 }
@@ -176,7 +177,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                             iie.what());
                     }
                     real = (std::max)(requests, optimal_batch_size);
-                } else if (device_info.device_name.find("VPUX") != std::string::npos) {
+                } else if (device_info.device_name.find("VPU") != std::string::npos) {
                     real = 8u;
                 } else {
                     real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
