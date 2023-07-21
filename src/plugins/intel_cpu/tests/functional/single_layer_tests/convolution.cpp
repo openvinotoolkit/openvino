@@ -10,10 +10,12 @@
 #include "ngraph_functions/builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
+#include "utils/general_utils.h"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
+using namespace ov::intel_cpu;
 
 namespace CPULayerTestsDefinitions {
 using LayerTestsDefinitions::convSpecificParams;
