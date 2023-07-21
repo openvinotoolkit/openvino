@@ -500,8 +500,8 @@ void Deconvolution::getSupportedDescriptors() {
         };
         useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
     }
-#endif
     if (useACL) return;
+#endif
 
     setPostOps(*attr, outShape.getStaticDims());
 
