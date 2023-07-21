@@ -20,7 +20,6 @@
 #include <cmath>
 #include <iomanip>
 
-#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 using namespace cldnn;
@@ -40,8 +39,7 @@ void compile_graph::run(program& p) {
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
-        const bool use_shape_agnostic_impl = !cldnn::debug_configuration::get_instance()->disable_dynamic_impl &&
-                                             !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
+        const bool use_shape_agnostic_impl = !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
         const impl_types original_impl_type = node->get_preferred_impl_type();
         const bool change_initial_impl = node->is_dynamic() && original_impl_type == impl_types::onednn;
 
