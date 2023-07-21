@@ -62,6 +62,7 @@
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/transpose_compress.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -139,6 +140,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
         manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
