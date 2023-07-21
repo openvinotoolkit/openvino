@@ -381,7 +381,7 @@ def create_pytorch_nn_module_mean_list_compression_default(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {
-        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]]}
+        'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'use_convert_model_from_mo': True}
 
 
 def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
@@ -480,7 +480,7 @@ def create_pytorch_nn_module_scale_list_compression_default(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]]}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'use_convert_model_from_mo': True}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
