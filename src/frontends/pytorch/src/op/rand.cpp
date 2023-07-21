@@ -96,11 +96,9 @@ OutputVector translate_rand(const NodeContext& context) {
     // Device? device=None, bool? pin_memory=None) -> Tensor
     bool dtype_applied = true;
     Output<Node> convert_like_out;
-    size_t dtype_id = 1;
     if (context.get_input_size() == 6) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
                                       "aten::rand conversion with generator does not supported");
-        dtype_id = 2;
     }
     if (!context.input_is_none(1)) {
         if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
