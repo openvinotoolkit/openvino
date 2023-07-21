@@ -174,6 +174,10 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
         set_property(ov::compilation_num_threads(1));
     }
+
+    GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
+        set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
+    }
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
