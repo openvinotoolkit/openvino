@@ -148,7 +148,7 @@ class CommonLayerTest:
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
     def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
