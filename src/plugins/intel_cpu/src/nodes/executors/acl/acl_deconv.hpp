@@ -131,13 +131,9 @@ public:
 
         arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
 
-        try {
-            size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[2] : srcDims[1];
-            size_t in_w = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[3] : srcDims[2];
-            arm_compute::deconvolution_output_dimensions(in_w, in_h,
-                                                         deconvAttrs.kernel.at(1), deconvAttrs.kernel.at(0),
-                                                         deconv_info);
-        } catch (...) {
+        size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[2] : srcDims[1];
+        size_t in_w = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[3] : srcDims[2];
+        if (validate_deconvolution_output_dimensions(in_w, in_h, deconvAttrs.kernel.at(1), deconvAttrs.kernel.at(0), deconv_info)) {
             DEBUG_LOG("NEDeconvolutionLayer arm_compute::deconvolution_output_dimensions failed");
             return false;
         }
@@ -163,6 +159,23 @@ public:
 
     DeconvExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclDeconvExecutor>(context);
+    }
+
+private:
+    static bool validate_deconvolution_output_dimensions(unsigned int in_width, unsigned int in_height,
+                                                         unsigned int kernel_width, unsigned int kernel_height,
+                                                         const arm_compute::PadStrideInfo &pad_stride_info) {
+        const unsigned int pad_left   = pad_stride_info.pad_left();
+        const unsigned int pad_top    = pad_stride_info.pad_top();
+        const unsigned int pad_right  = pad_stride_info.pad_right();
+        const unsigned int pad_bottom = pad_stride_info.pad_bottom();
+        const unsigned int stride_x   = pad_stride_info.stride().first;
+        const unsigned int stride_y   = pad_stride_info.stride().second;
+
+        if (!((in_width < 1 || in_height < 1) ||
+            (((in_width - 1) * stride_x + kernel_width) < (pad_left + pad_right)) ||
+            (((in_height - 1) * stride_y + kernel_height) < (pad_top + pad_bottom)))) { return false; }
+        return true;
     }
 };
 
