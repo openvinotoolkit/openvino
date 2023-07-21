@@ -986,8 +986,8 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, Mem
         return false;
 
     auto tryExtractBias = [&] () {
-        auto* bias = reinterpret_cast<float*>(getParentEdgeAt(BIAS_ID)->getMemoryPtr()->GetPtr());
-        auto bias_count = getParentEdgeAt(BIAS_ID)->getMemoryPtr()->GetShape().getElementsCount();
+        auto* bias = reinterpret_cast<float*>(getParentEdgeAt(BIAS_ID)->getMemoryPtr()->getData());
+        auto bias_count = getParentEdgeAt(BIAS_ID)->getMemoryPtr()->getShape().getElementsCount();
         auto capacity = rnd_up(N * sizeof(float), 64);
         biasRnd = std::shared_ptr<float>(
                             reinterpret_cast<float*>(aligned_alloc(64, capacity)),
@@ -1024,7 +1024,7 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, Mem
             // compute q/dq
             auto p = getenv("USE_INT8_WEIGHT");
             if (p && p[0] == '1') {
-                auto* weight = reinterpret_cast<bfloat16*>(weightPtr->GetPtr());
+                auto* weight = reinterpret_cast<bfloat16*>(weightPtr->getData());
                 auto& weight_dims = weightPtr->getStaticDims();
                 llmdnn::fc_kernel_bf16w8_get_q_dq(weight_dims[0], weight_dims[1], weight_dims[1] * sizeof(bfloat16), weight, &param.q, &param.dq);
                 param.dt_b = llmdnn::dnnl_s8;
@@ -1114,24 +1114,12 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, Mem
 }
 
 MemoryPtr FullyConnected::castMemoryPtr(MemoryPtr memPtr, const InferenceEngine::Precision prec) {
-    auto engine = memPtr->getEngine();
-    dnnl::stream engine_stream(engine);
-
-    // get weightPtr and dnnlweightDesc
-    auto dnnlMemDesc = memPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    // desc_ptr
     auto newMemDescPtr = memPtr->getDescPtr()->cloneWithNewPrecision(prec);
-    // dnnl_desc_ptr
-    DnnlMemoryDescPtr dnnlNewMemPtr = MemoryDescUtils::convertToDnnlMemoryDesc(newMemDescPtr);
-    // dnnl_desc
-    auto dnnlNewMemDesc = dnnlNewMemPtr->getDnnlDesc();
-    MemoryPtr newMemPtr = MemoryPtr(new Memory(engine));
-    newMemPtr->Create(dnnlNewMemPtr);
 
-    auto reorder = getReorderPrim(context->getParamsCache(), engine, dnnlMemDesc, dnnlNewMemDesc);
-    primArgs = {{DNNL_ARG_SRC, memPtr->GetPrimitive()}, {DNNL_ARG_DST, newMemPtr->GetPrimitive()}};
-    reorder.execute(engine_stream, primArgs);
-    engine_stream.wait();
+    Memory srcMemory{ getEngine(), memPtr->getDescWithType<DnnlMemoryDesc>(), memPtr->getData() };
+    MemoryPtr newMemPtr = std::make_shared<Memory>(getEngine(), newMemDescPtr);
+    node::Reorder::reorderData(srcMemory, *newMemPtr, context->getParamsCache());
+
     return newMemPtr;
 }
 
@@ -1144,12 +1132,12 @@ MemoryPtr FullyConnected::castMemoryPtr(MemoryPtr memPtr, const InferenceEngine:
  */
 void FullyConnected::primExecLLMFc(void* weight) {
     // src
-    auto& srcPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto* src = srcPtr->GetPtr();
+    auto srcPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto* src = srcPtr->getData();
     auto& data_dims = srcPtr->getStaticDims();
 
     // dst
-    auto* dst = getChildEdgeAt(0)->getMemoryPtr()->GetPtr();
+    auto* dst = getChildEdgeAt(0)->getMemoryPtr()->getData();
 
     // M, N, K
     auto M = data_dims[0];
@@ -1193,7 +1181,7 @@ bool FullyConnected::tryUseLLMFc() {
     const auto inPrec = getOriginalInputPrecisionAtPort(DATA_ID);
     auto weightPtr = castMemoryPtr(getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr(), inPrec);
     weightDims = weightPtr->getStaticDims();
-    void* weight = weightPtr->GetPtr();
+    void* weight = weightPtr->getData();
 
     llmdnn::fc_create_param param;
     if (!tryExtractParamForLLMFc(param, weightPtr)) {
