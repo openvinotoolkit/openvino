@@ -13,8 +13,8 @@
 namespace ov {
 
 CPU::CPU() {
-    _num_threads = parallel_get_max_threads();
     parse_processor_info_macos(_processors, _numa_nodes, _cores, _proc_type_table);
+    _org_proc_type_table = _proc_type_table;
 }
 
 int parse_processor_info_macos(int& _processors,
@@ -67,6 +67,9 @@ int parse_processor_info_macos(int& _processors,
         }
     }
 
+    _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
+    _proc_type_table[0][PROC_SOCKET_ID] = 0;
+    
     return 0;
 }
 

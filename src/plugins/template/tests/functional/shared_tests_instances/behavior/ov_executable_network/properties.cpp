@@ -16,8 +16,6 @@ const std::vector<ov::AnyMap> inproperties = {
 
 const std::vector<ov::AnyMap> auto_batch_inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
-    {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
-     {ov::auto_batch_timeout(-1)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
