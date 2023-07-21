@@ -77,7 +77,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 shape_b_aligned.insert(shape_b_aligned.begin(), 1);
             }
 
-            if (matmul->get_transpose_a() && rank_a != 1) {
+            if (matmul->get_transpose_a()) {
                 std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
             }
             if (matmul->get_transpose_b()) {
@@ -105,12 +105,11 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         ngraph::NodeVector new_ops;
 
         auto create_transpose = [this, &new_ops ](const ngraph::Output<ngraph::Node>& node, const std::string& transpose_name) {
-            auto rank = node.get_partial_shape().rank();
-            std::vector<size_t> transpose_order(rank.get_length());
+            std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ transpose_order.size() }, transpose_order);
             auto transpose = ov::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
             if (!ngraph::is_type<ngraph::opset1::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
@@ -136,16 +135,14 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // Transferring from MatMul representation: [B, I, K] * [B, K, O] = [B, I, O]
         // to FullyConnected representation: [I, K] * [K, O] = [I, O]
 
-        // Weights normalization
-        if (!matmul->get_transpose_b()) {
-            fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
-        }
-
         if (rank_b != 2) {
             ngraph::Dimension K = *(shape_b_aligned.rbegin() + 1);
             NGRAPH_CHECK(K.is_static());
-            std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
-            auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
+            std::vector<int64_t> reshape_shape_values = {K.get_length()};
+            const auto& insert_pos = matmul->get_transpose_b() ? reshape_shape_values.begin() : reshape_shape_values.begin() + 1;
+            reshape_shape_values.insert(insert_pos, -1);
+
+            auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, reshape_shape_values);
             fc_input_b = ov::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
             if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
@@ -153,8 +150,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
+        // Weights normalization
+        if (!matmul->get_transpose_b()) {
+            fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+        }
+
         // Input normalization
-        if (matmul->get_transpose_a() && rank_a != 1) {
+        if (matmul->get_transpose_a()) {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
