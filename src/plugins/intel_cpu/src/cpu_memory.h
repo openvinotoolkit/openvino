@@ -82,6 +82,7 @@ public:
 
 private:
     bool m_useExternalStorage = false;
+    bool m_firstResize = true;
     size_t m_memUpperBound = 0ul;
     std::unique_ptr<void, void (*)(void *)> m_data;
 
