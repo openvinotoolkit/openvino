@@ -351,7 +351,11 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
               << std::endl;
 
     auto device_model = get_core()->compile_model(model, dev_name, device_config);
+    std::cout << "Proxy compile_model for " << dev_name << ": "
+              << " compiled!" << std::endl;
     auto remote_context = create_proxy_context(device_model, properties);
+    std::cout << "Proxy compile_model for " << dev_name << ": "
+              << " RC created!" << std::endl;
     return std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
 }
 
