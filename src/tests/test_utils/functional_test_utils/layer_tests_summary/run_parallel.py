@@ -681,11 +681,13 @@ class TestParallelRunner:
                                 copyfile(xml_file, failed_ir_xml)
                                 copyfile(bin_file, failed_ir_bin)
                                 copyfile(meta_file, failed_ir_meta)
-                output_file_name = failed_ir_dir + '.tar'
-                with tar_open(output_file_name, "w:gz") as tar:
-                    tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
-                    logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
-                rmtree(failed_ir_dir)
+                # api conformance has no failed irs
+                if os.path.exists(failed_ir_dir):
+                    output_file_name = failed_ir_dir + '.tar'
+                    with tar_open(output_file_name, "w:gz") as tar:
+                        tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
+                        logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
+                    rmtree(failed_ir_dir)
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:
