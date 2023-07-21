@@ -14,7 +14,7 @@
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant, ngraph::opset1::Convert>(ngraph::pattern::has_static_rank());
     auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -29,6 +29,15 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
+        bool is_convert = false;
+        if (auto convert_node = std::dynamic_pointer_cast<ngraph::opset1::Convert>(fc_input_b.get_node_shared_ptr())) {
+            if (is_decompression(convert_node)) {
+                is_convert = true;
+                fc_input_b = convert_node->get_input_node_shared_ptr(0);
+            } else {
+                return false;
+            }
+        }
 
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
@@ -45,8 +54,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr()) ||
-            std::count_if(shape_b.begin(), shape_b.end(), [](ngraph::Dimension x) { return x != 1; }) > 2) {
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](ngraph::Dimension x) { return x != 1; }) > 2) {
             return false;
         }
         /*
@@ -147,9 +155,18 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto output_rank = matmul->get_output_partial_shape(0).rank();
+        // Connect Convert to new input if needed
+        if (is_convert) {
+            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
+            convert->input(0).replace_source_output(fc_input_b);
+            convert->validate_and_infer_types();
+            fc_input_b = convert;
+        }
+
         // Create FullyConnected
-        auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank, matmul->get_output_element_type(0));
+        auto output_rank = matmul->get_output_partial_shape(0).rank();
+        auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
+                matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ngraph::copy_runtime_info(matmul, new_ops);
