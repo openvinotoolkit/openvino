@@ -68,7 +68,7 @@ TSGatherForward::TSGatherForward() {
             axis = static_cast<size_t>(axes[0]);
         }
         /*
-            From https://www.tensorflow.org/api_docs/python/tf/gather
+            https://docs.openvino.ai/2023.0/openvino_docs_ops_movement_Gather_8.html
             The Gather output shape has the same shape as the input,
             with the indexed-axis replaced by the shape of the indices
             Gather input shape | Gather indexes shape | axis | Gather output shape
@@ -83,7 +83,7 @@ TSGatherForward::TSGatherForward() {
                 - values before axis will be original
                 - values in [axis, axis + indexes_ranks_size - 1] will be original + [0 1 ...]
                   if indexes_ranks_size == 0, there will be no such items
-                - values after axis with be original + indexes_rank_size - 1
+                - values after axis will be original + indexes_rank_size - 1
                   (as one dim[axis] will be substituted with new indexes_rank_size dimesions)
                   if indexes_ranks_size == 0, values will be original - 1
         */
@@ -110,15 +110,19 @@ TSGatherForward::TSGatherForward() {
                 ++j;
             }
             if (order_val[j] < axis) {
-                // dimensions before axis
+                // transpose order values that are less than the axis remains the same
                 new_transpose_order[i] = order_val[j];
                 ++j;
             } else if (order_val[j] == axis && static_cast<int>(k) <= n_axis_dims) {
-                // new dimensions within axis
+                // these are new dims and they are not involved in the transposition. They have to stay in the same
+                // place.
                 new_transpose_order[i] = order_val[j] + k;
                 ++k;
             } else {  // order_val[j] > axis
-                // dimensions after axis
+                /*
+                    Transpose order values that are greater than the axis are shifted by N, where N is a count
+                    of new added dimensions
+                */
                 new_transpose_order[i] = order_val[j] + n_axis_dims;
                 ++j;
             }

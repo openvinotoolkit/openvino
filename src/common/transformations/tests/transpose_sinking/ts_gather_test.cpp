@@ -63,8 +63,8 @@ auto wrapper = [](const TestCase& test_case) {
 
 struct GatherForwardArguments {
     OutputVector inputs_to_main;
-    Output<Node> new_input_to_Gather_1;
-    ov::AxisVector new_transpose_order;
+    Output<Node> new_Gather_first_input;
+    AxisVector new_transpose_order;
 };
 
 auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
@@ -83,7 +83,7 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
     // Reference model description:
     auto new_transpose = [&test_arguments](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
-        auto order = make_shared<Constant>(element::i32,
+        auto order = make_shared<Constant>(i32,
                                            Shape{test_arguments.new_transpose_order.size()},
                                            test_arguments.new_transpose_order);
         new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
@@ -93,7 +93,7 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] = out_vec[1];
-        new_out_vec[2] = test_arguments.new_input_to_Gather_1;
+        new_out_vec[2] = test_arguments.new_Gather_first_input;
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{2}}};
@@ -107,16 +107,16 @@ auto test_forward_gather = [](const GatherForwardArguments& test_arguments) {
 vector<GatherForwardArguments> tests_arguments_fw{
     {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}},
      constant<int>(i32, {1}, {1}),
-     ov::AxisVector{3, 2, 1, 0}},
+     AxisVector{3, 2, 1, 0}},
     {{parameter(f32, {2, 4}), constant<int>(i32, {}, {0}), constant<int>(i32, {1}, {1})},
      constant<int>(i32, {1}, {0}),
-     ov::AxisVector{0}},
+     AxisVector{0}},
     {{parameter(f32, {2, 4}), constant<int>(i32, {1}, {0}), constant<int>(i32, {1}, {1})},
      constant<int>(i32, {1}, {0}),
-     ov::AxisVector{1, 0}},
+     AxisVector{1, 0}},
     {{parameter(f32, {2, 3, 4}), constant<int>(i32, {2, 3}, {0, 1, 0, 1, 0, 1}), constant<int>(i32, {1}, {1})},
      constant<int>(i32, {1}, {1}),
-     ov::AxisVector{3, 1, 2, 0}}};
+     AxisVector{3, 1, 2, 0}}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_0, TSTestFixture, test_forward_gather(tests_arguments_fw[0]));
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_1, TSTestFixture, test_forward_gather(tests_arguments_fw[1]));
@@ -125,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_3, TSTestFixture, test_forward_ga
 
 struct GatherBackwardArguments {
     OutputVector inputs_to_main;
-    Output<Node> new_input_to_Gather_1;
+    Output<Node> new_Gather_first_input;
 };
 
 auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
@@ -146,7 +146,7 @@ auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] = out_vec[1];
-        new_out_vec[2] = test_arguments.new_input_to_Gather_1;
+        new_out_vec[2] = test_arguments.new_Gather_first_input;
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {2}}};
@@ -183,7 +183,7 @@ auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] = make_shared<Squeeze>(out_vec[1]);
-        new_out_vec[2] = test_arguments.new_input_to_Gather_1;
+        new_out_vec[2] = test_arguments.new_Gather_first_input;
         return new_out_vec;
     };
 
