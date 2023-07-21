@@ -48,11 +48,11 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
             reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - sporadic issue
+    @pytest.mark.precommit
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
@@ -87,9 +87,9 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
             reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - sporadic issue
-    def test_quantize_per_channel_dequantize(self, scale, zero_point, axis, dtype, ie_device, precision, ir_version):
+    @pytest.mark.precommit
+    def test_quantize_per_channel_dequantize(self, scale, zero_point, dtype, axis, ie_device, precision, ir_version):
         np.random.shuffle(scale), np.random.shuffle(zero_point)
         if dtype == torch.quint8: zero_point = abs(zero_point)
-        self._test(aten_quantize_per_channel_aten_dequantize(scale, zero_point, axis, dtype), None, ["aten::quantize_per_channel", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+        self._test(aten_quantize_per_channel_aten_dequantize(scale, zero_point, dtype, axis), None, ["aten::quantize_per_channel", "aten::dequantize"], 
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
