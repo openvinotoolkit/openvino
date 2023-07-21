@@ -65,6 +65,13 @@ public:
     Napi::Value get_output(const Napi::CallbackInfo& info);
 
     /**
+     * @brief Helper function to access model inputs
+     * @param info Contains information about the environment and passed arguments
+     * @return A Javascript Array containing Outputs
+     */
+    Napi::Value get_inputs(const Napi::CallbackInfo& info);
+
+    /**
      * @brief Helper function to access model outputs
      * @param info Contains information about the environment and passed arguments
      * @return A Javascript Array containing Outputs

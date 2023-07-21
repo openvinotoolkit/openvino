@@ -1,0 +1,81 @@
+const ov = require(
+  '../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
+const cv2 = require('opencv.js');
+// TODO: move helpers from notebook to samples root
+const { getImageData } = require('../notebooks/helpers.js');
+
+// Parsing and validation of input arguments
+if (process.argv.length !== 5)
+  throw new Error(`Usage: ${process.argv[1]} <path_to_model> `
+    + '<path_to_image> <device_name>');
+
+const modelPath = process.argv[2];
+const imagePath = process.argv[3];
+const deviceName = process.argv[4];
+
+main(modelPath, imagePath, deviceName);
+
+async function main(modelPath, imagePath, deviceName) {
+  //----------------- Step 1. Initialize OpenVINO Runtime Core -----------------
+  console.log('Creating OpenVINO Runtime Core');
+
+  const core = new ov.Core();
+
+  //----------------- Step 2. Read a model -------------------------------------
+  console.log(`Reading the model: ${modelPath}`);
+  const model = core.read_model(modelPath);
+
+  if (model.inputs.length !== 1)
+    throw new Error('Sample supports only single input topologies');
+
+  if (model.outputs.length !== 1)
+    throw new Error('Sample supports only single output topologies');
+
+  //----------------- Step 3. Set up input -------------------------------------
+  // Read input image
+  const imgData = await getImageData(imagePath);
+
+  // Use OpenCV.js to preprocess image.
+  const originalImage = cv2.matFromImageData(imgData);
+  const image = new cv2.Mat();
+  // The MobileNet model expects images in RGB format.
+  cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
+  // Resize to MobileNet image shape.
+  cv2.resize(image, image, new cv2.Size(224, 224));
+
+  const tensorData = new Float32Array(image.data);
+  const shape = [1, 224, 224, 3];
+  const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
+
+  //----------------- Step 5. Loading model to the device ----------------------
+  console.log('Loading the model to the plugin');
+  const compiledModel = core.compile_model(model, deviceName);
+
+  //---------------- Step 6. Create infer request and do inference synchronously
+  console.log('Starting inference in synchronous mode');
+  const inferRequest = compiledModel
+    .create_infer_request();
+  // FIXME: doesn't work
+  // inferRequest.infer({ 'input_1': inputTensor });
+  inferRequest.set_input_tensor(inputTensor);
+  inferRequest.infer();
+
+  //----------------- Step 7. Process output -----------------------------------
+  const outputLayer = compiledModel.outputs[0];
+  const resultInfer = inferRequest.getTensor(outputLayer);
+  const predictions = Array.from(resultInfer.data)
+    .map((prediction, classId) => ({ prediction, classId }))
+    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
+      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+
+  console.log(`Image path: ${imagePath}`);
+  console.log('Top 10 results:');
+  console.log('class_id probability');
+  console.log('--------------------');
+  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
+    console.log(`${classId}\t ${prediction.toFixed(7)}`),
+  );
+
+  console.log('\nThis sample is an API example, for any performance '
+    + 'measurements please use the dedicated benchmark_app tool');
+}
