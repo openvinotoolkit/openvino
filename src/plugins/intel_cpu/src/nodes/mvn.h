@@ -96,12 +96,14 @@ public:
     }
 
     bool canFuse(const NodePtr& node) const override;
+    void createPrimitive() override;
     void prepareParams() override;
 
 private:
     void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
 
     void transformTo5DCase(const VectorDims& shape);
+    void adjustCrossChannels(const size_t& rank);
 
     std::vector<const void*> postOpsDataPtrs;
 

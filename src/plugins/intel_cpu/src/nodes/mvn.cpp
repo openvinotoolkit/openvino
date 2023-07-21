@@ -2017,17 +2017,17 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 }
 
 void MVN::prepareParams() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
+    if (inputShapesDefined() && isExecutable()) {
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        if (!dstMemPtr || !dstMemPtr->isAllocated())
         OPENVINO_THROW("Destination memory didn't allocate.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
+        if (!srcMemPtr || !srcMemPtr->isAllocated())
         OPENVINO_THROW("Input memory didn't allocate.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
-    const VectorDims in_dims = srcMemPtr->getStaticDims();
-    transformTo5DCase(in_dims);
+        const VectorDims in_dims = srcMemPtr->getStaticDims();
+        transformTo5DCase(in_dims);
+    }
 
 #if defined(OPENVINO_ARCH_X86_64)
     // New shape5D always need prepare via transformTo5DCase(), which is need in exec().
@@ -2041,15 +2041,18 @@ void MVN::prepareParams() {
 #endif
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
-    mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
+    auto inMemDesc = selectedPD->getConfig().inConfs[0].getMemDesc();
+    auto outMemDesc = selectedPD->getConfig().outConfs[0].getMemDesc();
+    mvnAttrs.src_prc = inMemDesc->getPrecision();
+    mvnAttrs.dst_prc = outMemDesc->getPrecision();
+    if (inMemDesc->hasLayoutType(LayoutType::ncsp)) {
         mvnAttrs.layout = MVNLayoutType::mvn_planar;
-    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (inMemDesc->hasLayoutType(LayoutType::nspc)) {
         mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
     } else {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
+    adjustCrossChannels(inputShapes[0].getRank());
 
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
@@ -2084,15 +2087,32 @@ void MVN::prepareParams() {
     execPtr = result.first;
 }
 
+void MVN::createPrimitive() {
+#if defined(OPENVINO_ARCH_X86_64)
+    // create executor in load model stage in case
+    // 1. static node
+    // 2. dynamic node without postOps or with onlyUnaryPostOps
+    if (!isDynamicNode() || fusedWith.empty() || onlyUnaryPostOps) {
+        prepareParams();
+    }
+#else
+    Node::createPrimitive();
+#endif
+}
+
+// if rank is 1 or 2 and initAcrossChannels_ is true, adjust shape to be fully vectorized under unified 5d procedure.
+// otherwise there is not enough data in spatial dimension to process in one kernel.
+void MVN::adjustCrossChannels(const size_t& rank) {
+    if (one_of(rank, 1u, 2u) && (mvnAttrs.initAcrossChannels_))
+        mvnAttrs.execAcrossChannels_ = false;
+}
+
 void MVN::transformTo5DCase(const VectorDims& shape) {
     size_t rank = shape.size();
-    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
-    // otherwise there are not enough data in spatial dimension to process in one kernel.
     switch (rank) {
         case 1 :  // C
             if (mvnAttrs.initAcrossChannels_) {
-                shape5D = {1, 1, 1, 1, shape[0]};
-                mvnAttrs.execAcrossChannels_ = false;
+                shape5D = {1, 1, 1, 1, shape[0]}; // aligned shape as execAcrossChannels_ is set to false
                 break;
             } else {
                 shape5D = {1, shape[0], 1, 1, 1};
@@ -2100,8 +2120,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
             }
         case 2 :  // NC
             if (mvnAttrs.initAcrossChannels_) {
-                shape5D = {1, shape[0], 1, shape[1], 1};
-                mvnAttrs.execAcrossChannels_ = false;
+                shape5D = {1, shape[0], 1, shape[1], 1}; // aligend shape as execAcrossChannels_ is set to false
                 break;
             } else {
                 shape5D = {shape[0], shape[1], 1, 1, 1};
