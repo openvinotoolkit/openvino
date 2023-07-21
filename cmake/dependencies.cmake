@@ -371,12 +371,14 @@ if (ENABLE_CPU_EXTENSIONS)
     reset_deps_cache(cpu_extensions_DIR)
 
     if(LINUX AND X86_64)
+        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine")
         RESOLVE_DEPENDENCY(CPU_EXTENSIONS
                 ARCHIVE_LIN "cpu_extensions_20230719_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
                 SHA256 "c1d41df6a9adf4b11ff827cfc3cf760cbcfdcc8a749c606c37e6de6bfd4b4774"
                 USE_NEW_LOCATION TRUE)
+        unset(IE_PATH_TO_DEPS)
     else()
         message(FATAL_ERROR "cpu_extensions is not available on current platform (OS = ${CMAKE_SYSTEM_NAME}, glibc ${OV_GLIBC_VERSION})")
     endif()
