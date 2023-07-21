@@ -5,17 +5,6 @@
 #include "include/auto_unit_test.hpp"
 using namespace ov::mock_auto_plugin;
 
-// define a matcher to check if perf hint expects
-MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
-    ov::Any arg_perfHint = "No PERFORMANCE_HINT";
-    auto itor = arg.find(ov::hint::performance_mode.name());
-    if (itor != arg.end()) {
-        arg_perfHint = itor->second;
-    }
-
-    return perfHint == arg_perfHint.as<std::string>();
-}
-
 using ConfigParams = std::tuple<std::string,               // virtual device name to load network
                                 std::vector<std::string>,  // hardware device name to expect loading network on
                                 ov::AnyMap>;                   // secondary property setting to device

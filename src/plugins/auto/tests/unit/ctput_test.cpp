@@ -8,17 +8,6 @@ using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>>;
 
-// define a matcher to check if perf hint expects
-MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
-    ov::Any arg_perfHint = "";
-    auto itor = arg.find(ov::hint::performance_mode.name());
-    if (itor != arg.end()) {
-        arg_perfHint = itor->second;
-    }
-
-    return perfHint == arg_perfHint.as<ov::hint::PerformanceMode>();
-}
-
 class LoadNetworkWithCTPUTMockTest :    public tests::AutoTest,
                                         public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -64,7 +53,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                 ::testing::Matcher<const std::string&>(targetDevice),
                                 ::testing::Matcher<const ov::AnyMap&>(
-                                    ComparePerfHint(ov::hint::PerformanceMode::THROUGHPUT))))
+                                    ComparePerfHint("THROUGHPUT"))))
             .Times(1);
         // if target device only has GPU, no CPU helper to be called
         if (targetDevice.find("GPU") != std::string::npos) {
@@ -72,7 +61,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                         compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                     ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
                                     ::testing::Matcher<const ov::AnyMap&>(
-                                        ComparePerfHint(ov::hint::PerformanceMode::LATENCY))))
+                                        ComparePerfHint("LATENCY"))))
                 .Times(0);
         }
     } else {
@@ -84,7 +73,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                         compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                     ::testing::Matcher<const std::string&>(deviceName),
                                     ::testing::Matcher<const ov::AnyMap&>(
-                                        ComparePerfHint(ov::hint::PerformanceMode::THROUGHPUT))))
+                                        ComparePerfHint("THROUGHPUT"))))
                 .Times(1);
         }
         config.insert(ov::device::priorities(targetDev));
@@ -93,7 +82,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Matcher<const ov::AnyMap&>(
-                                    ComparePerfHint(ov::hint::PerformanceMode::LATENCY))))
+                                    ComparePerfHint("LATENCY"))))
             .Times(0);
     }
 
@@ -183,7 +172,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::THROUGHPUT}});
     config.insert(ov::device::priorities(targetDev));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
