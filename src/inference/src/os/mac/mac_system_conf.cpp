@@ -67,6 +67,9 @@ int parse_processor_info_macos(int& _processors,
         }
     }
 
+    _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
+    _proc_type_table[0][PROC_SOCKET_ID] = 0;
+    
     return 0;
 }
 
