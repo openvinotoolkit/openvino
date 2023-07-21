@@ -183,7 +183,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         .WillByDefault(RETURN_MOCK_VALUE(supported_props));
 
     ov::AnyMap metaConfig = {};
-    if (gpuPerfHintNum > 0) {
+    if (gpuPerfHintNum >= 0) {
         metaConfig.insert(ov::hint::num_requests(gpuPerfHintNum));
     }
     if (isThroughput) {

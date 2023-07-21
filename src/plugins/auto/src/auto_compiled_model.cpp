@@ -129,7 +129,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             if (real > 0) {
                 if (is_supported_num_request && reqs_iter != device_info.config.end()) {
                     requests = reqs_iter->second.as<unsigned int>();
-                    real = (std::min)(requests, real);
+                    real = requests > 0 ? (std::min)(requests, real) : real;
                 }
                 return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
             }
@@ -210,7 +210,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             }
             if (reqs_iter != device_info.config.end()) {
                 requests = reqs_iter->second.as<unsigned int>();
-                real = (std::min)(requests, real);
+                real = requests > 0 ? (std::min)(requests, real) : real;
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
