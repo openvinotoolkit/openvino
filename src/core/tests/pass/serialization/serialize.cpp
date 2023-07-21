@@ -70,6 +70,12 @@ TEST_P(SerializationTest, SerializeHelper) {
     });
 }
 
+TEST_P(SerializationTest, SaveModel) {
+    CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
+        ov::save_model(m, m_out_xml_path, false);
+    });
+}
+
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,
     SerializationTest,

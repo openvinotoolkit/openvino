@@ -296,6 +296,9 @@ OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
 /// \brief Serialize given model into IR. The generated .xml and .bin files will be saved into provided paths.
+/// This method serializes model "as-is" that means no weights compression and other possible transformations
+/// are applied. It is recommended to use ov::save_model function instead of ov::serialize, because it is aligned
+/// with default model conversion flow.
 /// \param m Model which will be converted to IR representation.
 /// \param xml_path Path where .xml file will be saved.
 /// \param bin_path Path where .bin file will be saved (optional).
@@ -306,4 +309,15 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& xml_path,
                const std::string& bin_path = "",
                ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
+
+/// \brief Save given model into IR. Floating point weights are compressed to FP16 by default.
+/// This method saves a model to IR applying all necessary transformations that usually applied
+/// in model conversion flow provided by mo tool. Paricularly, floatting point weights are compressed to FP16.
+/// \param model Model which will be converted to IR representation.
+/// \param output_model Path to the output model file, must have extension .xml
+/// \param compress_to_fp16 Whether to compress floatting point weights to FP16 (true by default)
+OPENVINO_API
+void save_model(const std::shared_ptr<const ov::Model>& model,
+                const std::string& output_model,
+                bool compress_to_fp16 = true);
 }  // namespace ov
