@@ -292,7 +292,14 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (node->getType() != Type::FullyConnected)
             continue;
 
-        const auto multiplyNode = node->getParentEdgesAtPort(1)[0]->getParent();
+        const auto parent = node->getParentEdgesAtPort(1)[0]->getParent();
+        const bool with_transpose = parent->getType() == Type::Transpose;
+
+        NodePtr transposeNode;
+        if (with_transpose)
+            transposeNode = parent;
+
+        const auto multiplyNode = with_transpose ? parent->getParentEdgesAtPort(0)[0]->getParent() : parent;
         if (!multiplyNode->isConstant())
             continue;
 
@@ -333,11 +340,13 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // shape limitations
-        const auto weightsShape = node->getInputShapeAtPort(1);
-        if (weightsShape != weightsNode->getOutputShapeAtPort(0))
+        const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
+        const auto fcInputWeightsShape = multiplyNode->getOutputShapeAtPort(0);
+        if (weightsShape != fcInputWeightsShape)
             continue;
 
-        VectorDims expectedDims = {weightsShape.getDims()[0], 1};
+        const auto expectedDims = with_transpose ? VectorDims{1, weightsShape.getDims()[1]}
+                                                 : VectorDims{weightsShape.getDims()[0], 1};
         if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
             continue;
         if (with_subtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
@@ -368,7 +377,12 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);
 
-        fcNode->setOriginalInputPrecisionAtPort(1, weightsNode->getOriginalOutputPrecisionAtPort(0));
+        const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
+        if (with_transpose) {
+            transposeNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
+            transposeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
+        }
+        fcNode->setOriginalInputPrecisionAtPort(1, weightsPrecision);
     }
 }
 
