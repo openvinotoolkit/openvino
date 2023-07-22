@@ -4,7 +4,7 @@
 from argparse import ArgumentParser
 from subprocess import Popen
 from shutil import copytree, rmtree
-from summarize import create_summary
+from summarize import create_summary, create_api_summary
 from merge_xmls import merge_xml
 from run_parallel import TestParallelRunner
 from pathlib import Path
@@ -177,21 +177,18 @@ class Conformance:
         conformance.postprocess_logs()
 
         final_report_name = f'report_{self._type.lower()}'
-        # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
-        if self._type == constants.API_CONFORMANCE:
-            try:
-                final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
-                merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
-            except:
-                logger.warning("Something is wrong to create report_op for API conformance!")
+
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
-        summary_root = ET.parse(xml_report_path).getroot()
-        rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
-        create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
+        if self._type == constants.OP_CONFORMANCE:
+            summary_root = ET.parse(xml_report_path).getroot()
+            rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
+            create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
+        else:
+            create_api_summary([xml_report_path], report_dir, [], "", "")
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 

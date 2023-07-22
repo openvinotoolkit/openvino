@@ -12,6 +12,7 @@ from pathlib import Path
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
@@ -29,7 +30,7 @@ from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
-    get_tid
+    init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 
@@ -424,9 +425,8 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None, None
-    framework = None
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=simplified_ie_version, backend='ga4')
+    telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
