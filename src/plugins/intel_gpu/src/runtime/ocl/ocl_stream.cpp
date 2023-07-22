@@ -373,6 +373,14 @@ event::ptr ocl_stream::create_base_event() {
 void ocl_stream::flush() const { get_cl_queue().flush(); }
 void ocl_stream::finish() const { get_cl_queue().finish(); }
 
+void ocl_stream::wait() {
+    cl::Event ev;
+
+    // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
+    _command_queue.enqueueBarrierWithWaitList(nullptr, &ev);
+    ev.wait();
+}
+
 void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;

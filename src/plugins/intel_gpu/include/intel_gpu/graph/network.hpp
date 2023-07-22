@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -31,13 +33,15 @@ struct network_output {
     event::ptr get_event() const { return _event; }
 
     /// @brief Returns @ref memory object of the output. Blocked until associated @ref event is not complete.
-    memory::ptr get_memory() const {
+    memory::ptr get_memory(bool do_sync = true) const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == QueueTypes::in_order) {
-            _stream->finish();
-        } else {
-            _event->wait();
+        if (do_sync) {
+            if (_stream->get_queue_type() == QueueTypes::in_order) {
+                _stream->finish();
+            } else {
+                _event->wait();
+            }
         }
         return _result;
     }
@@ -81,12 +85,12 @@ public:
             const topology& topo,
             const ExecutionConfig& config = {},
             bool is_internal = false,
-            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr);
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
 
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
-            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
@@ -103,13 +107,13 @@ public:
     static ptr build_network(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config = {},
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor = nullptr,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
 
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
@@ -126,8 +130,8 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    void set_input_data(const primitive_id& id, memory::ptr data);
-    void set_output_memory(const primitive_id& id, memory::ptr mem);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 

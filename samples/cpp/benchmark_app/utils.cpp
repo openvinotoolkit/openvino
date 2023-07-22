@@ -108,6 +108,10 @@ std::vector<float> split_float(const std::string& s, char delim) {
     return result;
 }
 
+bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info) {
+    return app_input_info.size() == 1;
+}
+
 static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};
 bool is_virtual_device(const std::string& device_name) {
     return std::find(meta_plugins.begin(), meta_plugins.end(), device_name) != meta_plugins.end();
@@ -608,7 +612,18 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
+                ov::PartialShape p_shape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
+                if (p_shape.is_dynamic()) {
+                    throw std::logic_error("Data shape always should be static, " + p_shape.to_string() +
+                                           " is dynamic.");
+                }
+                if (info.partialShape.compatible(p_shape)) {
+                    info.dataShape = p_shape.to_shape();
+                } else {
+                    throw std::logic_error("Data shape " + p_shape.to_string() + "provided for input " + name +
+                                           "is not compatible with partial shape " + info.partialShape.to_string() +
+                                           " for this input.");
+                }
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {

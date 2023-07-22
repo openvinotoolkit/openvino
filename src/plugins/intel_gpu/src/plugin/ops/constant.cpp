@@ -55,7 +55,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
         break;
     case 0: constTensor = cldnn::tensor(1, 1, 1, 1);
         break;
-    default: IE_THROW() << "Invalid constant blob dimensions";
+    default: OPENVINO_THROW("Invalid constant blob dimensions");
     }
     return constTensor;
 }
@@ -182,7 +182,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
     if (props.swapOI) {
         size_t expected_min_rank = 2 + (props.hasGroupDimension ? 1 : 0);
         if (expected_min_rank > constDims.size())
-            IE_THROW() << "Invalid constant properties or shape";
+            OPENVINO_THROW("Invalid constant properties or shape");
 
         if (props.hasGroupDimension) {
             std::swap(newDims[2], newDims[1]);

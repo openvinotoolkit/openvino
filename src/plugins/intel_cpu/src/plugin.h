@@ -67,8 +67,9 @@ private:
     void apply_performance_hints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
     void get_performance_streams(Config &config, const std::shared_ptr<ov::Model>& model) const;
     StreamCfg get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
-                            int stream_mode,
-                            const bool enable_hyper_thread = true) const;
+                              int stream_mode,
+                              const bool enable_hyper_thread = true) const;
+    void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
@@ -78,6 +79,10 @@ private:
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;
+
+#if defined(OV_CPU_WITH_ACL)
+    std::shared_ptr<arm_compute::IScheduler> acl_scheduler;
+#endif
 };
 
 }   // namespace intel_cpu
