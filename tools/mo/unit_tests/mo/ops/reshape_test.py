@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generate, generator
 
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Node
@@ -47,9 +46,9 @@ nodes_attributes = {
 }
 
 
-@generator
 class TestReshapeShapeInfer(unittest.TestCase):
-    @generate(*[
+    def test_reshape_infer(self):
+        test_cases=[
         (None, shape_array([1, 100, 4]), shape_array([-1, 25]), None, [16, 25]),
         (None, shape_array([5, 100, 4]), shape_array([0, -1, 25]), None, [5, 16, 25]),
         (None, shape_array([5, dynamic_dimension_value, 4]), shape_array([4, -1, 5]), None,
@@ -74,20 +73,21 @@ class TestReshapeShapeInfer(unittest.TestCase):
         (None, shape_array([3, 14, 5]), shape_array([dynamic_dimension_value, 2, 0]), None, shape_array([21, 2, 5])),
         (shape_array([1, 2, dynamic_dimension_value, 4, 5, 6]), shape_array([6]), shape_array([-1, 2]),
          shape_array([1, 2, dynamic_dimension_value, 4, 5, 6]).reshape((3, 2)), shape_array([3, 2])),
-    ])
-    def test_reshape_infer(self, input_value, input_shape, output_shape, ref_value, ref_shape):
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data'),
-                             ('data', 'reshape'),
-                             ('output_shape', 'output_shape_data'),
-                             ('output_shape_data', 'reshape'),
-                             ('reshape', 'reshape_out')],
-                            {'data': {'shape': input_shape, 'value': input_value},
-                             'output_shape': {'value': output_shape, 'shape': output_shape.shape},
-                             'output_shape_data': {'value': output_shape, 'shape': output_shape.shape},
-                             })
-        node = Node(graph, 'reshape')
-        Reshape.infer(node)
-        if ref_value is not None:
-            self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), shape_array(ref_value)))
-        self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), shape_array(ref_shape)))
+    ]
+        for idx, (input_value, input_shape, output_shape, ref_value, ref_shape) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph(nodes_attributes,
+                                    [('input', 'data'),
+                                    ('data', 'reshape'),
+                                    ('output_shape', 'output_shape_data'),
+                                    ('output_shape_data', 'reshape'),
+                                    ('reshape', 'reshape_out')],
+                                    {'data': {'shape': input_shape, 'value': input_value},
+                                    'output_shape': {'value': output_shape, 'shape': output_shape.shape},
+                                    'output_shape_data': {'value': output_shape, 'shape': output_shape.shape},
+                                    })
+                node = Node(graph, 'reshape')
+                Reshape.infer(node)
+                if ref_value is not None:
+                    self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), shape_array(ref_value)))
+                self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), shape_array(ref_shape)))
