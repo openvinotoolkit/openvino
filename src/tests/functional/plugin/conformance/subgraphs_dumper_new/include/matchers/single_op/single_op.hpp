@@ -1,23 +1,21 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
-
 #include <utility>
 
 #include "pugixml.hpp"
 
-#include "single_op_matchers/config.hpp"
+#include "matchers/single_op/config.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class BaseMatcher {
+class SingleOpMatcher {
 public:
-    using Ptr = std::shared_ptr<BaseMatcher>;
-    BaseMatcher();
+    using Ptr = std::shared_ptr<SingleOpMatcher>;
+    SingleOpMatcher();
 
     virtual bool match(const std::shared_ptr<ov::Node> &node,
                        const std::shared_ptr<ov::Node> &ref) const;
