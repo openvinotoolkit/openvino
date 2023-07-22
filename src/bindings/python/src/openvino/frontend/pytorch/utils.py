@@ -18,8 +18,8 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 def maybe_convert_max_int(value : int):
     # FIXME: This is a convertion from 64-bit positive max integer value
     # to 32-bit positive max integer value. Find a better way to handle this.
-    if value == 9223372036854775807:
-        return 2147483647
+    if value == torch.iinfo(torch.int64).max:
+        return torch.iinfo(torch.int32).max
     else:
         return value
 
