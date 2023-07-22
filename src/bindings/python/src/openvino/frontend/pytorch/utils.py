@@ -12,7 +12,7 @@ import numpy as np
 import inspect
 import ctypes
 
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape, Tensor
 
 
 def maybe_convert_max_int(value : int):
@@ -106,33 +106,24 @@ def get_value_from_getattr(getattr_node, self_module):
         module = getattr(module, attr_name)
     return module
 
-
 pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
-    float: OVType.f32,
-    int: OVType.i32,
     "bool": OVType.boolean,
     "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
-    torch.float32: OVType.f32,
     "torch.float64": OVType.f64,
-    torch.float64: OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
     "torch.int32": OVType.i32,
-    torch.int32: OVType.i32,
     "torch.int64": OVType.i64,
-    torch.int64: OVType.i64,
     "torch.bool": OVType.boolean,
-    torch.bool: OVType.boolean,
     "torch.DoubleTensor": OVType.f64,
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
-    "torch.Tensor": OVType.i64,
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
     "torch.qint32": OVType.i32

@@ -96,7 +96,7 @@ class TorchFXPythonDecoder (Decoder):
 
     def get_input_type(self, index):
         if index < len(self.input_types):
-            return OVAny(pt_to_ov_type_map[self.input_types[index]])
+            return OVAny(pt_to_ov_type_map[str(self.input_types[index])])
         input = self._raw_input(index)
         return self.get_type_for_value(input)
 
@@ -144,8 +144,8 @@ class TorchFXPythonDecoder (Decoder):
         if issubclass(type(value), torch.fx.Node):
             if ('tensor_meta' in value.meta.keys()):
                 pt_type = value.meta['tensor_meta'].dtype
-                if pt_type in pt_to_ov_type_map:
-                    ov_type = pt_to_ov_type_map[pt_type]
+                if str(pt_type) in pt_to_ov_type_map:
+                    ov_type = pt_to_ov_type_map[str(pt_type)]
                     return OVAny(ov_type)
             else:
                 return OVAny(OVType.f32)
@@ -248,7 +248,7 @@ class TorchFXPythonDecoder (Decoder):
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
             ovshape = PartialShape(ret.size())
-            ovtype = pt_to_ov_type_map[ret.type()]
+            ovtype = pt_to_ov_type_map[str(ret.type())]
             c_type = ctypes.POINTER(ov_to_c_type_map[ovtype])
             data_c_ptr = ctypes.cast(ret.data_ptr(), c_type)
             ov_const = op.Constant(ovtype, ovshape.get_shape(), data_c_ptr[:ret.nelement()])
@@ -318,10 +318,10 @@ class TorchFXPythonDecoder (Decoder):
                 return make_constant(OVType.boolean, Shape([]), [ivalue]).outputs()
 
             # TODO: verify that it correctly reads incomplete consts
-            if ivalue.type() in pt_to_ov_type_map:
+            if str(ivalue.type()) in pt_to_ov_type_map:
                 try:
                     ovshape = PartialShape(ivalue.size())
-                    ovtype = pt_to_ov_type_map[ivalue.type()]
+                    ovtype = pt_to_ov_type_map[str(ivalue.type())]
                     ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
                 except:
                     # old variant that makes a slow data copying
@@ -370,7 +370,7 @@ class TorchFXPythonDecoder (Decoder):
                 arg = self._inputs[i][0]
                 if isinstance(arg, list):
                     if len(arg) > 0:
-                        constant = make_constant(pt_to_ov_type_map[type(arg[0])], Shape([len(arg)]), arg)
+                        constant = make_constant(pt_to_ov_type_map[type(arg[0]).__name__], Shape([len(arg)]), arg)
                     else:
                         # TODO: which type should we use if list is empty? Need a signaling value here
                         constant = make_constant(int, Shape([0]), [])
