@@ -310,8 +310,9 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        if (!get_node().is_in_shape_of_subgraph() && !dep.is_in_shape_of_subgraph())
+        if (!dep.is_in_shape_of_subgraph()) {
             has_runtime_deps = true;
+        }
     }
 
     if (has_runtime_deps) {
