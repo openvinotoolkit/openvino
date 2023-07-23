@@ -524,6 +524,17 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     conf.readProperties(config);
     calculate_streams(conf, cloned_model);
 
+    if ((cloned_model->inputs().size() != model->inputs().size()) ||
+        (cloned_model->outputs().size() != model->outputs().size())) {
+        OPENVINO_THROW("Input/output port size mismatched!");
+    }
+    // Make output ports have the same tensor names with original model
+    for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {
+        auto new_result = cloned_model->output(idx);
+        auto orig_result = model->output(idx);
+        new_result.get_tensor().set_names(orig_result.get_tensor().get_names());
+    }
+
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
