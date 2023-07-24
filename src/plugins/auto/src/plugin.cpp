@@ -133,7 +133,18 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
         auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = properties.find(target_device) != properties.end();
+        auto is_set_device_properties = false;
+        auto item = properties.find(ov::device::properties.name());
+        if (item != properties.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(target_device);
+            if (it != devicesProperties.end()) {
+                is_set_device_properties = true;
+            }
+        }
         if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin

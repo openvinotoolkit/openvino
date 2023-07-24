@@ -739,9 +739,10 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
             for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
                 auto& input = detection_output_node.get_dependency(i);
+                auto input_layout = input.get_output_layout();
                 auto new_input = rf.get_reorder(input.id(),
-                                                input.get_output_layout(),
-                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+                                                input_layout,
+                                                layout{ input_layout.get_partial_shape(), data_types::f32, format::bfyx });
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);

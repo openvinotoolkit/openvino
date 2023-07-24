@@ -49,8 +49,7 @@ void op::v1::Split::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     for (size_t i = 0; i < m_num_splits; ++i) {
         set_output_type(i, get_input_element_type(0), output_shapes[i]);
@@ -75,12 +74,10 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         const auto& data_tensor = inputs[0];
         const auto& axis_tensor = inputs[1];
 
-        const auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>{{1, axis_tensor}};
         const auto input_shapes =
             std::vector<PartialShape>{data_tensor->get_partial_shape(), axis_tensor->get_partial_shape()};
-        auto output_shapes = std::vector<PartialShape>();
 
-        shape_infer(this, input_shapes, output_shapes, constant_data);
+        auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
 
         auto outputs_data = std::vector<char*>(m_num_splits);
         for (size_t i = 0; i < m_num_splits; ++i) {
