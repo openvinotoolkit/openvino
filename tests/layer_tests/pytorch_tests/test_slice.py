@@ -85,7 +85,7 @@ class TestSliceAndSqueeze(PytorchLayerTest):
 
             def forward(self, x):
                 a = torch.squeeze(x, 1)
-                return a[:, None, :, :]
+                return a[:, None, :]
 
         ref_net = None
 
