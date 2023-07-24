@@ -18,7 +18,7 @@ OutputVector translate_index_fx(const NodeContext& context) {
     auto x = context.get_input(0);
     std::deque<Output<Node>> list_elems;
     for (size_t i = 1; i < context.get_input_size(); i++) {
-        auto index = context.get_input(i);
+        auto index = context.get_input(static_cast<int>(i));
         if (index.get_element_type() == element::i64) {
             auto converted = context.mark_node(std::make_shared<ov::op::v0::Convert>(index, element::i32));
             list_elems.push_back(converted);
