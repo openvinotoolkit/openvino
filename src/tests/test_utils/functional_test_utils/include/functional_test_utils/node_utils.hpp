@@ -9,6 +9,17 @@
 
 namespace FuncTestUtils {
 
+inline std::string get_op_version(std::string version_full_name) {
+    std::string op_version(version_full_name);
+    std::string opset_name = "opset";
+
+    auto pos = op_version.find(opset_name);
+    if (pos != std::string::npos) {
+        op_version = op_version.substr(pos + opset_name.size());
+    }
+
+    return op_version;
+}
 
 static std::map<std::string, std::set<std::string>> get_unique_ops() {
     // { op_name, { opsets }}
@@ -17,11 +28,7 @@ static std::map<std::string, std::set<std::string>> get_unique_ops() {
         std::string opset_name = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
         for (const auto& op : opset.get_type_info_set()) {
-            std::string op_version = op.get_version(), opset_name = "opset";
-            auto pos = op_version.find(opset_name);
-            if (pos != std::string::npos) {
-                op_version = op_version.substr(pos + opset_name.size());
-            }
+            std::string op_version = get_op_version(op.get_version());
             if (res.find(op.name) == res.end()) {
                 res.insert({op.name, {}});
             }
