@@ -113,6 +113,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
                              0,
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
+                             false,
                              padding(),
                              data_types::i32));
 
@@ -162,6 +163,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
                              top_k,
                              2,
                              ov::op::TopKSortType::SORT_VALUES,
+                             false,
                              false,
                              padding(),
                              data_types::f32));
@@ -230,6 +232,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
                              0,
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
+                             false,
                              padding(),
                              data_types::f32));
 
@@ -294,6 +297,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
                              top_k,
                              2,
                              ov::op::TopKSortType::SORT_VALUES,
+                             false,
                              false,
                              padding(),
                              data_types::f32));
@@ -405,6 +409,7 @@ TEST(top_k_layer_tests, second_output2) {
                              0,
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
+                             false,
                              padding(),
                              data_types::f32));
 
@@ -495,6 +500,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
                                         0,
                                         ov::op::TopKSortType::SORT_VALUES,
                                         false,
+                                        false,
                                         padding(),
                                         data_types::f32,
                                         2);
@@ -580,6 +586,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
                              2,
                              ov::op::TopKSortType::SORT_VALUES,
                              false,
+                             false,
                              padding(),
                              data_types::f32));
 
@@ -636,6 +643,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
                              top_k,
                              2,
                              ov::op::TopKSortType::SORT_INDICES,
+                             false,
                              false,
                              padding(),
                              data_types::f32));
@@ -694,6 +702,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
                              top_k,
                              3,
                              ov::op::TopKSortType::SORT_VALUES,
+                             false,
                              false,
                              padding(),
                              data_types::i32));

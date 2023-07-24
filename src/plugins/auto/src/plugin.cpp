@@ -133,7 +133,18 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
         auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = properties.find(target_device) != properties.end();
+        auto is_set_device_properties = false;
+        auto item = properties.find(ov::device::properties.name());
+        if (item != properties.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(target_device);
+            if (it != devicesProperties.end()) {
+                is_set_device_properties = true;
+            }
+        }
         if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
@@ -529,10 +540,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     std::shared_ptr<ov::ICompiledModel> impl;
+    std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
+                                std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
+    scheduler->launch(auto_s_context);
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    try {
+        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
+        device_context = auto_s_context->m_hw_compiled_model->get_context();
+        if (!device_context._so)
+            device_context._so = auto_s_context->m_hw_compiled_model._so;
+    } catch (ov::NotImplemented&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    } catch (InferenceEngine::Exception&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
+        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
     } else {
-        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
+        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
     }
     return impl;
 }
@@ -580,7 +607,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> MYRIAD;
-    std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> VPU;
 
     for (auto& item : meta_devices) {
         if (item.device_name.find("CPU") == 0) {
@@ -591,8 +618,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             MYRIAD.push_back(item);
             continue;
         }
-        if (item.device_name.find("VPUX") == 0) {
-            VPUX.push_back(item);
+        if (item.device_name.find("VPU") == 0) {
+            VPU.push_back(item);
             continue;
         }
         if (item.device_name.find("GPU") == 0) {
@@ -614,14 +641,14 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         }
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > VPU > iGPU > MYRIAD > CPU
     std::list<DeviceInformation> devices;
     if (model_precision == "INT8") {
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), VPU);
         devices.splice(devices.end(), dGPU);
     } else {
         devices.splice(devices.end(), dGPU);
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), VPU);
     }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);

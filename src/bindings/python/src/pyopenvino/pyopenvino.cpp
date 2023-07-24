@@ -117,6 +117,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
         R"(
             Serialize given model into IR. The generated .xml and .bin files will be saved
             into provided paths.
+            This method serializes model "as-is" that means no weights compression is applied.
+            It is recommended to use ov::save_model function instead of ov::serialize in all cases
+            when it is not related to debugging.
             :param model: model which will be converted to IR representation
             :type model: openvino.runtime.Model
             :param xml_path: path where .xml file will be saved
@@ -155,6 +158,38 @@ PYBIND11_MODULE(_pyopenvino, m) {
                 model = Model(ops, [parameter_a, parameter_b, parameter_c], "Model")
                 # IR generated with default version
                 serialize(model, xml_path="./serialized.xml", bin_path="./serialized.bin", version="IR_V11")
+        )");
+
+    m.def(
+        "save_model",
+        [](std::shared_ptr<ov::Model>& model,
+           const py::object& xml_path,
+           bool compress_to_fp16) {
+            ov::save_model(model,
+                          Common::utils::convert_path_to_string(xml_path),
+                          compress_to_fp16);
+        },
+        py::arg("model"),
+        py::arg("output_model"),
+        py::arg("compress_to_fp16") = true,
+        R"(
+            Save model into IR files (xml and bin). Floating point weights are compressed to FP16 by default.
+            This method saves a model to IR applying all necessary transformations that usually applied
+            in model conversion flow provided by mo tool. Paricularly, floatting point weights are
+            compressed to FP16, debug information in model nodes are cleaned up, etc.
+            :param model: model which will be converted to IR representation
+            :type model: openvino.runtime.Model
+            :param output_model: path to output model file
+            :type output_model: Union[str, bytes, pathlib.Path]
+            :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True)
+            :type compress_to_fp16: bool
+
+            :Examples:
+
+            .. code-block:: python
+
+                model = convert_model('your_model.onnx')
+                save_model(model, './model.xml')
         )");
 
     m.def("shutdown",

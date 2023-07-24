@@ -19,6 +19,7 @@
 #include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -315,6 +316,50 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_3_witho
 
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 2, 3 }, { 1 });
         auto matmul = std::make_shared<FullyConnectedNode>(input1, weights,  ngraph::Rank(2));
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_0) {
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{ 1, 2, 2 }, { 1 });
+        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
+        ov::mark_as_decompression(convert);
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, convert, false, false);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
+        manager.register_pass<ConvertMatMulToFC>();
+    }
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2, 2 }, { 1 });
+        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
+        auto matmul = std::make_shared<FullyConnectedNode>(input1, convert, ngraph::Rank(3));
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_1) {
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{ 1, 2, 2 }, { 1 });
+        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
+        ov::mark_as_decompression(convert);
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, convert, true, false);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
+        manager.register_pass<ConvertMatMulToFC>();
+    }
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto transpose_constant = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 2, 1 });
+        auto transpose = std::make_shared<ngraph::opset1::Transpose>(input1, transpose_constant);
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2, 2 }, { 1 });
+        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
+        auto matmul = std::make_shared<FullyConnectedNode>(transpose, convert, ngraph::Rank(3));
+
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
     }
 }
