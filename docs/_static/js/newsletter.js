@@ -1,4 +1,5 @@
 const eloquaUrl = 'https://s334284386.t.eloqua.com/e/f2'
+newsletterFieldPrefix = 'newsletter-'
 
 // debug url
 // const eloquaUrl = 'https://httpbingo.org/post'
@@ -41,7 +42,17 @@ $(document).ready(function () {
                 const formHeight = $(this).outerHeight()
                 $(this).removeClass('animated fade-up')
                 $(this).animate({opacity: 0}, 200, 'linear', () => {
-                    $.post(eloquaUrl, $(this).serialize())
+                    const currentUrl = window.location.protocol + '//' + window.location.hostname + window.location.pathname
+                    $(this).append(`<input type="hidden" name="newsletter-pageSource" value="${currentUrl}">`);
+                    const rawFormData = $(this).serializeArray();
+                    const filteredFormData = [];
+                    for (var entry of rawFormData) {
+                        if (entry['name'].startsWith(newsletterFieldPrefix)) {
+                            entry['name'] = entry['name'].replace(newsletterFieldPrefix, '');
+                            filteredFormData.push(entry)
+                        }
+                    }
+                    $.post(eloquaUrl, $.param(filteredFormData))
                     .done(function(data) {
                         // ---------- debug request data
 
