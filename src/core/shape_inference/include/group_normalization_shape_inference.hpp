@@ -50,13 +50,6 @@ std::vector<TShape> shape_infer(const GroupNormalization* op, const std::vector<
 
     return {input_shapes[0]};
 }
-
-template <class TShape>
-void shape_infer(const GroupNormalization* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
 }  // namespace v12
 }  // namespace op
 }  // namespace ov

@@ -30,13 +30,13 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, default_ctor) {
     // 2 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{batch, 2}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        shape_inference(op.get(), input_shapes, output_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
     // 3 inputs
     {
         input_shapes = {StaticShape{3, 4, 5, 6}, StaticShape{batch, 2}, StaticShape{batch, 2}};
-        shape_infer(op.get(), input_shapes, output_shapes);
+        shape_inference(op.get(), input_shapes, output_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
 }
