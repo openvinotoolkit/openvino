@@ -23,7 +23,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 2. Read a model -------------------------------------
   console.log(`Reading the model: ${modelPath}`);
-  const model = core.read_model(modelPath);
+  const model = core.readModel(modelPath);
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -49,7 +49,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
-  const compiledModel = core.compile_model(model, deviceName);
+  const compiledModel = core.compileModel(model, deviceName);
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');

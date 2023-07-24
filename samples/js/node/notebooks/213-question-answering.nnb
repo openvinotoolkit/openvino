@@ -58,7 +58,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\n  const model = core.read_model(modelXMLPath);\n\n  new ov.PrePostProcessor(model)\n        .setInputElementType(0, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(1, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(2, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(3, ov.element.f32)\n        .build();\n\n  const compiledModel = core.compile_model(model, 'CPU');\n\n  const inputs = compiledModel.inputs;\n  const outputs = compiledModel.outputs;\n\n  const inputSize = compiledModel.input(0).shape[1];"
+                "const core = new ov.Core();\n  const model = core.readModel(modelXMLPath);\n\n  new ov.PrePostProcessor(model)\n        .setInputElementType(0, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(1, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(2, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(3, ov.element.f32)\n        .build();\n\n  const compiledModel = core.compileModel(model, 'CPU');\n\n  const inputs = compiledModel.inputs;\n  const outputs = compiledModel.outputs;\n\n  const inputSize = compiledModel.input(0).shape[1];"
             ],
             "outputs": []
         },

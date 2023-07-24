@@ -18,7 +18,7 @@ describe('Output class', () => {
 
   const core = new ov.Core();
   const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
+  const compiledModel = core.compileModel(model, 'CPU');
 
   test.each([
     model,
@@ -61,7 +61,7 @@ describe('Output class', () => {
 describe('Input class for ov::Input<const ov::Node>', () => {
   const core = new ov.Core();
   const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
+  const compiledModel = core.compileModel(model, 'CPU');
 
   test('CompiledModel.input() method', () => {
     // TO_DO check if object is an instance of a value/class
@@ -97,7 +97,7 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 describe('InferRequest', () => {
   const core = new ov.Core();
   const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
+  const compiledModel = core.compileModel(model, 'CPU');
   const inferRequest = compiledModel.createInferRequest();
 
   const tensor = new ov.Tensor(

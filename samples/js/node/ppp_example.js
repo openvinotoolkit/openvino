@@ -18,7 +18,7 @@ async function run()
 
   /*   ---Load the model---   */
   const modelPath = process.argv[2];
-  const model = new addon.Model().read_model(modelPath);
+  const model = new addon.Model().readModel(modelPath);
 
   new addon.PrePostProcessor(model)
     .set_input_tensor_shape([1, 227, 227, 3])
