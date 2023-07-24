@@ -998,7 +998,9 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
         alloc_type = engine.get_lockable_preferred_memory_allocation_type();
     }
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
-    return engine.allocate_memory(layout, alloc_type, reset);
+
+    // Reuse intermediate buffer like output buffer.
+    return _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
