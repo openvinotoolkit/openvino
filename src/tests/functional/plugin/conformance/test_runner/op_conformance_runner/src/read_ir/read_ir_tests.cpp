@@ -25,6 +25,10 @@ TEST_P(ReadIRTest, QueryModel) {
     query_model();
 }
 
+TEST_P(ReadIRTest, ImportExport) {
+    import_export();
+}
+
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
     INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
                              ReadIRTest,                                                                   \

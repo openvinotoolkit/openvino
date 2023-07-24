@@ -7,6 +7,7 @@
 #include "ngraph/node.hpp"
 #include "utils/pooling_factory.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -22,3 +23,4 @@ OutputVector average_pool(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

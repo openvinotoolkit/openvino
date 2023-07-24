@@ -13,6 +13,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/op/util/op_types.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -76,3 +77,4 @@ OutputVector dropout(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END
