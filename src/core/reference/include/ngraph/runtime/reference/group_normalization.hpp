@@ -7,6 +7,8 @@
 #include <cmath>
 #include <numeric>
 
+#include "ngraph/runtime/reference/mean.hpp"
+#include "ngraph/runtime/reference/sum.hpp"
 #include "openvino/core/shape.hpp"
 
 using namespace std;
@@ -35,15 +37,18 @@ void group_normalization(const T* const data,
         for (size_t g = 0; g < num_groups; ++g) {
             const auto group_begin = data + n * batch_size + g * group_size;
             const auto group_end = group_begin + group_size;
-            const auto mean = accumulate(group_begin, group_end, static_cast<T>(0)) / group_size;
-            const auto variance = accumulate(group_begin,
-                                             group_end,
-                                             static_cast<T>(0),
-                                             [mean](const T acc, const T d) {
-                                                 return acc + pow(d - mean, 2);
-                                             }) /
-                                  group_size;
-            const auto standard_deviation = sqrt(variance + eps);
+            std::vector<T> mean_value(1);
+            ngraph::runtime::reference::mean(group_begin, mean_value.data(), Shape{group_size}, {0});
+            T mean = mean_value[0];
+            T variance = 0;
+            T err = 0;
+            for_each(group_begin, group_end, [&](const T d) {
+                return ngraph::runtime::reference::details::kahan_summation(static_cast<T>(pow(d - mean, 2)),
+                                                                            err,
+                                                                            variance);
+            });
+            variance /= group_size;
+            const T standard_deviation = sqrt(variance + eps);
 
             for (size_t s = 0; s < num_channels_in_group; ++s) {
                 const auto c = g * num_channels_in_group + s;
