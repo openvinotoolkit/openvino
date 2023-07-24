@@ -10,6 +10,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "onnx_import/onnx.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -182,4 +183,17 @@ TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
     ASSERT_EQ(metadata.size(), 2);
     ASSERT_EQ(metadata["meta_key1"].as<std::string>(), "meta_value1");
     ASSERT_EQ(metadata["meta_key2"].as<std::string>(), "meta_value2");
+}
+
+TEST(ONNX_Importer_Tests, CreateParamsForConstsInSubgraphs) {
+    ov::Core core;
+    auto model = core.read_model(CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({ONNX_MODELS_DIR, "controlflow/loop_2d_add_trip_count_max_int.onnx"})));
+
+    const auto& ops = model->get_ops();
+    auto loop_it = std::find_if(std::begin(ops), std::end(ops), [](const std::shared_ptr<ov::Node>& n) {
+        return std::dynamic_pointer_cast<ov::op::v5::Loop>(n);
+    });
+    ASSERT_TRUE(loop_it != std::end(ops));
+    EXPECT_EQ((*loop_it)->inputs().size(), 4);
 }
