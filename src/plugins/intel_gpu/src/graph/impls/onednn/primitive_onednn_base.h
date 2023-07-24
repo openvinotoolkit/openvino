@@ -62,13 +62,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _enable_profiling = true;
             }
 
-            GPU_DEBUG_IF(debug_config->verbose >= 5) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 if (_scratchpad_md.get_size() > 0) {
-                    static long long total = 0;
+                    static std::atomic_llong total{0};
                     int64_t size = _scratchpad_md.get_size() / 1048576;
                     total += size;
-                    GPU_DEBUG_LOG << "primitive kind: " << static_cast<int>(_pd.get_kind()) << ", scratchpad: " << size
-                        << "MB, total " << total << "MB" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
+                        << ", " << size << "MB, total " << total << "MB" << std::endl;
                 }
             }
 
@@ -470,7 +470,7 @@ protected:
         }
 
         if (_scratchpad_md.get_size() != 0) {
-            auto scratchpad = const_cast<cldnn::memory*>(instance.get_intermediates_memories()[0].get());
+            auto scratchpad = instance.get_intermediates_memories()[0];
             args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 
@@ -539,7 +539,7 @@ protected:
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
         if (_scratchpad_md.get_size() == 0)
             return {};
-        return {{cldnn::data_types::u8, format::bfyx, {1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}}};
+        return {{{1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}, cldnn::data_types::u8, format::bfyx}};
     }
 };
 

@@ -247,9 +247,6 @@ TEST(network_test, scratchpad_test) {
     auto fc1 = net1.get_primitive("fc_prim");
     auto fc2 = net2.get_primitive("fc_prim");
 
-    // Check if the addresses of scratchpad memory are different when num of stream is 2.
-    std::cout << "Address 1st network: " << fc1->get_intermediates_memories()[0]->buffer_ptr()
-        << ", Address 2nd network: " << fc2->get_intermediates_memories()[0]->buffer_ptr() << std::endl;
     ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() != fc2->get_intermediates_memories()[0]->buffer_ptr());
 }
 
