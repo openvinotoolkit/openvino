@@ -163,15 +163,9 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request) {
-    // report error if not possible to create a tensor
-    ov::Tensor tensor;
 
-    if (value.IsObject()) {  // here add check if this is a TensorWrap{}
-        auto obj = value.As<Napi::Object>();
-        auto* tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
-        tensor = tensor_wrap->get_tensor();
-    }
 
-    return tensor;
+ov::Tensor value_to_tensor(Napi::Object obj){
+    auto* tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj); // here add check if this is a TensorWrap{}. Cannot be added in header because Napi::ObjectWrap<TensorWrap> requires the full definition of TensorWrap object
+    return tensor_wrap->get_tensor();
 }
