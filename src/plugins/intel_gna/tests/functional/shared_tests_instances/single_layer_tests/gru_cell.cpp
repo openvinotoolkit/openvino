@@ -11,6 +11,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 class GRUCellGNATest : public GRUCellTest {
 protected:
     void SetUp() override {
@@ -23,6 +25,9 @@ protected:
         std::vector<float> activations_beta;
         float clip;
         bool linear_before_reset;
+        InputLayerType WType;
+        InputLayerType RType;
+        InputLayerType BType;
         InferenceEngine::Precision netPrecision;
         std::tie(should_decompose,
                  batch,
@@ -31,6 +36,9 @@ protected:
                  activations,
                  clip,
                  linear_before_reset,
+                 WType,
+                 RType,
+                 BType,
                  netPrecision,
                  targetDevice) = this->GetParam();
 
@@ -41,6 +49,10 @@ protected:
              {3 * hidden_size, hidden_size},
              {(linear_before_reset ? 4 : 3) * hidden_size}},
         };
+
+        ASSERT_EQ(InputLayerType::CONSTANT, WType);
+        ASSERT_EQ(InputLayerType::CONSTANT, RType);
+        ASSERT_EQ(InputLayerType::CONSTANT, BType);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
@@ -121,6 +133,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRUCellCommon,
                                             ::testing::ValuesIn(activations),
                                             ::testing::ValuesIn(clip),
                                             ::testing::ValuesIn(linear_before_reset),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::Values(InputLayerType::CONSTANT),
+                                            ::testing::Values(InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          GRUCellTest::getTestCaseName);

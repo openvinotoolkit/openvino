@@ -19,6 +19,7 @@ using ::testing::Throw;
 using ::testing::Matches;
 using ::testing::_;
 using ::testing::StrEq;
+using ::testing::StrNe;
 using ::testing::Return;
 using ::testing::Property;
 using ::testing::Eq;

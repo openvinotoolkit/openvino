@@ -316,9 +316,10 @@ void loop_inst::update_mapped_memory() {
     }
 }
 
-void loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
-    primitive_inst::set_output_memory(mem, check, idx);
+event::ptr loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
+    auto ev = primitive_inst::set_output_memory(mem, check, idx);
     update_mapped_memory();
+    return ev;
 }
 
 void loop_inst::preprocess_output_memory() {
