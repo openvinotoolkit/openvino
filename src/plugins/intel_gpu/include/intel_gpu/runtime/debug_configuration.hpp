@@ -123,11 +123,10 @@ public:
     int disable_dynamic_impl;                       // Disable dynamic implementation
     int disable_runtime_buffer_fusing;              // Disable runtime buffer fusing
     std::set<int64_t> dump_iteration;               // Dump n-th execution of network.
-    std::vector<std::string> load_layers_raw_dump;  // List of layers loading dumped raw binary files and names of the files
+    std::vector<std::string> load_layers_raw_dump;  // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
-    std::vector<std::string> get_loading_filenames(const std::string& id) const;
+    std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const std::string& id) const;
     std::string get_name_for_dump(const std::string& file_name) const;
-    bool is_layer_for_loading(const std::string& layer_name) const;
     bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
     bool is_target_iteration(int64_t iteration) const;
     std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) const;
