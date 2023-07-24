@@ -6,12 +6,26 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape, Tensor
+from openvino.runtime import opset11 as ops
 
 import typing
 from packaging.version import parse
 import torch
 import numpy as np
+
+wrapper_template="""
+import torch
+from typing import *
+
+class ModelWrapper(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+    
+    def forward(self, {input_sign}):
+        return self.model({example_input})
+"""
 
 
 def get_type_from_py_type(value):
@@ -39,12 +53,17 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        if ivalue.dim() == 0:
-            assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
-            ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
-            ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+        ivalue = ivalue.to(memory_format=torch.contiguous_format)
+        if ivalue.dtype == torch.bfloat16:
+            # reinterpret bfloat16 data as float16 to allow conversion to numpy
+            ivalue = ivalue.view(torch.float16)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
+            # TODO: this tensor doesn't share memory with initial tensor
+            tensor = Tensor(narr, ivalue.shape, OVType.bf16)
+            ov_const = op.Constant(tensor, shared_memory=True)
         else:
-            ivalue = ivalue.to(memory_format=torch.contiguous_format)
             narr = ivalue.numpy(force=True)
             if not narr.flags['C_CONTIGUOUS']:
                 narr = np.ascontiguousarray(narr)
@@ -76,6 +95,7 @@ pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
     "bool": OVType.boolean,
+    "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
     "torch.float64": OVType.f64,
@@ -89,6 +109,9 @@ pt_to_ov_type_map = {
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
+    "torch.quint8": OVType.u8,
+    "torch.qint8": OVType.i8,
+    "torch.qint32": OVType.i32
 }
 
 
@@ -133,38 +156,76 @@ class TorchScriptPythonDecoder (Decoder):
         import torch
         import inspect
 
-        def prepare_example_inputs(inputs, input_signature):
-            is_torch_2 = parse(torch.__version__) >= parse("2.0.0")
-            if isinstance(inputs, dict):
-                ordered_inputs = []
-                if input_signature is not None:
-                    used_sign = []
-                    for key in input_signature:
-                        if key not in inputs:
+        def process_dict_inputs(inputs, input_params, model):
+            ordered_inputs = []
+            for input_name in input_params:
+                if input_name in inputs:
+                    ordered_inputs.append(input_name)
+
+            input_signature = list(input_params)
+            if ordered_inputs == input_signature[:len(ordered_inputs)]:
+                example_inputs = [inputs[input_name] for input_name in ordered_inputs]
+                if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
+                    return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
+                return {"example_inputs": example_inputs}, ordered_inputs, model
+
+            # PyTorch has some difficulties to trace models with named unordered parameters:
+            # torch < 2.0.0 supports only positional arguments for tracing
+            # pytorch == 2.0.0 supports input kwargs tracing, 
+            # but does not support complex nested objects (e. g. tuple of tuples of tensors)
+            # We will use wrapper for making them positional as workaround.
+
+            input_sign_str = []
+            input_params_str = []
+
+            for input_name in ordered_inputs:
+                if str(input_params[input_name].annotation).startswith("typing.Union"):
+                    filter_custom_args = []
+                    for arg in input_params[input_name].annotation.__args__:
+                        str_arg = str(arg)
+                        is_typing = str_arg.startswith("typing.")
+                        is_torch = "torch." in str_arg
+                        is_builten = str_arg in (str(int), str(float), str(type(None)))
+                        if not (is_typing or is_torch or is_builten):
                             continue
-                        ordered_inputs.append(inputs[key])
-                        used_sign.append(key)
-                    input_signature = used_sign
-                else:
-                    ordered_inputs = list(inputs.values())
-                if is_torch_2:
-                    return {"example_kwarg_inputs": inputs}, input_signature
-                else:
-                    inputs = ordered_inputs
+                        filter_custom_args.append(arg)
+                    input_params[input_name].annotation.__args__ = tuple(filter_custom_args)
+                input_sign_str.append(str(input_params[input_name]).replace("NoneType", "None"))
+                input_params_str.append(f"{input_name}={input_name}")
+
+            wrapper_class = wrapper_template.format(input_sign=', '.join(input_sign_str), example_input=', '.join(input_params_str))
+            result = {}
+            try:
+                exec(wrapper_class, result)
+
+                wrapped_model = result["ModelWrapper"](model)
+                wrapped_model.eval()
+            # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
+            except Exception:
+                wrapped_model = model
+
+            return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
+
+        def prepare_example_inputs_and_model(inputs, input_params, model):
+            if isinstance(inputs, dict):
+                return process_dict_inputs(inputs, input_params, model)
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-                
-            return {"example_inputs": inputs}, input_signature
+            input_signature = list(input_params)
+            input_signature = input_signature[:len(inputs)]
+            return {"example_inputs": inputs}, input_signature, model
 
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
-            input_signature = list(inspect.signature(pt_module.forward).parameters.keys())
+            # input params is dictionary contains input names and their signature values (type hints and default values if any)
+            input_params = inspect.signature(pt_module.forward if hasattr(pt_module, "forward") else pt_module.__call__).parameters
+            input_signature = list(input_params)
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                input_parameters, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                input_parameters, input_signature, pt_module = prepare_example_inputs_and_model(example_inputs, input_params, pt_module)
                 try:
                     scripted = torch.jit.trace(pt_module, **input_parameters)
                 except Exception:
@@ -176,15 +237,24 @@ class TorchScriptPythonDecoder (Decoder):
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
                 if "quantize" in n.kind():
+                    # do not freeze quantized models
                     skip_freeze = True
                     break
+                elif "aten::to" in n.kind():
+                    first_input = next(n.inputs())
+                    if first_input.node().kind() == "prim::Constant":
+                        ivalue = first_input.toIValue()
+                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8, torch.bfloat16, torch.float16]:
+                            # do not freeze models with compressed constants
+                            skip_freeze = True
+                            break
             if not skip_freeze:
                 f_model = torch.jit.freeze(scripted)
             else:
                 f_model = scripted
         else:
             f_model = pt_module
-        
+
         self._input_signature = input_signature
         return f_model
 
@@ -335,10 +405,59 @@ class TorchScriptPythonDecoder (Decoder):
             node.set_friendly_name(name)
         return node
 
+    @staticmethod
+    def convert_quantized_tensor(qtensor: torch.Tensor):
+        # need to represent as Constant(u8) -> Convert(f32) -> Subtract(zero_point) -> Multiply (scale)
+        qscheme = qtensor.qscheme()  # torch.per_channel_affine (per_tensor)
+        if qscheme == torch.per_channel_affine:
+            int8_tensor = qtensor.int_repr()
+            scale = qtensor.q_per_channel_scales().numpy().astype(np.float32)  # (weight.q_scale() for per_tensor)
+            zero_point = qtensor.q_per_channel_zero_points().numpy().astype(np.float32)  # (weight.q_zero_point() for per_tensor)
+            axis = np.int32(qtensor.q_per_channel_axis())
+
+            new_shape = np.ones(len(int8_tensor.shape), dtype=np.int32)
+            new_shape[axis] = -1
+            zero_point_bc = np.reshape(zero_point, new_shape)
+            scale_bc = np.reshape(scale, new_shape)
+
+            int8_const = op.Constant(int8_tensor.numpy())
+            convert = ops.convert(int8_const, np.float32)
+            sub = ops.subtract(convert, zero_point_bc)
+            return ops.multiply(sub, scale_bc).outputs()
+        elif qscheme == torch.per_tensor_affine:
+            int8_tensor = qtensor.int_repr()
+            scale = np.float32(qtensor.q_scale())
+            zero_point = np.float32(qtensor.q_zero_point())
+
+            int8_const = op.Constant(int8_tensor.numpy())
+            convert = ops.convert(int8_const, np.float32)
+            sub = ops.subtract(convert, zero_point)
+            return ops.multiply(sub, scale).outputs()
+        assert False, "Unsupported qscheme"
+
     def try_decode_get_attr(self):
         pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
-        if not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
+        if isinstance(pt_value, torch.ScriptObject):
+            # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
+            # TODO: but can be anything. Figure a better way to distinguish
+            weight, bias = pt_value.unpack()
+            res = self.convert_quantized_tensor(weight)
+            if isinstance(bias, torch.Tensor):
+                res += ivalue_to_constant(bias)
+            else:
+                res += ops.convert_like(ivalue_to_constant(torch.zeros(1))[0], res[0]).outputs()
+            try:
+                # these params exist only for conv params
+                stride = pt_value.stride()
+                padding = pt_value.padding()
+                dilation = pt_value.dilation()
+                groups = pt_value.groups()
+                res += ivalue_to_constant(stride) + ivalue_to_constant(padding) + ivalue_to_constant(dilation) + ivalue_to_constant(groups)
+            except:
+                pass
+            return res
+        elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
             return ivalue_to_constant(pt_value)
         else:
             return []

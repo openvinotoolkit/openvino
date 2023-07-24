@@ -29,6 +29,7 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
             indexes[j] = 0;
     }
 }
+
 template <typename T>
 struct has_mlas_transpose : std::false_type {};
 

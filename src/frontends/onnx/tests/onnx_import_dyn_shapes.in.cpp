@@ -22,13 +22,14 @@
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::test;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
