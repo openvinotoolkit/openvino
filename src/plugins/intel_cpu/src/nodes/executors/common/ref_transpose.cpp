@@ -40,10 +40,9 @@ struct has_mlas_transpose<uint32_t> : std::true_type {};
 
 template <typename T>
 typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-    const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop,
-    int64_t writes_per_writer_per_loop) {
+    const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop, int64_t writes_per_writer_per_loop) {
   const T* end;
-  std::cout << "SimpleTransposeSingleAxisOutwards - non-MLAS branch" << std::endl;
+  //std::cout << "SimpleTransposeSingleAxisOutwards - non-MLAS branch" << std::endl;
   for (int64_t l = 0; l < num_loops; ++l) {
     T* output_for_first_writer = output_data;
     for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
@@ -62,9 +61,8 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 
 template <typename T>
 typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisOutwards(
-    const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop,
-    int64_t writes_per_writer_per_loop) {
-  std::cout << "SimpleTransposeSingleAxisOutwards - MLAS branch" << std::endl;
+    const T* input_data, T* output_data, int64_t num_loops, int64_t num_writers, int64_t writes_per_loop, int64_t writes_per_writer_per_loop) {
+  //std::cout << "SimpleTransposeSingleAxisOutwards - MLAS branch" << std::endl;
   for (int64_t l = 0; l < num_loops; ++l) {
     MlasTranspose(input_data, output_data, static_cast<size_t>(writes_per_writer_per_loop), static_cast<size_t>(num_writers));
     input_data += writes_per_loop;
@@ -74,10 +72,9 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
 
 template <typename T>
 typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-    const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop,
-    int64_t reads_per_reader_per_loop) {
+    const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop, int64_t reads_per_reader_per_loop) {
   T* end;
-  std::cout << "SimpleTransposeSingleAxisInwards - non-MLAS branch" << std::endl;
+  //std::cout << "SimpleTransposeSingleAxisInwards - non-MLAS branch" << std::endl;
   for (int64_t l = 0; l < num_loops; ++l) {
     const T* input_for_first_reader = input_data;
     for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
@@ -96,9 +93,8 @@ typename std::enable_if<!has_mlas_transpose<T>::value, void>::type SimpleTranspo
 
 template <typename T>
 typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTransposeSingleAxisInwards(
-    const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop,
-    int64_t reads_per_reader_per_loop) {
-  std::cout << "SimpleTransposeSingleAxisInwards - MLAS branch" << std::endl;
+    const T* input_data, T* output_data, int64_t num_loops, int64_t num_readers, int64_t reads_per_loop, int64_t reads_per_reader_per_loop) {
+  //std::cout << "SimpleTransposeSingleAxisInwards - MLAS branch" << std::endl;
   for (int64_t l = 0; l < num_loops; ++l) {
     MlasTranspose(input_data, output_data, static_cast<size_t>(num_readers), static_cast<size_t>(reads_per_reader_per_loop));
     input_data += reads_per_loop;
@@ -165,63 +161,63 @@ bool RefTransposeExecutor::IsTransposeMovingSingleAxis(SizeVector permutations, 
 }
 
 void RefTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
-  std::cout << "TransposeSingleAxisOutwards" << std::endl;
+  //std::cout << "TransposeSingleAxisOutwards" << std::endl;
   const auto& input_shape = input->getShape();
-  std::cout << "input_shape: " << input_shape.toString() << std::endl;
+  //std::cout << "input_shape: " << input_shape.toString() << std::endl;
   const auto& input_dims = input_shape.getDims();
-  std::cout << "input_dims: " << MemoryDescUtils::dims2str(input_dims) << std::endl;
+  //std::cout << "input_dims: " << MemoryDescUtils::dims2str(input_dims) << std::endl;
   const auto element_size = dnnl::memory::data_type_size(input->getDataType());
-  std::cout << "element_size: " << element_size << std::endl;
+  //std::cout << "element_size: " << element_size << std::endl;
 
   const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
   auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
 
   auto num_loops = calcShapeSize(input_shape, 0, to);
-  std::cout << "num_loops: " << num_loops << std::endl;
-  std::cout << "from: " << from << std::endl;
-  std::cout << "to: " << to << std::endl;
+  //std::cout << "num_loops: " << num_loops << std::endl;
+  //std::cout << "from: " << from << std::endl;
+  //std::cout << "to: " << to << std::endl;
   auto num_writers = input_dims[from];
-  std::cout << "num_writers: " << num_writers << std::endl;
+  //std::cout << "num_writers: " << num_writers << std::endl;
   auto block_size = calcShapeSize(input_shape, from + 1, input_shape.getRank());
-  std::cout << "block_size: " << block_size << std::endl;
+  //std::cout << "block_size: " << block_size << std::endl;
   auto writes_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-  std::cout << "input_shape.getElementsCount(): " << input_shape.getElementsCount() << std::endl;
-  std::cout << "writes_per_loop: " << writes_per_loop << std::endl;
+  //std::cout << "input_shape.getElementsCount(): " << input_shape.getElementsCount() << std::endl;
+  //std::cout << "writes_per_loop: " << writes_per_loop << std::endl;
   auto writes_per_writer_per_loop = int64_t(writes_per_loop / num_writers);
-  std::cout << "writes_per_writer_per_loop: " << writes_per_writer_per_loop << std::endl;
+  //std::cout << "writes_per_writer_per_loop: " << writes_per_writer_per_loop << std::endl;
   // TODO: check integer overflow
   const size_t bytes_per_write = static_cast<size_t>(block_size) * element_size;
 
   switch (bytes_per_write) {
     case (sizeof(uint8_t)): {
-      std::cout << "uint8_t" << std::endl;
+      //std::cout << "uint8_t" << std::endl;
       SimpleTransposeSingleAxisOutwards(input_data, output_data, num_loops, num_writers, writes_per_loop,
                                         writes_per_writer_per_loop);
       break;
     }
     case (sizeof(uint16_t)): {
-      std::cout << "uint16_t" << std::endl;
+      //std::cout << "uint16_t" << std::endl;
       SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint16_t*>(input_data),
                                         reinterpret_cast<uint16_t*>(output_data), num_loops, num_writers,
                                         writes_per_loop, writes_per_writer_per_loop);
       break;
     }
     case (sizeof(uint32_t)): {
-      std::cout << "uint32_t" << std::endl;
+      //std::cout << "uint32_t" << std::endl;
       SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint32_t*>(input_data),
                                         reinterpret_cast<uint32_t*>(output_data), num_loops, num_writers,
                                         writes_per_loop, writes_per_writer_per_loop);
       break;
     }
     case (sizeof(uint64_t)): {
-      std::cout << "uint64_t" << std::endl;
+      //std::cout << "uint64_t" << std::endl;
       SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint64_t*>(input_data),
                                         reinterpret_cast<uint64_t*>(output_data), num_loops, num_writers,
                                         writes_per_loop, writes_per_writer_per_loop);
       break;
     }
     default: {
-        std::cout << "TransposeSingleAxisOutwards: default branch" << std::endl;
+      //std::cout << "TransposeSingleAxisOutwards: default branch" << std::endl;
       // we need to use memcpy for each block
       for (int64_t l = 0; l < num_loops; ++l) {
         uint8_t* output_for_first_writer = output_data;
@@ -246,33 +242,33 @@ void RefTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input, 
 }
 
 void RefTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
-  std::cout << "TransposeSingleAxisInwards" << std::endl;
+  //std::cout << "TransposeSingleAxisInwards" << std::endl;
   const auto& input_shape = input->getShape();
-  std::cout << "input_shape: " << input_shape.toString() << std::endl;
+  //std::cout << "input_shape: " << input_shape.toString() << std::endl;
   const auto& input_dims = input_shape.getDims();
-  std::cout << "input_dims: " << MemoryDescUtils::dims2str(input_dims) << std::endl;
+  //std::cout << "input_dims: " << MemoryDescUtils::dims2str(input_dims) << std::endl;
 
   const auto element_size = dnnl::memory::data_type_size(input->getDataType());
-  std::cout << "element_size: " << element_size << std::endl;
+  //std::cout << "element_size: " << element_size << std::endl;
   const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
   auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
 
   auto num_loops = calcShapeSize(input_shape, 0, from);
-  std::cout << "num_loops: " << num_loops << std::endl;
-  std::cout << "from: " << from << std::endl;
-  std::cout << "to: " << to << std::endl;
+  //std::cout << "num_loops: " << num_loops << std::endl;
+  //std::cout << "from: " << from << std::endl;
+  //std::cout << "to: " << to << std::endl;
   auto num_readers = input_dims[from];
-  std::cout << "num_readers: " << num_readers << std::endl;
+  //std::cout << "num_readers: " << num_readers << std::endl;
   auto block_size = calcShapeSize(input_shape, to + 1, input_shape.getRank());
-  std::cout << "block_size: " << block_size << std::endl;
+  //std::cout << "block_size: " << block_size << std::endl;
   auto reads_per_loop = int64_t(input_shape.getElementsCount() / num_loops / block_size);
-  std::cout << "input_shape.getElementsCount(): " << input_shape.getElementsCount() << std::endl;
-  std::cout << "reads_per_loop: " << reads_per_loop << std::endl;
+  //std::cout << "input_shape.getElementsCount(): " << input_shape.getElementsCount() << std::endl;
+  //std::cout << "reads_per_loop: " << reads_per_loop << std::endl;
   auto reads_per_reader_per_loop = int64_t(reads_per_loop / num_readers);
-  std::cout << "reads_per_reader_per_loop: " << reads_per_reader_per_loop << std::endl;
+  //std::cout << "reads_per_reader_per_loop: " << reads_per_reader_per_loop << std::endl;
   // TODO: check integer overflow
   const size_t bytes_per_read = static_cast<size_t>(block_size) * element_size;
-  std::cout << "bytes_per_read: " << bytes_per_read << std::endl;
+  //std::cout << "bytes_per_read: " << bytes_per_read << std::endl;
 
   switch (bytes_per_read) {
     case (sizeof(uint8_t)): {
@@ -299,7 +295,7 @@ void RefTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, c
       break;
     }
     default: {
-      std::cout << "TransposeSingleAxisInwards - default branch" << std::endl;
+      //std::cout << "TransposeSingleAxisInwards - default branch" << std::endl;
       // we need to use memcpy for each block
       for (int64_t l = 0; l < num_loops; ++l) {
         const uint8_t* input_for_first_reader = input_data;
@@ -356,7 +352,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* ds
 }
 
 void RefTransposeExecutor::SingleAxisTranspose(SizeVector permutations, const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
-  std::cout << "SingleAxisTranspose" << std::endl;
+  //std::cout << "SingleAxisTranspose" << std::endl;
   if (from > to) {
     TransposeSingleAxisOutwards(input, output, from, to);
   } else {
@@ -367,12 +363,13 @@ void RefTransposeExecutor::SingleAxisTranspose(SizeVector permutations, const Me
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
     size_t from = 0, to = 0;
     bool moving_single_axis = IsTransposeMovingSingleAxis(permutations, from, to);
-    std::cout << "moving_single_axis: " << moving_single_axis << std::endl;
-    if (moving_single_axis) {
+    //std::cout << "moving_single_axis: " << moving_single_axis << std::endl;
+    //TODO: confirm that MLAS supports NCHW only
+    if (moving_single_axis && src[0]->getDesc().hasLayoutType(LayoutType::ncsp)) {
       SingleAxisTranspose(permutations, src[0], dst[0], from, to);
     } else {
       // fall back to default implementation
-      std::cout << "fall back to default implementation" << std::endl;
+      //std::cout << "fall back to default implementation" << std::endl;
       const uint8_t* src_data = reinterpret_cast<const uint8_t*>(src[0]->getData());
       uint8_t* dst_data = reinterpret_cast<uint8_t*>(dst[0]->getData());
       referenceExecute(src_data, dst_data, jcp, MB);

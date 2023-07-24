@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_PermutePerChannels, TransposeLa
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
-                                 ::testing::Values(cpuParams_nhwc)),
+                                 ::testing::Values(cpuParams_nchw)), //TODO: confirm MLAS does not support NHWC Transpose
                          TransposeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_PermutePerChannels, TransposeLayerCPUTest,
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_PermutePerChannels, TransposeLa
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
-                                 ::testing::Values(cpuParams_nhwc)),
+                                 ::testing::Values(cpuParams_nchw)), //TODO: confirm MLAS does not support NHWC Transpose
                          TransposeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_PermutePerChannels, TransposeLayerCPUTest,
