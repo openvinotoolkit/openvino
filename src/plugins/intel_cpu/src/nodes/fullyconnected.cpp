@@ -33,6 +33,9 @@
 
 #include <string>
 #include <vector>
+#ifdef OV_CPU_WITH_LLMDNN
+#include "common/simple_parallel.h"
+#endif
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -1189,17 +1192,18 @@ bool FullyConnected::tryUseLLMFc() {
         return false;
     }
 
-    auto thread_num = parallel_get_max_threads();
+    auto thread_num = ov::cpu::getTotalThreads();
     fcLLMs.resize(thread_num);
-    bool ret = true;
-    for (int i = 0; i < thread_num; i++) {
+    volatile bool ret = true;
+    // force to reference the function once
+    ov::cpu::TrySimpleParallelFor(thread_num, [&] (size_t i) {
         llmdnn::fc_kernel* fc;
         if (!fc_kernel_create(&fc, &param)) {
             ret = false;
-            break;
+            return;
         }
         fcLLMs[i] = std::shared_ptr<llmdnn::fc_kernel>(fc, [](llmdnn::fc_kernel* p) { fc_kernel_destroy(p); });
-    }
+    });
     if (ret) {
         stateLLMFc = State_Use;
         NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
