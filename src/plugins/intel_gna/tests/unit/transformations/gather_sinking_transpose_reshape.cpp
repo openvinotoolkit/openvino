@@ -118,22 +118,6 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
-    {
-        ov::pass::Manager m;
-        m.register_pass<ov::pass::Serialize>("model_src.xml", "model_src.bin");
-        m.run_passes(orig_function);
-    }
-    {
-        ov::pass::Manager m;
-        m.register_pass<ov::pass::Serialize>("model_test.xml", "model_test.bin");
-        m.run_passes(function);
-    }
-    {
-        ov::pass::Manager m;
-        m.register_pass<ov::pass::Serialize>("model_ref.xml", "model_ref.bin");
-        m.run_passes(reference_function);
-    }
-
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
