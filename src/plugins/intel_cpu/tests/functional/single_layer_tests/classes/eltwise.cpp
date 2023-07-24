@@ -122,7 +122,10 @@ void EltwiseLayerCPUTest::SetUp() {
 
     init_input_shapes(shapes);
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(getPrimitiveType(), netType, configuration);
+    updateSelectedType(
+        getPrimitiveType(eltwiseType, netType, shapes),
+        netType,
+        configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (eltwiseType == POWER) {

@@ -1028,13 +1028,18 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::jit_sse42_dw,
         impl_desc_type::jit_sse42_1x1,
         impl_desc_type::jit_sse42,
+#if defined(OPENVINO_ARCH_ARM64)
+        impl_desc_type::jit_asimd,
+#endif
         impl_desc_type::gemm_any,
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
         impl_desc_type::gemm_avx2,
         impl_desc_type::gemm_avx,
         impl_desc_type::gemm_sse42,
+#if defined(OV_CPU_WITH_ACL)
         impl_desc_type::acl,
+#endif
         impl_desc_type::jit_gemm,
         impl_desc_type::ref_any,
         impl_desc_type::ref,

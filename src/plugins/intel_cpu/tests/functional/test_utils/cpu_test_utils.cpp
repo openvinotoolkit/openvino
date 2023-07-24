@@ -124,7 +124,8 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const {
     if (!execNet || nodeType.empty()) return;
 
-    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
+    // selectedType can be empty if node is decomposed and executed by different kernels
+    // ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, nodeType);
 }
@@ -139,6 +140,7 @@ void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, c
 
 void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
+
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
         auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
@@ -208,7 +210,6 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             } else {
                 ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
             }
-
             for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_partial_shape(i);
@@ -218,9 +219,11 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+            if (!selectedType.empty()) {
+                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
-            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+                ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+            }
         }
     }
 }
@@ -255,11 +258,59 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }
 
-#if defined(OV_CPU_WITH_ACL)
-std::string CPUTestsBase::getPrimitiveType() const {
+#if defined(OPENVINO_ARCH_ARM64)
+std::string CPUTestsBase::getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+                                           const ov::element::Type_t& element_type,
+                                           const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+    if (element_type == ov::element::f32) {
+        const auto is_static = [](const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) {
+            return std::all_of(input_shapes.begin(),
+                               input_shapes.end(),
+                               [](const std::pair<ov::PartialShape, std::vector<ov::Shape>>& shape) { return shape.first.is_static(); });
+        };
+
+        if (is_static(input_shapes) &&
+            ((eltwise_type == ngraph::helpers::EltwiseTypes::ADD) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::MULTIPLY) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::SUBTRACT) ||
+             (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE))) {
+            return "jit";
+        }
+    }
     return "acl";
 }
+
+std::string CPUTestsBase::getPrimitiveType(const ngraph::helpers::ActivationTypes& activation_type,
+                                           const ov::element::Type_t& element_type,
+                                           const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+    if (activation_type == ngraph::helpers::ActivationTypes::Mish) {
+        // operation is decomposed and executed by different kernels
+        return "";
+    }
+
+    return "acl";
+}
+
+std::string CPUTestsBase::getPrimitiveType() const {
+#if defined(OV_CPU_WITH_ACL)
+    return "acl";
 #else
+    return "ref";
+#endif
+}
+#else
+std::string CPUTestsBase::getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+                                           const ov::element::Type_t& element_type,
+                                           const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+    return getPrimitiveType();
+}
+
+std::string CPUTestsBase::getPrimitiveType(const ngraph::helpers::ActivationTypes& activation_type,
+                                           const ov::element::Type_t& element_type,
+                                           const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+    return getPrimitiveType();
+}
+
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
