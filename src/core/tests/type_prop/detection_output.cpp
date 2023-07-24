@@ -1158,10 +1158,9 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
                                        element::f32);
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("The second dimension of the first input (box logits) is: 24, but must be compatible with "
-                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The second dimension of the first input (box logits) is not compatible. "
+                                         "Current value: 24, expected value: 32"));
     } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
@@ -1181,10 +1180,9 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
                                        element::f32);
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("The second dimension of the first input (box logits) is: 24, but must be compatible with "
-                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The second dimension of the first input (box logits) is not compatible. "
+                                         "Current value: 24, expected value: 32"));
     } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
@@ -1204,10 +1202,9 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
                                        element::f32);
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("The second dimension of the first input (box logits) is: 384, but must be compatible "
-                        "with (num_prior_boxes * num_loc_classes * 4) = (8 * 16 * 4) = (512)"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The second dimension of the first input (box logits) is not compatible. "
+                                         "Current value: 384, expected value: 512"));
     } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
@@ -1227,10 +1224,9 @@ TEST(type_prop_layers, detection_output_v8_incompatible_num_prior_boxes_normaliz
                                        element::f32);
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("The second dimension of the first input (box logits) is: 384, but must be compatible "
-                        "with (num_prior_boxes * num_loc_classes * 4) = (8 * 16 * 4) = (512)."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The second dimension of the first input (box logits) is not compatible. "
+                                         "Current value: 384, expected value: 512"));
     } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
@@ -1250,10 +1246,9 @@ TEST(type_prop_layers, detection_output_v8_incompatible_dynamic_num_prior_boxes_
             element::f32);
         FAIL() << "Exception expected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("The second dimension of the first input (box logits) is: 16..24, but must be compatible with "
-                        "(num_prior_boxes * num_loc_classes * 4) = (8 * 1 * 4) = (32)."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("The second dimension of the first input (box logits) is not compatible. "
+                                         "Current value: 16..24, expected value: 32"));
     } catch (...) {
         FAIL() << "Unknown exception was thrown";
     }
