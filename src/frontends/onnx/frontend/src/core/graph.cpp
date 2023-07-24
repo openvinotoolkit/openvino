@@ -474,8 +474,6 @@ Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) {
         return m_cache->get_node(name);
     }
     const auto from_parent_node = m_parent_graph->get_ng_node_from_cache(name);
-    if (ov::op::util::is_constant(from_parent_node.get_node()))
-        return from_parent_node;
     auto new_param = std::make_shared<ngraph::op::Parameter>(from_parent_node.get_element_type(),
                                                              from_parent_node.get_partial_shape());
     m_parameter_to_parent_node_map.insert({new_param, name});
