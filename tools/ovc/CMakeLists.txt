@@ -34,3 +34,11 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         COMPONENT ${OV_CPACK_COMP_OVC}
         ${OV_CPACK_COMP_OVC_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
+
+#
+# Cpack
+#
+
+if(CMAKE_SOURCE_DIR STREQUAL OpenVINOConverter_SOURCE_DIR)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()
