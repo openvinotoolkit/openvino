@@ -40,11 +40,10 @@ std::vector<layout> reorg_yolo_inst::calc_output_layouts(reorg_yolo_node const& 
     std::vector<size_t> strides { static_cast<size_t>(desc->stride) };
     op.set_strides(strides);
 
-    std::vector<ShapeType> output_shapes = { ShapeType() };
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>()
     };
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
