@@ -57,7 +57,7 @@ async function main(modelPath, imagePath, deviceName) {
     .createInferRequest();
   // FIXME: doesn't work
   // inferRequest.infer({ 'input_1': inputTensor });
-  inferRequest.set_input_tensor(inputTensor);
+  inferRequest.setInputTensor(inputTensor);
   inferRequest.infer();
 
   //----------------- Step 7. Process output -----------------------------------

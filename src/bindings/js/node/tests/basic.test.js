@@ -17,7 +17,7 @@ var testXml = getModelPath();
 describe('Output class', () => {
 
   const core = new ov.Core();
-  const model = core.read_model(testXml);
+  const model = core.readModel(testXml);
   const compiledModel = core.compileModel(model, 'CPU');
 
   test.each([
@@ -60,7 +60,7 @@ describe('Output class', () => {
 
 describe('Input class for ov::Input<const ov::Node>', () => {
   const core = new ov.Core();
-  const model = core.read_model(testXml);
+  const model = core.readModel(testXml);
   const compiledModel = core.compileModel(model, 'CPU');
 
   test('CompiledModel.input() method', () => {
@@ -96,7 +96,7 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
 describe('InferRequest', () => {
   const core = new ov.Core();
-  const model = core.read_model(testXml);
+  const model = core.readModel(testXml);
   const compiledModel = core.compileModel(model, 'CPU');
   const inferRequest = compiledModel.createInferRequest();
 
