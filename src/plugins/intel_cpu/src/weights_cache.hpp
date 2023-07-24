@@ -103,13 +103,13 @@ protected:
 };
 
 /**
- * Collection of memory caching store per NUMA node(former socket)
+ * Collection of memory caching store per socket
  *
  * Is a thread safe
  */
-class NumaNodesWeights {
+class SocketsWeights {
 public:
-    NumaNodesWeights();
+    SocketsWeights();
 
     WeightsSharing::Ptr& operator[](int i);
     const WeightsSharing::Ptr& operator[](int i) const;
