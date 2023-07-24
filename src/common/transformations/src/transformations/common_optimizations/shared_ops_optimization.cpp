@@ -24,9 +24,10 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
 
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                rewritten |= shared_node_optimization(sub_graph, rules);
+        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); i++) {
+                if (auto sub_graph = multi_subgraph_op->get_function(i))
+                    rewritten |= shared_node_optimization(sub_graph, rules);
             }
         }
         for (auto& output : op->outputs()) {
@@ -133,7 +134,6 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         // no attributes
         RECORD(v8::Slice, inputs_from_same_source_or_equal_constants),
         RECORD(v0::Tile, inputs_from_same_source_or_equal_constants),
-        RECORD(v1::Transpose, inputs_from_same_source_or_equal_constants),
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),

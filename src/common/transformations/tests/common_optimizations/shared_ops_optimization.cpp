@@ -10,7 +10,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -40,8 +40,8 @@ public:
         return std::make_shared<v0::Tile>(out, v0::Constant::create(element::i64, Shape{repeats.size()}, repeats));
     }
 
-    static Output<Node> make_transpose(const Output<Node>& out, const std::vector<int64_t>& order) {
-        return std::make_shared<v1::Transpose>(out, v0::Constant::create(element::i64, Shape{order.size()}, order));
+    static Output<Node> make_reshape(const Output<Node>& out, const std::vector<int64_t>& order) {
+        return std::make_shared<v1::Reshape>(out, v0::Constant::create(element::i64, Shape{order.size()}, order), true);
     }
 };
 
@@ -79,25 +79,25 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
         auto slice_2 = make_slice(data, 1, 3, 3, 3);
 
         auto tile_0_0 = make_tile(slice_0, {1, 2, 3, 4});
-        auto transpose_0_0 = make_transpose(slice_0, {0, 2, 3, 1});
+        auto transpose_0_0 = make_reshape(slice_0, {0, 0, 0, -1});
         auto tile_0_1 = make_tile(slice_0, {1, 2, 3, 4});
-        auto transpose_0_1 = make_transpose(slice_0, {0, 2, 3, 1});
+        auto transpose_0_1 = make_reshape(slice_0, {0, 0, 0, -1});
         auto tile_0_2 = make_tile(slice_0, {1, 2, 3, 4});
-        auto transpose_0_2 = make_transpose(slice_0, {0, 2, 3, 1});
+        auto transpose_0_2 = make_reshape(slice_0, {0, 0, 0, -1});
 
         auto tile_1_0 = make_tile(slice_1, {1, 2, 3, 4});
-        auto transpose_1_0 = make_transpose(slice_1, {0, 2, 3, 1});
+        auto transpose_1_0 = make_reshape(slice_1, {0, 0, 0, -1});
         auto tile_1_1 = make_tile(slice_1, {1, 2, 3, 4});
-        auto transpose_1_1 = make_transpose(slice_1, {0, 2, 3, 1});
+        auto transpose_1_1 = make_reshape(slice_1, {0, 0, 0, -1});
         auto tile_1_2 = make_tile(slice_1, {1, 2, 3, 4});
-        auto transpose_1_2 = make_transpose(slice_1, {0, 2, 3, 1});
+        auto transpose_1_2 = make_reshape(slice_1, {0, 0, 0, -1});
 
         auto tile_2_0 = make_tile(slice_2, {1, 2, 3, 4});
-        auto transpose_2_0 = make_transpose(slice_2, {0, 2, 3, 1});
+        auto transpose_2_0 = make_reshape(slice_2, {0, 0, 0, -1});
         auto tile_2_1 = make_tile(slice_2, {1, 2, 3, 4});
-        auto transpose_2_1 = make_transpose(slice_2, {0, 2, 3, 1});
+        auto transpose_2_1 = make_reshape(slice_2, {0, 0, 0, -1});
         auto tile_2_2 = make_tile(slice_2, {1, 2, 3, 4});
-        auto transpose_2_2 = make_transpose(slice_2, {0, 2, 3, 1});
+        auto transpose_2_2 = make_reshape(slice_2, {0, 0, 0, -1});
 
         auto concat = std::make_shared<v0::Concat>(
             OutputVector{// source from slice 0
@@ -133,10 +133,10 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
         auto slice_2 = make_slice(data, 1, 3, 3, 3);
 
         auto tile_0_0 = make_tile(slice_0, {1, 2, 3, 4});
-        auto transpose_0_0 = make_transpose(slice_0, {0, 2, 3, 1});
+        auto transpose_0_0 = make_reshape(slice_0, {0, 0, 0, -1});
 
         auto tile_2_0 = make_tile(slice_2, {1, 2, 3, 4});
-        auto transpose_2_0 = make_transpose(slice_2, {0, 2, 3, 1});
+        auto transpose_2_0 = make_reshape(slice_2, {0, 0, 0, -1});
 
         auto concat = std::make_shared<v0::Concat>(
             OutputVector{// source from slice 0
@@ -168,10 +168,10 @@ TEST_F(SharedTransformationTestsF, SharedRecursively) {
 
 TEST_F(SharedTransformationTestsF, SharedConcat) {
     {
-        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
-        auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
+        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
-        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14});
+        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
         auto concat_0 = std::make_shared<v0::Concat>(OutputVector{pre_constant_0, data, post_constant}, 0);
         auto concat_1 = std::make_shared<v0::Concat>(OutputVector{pre_constant_1, data, post_constant}, 0);
@@ -181,9 +181,9 @@ TEST_F(SharedTransformationTestsF, SharedConcat) {
         manager.register_pass<ov::pass::SharedOpOptimization>();
     }
     {
-        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
+        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
-        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14});
+        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
         auto concat_0 = std::make_shared<v0::Concat>(OutputVector{pre_constant_0, data, post_constant}, 0);
 
@@ -246,10 +246,10 @@ TEST_F(SharedTransformationTestsF, SharedSliceInThreeGroups) {
 
 TEST_F(SharedTransformationTestsF, SharedConcatCheckOpWithResultIsntReplaced) {
     {
-        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
-        auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14, 42, 0, 14});
+        auto pre_constant_0 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
+        auto pre_constant_1 = v0::Constant::create(element::f32, Shape{4}, std::vector<float>{3.14f, 42.f, 0.f, 14.f});
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
-        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14});
+        auto post_constant = v0::Constant::create(element::f32, Shape{1}, std::vector<float>{3.14f});
 
         auto concat_0 = std::make_shared<v0::Concat>(OutputVector{pre_constant_0, data, post_constant}, 0);
         auto concat_1 = std::make_shared<v0::Concat>(OutputVector{pre_constant_1, data, post_constant}, 0);
