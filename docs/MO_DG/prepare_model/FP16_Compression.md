@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-By default, all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
+By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
 It results in creating a "compressed ``FP16`` model", which occupies about half of 
 the original space in the file system. The compression may introduce a minor drop in accuracy,
 but it is negligible for most models.
@@ -17,9 +17,8 @@ To disable compression, use the ``compress_to_fp16=False`` option:
 
        .. code-block:: py
           :force:
-
-          from openvino.tools.mo import convert_model
-          ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
+          from openvino.runtime import save_model
+          ov_model = save_model(INPUT_MODEL, compress_to_fp16=False)
 
     .. tab-item:: CLI
        :sync: cli
