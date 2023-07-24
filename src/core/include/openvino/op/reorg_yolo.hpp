@@ -35,7 +35,7 @@ public:
     Strides get_strides() const {
         return m_strides;
     }
-    void set_strides(Strides strides){
+    void set_strides(Strides strides) {
         m_strides = std::move(strides);
     }
 
