@@ -33,16 +33,19 @@ describe('Output class', () => {
     expect(obj.output(0).shape).toEqual([1, 10]);
     expect(obj.output(0).getShape().getData()).toEqual([1, 10]);
     expect(obj.output().getAnyName()).toEqual('fc_out');
+    expect(obj.output().anyName).toEqual('fc_out');
   });
 
   test('Ouput<ov::Node>.setNames() method', () => {
     model.output().setNames(['bTestName', 'cTestName']);
     expect(model.output().getAnyName()).toEqual('bTestName');
+    expect(model.output().anyName).toEqual('bTestName');
   });
 
   test('Ouput<ov::Node>.addNames() method', () => {
     model.output().addNames(['aTestName']);
     expect(model.output().getAnyName()).toEqual('aTestName');
+    expect(model.output().anyName).toEqual('aTestName');
   });
 
   test('Ouput<const ov::Node>.setNames() method', () => {
