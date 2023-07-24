@@ -53,10 +53,11 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
             const auto& slope_layout = impl_param.input_layouts[1];
             const auto& output_layout = impl_param.get_output_layout();
 
-            const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
-
-            OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num), "[GPU] Invalid slope size in ", primitive->id);
-
+            if (!impl_param.is_dynamic()) {
+                const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
+                OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num),
+                                "[GPU] Invalid slope size in ", primitive->id);
+            }
             params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
         }
 
