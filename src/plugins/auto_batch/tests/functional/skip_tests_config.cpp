@@ -24,6 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*)",
         // BATCH plugin doesn't support this case
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // BATCH/TEMPLATE plugin doesn't support this case
+        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)",
     };
 
     return disabled_items;
