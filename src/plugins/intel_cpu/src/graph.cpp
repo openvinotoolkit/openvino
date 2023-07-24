@@ -223,7 +223,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+            if (!one_of(child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()),
+                Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
