@@ -54,8 +54,7 @@ void op::RegionYolo::validate_and_infer_types() {
                           "Type of input is expected to be a floating point type. Got: ",
                           input_et);
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, input_et, output_shapes[0]);
 }

@@ -130,10 +130,10 @@ void resize_padding(const ov::op::util::InterpolateBase* op,
  * @param pads_end    Dimensions end padding values.
  * @return TShape     Shape with dimensions of input plus paddings.
  */
-template <class TShape, class TInputIter>
-TShape make_padded_shape(const TShape& input, TInputIter pads_begin, TInputIter pads_end) {
+template <class TShape, class TInputIter, class TRShape = result_shape_t<TShape>>
+TRShape make_padded_shape(const TShape& input, TInputIter pads_begin, TInputIter pads_end) {
     using TDim = typename TShape::value_type;
-    TShape out;
+    TRShape out;
     out.reserve(input.size());
     std::transform(input.cbegin(), input.cend(), std::back_inserter(out), [&pads_begin, &pads_end](const TDim& d) {
         return ov::util::dim::padded(d, (*pads_begin++ + *pads_end++));
@@ -240,14 +240,14 @@ void update_dims_with_scales_on_axes(TShape& out_shape,
 }  // namespace interpolate
 
 namespace v0 {
-template <class TShape>
-std::vector<TShape> shape_infer(const Interpolate* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Interpolate* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     const auto& img_shape = input_shapes[0];
 
-    auto output_shapes = std::vector<TShape>(1, img_shape);
+    auto output_shapes = std::vector<TRShape>(1, img_shape);
     auto& out_shape = output_shapes.front();
 
     if (img_shape.rank().is_static()) {
@@ -256,7 +256,7 @@ std::vector<TShape> shape_infer(const Interpolate* op,
 
         interpolate::validate::axes_values(op, axes, img_rank);
 
-        if (const auto target_spatial_shape = get_input_const_data_as_shape<TShape>(op, 1, tensor_accessor)) {
+        if (const auto target_spatial_shape = get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor)) {
             auto target_spatial_shape_iter = target_spatial_shape->begin();
             for (const auto axis : axes) {
                 out_shape[axis] = *target_spatial_shape_iter++;
@@ -271,12 +271,12 @@ std::vector<TShape> shape_infer(const Interpolate* op,
 }  // namespace v0
 
 namespace v4 {
-template <class TShape, class TContainer>
-std::vector<TShape> shape_infer(const Interpolate* op,
-                                const std::vector<TShape>& input_shapes,
-                                TContainer& pads_begin,
-                                TContainer& pads_end,
-                                const ITensorAccessor& tensor_accessor) {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Interpolate* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end,
+                                 const ITensorAccessor& tensor_accessor) {
     const auto has_axes_input = (input_shapes.size() == 4);
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || has_axes_input));
 
@@ -289,13 +289,13 @@ std::vector<TShape> shape_infer(const Interpolate* op,
     }
 
     const auto& img_shape = input_shapes[0];
-    auto output_shapes = std::vector<TShape>();
+    auto output_shapes = std::vector<TRShape>();
 
     if (img_shape.rank().is_static()) {
         const auto img_rank = img_shape.size();
         interpolate::resize_padding(op, img_rank, pads_begin, pads_end);
 
-        const auto axes = interpolate::get_axes<TShape>(op, 3, has_axes_input, img_rank, tensor_accessor);
+        const auto axes = interpolate::get_axes<TRShape>(op, 3, has_axes_input, img_rank, tensor_accessor);
         if (axes) {
             output_shapes.push_back(interpolate::make_padded_shape(img_shape, pads_begin.cbegin(), pads_end.cbegin()));
 
@@ -315,18 +315,18 @@ std::vector<TShape> shape_infer(const Interpolate* op,
 }  // namespace v4
 
 namespace v11 {
-template <class TShape, class TContainer>
-std::vector<TShape> shape_infer(const Interpolate* op,
-                                const std::vector<TShape>& input_shapes,
-                                TContainer& pads_begin,
-                                TContainer& pads_end,
-                                const ITensorAccessor& tensor_accessor) {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Interpolate* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end,
+                                 const ITensorAccessor& tensor_accessor) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3));
 
     interpolate::validate::are_inputs_except_first_1d(op, input_shapes);
 
     const auto& img_shape = input_shapes[0];
-    auto output_shapes = std::vector<TShape>();
+    auto output_shapes = std::vector<TRShape>();
 
     if (img_shape.rank().is_static()) {
         const auto img_rank = img_shape.size();
@@ -334,7 +334,7 @@ std::vector<TShape> shape_infer(const Interpolate* op,
 
         interpolate::resize_padding(op, img_rank, pads_begin, pads_end);
 
-        const auto axes = interpolate::get_axes<TShape>(op, 2, has_axes_input, img_rank, tensor_accessor);
+        const auto axes = interpolate::get_axes<TRShape>(op, 2, has_axes_input, img_rank, tensor_accessor);
         if (axes) {
             output_shapes.push_back(interpolate::make_padded_shape(img_shape, pads_begin.cbegin(), pads_end.cbegin()));
 

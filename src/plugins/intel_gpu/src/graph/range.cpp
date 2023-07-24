@@ -50,7 +50,7 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> step_mem_lock(step_mem, impl_param.get_stream());
         const_data.emplace(2, make_host_tensor(step_mem->get_layout(), step_mem_lock.data()));
 
-        shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     }
 
     return {layout({output_shapes[0], output_data_type, impl_param.get_output_layout().format})};

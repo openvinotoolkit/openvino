@@ -43,14 +43,13 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     ov::op::v1::Select op;
     op.set_auto_broadcast(desc->broadcast_spec);
 
-    std::vector<ShapeType> output_shapes = { ShapeType{} };
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>(),
         input2_layout.get<ShapeType>()
     };
 
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
 
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }

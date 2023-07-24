@@ -44,8 +44,7 @@ bool evaluate(const op::MatMul* op, const HostTensorPtr& arg0, const HostTensorP
     ov::Shape arg1_shape = arg1->get_shape();
 
     std::vector<ov::PartialShape> input_shapes = {arg0_shape, arg1_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    shape_infer(op, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> output_shapes = shape_infer(op, input_shapes);
 
     ov::Shape output_shape = output_shapes[0].to_shape();
     output->set_element_type(arg0->get_element_type());
@@ -119,7 +118,6 @@ void ngraph::op::v0::MatMul::validate_and_infer_types() {
 
     const auto &A_shape = get_input_partial_shape(0), B_shape = get_input_partial_shape(1);
     std::vector<ov::PartialShape> input_shapes = {A_shape, B_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }

@@ -13,9 +13,9 @@ namespace ov {
 namespace op {
 namespace util {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
-                                const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
+                                 const std::vector<TShape>& input_shapes) {
     const auto input_size = input_shapes.size();
     NODE_VALIDATION_CHECK(op, input_size == 2 || input_size == 3);
 
@@ -23,7 +23,7 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
     constexpr size_t INDICES = 1;
     constexpr size_t PER_SAMPLE_WEIGHTS = 2;
 
-    auto indices_shape = input_shapes[INDICES];
+    auto indices_shape = TRShape(input_shapes[INDICES]);
     NODE_VALIDATION_CHECK(op, indices_shape.rank().compatible(2), "INDICES must be 2D.");
 
     if (input_size == 3) {
@@ -32,18 +32,10 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
                               "PER_SAMPLE_WEIGHTS must be 2D.");
 
         NODE_VALIDATION_CHECK(op,
-                              TShape::merge_into(indices_shape, input_shapes[PER_SAMPLE_WEIGHTS]),
+                              TRShape::merge_into(indices_shape, input_shapes[PER_SAMPLE_WEIGHTS]),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
-
-    return {embedding::out_shape_infer(op, input_shapes[EMB_TABLE], indices_shape)};
-}
-
-template <class TShape>
-void shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return {embedding::out_shape_infer(op, input_shapes[EMB_TABLE], TShape(indices_shape))};
 }
 }  // namespace util
 }  // namespace op

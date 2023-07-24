@@ -3,13 +3,14 @@
 //
 #pragma once
 #include "openvino/op/deformable_psroi_pooling.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const DeformablePSROIPooling* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 || input_shapes.size() == 3);
 
     const auto& input_pshape = input_shapes[0];
@@ -42,17 +43,10 @@ std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vec
     using DimType = typename TShape::value_type;
     using DimTypeVal = typename DimType::value_type;
     // The output shape: [num_rois, output_dim, group_size, group_size]
-    return {TShape{box_coords_pshape.rank().is_static() ? box_coords_pshape[0] : DimType{},
-                   static_cast<DimTypeVal>(op->get_output_dim()),
-                   static_cast<DimTypeVal>(op->get_group_size()),
-                   static_cast<DimTypeVal>(op->get_group_size())}};
-}
-
-template <class TShape>
-void shape_infer(const DeformablePSROIPooling* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return {TRShape{box_coords_pshape.rank().is_static() ? box_coords_pshape[0] : DimType{},
+                    static_cast<DimTypeVal>(op->get_output_dim()),
+                    static_cast<DimTypeVal>(op->get_group_size()),
+                    static_cast<DimTypeVal>(op->get_group_size())}};
 }
 }  // namespace v1
 }  // namespace op

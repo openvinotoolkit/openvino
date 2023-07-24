@@ -32,7 +32,8 @@ TEST_F(DeformableConvolutionV8StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 4, 5, 5}, {1, 36, 3, 1}, {4, 1, 3, 3}, {1, 18, 3, 1}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 4, 3, 1}));

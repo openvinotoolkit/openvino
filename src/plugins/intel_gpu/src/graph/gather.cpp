@@ -90,7 +90,7 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
 
     auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{2, axis_tensor}};
-    ov::op::util::shape_infer(&op, input_shapes, output_shapes, const_data);
+    output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

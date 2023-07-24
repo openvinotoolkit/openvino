@@ -11,9 +11,9 @@
 namespace ov {
 namespace op {
 namespace proposal {
-template <class TOp, class TShape>
-TShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes) {
-    using TDim = typename TShape::value_type;
+template <class TOp, class TShape, class TRShape = result_shape_t<TShape>>
+TRShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes) {
+    using TDim = typename TRShape::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
 
     const auto& class_probs_ps = input_shapes[0];
@@ -43,7 +43,7 @@ TShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes)
 
     const auto is_bbox_rank_dynamic = bbox_deltas_ps.rank().is_dynamic();
 
-    TShape proposed_boxes_shape;
+    TRShape proposed_boxes_shape;
     proposed_boxes_shape.reserve(2);
 
     if (class_probs_ps.rank().is_static()) {
@@ -78,8 +78,8 @@ TShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes)
 }  // namespace proposal
 
 namespace v0 {
-template <class TShape>
-std::vector<TShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
     return {ov::op::proposal::shape_infer_boxes(op, input_shapes)};
 }
 }  // namespace v0
@@ -89,9 +89,9 @@ std::vector<TShape> shape_infer(const Proposal* op, const std::vector<TShape>& i
 namespace ov {
 namespace op {
 namespace v4 {
-template <class TShape>
-std::vector<TShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
-    auto output_shapes = std::vector<TShape>(2, ov::op::proposal::shape_infer_boxes(op, input_shapes));
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
+    auto output_shapes = std::vector<TRShape>(2, ov::op::proposal::shape_infer_boxes(op, input_shapes));
     output_shapes[1].resize(1);
     return output_shapes;
 }

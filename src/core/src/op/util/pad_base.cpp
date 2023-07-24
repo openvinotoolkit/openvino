@@ -99,7 +99,7 @@ void op::util::PadBase::validate_and_infer_types() {
                           ").");
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = op::util::shape_infer(this, get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
     OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, output_shapes[0]);
 }

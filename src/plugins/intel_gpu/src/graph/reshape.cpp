@@ -86,6 +86,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     };
 
     std::map<size_t, ngraph::HostTensorPtr> const_data;
+    const auto ta = ov::make_tensor_accessor(const_data);
 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
          switch (mode) {
@@ -93,19 +94,19 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::squeeze: {
                 ov::op::v0::Squeeze op;
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::unsqueeze: {
                 ov::op::v0::Unsqueeze op;
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             default:

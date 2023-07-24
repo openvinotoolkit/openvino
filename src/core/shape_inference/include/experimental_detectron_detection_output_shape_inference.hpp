@@ -5,14 +5,14 @@
 #pragma once
 
 #include "openvino/op/experimental_detectron_detection_output.hpp"
-
+#include "utils.hpp"
 namespace ov {
 namespace op {
 namespace v6 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const ExperimentalDetectronDetectionOutput* op,
-                                const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ExperimentalDetectronDetectionOutput* op,
+                                 const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
     using TDim = typename TShape::value_type;
 
@@ -55,7 +55,7 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronDetectionOutput* op,
     }
 
     NODE_VALIDATION_CHECK(op,
-                          im_info_shape.compatible({1, 3}),
+                          im_info_shape.compatible(TRShape{1, 3}),
                           "Input image info shape must be compatible with [1,3].");
 
     if (rois_shape_rank_is_static && deltas_shape_rank_is_static && scores_shape_is_static) {
@@ -76,19 +76,11 @@ std::vector<TShape> shape_infer(const ExperimentalDetectronDetectionOutput* op,
                               num_batches_scores);
     }
 
-    auto output_shapes = std::vector<TShape>(3, TShape{TDim(attrs.max_detections_per_image)});
+    auto output_shapes = std::vector<TRShape>(3, TRShape{TDim(attrs.max_detections_per_image)});
     output_shapes[0].push_back(4);
 
     return output_shapes;
 }
-
-template <class TShape>
-void shape_infer(const ExperimentalDetectronDetectionOutput* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
-}
-
 }  // namespace v6
 }  // namespace op
 }  // namespace ov

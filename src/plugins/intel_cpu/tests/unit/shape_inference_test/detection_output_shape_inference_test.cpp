@@ -118,7 +118,7 @@ TEST(StaticShapeInferenceTest, detection_output_v0_default_ctor) {
                                                    StaticShape{4, 20}};
     std::vector<StaticShape> output_shapes = {StaticShape{}};
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
 }
 
@@ -209,6 +209,6 @@ TEST(StaticShapeInferenceTest, detection_output_v8_default_ctor) {
                                                    StaticShape{4, 20}};
     std::vector<StaticShape> output_shapes = {StaticShape{}};
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{1, 1, 800, 7}));
 }

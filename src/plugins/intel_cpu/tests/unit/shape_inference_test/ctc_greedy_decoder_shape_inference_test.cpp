@@ -35,7 +35,7 @@ TEST_F(CTCGreedyDecoderV0StaticShapeInferenceTest, decoder_default_ctor) {
 
     input_shapes = {StaticShape{100, 3, 1200}, StaticShape{100, 3}};
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], StaticShape({3, 100, 1, 1}));
 }
 

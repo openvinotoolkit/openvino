@@ -83,12 +83,11 @@ void op::v4::Range::validate_and_infer_types() {
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
     for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
-    op::v4::shape_infer(this, input_shapes, result_shapes);
+    const auto result_shapes = op::v4::shape_infer(this, input_shapes);
 
     set_output_type(0, m_output_type, result_shapes[0]);
 }
@@ -356,12 +355,11 @@ void op::v0::Range::validate_and_infer_types() {
     if (result_et == element::Type_t::dynamic) {
         set_output_type(0, result_et, ov::PartialShape::dynamic(1));
     } else {
-        std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
         std::vector<PartialShape> input_shapes;
         for (size_t i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
-        op::v0::shape_infer(this, input_shapes, result_shapes);
+        const auto result_shapes = op::v0::shape_infer(this, input_shapes);
 
         set_output_type(0, result_et, result_shapes[0]);
     }

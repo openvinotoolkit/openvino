@@ -75,13 +75,13 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         auto target_shape_mem = constant_mem.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
-        ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() == 1) {
         // predefined pattern shape
         auto target_shape_tensor = make_host_tensor({pattern_shape, data_types::i64, format::bfyx},
                                                      static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
-        ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() >= 2) {
         auto input1 = impl_param.get_input_layout(1);
         auto output_rank = input1.get<ShapeType>().size();

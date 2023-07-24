@@ -39,10 +39,8 @@ std::vector<layout> scatter_nd_update_inst::calc_output_layouts(scatter_nd_updat
         input2_layout.get<ShapeType>(),     // updates_shape,
     };
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
-
     ov::op::v3::ScatterNDUpdate op;
-    shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
 }
