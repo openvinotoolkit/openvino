@@ -5,11 +5,9 @@
 #include "shared_test_classes/single_layer/reorg_yolo.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include <string>
 
-using namespace ngraph::opset3;
 using namespace InferenceEngine;
 using namespace ov::test;
 
@@ -53,9 +51,9 @@ protected:
 
         auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputDynamicShapes[0]);
         auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
-                                                      ngraph::ParameterVector{param},
-                                                      "ReorgYolo");
+        function = std::make_shared<ov::Model>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+                                               ngraph::ParameterVector{param},
+                                               "ReorgYolo");
     }
 };
 
