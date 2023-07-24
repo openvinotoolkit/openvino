@@ -40,6 +40,72 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
+#ifdef _WIN32
+    static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
+        static PROCESS_MEMORY_COUNTERS pmc;
+        pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+        GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+        return pmc;
+    }
+
+    size_t getVmSizeInKB() {
+        return getMemoryInfo().PagefileUsage / 1024;
+    }
+
+    size_t getVmRSSInKB() {
+        return getMemoryInfo().WorkingSetSize / 1024;
+    }
+
+    size_t getRssFileInKB() { 
+        // TODO: implement
+        return -1;
+    }
+
+#else
+
+/// Parses number from provided string
+    static int parseLine(std::string line) {
+        std::string res = "";
+        for (auto c: line)
+            if (isdigit(c))
+                res += c;
+        if (res.empty())
+            // If number wasn't found return -1
+            return -1;
+        return std::stoi(res);
+    }
+
+    size_t getSystemDataByName(char *name) {
+        FILE *file = fopen("/proc/self/status", "r");
+        size_t result = 0;
+        if (file != nullptr) {
+            char line[128];
+
+            while (fgets(line, 128, file) != NULL) {
+                if (strncmp(line, name, strlen(name)) == 0) {
+                    result = parseLine(line);
+                    break;
+                }
+            }
+            fclose(file);
+        }
+        return result;
+    }
+
+    size_t getVmSizeInKB() {
+        return getSystemDataByName((char *) "VmSize:");
+    }
+
+    size_t getVmRSSInKB() {
+        return getSystemDataByName((char *) "VmRSS:");
+    }
+
+    size_t getRssFileInKB() {
+        return getSystemDataByName((char*) "RssFile:");
+    }
+
+#endif
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

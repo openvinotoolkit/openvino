@@ -24,11 +24,11 @@ protected:
         result->set_friendly_name("output");
         auto model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
 
-        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+        auto filePrefix = ov::test::utils::generateTestFilePrefix();
         xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
         binFileName = filePrefix + "_IrFrontendTestModel.bin";
         ov::serialize(model, xmlFileName, binFileName);
-        binsize = CommonTestUtils::fileSize(binFileName) / 1024;
+        binsize = ov::test::utils::fileSize(binFileName) / 1024;
     }
 
     void TearDown() override {
@@ -47,18 +47,18 @@ TEST_P(IRFrontendMMapTestsAdvanced, core_read_and_compile_model) {
     core.get_versions("CPU");
     core.set_property(ov::enable_mmap(GetParam()));
 
-    auto rss_init = CommonTestUtils::getVmRSSInKB();
+    auto rss_init = ov::test::utils::getVmRSSInKB();
     auto model = core.read_model(xmlFileName, binFileName);
-    auto rss_read = CommonTestUtils::getVmRSSInKB();
+    auto rss_read = ov::test::utils::getVmRSSInKB();
 
     // RAM should increase on at least 90% of .bin size. 10% is a proposed error that cover file system cache
     size_t bin_in_RAM = binsize * 0.9;
     bool is_weights_read = (rss_read - rss_init) > bin_in_RAM;
     EXPECT_TRUE(is_mmap != is_weights_read);
 
-    auto rss_mapped_read = CommonTestUtils::getRssFileInKB();
+    auto rss_mapped_read = ov::test::utils::getRssFileInKB();
     auto compiled_model = core.compile_model(model, "CPU");
-    auto rss_mapped_compiled = CommonTestUtils::getRssFileInKB();
+    auto rss_mapped_compiled = ov::test::utils::getRssFileInKB();
 
     // Mappings size (RssFile) should increase at least on .bin size
     bool is_weights_mapped = (rss_mapped_compiled - rss_mapped_read) > binsize;
@@ -79,14 +79,14 @@ TEST_P(IRFrontendMMapTestsAdvanced, fe_read_and_compile_model) {
     core.get_versions("CPU");
     core.set_property(ov::enable_mmap(GetParam()));
 
-    auto rss_init = CommonTestUtils::getVmRSSInKB();
+    auto rss_init = ov::test::utils::getVmRSSInKB();
     ov::AnyVector params{xmlFileName, binFileName, is_mmap};
     auto FE = manager.load_by_model(params);
     if (FE)
         input_model = FE->load(params);
     if (input_model)
         model = FE->convert(input_model);
-    auto rss_read = CommonTestUtils::getVmRSSInKB();
+    auto rss_read = ov::test::utils::getVmRSSInKB();
 
     // RAM should (or not if `mmap` enabled) increase at least on 90% of .bin size.
     // 10% is a proposed error that cover file system cache
@@ -94,9 +94,9 @@ TEST_P(IRFrontendMMapTestsAdvanced, fe_read_and_compile_model) {
     bool is_weights_read = (rss_read - rss_init) > bin_in_RAM;
     EXPECT_TRUE(is_mmap != is_weights_read);
 
-    auto rss_mapped_read = CommonTestUtils::getRssFileInKB();
+    auto rss_mapped_read = ov::test::utils::getRssFileInKB();
     auto compiled_model = core.compile_model(model, "CPU");
-    auto rss_mapped_compiled = CommonTestUtils::getRssFileInKB();
+    auto rss_mapped_compiled = ov::test::utils::getRssFileInKB();
 
     // Mappings size (RssFile) should (or not if `mmap` disabled) increase at least on .bin size
     bool is_weights_mapped = (rss_mapped_compiled - rss_mapped_read) > binsize;
