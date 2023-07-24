@@ -2023,7 +2023,47 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     auto filterPrecision = [&](Precision& prc) {
 #if defined (OV_CPU_WITH_ACL)
-        return one_of(prc, Precision::FP16, Precision::FP32) ? prc : Precision(Precision::FP32);
+        if (one_of(getAlgorithm(), Algorithm::EltwiseSqrt,
+                                   Algorithm::EltwiseDivide,
+                                   Algorithm::EltwiseRelu,
+#ifdef OPENVINO_ARCH_ARM64
+                                   Algorithm::EltwiseGeluErf,
+#endif
+                                   Algorithm::EltwiseElu,
+                                   Algorithm::EltwiseTanh,
+                                   Algorithm::EltwiseSigmoid,
+                                   Algorithm::EltwiseSoftRelu,
+                                   Algorithm::EltwiseClamp,
+                                   Algorithm::EltwiseSwish,
+                                   Algorithm::EltwisePrelu,
+                                   Algorithm::EltwiseHswish,
+                                   Algorithm::EltwiseAbs,
+                                   Algorithm::EltwiseExp,
+                                   Algorithm::EltwiseLog,
+                                   Algorithm::EltwiseMaximum,
+                                   Algorithm::EltwiseMinimum,
+                                   Algorithm::EltwiseSquaredDifference,
+                                   Algorithm::EltwiseAdd,
+                                   Algorithm::EltwiseSubtract,
+                                   Algorithm::EltwiseMultiply,
+                                   Algorithm::EltwiseEqual,
+                                   Algorithm::EltwiseNotEqual,
+                                   Algorithm::EltwiseGreater,
+                                   Algorithm::EltwiseGreaterEqual,
+                                   Algorithm::EltwiseLess,
+                                   Algorithm::EltwiseLessEqual)) {
+            Precision forcedPrec;
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+                    if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                        forcedPrec = getOriginalInputPrecisionAtPort(i);
+                    }
+                }
+            }
+            return forcedPrec;
+        } else {
+            return Precision(Precision::FP32);
+        }
 #else
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
