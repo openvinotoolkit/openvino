@@ -49,6 +49,8 @@ private:
 
     void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
+    void CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& ngraphFunc, bool imported = false);
+
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;
