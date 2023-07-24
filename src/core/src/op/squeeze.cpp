@@ -34,8 +34,7 @@ void op::Squeeze::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -65,16 +64,13 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     if (has_evaluate()) {
-        auto output_shapes = std::vector<PartialShape>{outputs[0]->get_partial_shape()};
         auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
-        auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>();
 
         if (inputs.size() == 2) {
             input_shapes.push_back(inputs[1]->get_partial_shape());
-            constant_data.emplace(1, inputs[1]);
         }
 
-        shape_infer(this, input_shapes, output_shapes, constant_data);
+        auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
 
         auto out_shape = output_shapes[0].get_shape();
         outputs[0]->set_shape(out_shape);
