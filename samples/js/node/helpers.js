@@ -26,6 +26,7 @@ module.exports = {
   displayImage,
   getImageData,
   extractValues,
+  getImageBuffer,
   arrayToImageData,
   displayArrayAsImage,
   matrixMultiplication,
@@ -35,7 +36,7 @@ function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
 }
 
-function displayImage(imageOrImageData, display) {
+function getImageBuffer(imageOrImageData) {
   const canvas = createCanvas(imageOrImageData.width, imageOrImageData.height);
   const ctx = canvas.getContext('2d');
 
@@ -47,7 +48,11 @@ function displayImage(imageOrImageData, display) {
     throw Error(`Passed parameters has type '${typeof imageOrImageData}'. `
       + 'It is\'t supported.');
 
-  const buffer = canvas.toBuffer('image/jpeg');
+  return canvas.toBuffer('image/jpeg');
+}
+
+function displayImage(imageOrImageData, display) {
+  const buffer = getImageBuffer(imageOrImageData);
 
   display.image(buffer);
 }
