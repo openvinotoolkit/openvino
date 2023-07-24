@@ -21,7 +21,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -116,7 +116,7 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
 /**
  * Deconvolution shape inference factory. It defines the input mask depending on the existence of the `output_shape` input.
  * Since in case it exists, plugin should pass the input data to the shape inference function.
- * 
+ *
  */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:

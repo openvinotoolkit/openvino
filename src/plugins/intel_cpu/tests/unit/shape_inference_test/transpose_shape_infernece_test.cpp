@@ -6,7 +6,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
 #include "transpose_shape_inference.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

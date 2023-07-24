@@ -5,7 +5,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

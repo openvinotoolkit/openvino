@@ -3,7 +3,7 @@
 //
 
 #include <node.h>
-#include "utils/shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
 namespace ov {

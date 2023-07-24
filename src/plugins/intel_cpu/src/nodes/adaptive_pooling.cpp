@@ -14,7 +14,7 @@
 #include <utils/bfloat16.hpp>
 #include <utils/general_utils.h>
 #include <vector>
-#include "utils/custom_shape_inference/adaptive_pooling.hpp"
+#include "shape_inference/custom/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;

@@ -33,7 +33,7 @@
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
-#include "utils/custom_shape_inference/subgraph.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;

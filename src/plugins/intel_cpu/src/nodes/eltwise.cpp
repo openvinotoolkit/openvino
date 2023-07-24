@@ -46,7 +46,7 @@
 #include <map>
 #include <functional>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/custom_shape_inference/eltwise.hpp"
+#include "shape_inference/custom/eltwise.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;

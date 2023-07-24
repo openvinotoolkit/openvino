@@ -13,7 +13,7 @@
 #include <dnnl_types.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "utils/custom_shape_inference/priorbox_clustered.hpp"
+#include "shape_inference/custom/priorbox_clustered.hpp"
 
 using namespace InferenceEngine;
 

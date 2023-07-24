@@ -10,7 +10,7 @@
 #include <string>
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
-#include "utils/custom_shape_inference/transpose.hpp"
+#include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
 using namespace InferenceEngine;
 

@@ -7,7 +7,7 @@
 #include "ie_parallel.hpp"
 #include "range.h"
 #include <utils/general_utils.h>
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 

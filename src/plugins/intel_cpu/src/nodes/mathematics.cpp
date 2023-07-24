@@ -10,7 +10,7 @@
 #include "ie_parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 

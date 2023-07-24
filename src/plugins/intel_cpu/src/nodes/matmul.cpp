@@ -22,7 +22,7 @@
 #include <dnnl_extension_utils.h>
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include "utils/custom_shape_inference/matmul.hpp"
+#include "shape_inference/custom/matmul.hpp"
 using namespace dnnl;
 using namespace InferenceEngine;
 

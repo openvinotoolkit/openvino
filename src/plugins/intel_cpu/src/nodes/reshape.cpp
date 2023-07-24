@@ -9,7 +9,7 @@
 #include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "utils/custom_shape_inference/reshape.hpp"
+#include "shape_inference/custom/reshape.hpp"
 
 #include "common/cpu_memcpy.h"
 

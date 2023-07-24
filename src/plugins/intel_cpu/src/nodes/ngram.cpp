@@ -9,7 +9,7 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
-#include "utils/custom_shape_inference/ngram.hpp"
+#include "shape_inference/custom/ngram.hpp"
 
 namespace ov {
 namespace intel_cpu {

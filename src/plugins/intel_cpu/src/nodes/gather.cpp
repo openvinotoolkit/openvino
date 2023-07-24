@@ -12,7 +12,7 @@
 #include <utils/general_utils.h>
 #include "kernels/x64/gather_uni_kernel.hpp"
 #include <partitioned_mem_mgr.h>
-#include "utils/custom_shape_inference/gather.hpp"
+#include "shape_inference/custom/gather.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;

@@ -25,7 +25,7 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
-#include "utils/custom_shape_inference/fullyconnected.hpp"
+#include "shape_inference/custom/fullyconnected.hpp"
 
 #include <string>
 #include <vector>

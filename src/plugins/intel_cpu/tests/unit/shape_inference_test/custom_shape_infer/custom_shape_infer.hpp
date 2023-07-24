@@ -3,8 +3,8 @@
 //
 
 #include "cpu_types.h"
-#include <utils/shape_inference/shape_inference_cpu.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include <shape_inference/shape_inference_cpu.hpp>
+#include <shape_inference/static_shape.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <gtest/gtest.h>
 

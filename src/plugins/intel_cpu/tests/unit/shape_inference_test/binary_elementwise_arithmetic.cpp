@@ -7,8 +7,8 @@
 #include "utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
-#include "utils/shape_inference/shape_inference.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

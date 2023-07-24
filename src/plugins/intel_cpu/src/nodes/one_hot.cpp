@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "common/cpu_memcpy.h"
-#include "utils/custom_shape_inference/one_hot.hpp"
+#include "shape_inference/custom/one_hot.hpp"
 
 using namespace InferenceEngine;
 

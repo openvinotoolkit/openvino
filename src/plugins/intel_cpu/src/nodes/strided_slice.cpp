@@ -8,9 +8,9 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include <ngraph/opsets/opset1.hpp>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 #include "slice_shape_inference_utils.hpp"
-#include "utils/custom_shape_inference/strided_slice.hpp"
+#include "shape_inference/custom/strided_slice.hpp"
 
 #include <string>
 
