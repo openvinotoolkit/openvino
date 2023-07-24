@@ -16,8 +16,20 @@ OpenVINO 2023.0
 
    OpenVINO 2023.0
 
-   | An open-source toolkit for optimizing and deploying deep learning models.
-   | Boost your AI deep-learning inference performance!
+   .. raw:: html
+
+      <div class="line-block">
+         <section class="splide" aria-label="Splide Banner Carousel">
+           <div class="splide__track">
+         		<ul class="splide__list">
+         			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
+			         <li class="splide__slide">Even more integrations in 2023.0!<br>Load TensorFlow, TensorFlow Lite, and PyTorch models directly, without manual conversion.<br><a href="https://docs.openvino.ai/2023.0/Supported_Model_Formats.html">See the supported model formats...</a></li>
+         			<li class="splide__slide">CPU inference has become even better. ARM processors are supported and thread scheduling is available on 12th gen Intel® Core and up.<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html">See how to run OpenVINO on various devices...</a></li>
+         			<li class="splide__slide">Post-training optimization and quantization-aware training now in one tool!<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_model_optimization_guide.html">See the new NNCF capabilities...</a></li>
+         		</ul>
+           </div>
+         </section>
+      </div>
    
    .. button-ref::  get_started
       :ref-type: doc
@@ -31,6 +43,7 @@ OpenVINO 2023.0
 
    .. image:: _static/images/ov_homepage_diagram.png
       :align: center
+
 
 .. grid:: 2 2 3 3
    :class-container: ov-homepage-higlight-grid
@@ -113,4 +126,3 @@ Feature Overview
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
    RELEASE NOTES <release_notes>
-
