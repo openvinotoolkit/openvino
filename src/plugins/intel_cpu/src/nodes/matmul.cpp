@@ -702,6 +702,7 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
         impl_desc_type::unknown,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_acl,
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
@@ -711,8 +712,6 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
         impl_desc_type::gemm_any,
         impl_desc_type::gemm,
         impl_desc_type::jit_gemm,
-        //Lower down brgemm avx2 primitive priority than jit_gemm for perf issue.
-        impl_desc_type::brgemm_avx2,
         impl_desc_type::jit_uni_dw,
         impl_desc_type::jit_uni_1x1,
         impl_desc_type::jit_uni,
