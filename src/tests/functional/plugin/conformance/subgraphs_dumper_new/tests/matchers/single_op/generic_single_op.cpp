@@ -6,7 +6,7 @@
 
 #include "openvino/op/ops.hpp"
 
-#include "single_op_matchers/base.hpp"
+#include "matchers/single_op/single_op.hpp"
 
 namespace {
 
@@ -15,10 +15,10 @@ using namespace ov::tools::subgraph_dumper;
 class SingleOpMatcherTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        matcher = BaseMatcher();
+        matcher = SingleOpMatcher();
     }
 
-    BaseMatcher matcher;
+    SingleOpMatcher matcher;
 };
 
 
