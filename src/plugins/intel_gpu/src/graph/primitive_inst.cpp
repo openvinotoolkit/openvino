@@ -527,7 +527,7 @@ bool primitive_inst::update_impl() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
     };
 
-    if ((_impl != nullptr && _impl->is_cpu()) || can_be_optimized()) {
+    if (_impl != nullptr && (_impl->is_cpu() || can_be_optimized())) {
         // Return false if shape not changed, otherwise return true to trigger realloc_if_needed, but do not change impl itself
         return shape_changed();
     }

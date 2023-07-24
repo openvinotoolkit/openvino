@@ -14,7 +14,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class GraphCache : public virtual ICache {
+class GraphCache : public ICache {
 public:
     void update_cache(const std::shared_ptr<ov::Model>& model,
                       const std::string& model_meta_data,
