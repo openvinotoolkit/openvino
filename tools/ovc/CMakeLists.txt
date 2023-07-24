@@ -16,9 +16,9 @@ endif()
 
 if(NOT IEDevScripts_FOUND)
     find_package(IEDevScripts REQUIRED
-                PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
+                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+                 NO_CMAKE_FIND_ROOT_PATH
+                 NO_DEFAULT_PATH)
 endif()
 
 #
@@ -26,11 +26,11 @@ endif()
 #
 
 ov_get_pyversion(pyversion)
-ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+ov_cpack_add_component(${OV_CPACK_COMP_OVC}
                         HIDDEN)
 
 install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
+        COMPONENT ${OV_CPACK_COMP_OVC}
+        ${OV_CPACK_COMP_OVC_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
