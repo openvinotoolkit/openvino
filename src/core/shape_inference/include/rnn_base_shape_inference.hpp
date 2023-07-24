@@ -29,17 +29,14 @@ void validate_inputs_rank(const op::util::RNNCellBase* op,
 
 // Output shape layout:
 // output_shapes[0...num_state_nodes]: [batch_size, hidden_size] // Rank always 2
-template <class TShape>
-std::vector<TShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
-                                          const std::vector<TShape>& input_shapes,
-                                          size_t num_gates,
-                                          size_t num_state_nodes,
-                                          bool linear_before_reset = false) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
+                                           const std::vector<TShape>& input_shapes,
+                                           size_t num_gates,
+                                           size_t num_state_nodes,
+                                           bool linear_before_reset = false) {
     const auto num_inputs = 4 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
-
-    std::vector<TShape> output_shapes;
-    output_shapes.reserve(num_state_nodes);
 
     std::vector<Rank> expected_in_ranks;
     expected_in_ranks.reserve(num_inputs);
@@ -128,23 +125,23 @@ std::vector<TShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
         }
     }
 
-    return {num_state_nodes, TShape{merged_batch_size, merged_hidden_size}};
+    return {num_state_nodes, TRShape{merged_batch_size, merged_hidden_size}};
 }
 
 // Output shapes layout:
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
-template <class TShape>
-std::vector<TShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
-                                         const std::vector<TShape>& input_shapes,
-                                         size_t num_gates,
-                                         size_t num_state_nodes,
-                                         op::RecurrentSequenceDirection direction,
-                                         bool linear_before_reset = false) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
+                                          const std::vector<TShape>& input_shapes,
+                                          size_t num_gates,
+                                          size_t num_state_nodes,
+                                          op::RecurrentSequenceDirection direction,
+                                          bool linear_before_reset = false) {
     const auto num_inputs = 5 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
 
-    std::vector<TShape> output_shapes;
+    std::vector<TRShape> output_shapes;
     output_shapes.reserve(1 + num_state_nodes);
 
     std::vector<Rank> expected_in_ranks;
@@ -265,14 +262,14 @@ std::vector<TShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     }
 
     // Y output
-    output_shapes.push_back(TShape{merged_batch_size,
-                                   merged_num_directions,
-                                   x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
-                                   merged_hidden_size});
+    output_shapes.push_back(TRShape{merged_batch_size,
+                                    merged_num_directions,
+                                    x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
+                                    merged_hidden_size});
     // Ho, Co outputs
     output_shapes.insert(output_shapes.end(),
                          num_state_nodes,
-                         TShape{merged_batch_size, merged_num_directions, merged_hidden_size});
+                         TRShape{merged_batch_size, merged_num_directions, merged_hidden_size});
     return output_shapes;
 }
 }  // namespace rnn

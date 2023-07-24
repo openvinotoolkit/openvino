@@ -18,7 +18,7 @@ struct ClipNegative {
 
     template <class T>
     constexpr value_type operator()(const T value) const {
-        return (std::is_signed<T>::value && value < 0) ? 0 : static_cast<value_type>(value);
+        return ov::cmp::lt(value, 0) ? 0 : static_cast<value_type>(value);
     }
 };
 }  // namespace util
@@ -36,10 +36,10 @@ namespace v1 {
  *
  * \return Vector of output shapes with one shape.
  */
-template <class TShape>
-std::vector<TShape> shape_infer(const Reverse* op,
-                                const std::vector<TShape>& input_shapes,
-                                const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Reverse* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_shape = input_shapes[0];
@@ -81,24 +81,6 @@ std::vector<TShape> shape_infer(const Reverse* op,
     }
 
     return {data_shape};
-}
-
-/**
- * \brief Reverse shape inference
- *
- * \tparam TShape  Type of shape.
- *
- * \param op             Pointer to Reverse operator.
- * \param input_shapes   Input shapes of Reverse.
- * \param output_shapes  Output shapes of Reverse
- * \param constant_data  Map of constant data. Default empty.
- */
-template <class TShape>
-void shape_infer(const Reverse* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, std::reference_wrapper<const ov::Tensor>>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v1
 }  // namespace op
