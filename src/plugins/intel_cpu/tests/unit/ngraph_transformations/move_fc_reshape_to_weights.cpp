@@ -92,12 +92,11 @@ protected:
 
 TEST_P(MoveFCReshapeToWeightsTests, CompareFunctions) {}
 
-const std::vector<bool> add_transpose = {false, true};
-const std::vector<bool> add_subtract = {false, true};
-
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {
     {{1, 2, 3}, {1, 4, 3}}
 };
+const std::vector<bool> add_transpose = {false, true};
+const std::vector<bool> add_subtract = {false, true};
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose, MoveFCReshapeToWeightsTests,
                         ::testing::Combine(

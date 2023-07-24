@@ -94,14 +94,6 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         squeeze_constant(weights);
         if (with_subtract)
             squeeze_constant(mul_parent->get_input_node_shared_ptr(1));
-
-        // We have to call validate manually because validation pass doesn't change these shapes
-        // TODO: investigate
-        convert->validate_and_infer_types();
-        if (with_subtract)
-            mul_parent->validate_and_infer_types();
-        mul->validate_and_infer_types();
-
         return true;
     };
 
