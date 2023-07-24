@@ -138,18 +138,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
         auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = false;
-        auto item = properties.find(ov::device::properties.name());
-        if (item != properties.end()) {
-            ov::AnyMap devicesProperties;
-            std::stringstream strConfigs(item->second.as<std::string>());
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
-            auto it = devicesProperties.find(target_device);
-            if (it != devicesProperties.end()) {
-                is_set_device_properties = true;
-            }
-        }
+        auto is_set_device_properties = properties.find(target_device) != properties.end();
         if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
@@ -357,10 +346,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    // one exception for muli, a.k.a, auto ctput, latency is not supported
-    if (get_device_name() == "MULTI") {
-        check_multi_perfhint(properties);
-    }
     m_plugin_config.set_property(pre_process_config(properties));
 }
 
@@ -412,7 +397,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.set_user_property(pre_process_config(properties));
     load_config.apply_user_properties();
     if (!work_mode_auto) {
-        check_multi_perfhint(properties);
+        if (iter_config != properties.end() && iter_config->second != "THROUGHPUT") {
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
+        }
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
     auto full_property = load_config.get_full_properties();

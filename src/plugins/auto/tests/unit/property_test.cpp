@@ -9,7 +9,7 @@ class PropertyTest : public tests::AutoTestWithRealCore, public ::testing::Test 
 protected:
     ov::CompiledModel compiled_model;
 };
-
+/* to be enabled if expect multi throw for latency mode
 TEST_F(PropertyTest, tputmodeonly_for_multi) {
     EXPECT_THROW_WITH_MESSAGE(core.compile_model(model, "MULTI", ov::device::priorities("MOCK_GPU", "MOCK_CPU"),
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)), ov::Exception,
@@ -23,7 +23,7 @@ TEST_F(PropertyTest, tputmodeonly_for_multi_propertyset) {
     EXPECT_THROW_WITH_MESSAGE(core.set_property("MULTI", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)), ov::Exception,
                                 "MULTI does not support perf mode");
 }
-
+*/
 /*
 TEST_F(PropertyTest, default_perfmode_for_auto) {
     ov::CompiledModel compiled_model;
