@@ -9,9 +9,6 @@
 This page lists operations supported by OpenVINO Framework Frontend.
 
 
-
-
-
 .. tab-set::
 
    .. tab-item:: PyTorch
@@ -262,6 +259,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
        Abs                                     
        Acos                                     
        Acosh                                    
+       Add
        And                                     
        ArgMin                                  
        ArgMax                                 
