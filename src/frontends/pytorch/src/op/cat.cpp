@@ -25,15 +25,17 @@ ov::Output<ov::Node> translate_cat_base(const NodeContext& context) {
         // couldn't get list elements
         auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{context.get_input(0)}, 1);
         auto attrs = fw_node->get_attrs();
-        // If this fails it means axis is dynamic and aten::cat will be converted to fw node in regular pipeline
+        // If this fails it means axis is dynamic and <aten/quantized>::cat will be converted to fw node in regular
+        // pipeline
         attrs["axis"] = std::to_string(axis);
         fw_node->set_attrs(attrs);
         return {context.mark_node(fw_node)};
     } else {
         auto first_elem = list_elems.front().get_node_shared_ptr();
-        FRONT_END_OP_CONVERSION_CHECK(list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_elem),
-                                      "aten::cat is located inside body while inputs are located outside of the body. "
-                                      "This case is not supported.");
+        FRONT_END_OP_CONVERSION_CHECK(
+            list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_elem),
+            "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
+            "This case is not supported.");
     }
     auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
     return context.mark_node(concat);
@@ -48,9 +50,11 @@ OutputVector translate_cat(const NodeContext& context) {
 
 OutputVector translate_quantized_cat(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
-    return {quantize(context, translate_cat_base(context), context.get_input(2), context.get_input(3), context.get_input(0))};
+    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    FRONT_END_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
+    return {
+        quantize(context, translate_cat_base(context), context.get_input(2), context.get_input(3), list_elems.front())};
 };
-
 
 }  // namespace op
 }  // namespace pytorch

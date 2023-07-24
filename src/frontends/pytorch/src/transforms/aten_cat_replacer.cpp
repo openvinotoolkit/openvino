@@ -38,6 +38,8 @@ AtenCatToConcat::AtenCatToConcat() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto cat = cast_fw_node(m.get_match_root(), "aten::cat");
         if (!cat)
+            cat = cast_fw_node(m.get_match_root(), "quantized::cat");
+        if (!cat)
             return false;
 
         int64_t axis;
@@ -45,19 +47,19 @@ AtenCatToConcat::AtenCatToConcat() {
             auto axis_node = cat->get_input_node_shared_ptr(1);
             auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
             if (!axis_const) {
-                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis is not a constant.");
+                add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: axis is not a constant.");
                 return false;
             }
             auto _axis = axis_const->cast_vector<int64_t>();
             if (_axis.size() != 1) {
-                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis is not a scalar.");
+                add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: axis is not a scalar.");
                 return false;
             }
             axis = _axis[0];
         } else {
             const auto& attrs = cat->get_attrs();
             if (attrs.find("axis") == attrs.end()) {
-                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis not found in attributes.");
+                add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: axis not found in attributes.");
                 return false;
             }
             axis = std::stoll(attrs.at("axis"));
@@ -81,14 +83,15 @@ AtenCatToConcat::AtenCatToConcat() {
             if (!append) {
                 add_exception_to_fw_node(
                     cat,
-                    "aten::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
+                    "<aten/quantized>::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
                 return false;
             }
             auto param = std::dynamic_pointer_cast<v0::Parameter>(append->get_input_node_shared_ptr(0));
             if (!param) {
-                add_exception_to_fw_node(cat,
-                                         "aten::cat unsupported case: input of aten::append inside prim::Loop "
-                                         "body is not a body input.");
+                add_exception_to_fw_node(
+                    cat,
+                    "<aten/quantized>::cat unsupported case: input of aten::append inside prim::Loop "
+                    "body is not a body input.");
                 return false;
             }
             auto body_param_index = body->get_parameter_index(param);
@@ -103,9 +106,10 @@ AtenCatToConcat::AtenCatToConcat() {
             FRONT_END_GENERAL_CHECK(input_index >= 0, "Couldn't find descriptor for input.");
             auto list_construct = cast_fw_node(loop->get_input_node_shared_ptr(input_index), "prim::ListConstruct");
             if (!list_construct || list_construct->get_input_size() > 0) {
-                add_exception_to_fw_node(cat,
-                                         "aten::cat unsupported case: aten::append input outside of prim::Loop "
-                                         "body is not a prim::ListConstruct.");
+                add_exception_to_fw_node(
+                    cat,
+                    "<aten/quantized>::cat unsupported case: aten::append input outside of prim::Loop "
+                    "body is not a prim::ListConstruct.");
                 return false;
             }
             auto new_result = std::make_shared<v0::Result>(append->input_value(1));
