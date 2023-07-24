@@ -102,7 +102,8 @@ void ActivationLayerCPUTest::SetUp() {
 
     inType  = inPrecision;
     outType = outPrecision;
-    selectedType = getPrimitiveType() + "_" + netPrecision.to_string();
+    const auto primitiveType = getPrimitiveType(activationType, inType, inputShapes);
+    selectedType = primitiveType.empty() ? "" : getPrimitiveType(activationType, inType, inputShapes) + "_" + netPrecision.to_string();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(OPENVINO_ARCH_ARM)
