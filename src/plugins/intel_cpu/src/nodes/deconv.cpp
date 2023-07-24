@@ -1239,7 +1239,6 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
     };
-    pushDesc(LayoutType::nspc);
     pushDesc(LayoutType::ncsp);
 }
 
