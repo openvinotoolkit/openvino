@@ -1609,13 +1609,10 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
     ov::pass::Manager pre_symbolic_manager(get_pass_config());
     pre_symbolic_manager.set_per_pass_validation(false);
-    REGISTER_PASS(pre_symbolic_manager, BroadcastOnes)
-    REGISTER_PASS(pre_symbolic_manager, SharedTileOptimization)
     auto pre_optimizations_0 = pre_symbolic_manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(pre_optimizations_0, transpose_sinking::TSSliceBackward)
     pre_optimizations_0->set_name("ov::pass::GraphRewrite::PreSymbolicOptimizations::0");
     REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
-    REGISTER_PASS(pre_symbolic_manager, SharedSliceOptimization)
     REGISTER_PASS(pre_symbolic_manager, GroupedSliceToVSplitOptimization)
     REGISTER_PASS(pre_symbolic_manager, ReshapeUpThroughBEAWithConstScalar)
     REGISTER_PASS(pre_symbolic_manager, NopElimination)
