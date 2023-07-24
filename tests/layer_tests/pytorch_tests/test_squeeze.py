@@ -33,10 +33,9 @@ class TestSqueeze(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_squeeze(self, dim, ie_device, precision, ir_version):
-        # Dynamic shapes are introducing dynamic rank, with is not suppoerted by Squeeze operation.
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=True)
 
-    @pytest.mark.xfail(reason='OpenVINO squeeze does not support axis size != 1')
+    @pytest.mark.xfail(reason='OpenVINO squeeze does not support dimension is not equal to 1.')
     @pytest.mark.parametrize("dim", [-1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
