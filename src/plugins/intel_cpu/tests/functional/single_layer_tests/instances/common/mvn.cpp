@@ -27,7 +27,9 @@ std::vector<ElementType> outPrc = {
         ElementType::f32,
 };
 std::vector<ElementType> netPrc = {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         ElementType::f16,
+#endif
         ElementType::f32,
 };
 

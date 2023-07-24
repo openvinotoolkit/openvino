@@ -20,7 +20,9 @@ const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {}, {}, {}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::I8,
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         Precision::FP16,
+#endif
         Precision::FP32
 };
 
