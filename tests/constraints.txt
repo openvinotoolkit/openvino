@@ -9,7 +9,7 @@ PyYAML>=5.4.1
 scipy>=1.7
 wheel>=0.38.1
 defusedxml>=0.7.1
-fastjsonschema~=2.17.1
+fastjsonschema~=2.18.0
 test-generator==0.1.2
 requests>=2.25.1
 opencv-python>=4.5
