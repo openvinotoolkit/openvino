@@ -61,7 +61,7 @@ enum class activation_func {
 
 /// @brief activation additional params
 struct activation_additional_params {
-    float a = 0.0f, b = 0.0f;
+    float a, b;
 
     void save(BinaryOutputBuffer& ob) const { ob << a << b; }
     void load(BinaryInputBuffer& ib) { ib >> a >> b; }
