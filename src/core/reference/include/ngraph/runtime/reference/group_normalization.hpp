@@ -11,8 +11,6 @@
 #include "ngraph/runtime/reference/sum.hpp"
 #include "openvino/core/shape.hpp"
 
-using namespace std;
-
 namespace ov {
 namespace reference {
 
@@ -24,6 +22,9 @@ void group_normalization(const T* const data,
                          const Shape& data_shape,
                          const size_t num_groups,
                          const double epsilon) {
+    using namespace std;
+    using namespace ngraph::runtime::reference;
+
     const auto num_batches = data_shape[0];
     const auto num_channels = data_shape[1];
     const auto num_channels_in_group = num_channels / num_groups;
@@ -38,14 +39,11 @@ void group_normalization(const T* const data,
             const auto group_begin = data + n * batch_size + g * group_size;
             const auto group_end = group_begin + group_size;
             std::vector<T> mean_value(1);
-            ngraph::runtime::reference::mean(group_begin, mean_value.data(), Shape{group_size}, {0});
+            mean(group_begin, mean_value.data(), Shape{group_size}, {0});
             T mean = mean_value[0];
-            T variance = 0;
-            T err = 0;
+            T variance = 0, err = 0;
             for_each(group_begin, group_end, [&](const T d) {
-                return ngraph::runtime::reference::details::kahan_summation(static_cast<T>(pow(d - mean, 2)),
-                                                                            err,
-                                                                            variance);
+                return details::kahan_summation(static_cast<T>(pow(d - mean, 2)), err, variance);
             });
             variance /= group_size;
             const T standard_deviation = sqrt(variance + eps);
