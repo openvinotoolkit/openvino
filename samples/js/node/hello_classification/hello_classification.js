@@ -39,16 +39,20 @@ async function main(modelPath, imagePath, deviceName) {
   const image = new cv2.Mat();
   // The MobileNet model expects images in RGB format.
   cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
-  // Resize to MobileNet image shape.
-  cv2.resize(image, image, new cv2.Size(224, 224));
 
   const tensorData = new Float32Array(image.data);
-  const shape = [1, 224, 224, 3];
+  const shape = [1, image.rows, image.cols, 3];
+
   const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
 
-  // FIXME: Add PrePost process
+  new ov.PrePostProcessor(model)
+    .set_input_tensor_shape(shape)
+    .preprocessResizeAlgorithm('RESIZE_LINEAR')
+    .set_input_tensor_layout('NHWC')
+    .set_input_model_layout('NCHW')
+    .build();
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
