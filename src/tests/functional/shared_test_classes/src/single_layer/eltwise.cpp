@@ -106,7 +106,7 @@ void EltwiseLayerTest::SetUp() {
         secondaryInput = param;
         parameters.push_back(param);
     } else {
-        ov::Shape shape = inputDynamicShapes.back().get_max_shape();
+        ov::Shape shape = shape_input_secondary.get_max_shape();
         switch (eltwiseType) {
             case ngraph::helpers::EltwiseTypes::DIVIDE:
             case ngraph::helpers::EltwiseTypes::MOD:
@@ -116,7 +116,7 @@ void EltwiseLayerTest::SetUp() {
                 break;
             }
             case ngraph::helpers::EltwiseTypes::POWER:
-                secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true, 3);
+                secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true, 3.5);
                 break;
             default:
                 secondaryInput = ov::test::utils::deprecated::make_constant<float>(netType, shape, {}, true);
