@@ -8,9 +8,9 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/reshape.hpp"
 
 using namespace ov;
 using namespace ov::op;
