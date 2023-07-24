@@ -44,7 +44,7 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride;; }
+    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride; }
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
