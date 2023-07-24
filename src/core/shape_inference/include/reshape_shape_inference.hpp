@@ -240,7 +240,8 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                                        : reshape::Product<TDim>{TDim(dim::inf_bound), TDim(dim::inf_bound)};
 
         // resolving -1 masked dimension
-        if (minus_one_idx != -1) {
+        const auto has_minus_one_idx = !dim::is_inf_bound(minus_one_idx);
+        if (has_minus_one_idx) {
             if (output_product == 0) {
                 NODE_VALIDATION_CHECK(op,
                                       input_product.total() == 0,
@@ -250,14 +251,14 @@ std::vector<TRShape> shape_infer(const Reshape* op,
             } else {
                 output_shape[minus_one_idx] = reshape::resolve_minus_one_dim(input_product, output_product);
                 NODE_VALIDATION_CHECK(op,
-                                      dim::is_valid(output_shape[minus_one_idx]),
+                                      !dim::is_empty(output_shape[minus_one_idx]),
                                       "Non-'-1' output dimensions do not evenly divide the input dimensions");
             }
         }
 
         if (input_shape.is_static() && output_shape.is_static()) {
             const auto zero_dims = std::any_of(output_pattern.begin(), output_pattern.end(), cmp::Equal<TDim>(0));
-            const auto backward_compatible_check = (zero_dims && special_zero) || minus_one_idx != -1;
+            const auto backward_compatible_check = (zero_dims && special_zero) || has_minus_one_idx;
             const auto in_out_elements_equal = (input_product.total() == output_product);
 
             NODE_VALIDATION_CHECK(op,
