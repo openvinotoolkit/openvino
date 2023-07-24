@@ -21,9 +21,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 'argument': conversion from 'size_t' to 'int', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4551)
 endif()
-if (OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-undef)
+    if(OV_COMPILER_IS_CLANG)
+        ie_add_compiler_flags(-Wno-parentheses-equality)
+    endif()
 endif()
 if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
     ie_add_compiler_flags(-Wno-unused-but-set-variable)
@@ -84,14 +88,14 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL}
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
 install(PROGRAMS __init__.py
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
         COMPONENT ${PYTHON_COMPONENT}
-        ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
