@@ -27,10 +27,13 @@ std::vector<TRShape> shape_infer(const ReorgYolo* op, const std::vector<T>& inpu
 
     if (input_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shape.size() == 4, "[N, C, H, W] input shape is required.");
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               input_shape[1].is_dynamic() || cmp::ge(input_shape[1].get_length(), stride * stride),
-                               "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
+
+        const auto stride_sq = typename T::value_type(stride * stride);
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            input_shape[1].is_dynamic() || cmp::ge(input_shape[1].get_length(), stride_sq.get_length()),
+            "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
 
         output_shape.reserve(input_shape.size());
         auto out_it = std::copy(input_shape.begin(), input_shape.begin() + 2, std::back_inserter(output_shape));
@@ -38,11 +41,11 @@ std::vector<TRShape> shape_infer(const ReorgYolo* op, const std::vector<T>& inpu
             auto d = input_shape[i] / stride;
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   dim::is_valid(d),
+                                   !dim::is_empty(d),
                                    "For [N, C, H, W] input shape, H and W should be divisible by stride.");
             out_it = std::move(d);
-            output_shape[1] *= stride;
         }
+        output_shape[1] *= stride_sq;
     } else {
         output_shape = PartialShape::dynamic(input_rank);
     }
