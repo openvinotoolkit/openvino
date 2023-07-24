@@ -11,9 +11,9 @@ import pytest
     (2137, int),
     (21.37, float),
     (False, bool),
-    ([1, 2 , 3], list),
+    ([1, 2, 3], list),
     ((1, 2, 3), tuple),
-    ({"a" : "b"}, dict),
+    ({"a": "b"}, dict),
 ])
 def test_any(value, data_type):
     ovany = OVAny(value)
