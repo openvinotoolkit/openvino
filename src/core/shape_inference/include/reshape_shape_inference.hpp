@@ -237,7 +237,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
 
         const auto input_product = input_rank.is_static()
                                        ? reshape::resolve_input_product(input_shape, output_pattern, special_zero)
-                                       : reshape::Product<TDim>{dim::inf_bound, dim::inf_bound};
+                                       : reshape::Product<TDim>{TDim(dim::inf_bound), TDim(dim::inf_bound)};
 
         // resolving -1 masked dimension
         if (minus_one_idx != -1) {

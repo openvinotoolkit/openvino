@@ -21,6 +21,11 @@ JitConstants ArgMaxMinKernelBase::GetJitConstants(const arg_max_min_params& para
                       MakeJitConstant(toString(params.argMaxMinAxis) + "_AXIS", 1),
                       params.argMaxMinOut == ArgMaxMinOut::MAX ? MakeJitConstant("MAX_OUT", 1) : MakeJitConstant("MIN_OUT", 1)});
 
+    // For now, we don't use this constant in the kernel as sorting is always stable.
+    if (params.stable) {
+        jit.AddConstant(MakeJitConstant("STABLE", true));
+    }
+
     return jit;
 }
 
