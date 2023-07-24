@@ -37,6 +37,11 @@ public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     Napi::Value set_input_tensor_shape(const Napi::CallbackInfo& info);
+    /**
+     * @brief Apply resize algorithm
+     * @param info[0] Napi::String algorithm name: "RESIZE_CUBIC", "RESIZE_NEAREST" or "RESIZE_LINEAR" (default)
+     */
+    Napi::Value preprocess_resize_input(const Napi::CallbackInfo& info);
     Napi::Value set_input_tensor_layout(const Napi::CallbackInfo& info);
     Napi::Value set_input_model_layout(const Napi::CallbackInfo& info);
     /**
