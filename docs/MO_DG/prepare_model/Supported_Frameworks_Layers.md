@@ -490,6 +490,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | Abs |
 | Acos |
 | Acosh |
+| Add |
 | And |
 | ArgMin | 
 | ArgMax | 
