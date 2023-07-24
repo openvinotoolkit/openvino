@@ -54,12 +54,12 @@
             ...
             ```
 
-        * This unit test is built into `clDNN_unit_tests`. It is a `gtest` application.
+        * This unit test is built into `ov_gpu_unit_tests`. It is a `gtest` application.
             ```
             # Show list of test cases
-            openvino/bin/intel64/Debug$ ./clDNN_unit_tests64 --gtest_list_tests
+            openvino/bin/intel64/Debug$ ./ov_gpu_unit_tests --gtest_list_tests
             # Run test
-            openvino/bin/intel64/Debug$ ./clDNN_unit_tests64 --gtest_filter=scatter_elements_update_gpu_fp16.*
+            openvino/bin/intel64/Debug$ ./ov_gpu_unit_tests --gtest_filter=scatter_elements_update_gpu_fp16.*
             ```
 
         * Test scope needs to be comprehensive, but not wasteful. These tests run for every PR in CI. Let's save the planet.
@@ -68,7 +68,7 @@
         * It is usually easy to fuse some layers, such as *scale*, *activation*, *quantize*, and *eltwise*, into the previous layer. This fusing rule can be added to `prepare_primitive_fusing::fuse_simple_primitives`.
         * `fuse_simple_primitives` is called during [graph compilation phase](https://github.com/openvinotoolkit/openvino/blob/71c50c224964bf8c24378d16f015d74e2c1e1ce8/inference-engine/thirdparty/clDNN/src/program.cpp#L430)
         * See general description of layer fusion [here](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_CL_DNN.html#optimizations)
-        * Unit tests for layer fusion are placed in a single file: [fusings_gpu_test.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/tests/test_cases/fusings_gpu_test.cpp). It is also compiled into `clDNN_unit_tests`.
+        * Unit tests for layer fusion are placed in a single file: [fusings_gpu_test.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/tests/test_cases/fusings_gpu_test.cpp). It is also compiled into `ov_gpu_unit_tests`.
         * Code for fused layers are generated with `jitter`. It is created as `FUSED_OPS..` macro in OCL code. This generation logic is in `KernelBase::MakeFusedOpsJitConstants`.
 
 1. Add / update factory for this operation in the GPU plugin to use new primitive in inference-engine.

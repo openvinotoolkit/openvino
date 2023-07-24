@@ -57,38 +57,35 @@ openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
 
 ## Build unit test
 
-1. Turn on `ENABLE_TESTS` and `ENABLE_CLDNN_TESTS` in cmake option:
+1. Turn on `ENABLE_TESTS` in cmake option:
 
    ```bash
-   cmake -DCMAKE_BUILD_TYPE=Release \
-       -DENABLE_TESTS=ON \
-       -DENABLE_CLDNN_TESTS=ON \
-       -DENABLE_CLDNN=ON ..
+   cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
    ```
 
 2. Build
 
    ```bash
-   make clDNN_unit_tests
+   make ov_gpu_unit_tests
    ```
 
-3. You can find `clDNN_unit_tests64` in *bin* directory after build
+3. You can find `ov_gpu_unit_tests` in *bin* directory after build
 
 ## Run unit test
 
-You can run _`clDNN_unit_tests64`_ in *bin* directory which is the output of OpenVINO build
+You can run _`ov_gpu_unit_tests`_ in *bin* directory which is the output of OpenVINO build
 
 If you want to run a specific unit test, you can use `gtest_filter` option as follows:
 
 ```
-./clDNN_unit_tests64 --gtest_filter='*filter_name*'
+./ov_gpu_unit_tests --gtest_filter='*filter_name*'
 ```
 
 Then, you can get the result similar to:
 
 ```bash
 openvino/bin/intel64/Release$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD
-openvino/bin/intel64/Release$ ./clDNN_unit_tests64 --gtest_filter='*fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*'
+openvino/bin/intel64/Release$ ./ov_gpu_unit_tests --gtest_filter='*fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*'
 Running main() from /home/openvino/thirdparty/gtest/gtest/googletest/src/gtest_main.cc
 Note: Google Test filter = *fusings_gpu/conv_fp32_reorder_fsv16_to_bfyx.basic/0*
 [==========] Running 1 test from 1 test suite.
