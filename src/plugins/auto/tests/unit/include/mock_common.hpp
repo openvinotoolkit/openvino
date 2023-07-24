@@ -8,6 +8,10 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 #define IE_SET_METRIC(key, name,  ...)                                                            \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \

@@ -5,10 +5,6 @@
 #include "include/auto_unit_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/iremote_tensor.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -157,29 +153,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
             return devices;
         });
 
-<<<<<<< HEAD
-    ON_CALL(*core, get_supported_property)
-        .WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
-            auto item = fullConfigs.find(ov::device::properties.name());
-            ov::AnyMap deviceConfigs;
-            if (item != fullConfigs.end()) {
-                ov::AnyMap devicesProperties;
-                std::stringstream strConfigs(item->second.as<std::string>());
-                // Parse the device properties to common property into deviceConfigs.
-                ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
-                auto it = devicesProperties.find(device);
-                if (it != devicesProperties.end()) {
-                    std::stringstream strConfigs(it->second.as<std::string>());
-                    ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
-                }
-            }
-            for (auto&& item : fullConfigs) {
-                if (item.first != ov::device::properties.name()) {
-                    // primary property
-                    // override will not happen here if the property already present in the device config list.
-                    deviceConfigs.insert(item);
-                }
-=======
     ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
@@ -192,7 +165,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
             if (it != devicesProperties.end()) {
                 std::stringstream strConfigs(it->second.as<std::string>());
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
->>>>>>> 68c071175806b4da8821292adb08fbb984404409
             }
         }
         for (auto&& item : fullConfigs) {

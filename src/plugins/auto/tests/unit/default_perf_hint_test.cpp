@@ -246,8 +246,6 @@ TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
             // do not pass default perf_hint to HW
             HW_PerfHint = "No PERFORMANCE_HINT";
         }
-        if (device.find("MULTI") != std::string::npos)
-            HW_PerfHint = "THROUGHPUT";
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -311,8 +309,6 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
         if (itor != deviceConfigs.end() && !isCPUHelper) {
             HW_PerfHint = itor->second.as<std::string>();
         }
-        if (device.find("MULTI") != std::string::npos)
-            HW_PerfHint = "THROUGHPUT";
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -376,8 +372,6 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
                 }
             }
         }
-        if (device.find("MULTI") != std::string::npos)
-            HW_PerfHint = "THROUGHPUT";
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
