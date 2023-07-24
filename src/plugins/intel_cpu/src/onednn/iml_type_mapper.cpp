@@ -42,6 +42,11 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(asimd);
+    SEARCH_WORD(sve128);
+    SEARCH_WORD(sve256);
+    SEARCH_WORD(sve384);
+    SEARCH_WORD(sve512);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
@@ -120,6 +125,11 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(gemm_acl);
     CASE(winograd_acl);
     CASE(gemm_mlas);
+    CASE(jit_asimd);
+    CASE(jit_sve128);
+    CASE(jit_sve256);
+    CASE(jit_sve384);
+    CASE(jit_sve512);
 
 #undef CASE
     return "unknown";
