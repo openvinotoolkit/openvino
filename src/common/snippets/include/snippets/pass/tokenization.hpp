@@ -61,11 +61,11 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t minimal_concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true)
-            : minimal_concurrency(minimal_concurrency), split_m_dimension(split_m_dimension),
+        Config(size_t concurrency = 1, bool split_m_dimension = true, bool enable_transpose_on_output = true)
+            : concurrency(concurrency), split_m_dimension(split_m_dimension),
               mha_token_enable_transpose_on_output(enable_transpose_on_output) {}
 
-        size_t minimal_concurrency = 1;
+        size_t concurrency = 1;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.
