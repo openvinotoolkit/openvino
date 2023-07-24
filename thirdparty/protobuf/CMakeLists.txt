@@ -6,7 +6,7 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
-set(BUILD_SHARED_LIBS OFF)
+# set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-all)
@@ -20,7 +20,7 @@ endif()
 
 set(protobuf_VERBOSE ON)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
+set(protobuf_BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
 

@@ -113,6 +113,8 @@ jobs:
       # 'clang' is used as a default compiler
       sudo apt --assume-yes install clang
       sudo apt --assume-yes install --no-install-recommends libopencv-imgproc-dev libopencv-imgcodecs-dev
+      # install protobuf
+      sudo apt --assume-yes install --no-install-recommends libprotobuf-dev protobuf-compiler
       # install build dependencies
       (cd $(WORK_DIR) && python3 -m venv build_venv)
       $(BUILD_VENV)/bin/python3 -m pip install -U pip
@@ -169,6 +171,8 @@ jobs:
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_SYSTEM_SNAPPY=ON
+        -DENABLE_SYSTEM_PROTOBUF=ON
+        -DProtobuf_USE_STATIC_LIBS=OFF
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
