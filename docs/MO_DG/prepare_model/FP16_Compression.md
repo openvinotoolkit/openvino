@@ -17,6 +17,7 @@ To disable compression, use the ``compress_to_fp16=False`` option:
 
        .. code-block:: py
           :force:
+
           from openvino.runtime import save_model
           ov_model = save_model(INPUT_MODEL, compress_to_fp16=False)
 
