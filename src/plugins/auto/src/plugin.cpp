@@ -71,11 +71,6 @@ namespace {
         }
         return result;
     }
-    void check_multi_perfhint(const ov::AnyMap& properties) {
-        auto&& it = properties.find(ov::hint::performance_mode.name());
-        if (it != properties.end() && it->second.as<std::string>() != "THROUGHPUT")
-            OPENVINO_THROW("MULTI does not support perf mode ", it->second.as<std::string>(), ", please use default, or compile with thoughput hint");
-    }
 }  // namespace
 
 namespace ov {

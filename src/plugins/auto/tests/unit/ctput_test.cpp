@@ -172,7 +172,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::THROUGHPUT}});
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
     config.insert(ov::device::priorities(targetDev));
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

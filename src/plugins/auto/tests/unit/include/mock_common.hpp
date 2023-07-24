@@ -44,14 +44,6 @@ public:
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model,
                 ((std::istream&), (const ov::SoPtr<ov::IRemoteContext>&), (const ov::AnyMap&)), (const, override));
     MOCK_METHOD(ov::SupportedOpsMap, query_model, ((const std::shared_ptr<const ov::Model>&), (const ov::AnyMap&)), (const, override));
-/*
-protected:
-    bool m_loaded_from_cache{false};
-    int32_t num_streams{0};
-    bool m_profiling = false;
-    std::string m_perf_mode;
-    uint32_t m_optimal_infer{0};
-*/
 };
 
 class MockCompiledModel : public ICompiledModel {
