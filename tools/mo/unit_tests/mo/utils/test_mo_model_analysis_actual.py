@@ -15,8 +15,10 @@ from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-modul
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def base_args_config():
     args = argparse.Namespace()
