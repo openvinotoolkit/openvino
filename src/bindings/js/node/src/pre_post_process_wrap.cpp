@@ -16,9 +16,9 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
 Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
-                       {InstanceMethod("set_input_tensor_shape", &PrePostProcessorWrap::set_input_tensor_shape),
-                        InstanceMethod("set_input_tensor_layout", &PrePostProcessorWrap::set_input_tensor_layout),
-                        InstanceMethod("set_input_model_layout", &PrePostProcessorWrap::set_input_model_layout),
+                       {InstanceMethod("setInputTensorShape", &PrePostProcessorWrap::set_input_tensor_shape),
+                        InstanceMethod("setInputTensorLayout", &PrePostProcessorWrap::set_input_tensor_layout),
+                        InstanceMethod("setInputModelLayout", &PrePostProcessorWrap::set_input_model_layout),
                         InstanceMethod("setInputElementType", &PrePostProcessorWrap::set_input_element_type),
                         InstanceMethod("build", &PrePostProcessorWrap::build)});
 }

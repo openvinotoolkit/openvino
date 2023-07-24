@@ -109,7 +109,7 @@
         {
             "language": "javascript",
             "source": [
-                "const inferRequest = compiledModel.createInferRequest();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));"
+                "const inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));"
             ],
             "outputs": []
         },

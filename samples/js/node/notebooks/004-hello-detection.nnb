@@ -31,22 +31,9 @@
         {
             "language": "typescript",
             "source": [
-                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'horizontal-text-detection-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'horizontal-text-detection-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\n// await downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\n// await downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "File successfully stored at '../../assets/models/horizontal-text-detection-0001.xml'",
-                                "File successfully stored at '../../assets/models/horizontal-text-detection-0001.bin'",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -58,7 +45,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.readModelmodelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
+                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
             ],
             "outputs": []
         },
@@ -95,7 +82,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
             ],
             "outputs": []
         },

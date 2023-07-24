@@ -24,7 +24,7 @@ async function run()
 
   /*   ---Load and compile the model---   */
   const modelPath = '../assets/models/v3-small_224_1.0_float.xml';
-  const model = new addon.Model().readModel(modelPath).compile('CPU');
+  const model = new addon.Model().read_model(modelPath).compile('CPU');
 
   /*   ---Perform inference---   */
   const output = model.infer(tensor);
