@@ -5,44 +5,38 @@
 #pragma once
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "test_utils/cpu_test_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/fusing_test_utils.hpp"
-
-using namespace CPUTestUtils;
-using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        std::vector<int>,               // Axis to reduce order
-        CommonTestUtils::OpType,        // Scalar or vector type axis
-        bool,                           // Keep dims
-        ngraph::helpers::ReductionType, // Reduce operation type
-        ElementType,                    // Net precision
-        ElementType,                    // Input precision
-        ElementType,                    // Output precision
-        std::vector<InputShape>         // Input shapes
+        std::vector<int>,                   // Axis to reduce order
+        CommonTestUtils::OpType,            // Scalar or vector type axis
+        bool,                               // Keep dims
+        ngraph::helpers::ReductionType,     // Reduce operation type
+        ov::test::ElementType,              // Net precision
+        ov::test::ElementType,              // Input precision
+        ov::test::ElementType,              // Output precision
+        std::vector<ov::test::InputShape>,  // Input shapes
+        ov::AnyMap                          // Additional network configuration
 > basicReduceParams;
 
 typedef std::tuple<
         basicReduceParams,
-        CPUSpecificParams,
-        fusingSpecificParams,
-        std::map<std::string, ov::element::Type>> ReduceLayerCPUTestParamSet;
+        CPUTestUtils::CPUSpecificParams,
+        CPUTestUtils::fusingSpecificParams> ReduceLayerCPUTestParamSet;
 
 class ReduceCPULayerTest : public testing::WithParamInterface<ReduceLayerCPUTestParamSet>,
-                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                           virtual public ov::test::SubgraphBaseTest, public CPUTestUtils::CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj);
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 private:
     ngraph::helpers::ReductionType reductionType;
-    ElementType netPrecision;
+    ov::test::ElementType netPrecision;
 };
 
 namespace Reduce {
@@ -52,9 +46,7 @@ const std::vector<std::vector<int>>& axes();
 const std::vector<std::vector<int>>& axesND();
 const std::vector<CommonTestUtils::OpType>& opTypes();
 const std::vector<ngraph::helpers::ReductionType>& reductionTypes();
-const std::vector<ElementType>& inpOutPrc();
-const std::vector<std::map<std::string, ov::element::Type>> additionalConfig();
-const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32();
+const std::vector<ov::test::ElementType>& inpOutPrc();
 const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32();
 
 } // namespace Reduce
