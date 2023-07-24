@@ -45,10 +45,21 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
                     continue;
                 const auto& ops_type = item.first;
                 const auto& are_equal = rules.at(ops_type);
-                const auto& root_op = shared_nodes[0];
-                for (const auto& child_op : shared_nodes) {
-                    if (root_op->get_instance_id() != child_op->get_instance_id() && are_equal(root_op, child_op)) {
-                        rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
+
+                std::vector<bool> visited_nodes(shared_nodes.size(), false);
+                for (size_t i = 0; i < visited_nodes.size(); ++i) {
+                    if (visited_nodes[i])
+                        continue;
+                    const auto& root_op = shared_nodes[i];
+                    visited_nodes[i] = true;
+                    for (size_t j = i + 1; j < visited_nodes.size(); ++j) {
+                        if (visited_nodes[j])
+                            continue;
+                        const auto& child_op = shared_nodes[j];
+                        if (are_equal(root_op, child_op)) {
+                            rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
+                            visited_nodes[j] = true;
+                        }
                     }
                 }
             }
