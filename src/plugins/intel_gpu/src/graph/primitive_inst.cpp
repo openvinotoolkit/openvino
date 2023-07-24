@@ -625,6 +625,10 @@ bool primitive_inst::update_impl() {
 }
 
 void primitive_inst::do_runtime_in_place_concat() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        return;
+    }
     if (update_shape_done_by_other)
         return;
     if (get_users().size() != 1) return;
