@@ -104,7 +104,7 @@ void EltwiseLayerTest::SetUp() {
         secondary_input = param;
         parameters.push_back(param);
     } else {
-        ov::Shape shape = inputDynamicShapes.back().get_max_shape();
+        ov::Shape shape = shape_input_secondary.get_max_shape();
         ov::test::utils::InputGenerateData in_data;
         switch (eltwise_type) {
             case EltwiseTypes::DIVIDE:
