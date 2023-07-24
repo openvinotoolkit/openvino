@@ -62,6 +62,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 114262
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 68712
@@ -140,8 +142,6 @@ std::vector<std::string> disabledTestPatterns() {
 #ifdef PROXY_PLUGIN_ENABLED
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-            // Issue because meta plugins use OLD API and wrap proxy which work with new API
-            R"(.*OVHoldersTest.*LoadedTensor.*HETERO.*)",
 #endif
     };
 }

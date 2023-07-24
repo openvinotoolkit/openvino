@@ -1,26 +1,23 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 import numbers
 
-from openvino.runtime import get_version as get_rt_version
+from openvino.runtime import get_version as get_rt_version # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
 from openvino.tools.ovc.utils import check_values_equal
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
 
-def init_mo_telemetry():
-    _ = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=get_rt_version())
-
+def init_mo_telemetry(app_name='Model Conversion API'):
+    return tm.Telemetry(tid=get_tid(), app_name=app_name, app_version=get_rt_version(), backend='ga4')
 
 def send_framework_info(framework: str):
     """
@@ -48,7 +45,7 @@ def send_conversion_result(conversion_result: str, need_shutdown=False):
 
 def arg_to_str(arg):
     # This method converts to string only known types, otherwise returns string with name of the type
-    from openvino.runtime import PartialShape, Shape, Type, Layout
+    from openvino.runtime import PartialShape, Shape, Type, Layout # pylint: disable=no-name-in-module,import-error
     if isinstance(arg, (PartialShape, Shape, Type, Layout)):
         return str(arg)
     if isinstance(arg, (str, numbers.Number, bool)):

@@ -63,7 +63,7 @@ class WeightsSharing {
         {}
 
         std::mutex guard;
-        std::weak_ptr<Memory> sharedMemory;
+        std::weak_ptr<IMemory> sharedMemory;
         std::atomic<bool> valid;
     };
 
@@ -103,13 +103,13 @@ protected:
 };
 
 /**
- * Collection of memory caching store per NUMA node(former socket)
+ * Collection of memory caching store per socket
  *
  * Is a thread safe
  */
-class NumaNodesWeights {
+class SocketsWeights {
 public:
-    NumaNodesWeights();
+    SocketsWeights();
 
     WeightsSharing::Ptr& operator[](int i);
     const WeightsSharing::Ptr& operator[](int i) const;

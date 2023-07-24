@@ -58,6 +58,10 @@ struct kernel_impl_params {
     std::vector<std::shared_ptr<program>> inner_progs = {};
     std::vector<std::shared_ptr<network>> inner_nets = {};
     std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
+    // TODO : These values are temporarily added for prior box.
+    // Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
+    std::vector<size_t> output_size;
+    std::vector<size_t> img_size;
 
     kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
 
@@ -136,7 +140,7 @@ virtual primitive_type_id type() const { return desc->type; }
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
     const program& get_program() const {
-        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
+        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;
     }
     stream& get_stream() const { return *strm; }

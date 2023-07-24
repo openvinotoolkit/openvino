@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import re
 
 class BasicError(Exception):
@@ -49,8 +46,3 @@ def classify_error_type(e):
         if m:
             return m.group(0)
     return "undefined"
-
-
-def legacy_path_error(functionality_description):
-    raise Exception("{}Please try to install openvino-dev and use convert_model() "
-                    "from openvino.tools.mo.".format(functionality_description))
