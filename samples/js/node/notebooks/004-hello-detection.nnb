@@ -95,7 +95,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
             ],
             "outputs": []
         },

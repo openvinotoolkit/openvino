@@ -98,7 +98,7 @@ describe('InferRequest', () => {
   const core = new ov.Core();
   const model = core.read_model(testXml);
   const compiledModel = core.compile_model(model, 'CPU');
-  const inferRequest = compiledModel.create_infer_request();
+  const inferRequest = compiledModel.createInferRequest();
 
   const tensor = new ov.Tensor(
     ov.element.f32,

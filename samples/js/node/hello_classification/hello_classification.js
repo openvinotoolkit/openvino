@@ -54,7 +54,7 @@ async function main(modelPath, imagePath, deviceName) {
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
   const inferRequest = compiledModel
-    .create_infer_request();
+    .createInferRequest();
   // FIXME: doesn't work
   // inferRequest.infer({ 'input_1': inputTensor });
   inferRequest.set_input_tensor(inputTensor);
