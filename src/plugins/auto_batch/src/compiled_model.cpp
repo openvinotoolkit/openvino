@@ -219,6 +219,17 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
                 ov::PropertyName{METRIC_KEY(SUPPORTED_CONFIG_KEYS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
+        } else if (name == ov::auto_batch_timeout) {
+            uint32_t time_out = m_time_out;
+            return time_out;
+        } else if (name == ov::device::properties) {
+            ov::AnyMap all_devices = {};
+            ov::AnyMap device_properties = {};
+            auto device_supported_props = m_compiled_model_without_batch->get_property(ov::supported_properties.name());
+            for (auto&& property_name : device_supported_props.as<std::vector<ov::PropertyName>>())
+                device_properties[property_name] = m_compiled_model_without_batch->get_property(property_name);
+            all_devices[m_device_info.device_name] = device_properties;
+            return all_devices;
         } else {
             // find config key among networks config keys
             auto modelSupportedProperties =
