@@ -39,7 +39,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     using parent = typed_primitive_impl<eltwise>;
     using parent::parent;
 
-    eltwise_mode mode;
+    eltwise_mode mode = eltwise_mode::sum;
     std::vector<float> coefficients;
 
     std::shared_ptr<ov::op::Op> op;
