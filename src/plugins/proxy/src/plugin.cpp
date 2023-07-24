@@ -497,13 +497,16 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
     //  * Alias - Case when we group all devices under one common name
+    std::cout << "Proxy get_hidden_devices() " << m_init_devs << std::endl;
     if (m_init_devs)
         return m_hidden_devices;
 
     std::lock_guard<std::mutex> lock(m_init_devs_mutex);
 
+    std::cout << "Proxy get_hidden_devices() second " << m_init_devs << std::endl;
     if (m_init_devs)
         return m_hidden_devices;
+    std::cout << "Proxy get_hidden_devices() no init " << m_init_devs << std::endl;
 
     m_hidden_devices.clear();
     const auto core = get_core();
@@ -561,6 +564,11 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         std::unordered_set<std::string> unavailable_devices;
         for (const auto& device : m_device_order) {
             std::vector<std::string> supported_device_ids;
+            if (device == "NVIDIA") {
+                unavailable_devices.emplace(device);
+                continue;
+            }
+
             try {
                 supported_device_ids = core->get_property(device, ov::available_devices);
             } catch (const std::runtime_error&) {
