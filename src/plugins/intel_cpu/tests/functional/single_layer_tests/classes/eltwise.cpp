@@ -150,7 +150,6 @@ void EltwiseLayerCPUTest::SetUp() {
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
             }
         }
-
         auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
         function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
@@ -169,7 +168,9 @@ const ov::AnyMap& additional_config() {
 
 const std::vector<ElementType>& netType() {
         static const std::vector<ElementType> netType = {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
                 ElementType::f16,
+#endif
                 ElementType::f32};
         return netType;
 }
