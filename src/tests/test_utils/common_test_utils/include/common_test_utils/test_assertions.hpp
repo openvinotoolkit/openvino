@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
-#include <gmock/gmock-matchers.h>
 
 #include <string>
 
-#include <ie_data.h>
-#include <ie_input_info.hpp>
-#include <ie_blob.h>
-#include <ie_preprocess.hpp>
 #include "openvino/util/pp.hpp"
+#include "gtest/gtest.h"
+#include "gmock/gmock-matchers.h"
+#include "openvino/core/deprecated.hpp"
+#include "ie_blob.h"
+#include "ie_data.h"
+#include "ie_preprocess.hpp"
+#include "ie_input_info.hpp"
 
 inline bool strContains(const std::string & str, const std::string & substr) {
     return str.find(substr) != std::string::npos;
@@ -85,7 +86,7 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
         FAIL() << "Unknown exception";                                    \
     }
 
-IE_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
     ASSERT_EQ(lhs.get(), rhs.get());
     //TODO: add blob specific comparison for general case
@@ -141,7 +142,7 @@ inline void compare_inputs_info(const InferenceEngine::InputsDataMap & lhs, cons
         ASSERT_DATA_EQ(*i->second->getInputData().get(), *j->second->getInputData().get());
     }
 }
-IE_SUPPRESS_DEPRECATED_END
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 inline void compare_cpp_strings(const std::string & lhs, const std::string &rhs) {
     ASSERT_STREQ(lhs.c_str(), rhs.c_str());

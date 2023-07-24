@@ -39,6 +39,8 @@ function(add_common_utils ADD_TARGET_NAME)
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    PRIVATE
+                        "${CMAKE_CURRENT_SOURCE_DIR}/src"
 
     )
 

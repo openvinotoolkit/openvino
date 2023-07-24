@@ -4,6 +4,7 @@
 
 #include "test_case.hpp"
 
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "shared_utils.hpp"

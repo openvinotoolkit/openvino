@@ -62,7 +62,7 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
 }
 }  // namespace
 
-NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
+OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
     ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/greater_or_equal.onnx")};
@@ -78,7 +78,7 @@ NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
 }
 
 // Disabled, ticket: #81976
-NGRAPH_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
+OPENVINO_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
     ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/softmax_crossentropy_consumed.onnx")};

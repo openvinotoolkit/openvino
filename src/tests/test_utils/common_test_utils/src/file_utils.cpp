@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-#include <numeric>
-#include <openvino/util/file_util.hpp>
-#include <regex>
-#include <sstream>
+#include "common_test_utils/file_utils.hpp"
+
+#include "precomp.hpp"
 
 #ifdef __APPLE__
 # include <mach-o/dyld.h>

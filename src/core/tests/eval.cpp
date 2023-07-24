@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"

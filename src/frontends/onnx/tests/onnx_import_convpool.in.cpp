@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "common_test_utils/all_close.hpp"
-#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_control.hpp"
@@ -35,7 +34,7 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding) {
     // Convolution with strides=2 and padding=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -67,7 +66,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding) {
     // Convolution with strides=2 and padding=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -96,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding) {
     // Convolution with strides=2 and padding=1
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -127,7 +126,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -167,7 +166,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/conv3d_bias.onnx"));
 
@@ -271,7 +270,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/conv_transpose_w_groups.onnx"));
@@ -291,7 +290,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
     // Pooling with strides=2 and no padding
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/average_pool_2d.onnx"));
@@ -312,7 +311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
     // Pooling with strides=2 and padding=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -335,7 +334,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/average_pool_empty_auto_pad.onnx"));
@@ -348,7 +347,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     const auto model = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                            SERIALIZED_ZOO,
                                                                            "onnx/max_pool_empty_auto_pad.onnx"));
@@ -363,7 +362,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     FAIL() << "MaxPool op not found in the imported model";
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
     // Pooling with strides=2 and padding=1
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/max_pool_2d_pads.onnx"));
@@ -385,7 +384,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p0.onnx"));
 
@@ -399,7 +398,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p1.onnx"));
 
@@ -414,7 +413,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p2.onnx"));
 
@@ -429,7 +428,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/global_lp_pool_p3.onnx"));
 
@@ -444,7 +443,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/convtranspose_output_shape.onnx"));
@@ -465,7 +464,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_upper) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_upper) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -492,7 +491,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_lower) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_same_lower) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -519,7 +518,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/convtranspose_groups_w_pads.onnx"));
@@ -572,7 +571,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_pads_bias) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_pads_bias) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/convtranspose_groups_pads_bias.onnx"));
