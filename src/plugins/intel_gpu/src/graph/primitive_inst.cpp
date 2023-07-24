@@ -658,7 +658,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     std::vector<kernel_impl_params> pred_params;
     std::vector<layout> preds_layouts;
-    for (auto pred : concat_inst->_deps) {
+    for (auto& pred : concat_inst->_deps) {
         pred_params.push_back(*pred.first->_impl_params);
         preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
@@ -924,11 +924,11 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
             // For each tensor we save max_rank dimensions in [bfvuwzyx] order
             size_t num_dynamic_pads = 0;
-            for (auto in : _node->get_dependencies()) {
+            for (auto& in : _node->get_dependencies()) {
                 const auto& dyn_pad_dims = in.first->get_output_layout(false).data_padding.get_dynamic_pad_dims().sizes();
                 num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
             }
-            for (auto o : _node->get_output_layouts()) {
+            for (auto& o : _node->get_output_layouts()) {
                 const auto& dyn_pad_dims = o.data_padding.get_dynamic_pad_dims().sizes();
                 num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
             }
