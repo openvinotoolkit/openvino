@@ -159,6 +159,14 @@ protected:
     virtual bool primTypeCheck(std::string primType) const;
 
 protected:
+    std::string getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+                                 const ov::element::Type_t& element_type,
+                                 const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
+
+    std::string getPrimitiveType(const ngraph::helpers::ActivationTypes& activation_type,
+                                 const ov::element::Type_t& element_type,
+                                 const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
+
     std::string getPrimitiveType() const;
     std::string getISA(bool skip_amx) const;
     std::vector<cpu_memory_format_t> inFmts, outFmts;
