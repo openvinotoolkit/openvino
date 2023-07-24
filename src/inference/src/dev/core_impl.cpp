@@ -711,16 +711,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         for (auto& it : model->inputs()) {
             auto names = it.get_names();
             std::string name = names.size() > 0 ? it.get_any_name() : " ";
-            std::cout << "    input name = " << name
-                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
-                      << std::endl;
+            std::cout << "    input name = " << name << ", precision = " << it.get_element_type()
+                      << ", shape = " << it.get_partial_shape().to_string() << std::endl;
         }
         for (auto& it : model->outputs()) {
             const auto node = it.get_node_shared_ptr();
             std::string name = node->input_value(0).get_names().size() > 0 ? node->input_value(0).get_any_name() : " ";
-            std::cout << "    output name = " << name << ", " << name
-                      << ", precision = " << it.get_element_type() << ", shape = " << it.get_partial_shape().to_string()
-                      << std::endl;
+            std::cout << "    output name = " << name << ", " << name << ", precision = " << it.get_element_type()
+                      << ", shape = " << it.get_partial_shape().to_string() << std::endl;
         }
         std::cout << std::endl;
     };
