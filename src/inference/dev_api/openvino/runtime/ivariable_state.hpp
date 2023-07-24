@@ -13,6 +13,7 @@
 #include <string>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -42,13 +43,13 @@ public:
      * @brief Sets the new state for the next inference
      * @param newState A new state
      */
-    virtual void set_state(const ov::Tensor& state);
+    virtual void set_state(const ov::SoPtr<ov::ITensor>& state);
 
     /**
      * @brief Returns the value of the variable state.
      * @return The value of the variable state
      */
-    virtual const ov::Tensor& get_state() const;
+    virtual const ov::SoPtr<ov::ITensor>& get_state() const;
 
 protected:
     /**
@@ -57,7 +58,7 @@ protected:
     virtual ~IVariableState();
 
     std::string m_name;
-    ov::Tensor m_state;
+    ov::SoPtr<ov::ITensor> m_state;
 };
 
 }  // namespace ov

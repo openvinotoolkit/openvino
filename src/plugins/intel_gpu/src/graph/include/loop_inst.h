@@ -513,7 +513,7 @@ private:
     };
 
     static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
-    bool preproc_memories_done;
+    bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
     std::vector<concatenated_memory_mapping> concatenated_output_mem_mappings;
@@ -528,7 +528,7 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         OPENVINO_ASSERT(node->is_current_iteration_used(), "[GPU] No backedge mapping for current_iteration for primitive ", node->id());
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
@@ -548,7 +548,7 @@ private:
     primitive_id _current_iteration_id;
     primitive_id _condition_id;
     primitive_id _num_iteration_id;
-    int64_t _max_iteration;
+    int64_t _max_iteration = 0;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

@@ -18,9 +18,9 @@
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 

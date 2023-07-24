@@ -12,11 +12,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "meta_data.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -1025,7 +1025,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 }
 
 std::string valid_xml_path(const std::string& path) {
-    OPENVINO_ASSERT(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+    OPENVINO_ASSERT(path.length() > 4, "Path for xml file is too short: \"" + path + "\"");
 
     const char* const extension = ".xml";
     const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);

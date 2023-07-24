@@ -64,7 +64,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode scopeOflatencyCandidate = Config::LatencyThreadingMode::PER_SOCKET;
+    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
@@ -89,6 +89,8 @@ struct Config {
     std::map<std::string, std::string> _config;
 
     bool isLegacyApi = false;
+
+    int modelPreferThreads = -1;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
