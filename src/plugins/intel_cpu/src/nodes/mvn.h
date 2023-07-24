@@ -23,7 +23,6 @@ struct jit_mvn_config_params {
     InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
-    int C, D, H, W;
 };
 
 struct jit_mvn_call_args {
@@ -32,10 +31,11 @@ struct jit_mvn_call_args {
     float *sum;
     float *mean;
     float *variance;
-    size_t src_stride;
-    size_t dst_stride;
     size_t work_amount;
     size_t oc_off;
+    // shape need for shape agnostic kernel passed with each infer.
+    // OC for block layout and nspc per channel, tails for ncsp and nspc across channel.
+    size_t rt_shape_size;
     const void* post_op_data;
 };
 
@@ -101,16 +101,18 @@ public:
 private:
     void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
 
-    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
+    void transformTo5DCase(const VectorDims& shape);
 
     std::vector<const void*> postOpsDataPtrs;
 
     MVNAttrs mvnAttrs;
+    VectorDims shape5D = {0, 0, 0, 0, 0};
+    bool onlyUnaryPostOps = true;
 
     class MVNExecutorBase {
     public:
         MVNExecutorBase(const MVNAttrs& mvnAttrs);
-        virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) = 0;
+        virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) = 0;
         virtual ~MVNExecutorBase() = default;
 
     protected:
@@ -128,12 +130,12 @@ private:
             MVNJitExecutor(const MVNAttrs& mvnAttrs,
                            const dnnl::primitive_attr &attr);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) override;
 
         private:
-            void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
-            void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
-            void mvn_nspc(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
+            void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d);
+            void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d);
+            void mvn_nspc(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d);
 
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
@@ -144,10 +146,10 @@ private:
         public:
             MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) override;
 
         private:
-            void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_);
+            void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_, const VectorDims& shape5d);
     };
 };
 
