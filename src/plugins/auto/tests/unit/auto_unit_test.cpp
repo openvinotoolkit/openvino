@@ -63,8 +63,10 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
         .WillByDefault(Return(ov::Any(supportConfigs)));
-    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _))
-        .WillByDefault(Return(12));
+    std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
+    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(12));
     std::vector<std::string> cpuCability =  {"FP32", "FP16", "INT8", "BIN"};
     std::vector<std::string> gpuCability =  {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
     std::vector<std::string> vpuCability =  {"INT8"};
@@ -129,16 +131,29 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
             return devices;
         });
 
-    ON_CALL(*core, get_supported_property)
-        .WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
-            auto item = fullConfigs.find(device);
-            ov::AnyMap deviceConfigs;
-            if (item != fullConfigs.end()) {
-                std::stringstream strConfigs(item->second.as<std::string>());
+    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
+        auto item = fullConfigs.find(ov::device::properties.name());
+        ov::AnyMap deviceConfigs;
+        if (item != fullConfigs.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(device);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second.as<std::string>());
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
             }
-            return deviceConfigs;
-        });
+        }
+        for (auto&& item : fullConfigs) {
+            if (item.first != ov::device::properties.name()) {
+                // primary property
+                // override will not happen here if the property already present in the device config list.
+                deviceConfigs.insert(item);
+            }
+        }
+        return deviceConfigs;
+    });
 
     ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
         return plugin->Plugin::get_device_list(config);
