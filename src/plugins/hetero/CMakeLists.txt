@@ -28,3 +28,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests/unit)
+endif()
