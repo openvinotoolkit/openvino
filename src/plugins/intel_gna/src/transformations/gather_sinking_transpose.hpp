@@ -27,7 +27,7 @@ namespace pass {
  *      Any2[c,b,a]           Any2[c,b,a]
  *
  *  Gather restrictions:
- * - supported Scalar or 1D indices
+ * - supported Scalar or 1D indexes
  *   i.e. [1, 64] or [64]
  */
 class GatherSinkingTransposeForward : public ov::pass::MatcherPass {
