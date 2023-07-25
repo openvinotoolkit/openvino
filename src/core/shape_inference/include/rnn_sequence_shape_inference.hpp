@@ -9,7 +9,7 @@ namespace ov {
 namespace op {
 namespace v5 {
 template <class TShape>
-std::vector<TShape> shape_infer(const RNNSequence* op, const std::vector<TShape>& input_shapes) {
+std::vector<result_shape_t<TShape>> shape_infer(const RNNSequence* op, const std::vector<TShape>& input_shapes) {
     constexpr auto num_gates = 1;
     constexpr auto num_state_nodes = 1;
     return rnn::seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());

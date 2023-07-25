@@ -40,7 +40,9 @@ void filter_shape(const ov::op::util::ConvolutionBackPropBase* op,
 template <class TOp,
           class TShape,
           typename std::enable_if<std::is_base_of<util::ConvolutionBackPropBase, TOp>::value>::type* = nullptr>
-size_t calculate_num_spatial(const TOp* op, const std::vector<TShape>& input_shapes, const TShape& out_spatial_shape) {
+size_t calculate_num_spatial(const TOp* op,
+                             const std::vector<TShape>& input_shapes,
+                             const result_shape_t<TShape>& out_spatial_shape) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() > 1);
 
     auto num_spatial = util::get_num_spatial(op);
@@ -77,7 +79,7 @@ template <class TOp, class TShape, class TIter>
 void apply_auto_pad(const TOp* op,
                     const TShape& data_shape,
                     const TShape& filters_shape,
-                    const TShape& out_spatial_shape,
+                    const result_shape_t<TShape>& out_spatial_shape,
                     TIter pads_begin,
                     TIter pads_end) {
     const auto& strides = op->get_strides();
@@ -94,12 +96,12 @@ void apply_auto_pad(const TOp* op,
 
     for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
         using namespace ov::util;
-        if (data_dim->is_static() && filter_dim->is_static() && out_spatial_shape[i].is_static()) {
+        if (dim::is_static(*data_dim) && dim::is_static(*filter_dim) && out_spatial_shape[i].is_static()) {
             const auto dilated_filter = dim::dilated(*filter_dim, dilations[i]);
-            const auto dim_len = static_cast<int64_t>(data_dim->get_length() - 1);
-            const auto padding = std::max<int64_t>(
-                dim_len * strides[i] + dilated_filter.get_length() - out_spatial_shape[i].get_length() + out_padding[i],
-                0);
+            const auto dim_len = static_cast<int64_t>(dim::get_length(*data_dim) - 1);
+            const auto padding = std::max<int64_t>(dim_len * strides[i] + dim::get_length(dilated_filter) -
+                                                       out_spatial_shape[i].get_length() + out_padding[i],
+                                                   0);
 
             *pad_b = padding / 2;
             *pad_e = padding - *pad_b;
@@ -122,7 +124,7 @@ void apply_auto_pad(const TOp* op,
 template <class TShape>
 void apply_padding(const util::ConvolutionBackPropBase* op,
                    const std::vector<TShape>& input_shapes,
-                   const TShape& out_spatial_shape,
+                   const result_shape_t<TShape>& out_spatial_shape,
                    CoordinateDiff& pads_begin,
                    CoordinateDiff& pads_end) {
     const auto& data_shape = input_shapes[0];
@@ -165,7 +167,7 @@ void append_spatial_shape(const TOp* op,
                           const TShape& filters_shape,
                           const TContainer& pads_begin,
                           const TContainer& pads_end,
-                          TShape& out_shape) {
+                          result_shape_t<TShape>& out_shape) {
     using namespace ov::util;
 
     const auto& strides = op->get_strides();
