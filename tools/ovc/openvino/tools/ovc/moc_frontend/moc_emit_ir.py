@@ -26,11 +26,6 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
             else list(argv.placeholder_data_types.keys())
         apply_moc_legacy_transformations(ngraph_function, params_with_custom_types)
 
-    # TODO: Move compression to save_model at the level of main function where serialize is called
-    if not argv.is_python_api_used and argv.compress_to_fp16:
-        from openvino.tools.ovc.moc_frontend.offline_transformations import compress_model
-        compress_model(ngraph_function)
-
     apply_fused_names_cleanup(ngraph_function)
 
     del argv.feManager
