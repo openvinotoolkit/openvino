@@ -7,6 +7,7 @@ import sys
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 from openvino.tools.mo.convert_impl import _convert
@@ -34,5 +35,5 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 
 if __name__ == "__main__":
-    from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
+    from openvino.tools.mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
     sys.exit(main(get_all_cli_parser(), None))

@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models, such as alexnet and googlenet-v1, using 
+                 Synchronous Inference Request (C) API.
+
+
 This sample demonstrates how to execute an inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API and input auto-resize feature.
 
 Hello Classification C sample application demonstrates how to use the C API from OpenVINO in applications.

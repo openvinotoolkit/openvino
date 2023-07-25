@@ -104,22 +104,12 @@ bool unsqueeze_axes_to_shape(const Output<Node>& input_node,
 TSUnsqueezeForward::TSUnsqueezeForward() {
     MATCHER_SCOPE(TSUnsqueezeForward);
 
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), wrap_type<ov::op::v0::Constant>()});
-    auto unsqueeze_label =
-        wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({transpose_label, wrap_type<ov::op::v0::Constant>()});
+    create_pattern<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>(true, {0});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_map();
-
-        auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
-        auto main_node = pattern_to_output.at(unsqueeze_label);
-        if (!transpose || transformation_callback(main_node)) {
-            return false;
-        }
-
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
+                                      const TransposeInputsInfo& transpose_info) -> bool {
         auto unsqueeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
-        if (!transpose_order || !unsqueeze_axes) {
+        if (!unsqueeze_axes) {
             return false;
         }
 
@@ -136,17 +126,17 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
                 normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
-        auto ts_order_values = transpose_order->cast_vector<size_t>();
+        auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
         ts_order_values = GetOrderBeforeReduction(non_negative_axes, ts_order_values);
-        auto new_transpose_order = ov::op::v0::Constant::create(transpose_order->get_element_type(),
+        auto new_transpose_order = ov::op::v0::Constant::create(transpose_info.transpose_const->get_element_type(),
                                                                 {ts_order_values.size()},
                                                                 ts_order_values);
 
-        std::shared_ptr<Node> new_unsqueeze;
         if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
             std::vector<size_t> new_values;
-            auto success = unsqueeze_axes_to_shape(transpose->input_value(0), non_negative_axes, new_values);
+            auto success =
+                unsqueeze_axes_to_shape(transpose_info.transpose->input_value(0), non_negative_axes, new_values);
             if (!success) {
                 return false;
             }
@@ -156,24 +146,18 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             copy_runtime_info(unsqueeze_axes, new_const);
         }
 
-        TransposeInputsInfo transpose_input_info = {transpose, new_transpose_order, 0};
+        TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_transpose_order, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
         if (!success) {
             return false;
         }
 
-        main_node->validate_and_infer_types();
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            UpdateForwardSinkingAbility(new_node);
-        }
-
+        default_outputs_update(main_node, transpose_input_info);
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(unsqueeze_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, sinking_transformation);
 }
 
 TSUnsqueezeBackward::TSUnsqueezeBackward() {

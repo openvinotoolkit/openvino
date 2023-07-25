@@ -10,7 +10,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
-#include "openvino/runtime/properties.hpp"
+#include <openvino/core/type/element_type.hpp>
 
 #include <bitset>
 #include <string>
@@ -19,7 +19,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 struct Config {
     Config();
 
@@ -38,6 +37,12 @@ struct Config {
         Enable,
         IgnoreCallback,
         Disable,
+    };
+
+    enum class LatencyThreadingMode {
+        PER_NUMA_NODE,
+        PER_SOCKET,
+        PER_PLATFORM,
     };
 
     bool collectPerfCounters = false;
@@ -59,14 +64,15 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
+    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
-    bool enforceBF16 = true;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    bool enforceBF16 = false;
 #endif
+    // default inference precision
+    ov::element::Type inferencePrecision = ov::element::f32;
     bool inferencePrecisionSetExplicitly = false;
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
@@ -84,11 +90,13 @@ struct Config {
 
     bool isLegacyApi = false;
 
+    int modelPreferThreads = -1;
+
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();
 #endif
 };
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov

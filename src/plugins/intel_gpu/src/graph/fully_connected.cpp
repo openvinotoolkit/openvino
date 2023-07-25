@@ -139,8 +139,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    auto output_type = input_layout.data_type;
+    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -148,18 +149,17 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul op;
     op.set_transpose_b(true);
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-
-    format::type output_format = is_static ? get_preferred_format(node, impl_param) :
-                                             input_layout.format.value;
+    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
+                                              input_layout.format.value;
 
     return { layout{output_shapes[0], output_type, output_format} };
 }

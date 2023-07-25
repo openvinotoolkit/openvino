@@ -1,5 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
 
 import pytest
 import tensorflow as tf
@@ -25,8 +26,9 @@ class TestLRN(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    #@pytest.mark.precommit_tf_fe - ticket 116032
     @pytest.mark.nightly
+    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 113362")
     def test_lrn_basic(self, params, ie_device, precision, ir_version, temp_dir,
                        use_new_frontend, use_old_api):
         self._test(*self.create_lrn_net(**params),

@@ -16,6 +16,7 @@
 #include "helper_transforms/saved_model_unused_remover.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -23,11 +24,12 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
-#include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
@@ -138,6 +140,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // text protobuf format with checkpoints
             return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            // saved model format with tagged metagraphs
+            return true;
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -168,6 +173,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
             // text protobuf format with checkpoints
             return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            // saved model format with tagged metagraphs
+            return true;
         }
     }
 #endif
@@ -195,11 +203,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            if (variants.size() > 1 && variants[1].is<std::string>()) {
-                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, variants[1].as<std::string>());
-            } else {
-                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
-            }
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -250,6 +254,18 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
+        auto saved_model_tags = paths[1];
+        if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
+        }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
@@ -259,13 +275,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            if (variants.size() > 1 && variants[1].is<std::string>()) {
-                graph_iterator = std::make_shared<GraphIteratorSavedModel>(
-                    model_path,
-                    ov::util::wstring_to_string(variants[1].as<std::wstring>()));
-            } else {
-                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
-            }
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string(META_GRAPH_DEFAULT_TAG));
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
@@ -316,6 +326,18 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
+        auto saved_model_tags = ov::util::wstring_to_string(paths[1]);
+        if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
+        }
     }
 #endif
     else if (variants[0].is<GraphIterator::Ptr>()) {
@@ -363,7 +385,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             ++counter;
         }
         exception_message
-            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
+               "documentation: "
                "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
     }
 
@@ -449,6 +472,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<pass::SwitchMergeResolver>();
+    manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();

@@ -31,39 +31,25 @@ Stable Diffusion v2: What’s new?
 The new stable diffusion model offers a bunch of new features inspired
 by the other models that have emerged since the introduction of the
 first iteration. Some of the features that can be found in the new model
-are: \* The model comes with a new robust encoder, OpenCLIP, created by
-LAION and aided by Stability AI; this version v2 significantly enhances
-the produced photos over the V1 versions. \* The model can now generate
-images in a 768x768 resolution, offering more information to be shown in
-the generated images. \* The model finetuned with
-`v-objective <https://arxiv.org/abs/2202.00512>`__. The
-v-parameterization is particularly useful for numerical stability
-throughout the diffusion process to enable progressive distillation for
-models. For models that operate at higher resolution, it is also
-discovered that the v-parameterization avoids color shifting artifacts
-that are known to affect high resolution diffusion models, and in the
-video setting it avoids temporal color shifting that sometimes appears
-with epsilon-prediction used in Stable Diffusion v1. \* The model also
-comes with a new diffusion model capable of running upscaling on the
-images generated. Upscaled images can be adjusted up to 4 times the
-original image. Provided as separated model, for more details please
-check
-`stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
-\* The model comes with a new refined depth architecture capable of
-preserving context from prior generation layers in an img2img setting.
+are: 
+
+* The model comes with a new robust encoder, OpenCLIP, created by LAION and aided by Stability AI; this version v2 significantly enhances the produced photos over the V1 versions.
+* The model can now generate images in a 768x768 resolution, offering more information to be shown in the generated images.
+* The model finetuned with `v-objective <https://arxiv.org/abs/2202.00512>`__. The v-parameterization is particularly useful for numerical stability throughout the diffusion process to enable progressive distillation for models. For models that operate at higher resolution, it is also discovered that the v-parameterization avoids color shifting artifacts that are known to affect high resolution diffusion models, and in the video setting it avoids temporal color shifting that sometimes appears with epsilon-prediction used in Stable Diffusion v1.
+* The model also comes with a new diffusion model capable of running upscaling on the images generated. Upscaled images can be adjusted up to 4 times the original image. Provided as separated model, for more details please check `stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
+* The model comes with a new refined depth architecture capable of preserving context from prior generation layers in an img2img setting.
 This structure preservation helps generate images that preserving forms
-and shadow of objects, but with different content. \* The model comes
-with an updated inpainting module built upon the previous model. This
-text-guided inpainting makes switching out parts in the image easier
-than before.
+and shadow of objects, but with different content.
+* The model comes with an updated inpainting module built upon the previous model. This text-guided inpainting makes switching out parts in the image easier than before.
 
 This notebook demonstrates how to convert and run Stable Diffusion v2
 model using OpenVINO.
 
-Notebook contains the following steps: 1. Convert PyTorch models to ONNX
-format. 2. Convert ONNX models to OpenVINO IR format, using Model
-Optimizer tool. 3. Run Stable Diffusion v2 inpainting pipeline for
-generation infinity zoom video
+Notebook contains the following steps:
+
+1. Convert PyTorch models to ONNX format.
+2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+3. Run Stable Diffusion v2 inpainting pipeline for generation infinity zoom video.
 
 Stable Diffusion v2 Infinite Zoom Showcase
 ------------------------------------------
@@ -91,10 +77,10 @@ limits it.
 The workflow diagram explains how Stable Diffusion inpaining pipeline
 for inpainting works:
 
-.. figure:: https://user-images.githubusercontent.com/29454499/228501084-60f86a71-0907-4094-a796-96350264d8b8.png
-   :alt: sd2-inpainiting
+.. figure:: https://github.com/openvinotoolkit/openvino_notebooks/assets/22090501/9ac6de45-186f-4a3c-aa20-825825a337eb
+   :alt: sd2-inpainting
 
-   sd2-inpainiting
+   sd2-inpainting
 
 The pipeline has a lot of common with Text-to-Image generation pipeline
 discussed in previous section. Additionally to text prompt, pipeline
@@ -115,7 +101,7 @@ install required packages
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" openvino-dev "transformers >= 4.25.1"
+    !pip install -q "diffusers>=0.14.0" openvino-dev "transformers >= 4.25.1" gradio
 
 
 .. parsed-literal::
@@ -332,7 +318,7 @@ generated latents channels + 4 for latent representation of masked image
     
     if not TEXT_ENCODER_OV_PATH_INPAINT.exists():
         convert_encoder_onnx(text_encoder_inpaint, TEXT_ENCODER_ONNX_PATH_INPAINT)
-        !mo --input_model $TEXT_ENCODER_ONNX_PATH_INPAINT --compress_to_fp16 --output_dir $sd2_inpainting_model_dir
+        !mo --input_model $TEXT_ENCODER_ONNX_PATH_INPAINT --output_dir $sd2_inpainting_model_dir
         print('Text Encoder successfully converted to IR')
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH_INPAINT}")
@@ -364,7 +350,7 @@ generated latents channels + 4 for latent representation of masked image
     Text Encoder successfully converted to ONNX
     Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/text_encoder.bin
@@ -379,7 +365,7 @@ generated latents channels + 4 for latent representation of masked image
         convert_unet_onnx(unet_inpaint, UNET_ONNX_PATH_INPAINT, num_channels=9, width=64, height=64)
         del unet_inpaint
         gc.collect()
-        !mo --input_model $UNET_ONNX_PATH_INPAINT --compress_to_fp16 --output_dir $sd2_inpainting_model_dir
+        !mo --input_model $UNET_ONNX_PATH_INPAINT --output_dir $sd2_inpainting_model_dir
         print('U-Net successfully converted to IR')
     else:
         del unet_inpaint
@@ -409,7 +395,7 @@ generated latents channels + 4 for latent representation of masked image
 
     U-Net successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/unet.bin
@@ -423,7 +409,7 @@ generated latents channels + 4 for latent representation of masked image
     
     if not VAE_ENCODER_OV_PATH_INPAINT.exists():
         convert_vae_encoder_onnx(vae_inpaint, VAE_ENCODER_ONNX_PATH_INPAINT, 512, 512)
-        !mo --input_model $VAE_ENCODER_ONNX_PATH_INPAINT --compress_to_fp16 --output_dir $sd2_inpainting_model_dir
+        !mo --input_model $VAE_ENCODER_ONNX_PATH_INPAINT --output_dir $sd2_inpainting_model_dir
         print('VAE encoder successfully converted to IR')
     else:
         print(f"VAE encoder will be loaded from {VAE_ENCODER_OV_PATH_INPAINT}")
@@ -432,7 +418,7 @@ generated latents channels + 4 for latent representation of masked image
     VAE_DECODER_OV_PATH_INPAINT = VAE_DECODER_ONNX_PATH_INPAINT.with_suffix('.xml')
     if not VAE_DECODER_OV_PATH_INPAINT.exists():
         convert_vae_decoder_onnx(vae_inpaint, VAE_DECODER_ONNX_PATH_INPAINT, 64, 64)
-        !mo --input_model $VAE_DECODER_ONNX_PATH_INPAINT --compress_to_fp16 --output_dir $sd2_inpainting_model_dir
+        !mo --input_model $VAE_DECODER_ONNX_PATH_INPAINT --output_dir $sd2_inpainting_model_dir
         print('VAE decoder successfully converted to IR')
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH_INPAINT}")
@@ -455,7 +441,7 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE encoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_encoder.bin
@@ -476,7 +462,7 @@ generated latents channels + 4 for latent representation of masked image
 
     VAE decoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2_inpainting/vae_decoder.bin
@@ -596,6 +582,7 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
             self.height = self.unet.input(0).shape[2] * 8
             self.width = self.unet.input(0).shape[3] * 8
             self.tokenizer = tokenizer
+            self.register_to_config(_progress_bar_config={})
     
         def prepare_mask_latents(
             self,
@@ -931,14 +918,17 @@ mask size pixels from each side and use it as input for next step.
 Changing size of mask we can influence the size of painting area and
 image scaling.
 
-There are 2 zooming directions: \* Zoom Out - move away from object \*
-Zoom In - move closer to object
+There are 2 zooming directions:
+
+* Zoom Out - move away from object
+* Zoom In - move closer to object
 
 Zoom In will be processed in the same way like Zoom Out, but after
 generation is finished, we record frames in reversed order.
 
 .. code:: ipython3
 
+    from tqdm import trange
     def generate_video(
         pipe:OVStableDiffusionInpaintingPipeline,
         prompt:Union[str, List[str]],
@@ -978,7 +968,7 @@ generation is finished, we record frames in reversed order.
         mask_image = np.array(current_image)[:, :, 3]
         mask_image = PIL.Image.fromarray(255 - mask_image).convert("RGB")
         current_image = current_image.convert("RGB")
-    
+        pipe.set_progress_bar_config(desc='Generating initial image...')
         init_images = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -988,6 +978,7 @@ generation is finished, we record frames in reversed order.
             seed=seed,
             num_inference_steps=num_inference_steps,
         )["sample"]
+        pipe.set_progress_bar_config()
     
         image_grid(init_images, rows=1, cols=1)
     
@@ -997,10 +988,7 @@ generation is finished, we record frames in reversed order.
         current_image = init_images[0]
         all_frames = []
         all_frames.append(current_image)
-    
-        for i in range(num_outpainting_steps):
-            print(f"Generating image: {i + 1} / {num_outpainting_steps}")
-    
+        for i in trange(num_outpainting_steps, desc=f'Generating {num_outpainting_steps} additional images...'):
             prev_image_fix = current_image
     
             prev_image = shrink_and_paste_on_blank(current_image, mask_width)
@@ -1149,9 +1137,11 @@ generation is finished, we record frames in reversed order.
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Configuration steps: 1. Load models on device 2. Configure tokenizer and
-scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
-class
+Configuration steps:
+
+1. Load models on device.
+2. Configure tokenizer and scheduler.
+3. Create instance of OvStableDiffusionInpaintingPipeline class.
 
 .. code:: ipython3
 
@@ -1180,86 +1170,48 @@ Run Infinite Zoom video generation
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import gradio as gr
+    from socket import gethostbyname, gethostname
     
-    zoom_prompt = widgets.Textarea(value="valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k", description='positive prompt', layout=widgets.Layout(width="auto"))
-    zoom_negative_prompt = widgets.Textarea(value="lurry, bad art, blurred, text, watermark", description='negative prompt', layout=widgets.Layout(width="auto"))
-    zoom_num_steps = widgets.IntSlider(min=1, max=50, value=20, description='steps:')
-    zoom_num_frames = widgets.IntSlider(min=1, max=50, value=3, description='frames:')
-    mask_width = widgets.IntSlider(min=32, max=256, value=128, description='edge size:')
-    zoom_seed = widgets.IntSlider(min=0, max=10000000, description='seed: ', value=9999)
-    zoom_in = widgets.Checkbox(
-        value=False,
-        description='zoom in',
-        disabled=False
+    def generate(
+        prompt,
+        negative_prompt,
+        seed,
+        steps,
+        frames,
+        edge_size,
+        zoom_in,
+        progress=gr.Progress(track_tqdm=True),
+    ):
+        video_path = generate_video(
+            ov_pipe_inpaint,
+            prompt,
+            negative_prompt,
+            num_inference_steps=steps,
+            num_frames=frames,
+            mask_width=edge_size,
+            seed=seed,
+            zoom_in=zoom_in,
+        )
+        return video_path.replace(".mp4", ".gif")
+    
+    
+    gr.close_all()
+    demo = gr.Interface(
+        generate,
+        [
+            gr.Textbox(
+                "valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
+                label="Prompt",
+            ),
+            gr.Textbox("lurry, bad art, blurred, text, watermark", label="Negative prompt"),
+            gr.Slider(value=9999, label="Seed", maximum=10000000),
+            gr.Slider(value=20, label="Steps", minimum=1, maximum=50),
+            gr.Slider(value=3, label="Frames", minimum=1, maximum=50),
+            gr.Slider(value=128, label="Edge size", minimum=32, maximum=256),
+            gr.Checkbox(label="Zoom in"),
+        ],
+        "image",
     )
-    
-    widgets.VBox([zoom_prompt, zoom_negative_prompt, zoom_seed, zoom_num_steps, zoom_num_frames, mask_width, zoom_in])
-
-
-
-
-.. parsed-literal::
-
-    VBox(children=(Textarea(value='valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k', descrip…
-
-
-
-.. code:: ipython3
-
-    output_file = generate_video(ov_pipe_inpaint, zoom_prompt.value, zoom_negative_prompt.value, 7.5, zoom_num_steps.value, zoom_num_frames.value, mask_width.value, zoom_seed.value, zoom_in.value)
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/20 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Generating image: 1 / 3
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/20 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Generating image: 2 / 3
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/20 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Generating image: 3 / 3
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/20 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
-
-    import IPython.display
-    
-    IPython.display.HTML(f'<img src="{output_file.replace(".mp4", ".gif")}">')
-
-
-
-
-.. raw:: html
-
-    <img src="infinite_zoom_out.gif">
-
-
+    ipaddr = gethostbyname(gethostname())
+    demo.queue().launch(share=True)

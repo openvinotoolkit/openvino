@@ -70,7 +70,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
-        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false));
+        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
+        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
@@ -172,6 +173,10 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
 
     GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
         set_property(ov::compilation_num_threads(1));
+    }
+
+    GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
+        set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 }
 

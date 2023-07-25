@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 
@@ -399,4 +399,19 @@ TEST(type_prop, irdft_invalid_signal_size) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' of (I)RDFT op must be equal.");
     }
+}
+
+TEST(type_prop, irdft_dynamic_types) {
+    const auto input_shape = PartialShape{2, 180, 180, 2};
+    const auto axes_shape = PartialShape::dynamic();
+    const auto signal_size_shape = PartialShape::dynamic();
+    const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
+
+    auto data = std::make_shared<op::Parameter>(element::dynamic, input_shape);
+    auto axes_input = std::make_shared<op::Parameter>(element::dynamic, axes_shape);
+    auto signal_size_input = std::make_shared<op::Parameter>(element::dynamic, signal_size_shape);
+    auto irdft = std::make_shared<op::v9::IRDFT>(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(irdft->get_element_type(), element::dynamic);
+    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(ref_output_shape));
 }

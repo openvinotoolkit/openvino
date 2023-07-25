@@ -32,9 +32,11 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
-Notebook contains the following steps: 1. Convert PyTorch models to ONNX
-format. 2. Convert ONNX models to OpenVINO IR format, using Model
-Optimizer tool. 3. Run Stable Diffusion pipeline with OpenVINO.
+Notebook contains the following steps:
+
+1. Convert PyTorch models to ONNX format.
+2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+3. Run Stable Diffusion pipeline with OpenVINO.
 
 Prerequisites
 -------------
@@ -74,34 +76,8 @@ solutions based on Stable Diffusion.
 
 .. code:: ipython3
 
-    !pip install -r requirements.txt
-
-
-.. parsed-literal::
-
-    Requirement already satisfied: diffusers[torch]>=0.9.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from -r requirements.txt (line 1)) (0.13.0.dev0)
-    Requirement already satisfied: huggingface-hub>=0.9.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from -r requirements.txt (line 2)) (0.11.1)
-    Requirement already satisfied: regex!=2019.12.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2022.10.31)
-    Requirement already satisfied: Pillow in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (9.4.0)
-    Requirement already satisfied: importlib-metadata in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (4.13.0)
-    Requirement already satisfied: requests in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2.28.2)
-    Requirement already satisfied: filelock in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.9.0)
-    Requirement already satisfied: numpy in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.23.4)
-    Requirement already satisfied: torch>=1.4 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.13.1+cpu)
-    Requirement already satisfied: accelerate>=0.11.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (0.13.2)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (4.4.0)
-    Requirement already satisfied: tqdm in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (4.64.1)
-    Requirement already satisfied: pyyaml>=5.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (6.0)
-    Requirement already satisfied: packaging>=20.9 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (23.0)
-    Requirement already satisfied: psutil in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from accelerate>=0.11.0->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (5.9.4)
-    Requirement already satisfied: zipp>=0.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from importlib-metadata->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.11.0)
-    Requirement already satisfied: idna<4,>=2.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.4)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2022.12.7)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2.1.1)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.26.14)
-    
-    [notice] A new release of pip available: 22.3.1 -> 23.0
-    [notice] To update, run: pip install --upgrade pip
+    !pip install -q 'diffusers[torch]>=0.9.0'
+    !pip install -q 'huggingface-hub>=0.9.1'
 
 
 Create Pytorch Models pipeline
@@ -151,10 +127,11 @@ OpenVINO optimization tools and features. You will use OpenVINO Model
 Optimizer tool for conversion model to IR format and compression weights
 to ``FP16`` format.
 
-The model consists of three important parts: \* Text Encoder for
-creation condition to generate image from text prompt. \* Unet for step
-by step denoising latent image representation. \* Autoencoder (VAE) for
-encdoing input image to latent space (if required) and decoding latent
+The model consists of three important parts:
+
+* Text Encoder for creation condition to generate image from text prompt.
+* Unet for step by step denoising latent image representation.
+* Autoencoder (VAE) for encdoing input image to latent space (if required) and decoding latent
 space to image back after generation.
 
 Let us convert each part.
@@ -244,10 +221,13 @@ hidden states. You will use ``opset_version=14``, because model contains
 U-net
 ~~~~~
 
-Unet model has three inputs: \* ``sample`` - latent image sample from
+Unet model has three inputs:
+
+* ``sample`` - latent image sample from
 previous step. Generation process has not been started yet, so you will
-use random noise. \* ``timestep`` - current scheduler step. \*
-``encoder_hidden_state`` - hidden state of text encoder.
+use random noise.
+* ``timestep`` - current scheduler step.
+* ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -436,13 +416,7 @@ Prepare Inference Pipeline
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
 
-.. raw:: html
-
-   <p align="left">
-
-.. raw:: html
-
-   </p>
+.. image:: https://camo.githubusercontent.com/60d9edf7fc65d617c56ddac5344a9fe3f4152e38f43cab994589a8e8bf14d36a/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3231363337383933322d37613962653339662d636338362d343365342d623037322d3636333732613335643662642e706e67
 
 As you can see from the diagram, the only difference between
 Text-to-Image and text-guided Image-to-Image generation in approach is
@@ -845,9 +819,11 @@ Text-to-Image generation
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
-latent state initialization and number of steps. > **Note**: Consider
-increasing ``steps`` to get more precise results. A suggested value is
-``50``, but it will take longer time to process.
+latent state initialization and number of steps. 
+
+.. note::
+
+   Consider increasing ``steps`` to get more precise results. A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
 

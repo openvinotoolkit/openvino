@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
 
+.. meta::
+   :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
+                 is an OpenCL based plugin for inference of deep neural 
+                 networks on Intel® GPus.
+
 
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
@@ -51,54 +56,54 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_default_gpu
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_default_gpu
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_default_gpu
 
    .. tab-item:: specific GPU
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_gpu_with_id
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_gpu_with_id
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_gpu_with_id
 
    .. tab-item:: specific tile
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_gpu_with_id_and_tile
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_gpu_with_id_and_tile
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_gpu_with_id_and_tile
 
 Supported Inference Data Types
@@ -144,18 +149,18 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-         :language: cpp
-         :fragment: compile_model_multi
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/compile_model.py
          :language: Python
+         :fragment: compile_model_multi
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+         :language: cpp
          :fragment: compile_model_multi
 
 
@@ -175,36 +180,36 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_batch_plugin
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_batch_plugin
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_batch_plugin
 
    .. tab-item:: Batching via throughput hint
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_auto_batch
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_auto_batch
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_auto_batch
 
 
@@ -267,18 +272,18 @@ The code snippet below demonstrates examples of a bounded dynamic batch:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
-         :language: cpp
-         :fragment: dynamic_batch
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.py
          :language: Python
+         :fragment: dynamic_batch
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
+         :language: cpp
          :fragment: dynamic_batch
 
 
@@ -343,18 +348,18 @@ The GPU plugin has the following additional preprocessing options:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
-         :language: cpp
-         :fragment: init_preproc
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.py
          :language: Python
+         :fragment: init_preproc
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+         :language: cpp
          :fragment: init_preproc
 
 

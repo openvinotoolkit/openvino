@@ -272,7 +272,7 @@ def check_for_static(app_input_info):
 
 def can_measure_as_static(app_input_info):
     for info in app_input_info:
-        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+        if len(info.shapes) > 1:
             return False
     return True
 
@@ -559,7 +559,6 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
-        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = np.empty([0])
@@ -650,7 +649,6 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
-        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map:
             info.partial_shape = PartialShape(shape_map[info.name])
             reshape = True

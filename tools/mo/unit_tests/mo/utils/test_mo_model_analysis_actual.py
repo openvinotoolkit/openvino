@@ -11,12 +11,14 @@ import json
 import argparse
 from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
+
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def base_args_config():
     args = argparse.Namespace()

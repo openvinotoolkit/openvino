@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gather.hpp>
@@ -47,6 +48,7 @@ public:
     impl_types impl_type;
 
     void SetUp() override {
+        tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         std::tie(batch_dim, axis, fmt[0], fmt[1], shape_in[0], shape_in[1], impl_type) = GetParam();
@@ -64,14 +66,14 @@ public:
         for (int i = axis + 1; i < get_not_one_dim(shape_in[0]); i++)  // after axis = shape_in[0][..]
             shape_out[axis + get_not_one_dim(shape_in[1]) - batch_dim + (i - axis - 1)] = shape_in[0][i];
 
-        auto dat = generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
+        auto dat = rg.generate_random_1d<T_dat>(get_linear_size(shape_in[0]), -99, 99);
         auto input0_layout =
             layout(ov::Shape(shape_in[0].begin(), shape_in[0].end()), T_dat_dt, format::get_default_format(shape_in[0].size()));
         auto input0 = engine.allocate_memory(input0_layout);
         set_values(input0, dat);
 
         auto ind =
-            generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
+            rg.generate_random_1d<T_ind>(get_linear_size(shape_in[1]), -shape_in[0][axis], shape_in[0][axis] - 1, 1);
         auto input1_layout =
             layout(ov::Shape(shape_in[1].begin(), shape_in[1].end()), T_ind_dt, format::get_default_format(shape_in[1].size()));
         auto input1 = engine.allocate_memory(input1_layout);
@@ -2096,4 +2098,65 @@ TEST(gather_gpu_u8, 322_axisF) {
 
 TEST(gather_gpu_u8, export_import) {
     test_gather_gpu_u8_322_axisF<uint8_t>(true);
+}
+
+TEST(gather_single_axis, simple_Baxis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1 } }); // Indexes
+    int64_t axis = 0;
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,
+        9.f, 10.f, 11.f, 12.f
+    });
+
+    set_values(input2, {
+        1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
+    topology.add(
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{1, 2, 2, 1})
+    );
+    topology.add(reorder("reorder", input_info("gather"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 1;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + y + 2 * f;
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("gather");
+    ASSERT_EQ(crop_prim->can_be_optimized(), false);
 }

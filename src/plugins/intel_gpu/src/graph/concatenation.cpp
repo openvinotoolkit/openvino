@@ -62,14 +62,14 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto axis_index = desc->axis;
     std::vector<ShapeType> input_shapes;
-    std::vector<ShapeType> output_shapes = {ShapeType{}};
+
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
         input_shapes.push_back(input_shape);
     }
     ov::op::v0::Concat op;
     op.set_concatenation_axis(axis_index);
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     return { layout {output_shapes[0], output_dt, output_format} };
 }
 
@@ -82,18 +82,18 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
     std::stringstream ss_inputs;
     std::stringstream primitive_description;
 
-    for (size_t i = 0; i < node.inputs_count(); ++i) {
+    for (size_t i = 0; i < node.get_inputs_count(); ++i) {
         ss_inputs << node.input(i).id();
         if (node.input(i).get_output_layout().is_static())
             ss_inputs << ", count: " << node.input(i).get_output_layout().count();
         else
             ss_inputs << ", count: " << "?";
-        i != (node.inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
+        i != (node.get_inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
     }
 
     json_composite concat_info;
     concat_info.add("concat axis", desc->axis);
-    concat_info.add("inputs count", node.inputs_count());
+    concat_info.add("inputs count", node.get_inputs_count());
     concat_info.add("inputs", ss_inputs.str());
 
     node_info->add("concat info", concat_info);
