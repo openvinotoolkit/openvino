@@ -10,12 +10,13 @@ from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraph
 
 
 class GraphIteratorTFGraph(GraphIterator):
-    def __init__(self, tf_graph: tf.Graph, inner_graph: bool = False):
+    def __init__(self, tf_graph: tf.Graph, share_weights: bool, inner_graph: bool = False):
         GraphIterator.__init__(self)
         self.m_graph = tf_graph
         self.m_node_index = 0
         self.m_decoders = []
         self.m_inner_graph = inner_graph
+        self.m_share_weights = share_weights
 
         self.m_vars = None
         if hasattr(tf_graph, "variables"):
@@ -24,7 +25,7 @@ class GraphIteratorTFGraph(GraphIterator):
             self.m_vars = tf_graph.variables
 
         for op in tf_graph.get_operations():
-            self.m_decoders.append(TFGraphNodeDecoder(op, inner_graph))
+            self.m_decoders.append(TFGraphNodeDecoder(op, share_weights, inner_graph))
 
         self.m_iterators = {}
         for func_name, _ in self.m_graph._functions.items():
@@ -85,5 +86,7 @@ class GraphIteratorTFGraph(GraphIterator):
         if func_name not in self.m_iterators:
             return None
         if self.m_iterators[func_name] is None:
-            self.m_iterators[func_name] = GraphIteratorTFGraph(self.m_graph._functions[func_name].graph, True)
+            self.m_iterators[func_name] = GraphIteratorTFGraph(self.m_graph._functions[func_name].graph,
+                                                               self.m_share_weights,
+                                                               True)
         return self.m_iterators[func_name]

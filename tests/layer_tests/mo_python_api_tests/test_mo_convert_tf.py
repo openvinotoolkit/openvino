@@ -688,7 +688,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         class LayerModel(tf.Module):
             def __init__(self):
@@ -710,7 +710,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
-        ov_model = convert_model(keras_model, input_shape=[1])
+        ov_model = convert_model(keras_model, input=[1], share_weights=True)
         cmp_model = compile_model(ov_model)
 
         # Check model inference
@@ -734,7 +734,54 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
         assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
 
+    def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import compile_model
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
 
+
+            @tf.function
+            def sub_function(self, input):
+                return input * self.var1 + self.var2
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        # Create TF model with variables
+        keras_model = LayerModel()
+        test_input = np.array(7.).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(keras_model, input=[1], share_weights=False)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+        fw_infer1 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer1['Identity:0'], fw_infer1)
+        assert np.array_equal(ov_infer1['Identity:0'], [54., 42., 45.])
+
+        # Change value of variables in original model
+        for val in keras_model.variables:
+            arr = val.value().__array__()
+            arr[0] = 0
+            arr[1] = 1
+            arr[2] = 2
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input)
+        fw_infer2 = keras_model(test_input).numpy()
+
+        # Check model inference calculated with old constant values
+        assert not np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [54., 42., 45.])
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
@@ -823,7 +870,7 @@ class TestTFLoadByModel(unittest.TestCase):
             return tf_net
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
         from openvino.frontend import FrontEndManager
-        model = GraphIteratorTFGraph(simple_tf_model())
+        model = GraphIteratorTFGraph(simple_tf_model(), True)
         fem = FrontEndManager()
         fe = fem.load_by_model(model)
         assert fe is not None

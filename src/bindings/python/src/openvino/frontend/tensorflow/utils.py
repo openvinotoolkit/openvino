@@ -143,7 +143,7 @@ def type_supported_by_tf_fe(input_model):
     return False
 
 
-def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input):
+def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input, share_weights):
     input_model = trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input)
 
     import tensorflow as tf
@@ -151,9 +151,9 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
     if model_is_graph_iterator(input_model):
         return input_model
     if isinstance(input_model, tf.Graph):
-        return GraphIteratorTFGraph(input_model)
+        return GraphIteratorTFGraph(input_model, share_weights)
     elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
-        return GraphIteratorTFGraph(input_model.graph)
+        return GraphIteratorTFGraph(input_model.graph, share_weights)
     raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
 
 
