@@ -21,9 +21,9 @@ async function run()
   const model = new addon.Model().read_model(modelPath);
 
   new addon.PrePostProcessor(model)
-    .set_input_tensor_shape([1, 227, 227, 3])
-    .set_input_tensor_layout('NHWC')
-    .set_input_model_layout('NCHW')
+    .setInputTensorShape([1, 227, 227, 3])
+    .setInputTensorLayout('NHWC')
+    .setInputModelLayout('NCHW')
     .build();
 
   const tensor = new addon.Tensor(

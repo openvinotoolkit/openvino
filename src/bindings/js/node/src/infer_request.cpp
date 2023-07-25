@@ -8,11 +8,11 @@ InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::Objec
 Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
-                       {InstanceMethod("set_input_tensor", &InferRequestWrap::set_input_tensor),
+                       {InstanceMethod("setInputTensor", &InferRequestWrap::set_input_tensor),
                         InstanceMethod("infer", &InferRequestWrap::infer),
                         InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                         InstanceMethod("getOutputTensors", &InferRequestWrap::get_output_tensors),
-                        InstanceMethod("get_output_tensor", &InferRequestWrap::get_output_tensor)});
+                        InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor)});
 }
 
 Napi::Object InferRequestWrap::Init(Napi::Env env, Napi::Object exports) {
