@@ -24,9 +24,9 @@ else()
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
-if (NOT ENABLE_MLAS)
+if (NOT ENABLE_MLAS_FOR_CPU)
     set(MLAS_LIBRARY "")
-    set(EXCLUDED_SOURCE_PATHS_FOR_NON_MLAS ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
 else()
     set(MLAS_LIBRARY "mlas")
 endif()
@@ -45,7 +45,6 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
-            ${EXCLUDED_SOURCE_PATHS_FOR_NON_MLAS}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
