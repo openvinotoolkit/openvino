@@ -63,7 +63,7 @@ Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
     for (size_t i = 0; i < inputs.Length(); i++) {
-        auto tensor = value_to_tensor(inputs[i], _infer_request);
+        auto tensor = value_to_tensor(inputs[i], _infer_request, i);
         _infer_request.set_input_tensor(i, tensor);
     }
     _infer_request.infer();
@@ -75,7 +75,7 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
     for (size_t i = 0; i < keys.Length(); i++) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
         auto value = inputs.Get(input_name);
-        auto tensor = value_to_tensor(value, _infer_request);
+        auto tensor = value_to_tensor(value, _infer_request, input_name);
 
         _infer_request.set_tensor(input_name, tensor);
     }

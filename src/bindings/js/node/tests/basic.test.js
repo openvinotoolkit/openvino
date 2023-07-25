@@ -94,29 +94,35 @@ describe('Input class for ov::Input<const ov::Node>', () => {
   });
 });
 
-describe('InferRequest', () => {
+describe('InferRequest infer()', () => {
   const core = new ov.Core();
   const model = core.readModel(testXml);
   const compiledModel = core.compileModel(model, 'CPU');
-  const inferRequest = compiledModel.createInferRequest();
+  tensor_data = Float32Array.from({ length: 3072 }, () => Math.random());
 
   const tensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 3, 32, 32]),
-    Float32Array.from({ length: 3072 }, () => Math.random()),
+    tensor_data,
   );
 
-  test('getOuputTensors() method  Object', () => {
-    const inferRequest = compiledModel.create_infer_request();
-    inferRequest.infer({ data: tensor });
+  test.each([
+    tensor,
+    tensor_data,
+  ])('Different tensor-like values', (val) => {
+    const inferRequest = compiledModel.createInferRequest();
+    inferRequest.infer({ data: val });
     const result = inferRequest.getOutputTensors();
     expect(Object.keys(result)).toEqual(['fc_out']);
     expect(result['fc_out'].data.length).toEqual(10);
   });
 
-  test('getOuputTensors() method   Array', () => {
-    const inferRequest2 = compiledModel.create_infer_request();
-    inferRequest2.infer([tensor]);
+  test.each([
+    tensor,
+    tensor_data,
+  ])('Different tensor-like values', (val) => {
+    const inferRequest2 = compiledModel.createInferRequest();
+    inferRequest2.infer([val]);
     const result2 = inferRequest2.getOutputTensors();
     expect(Object.keys(result2)).toEqual(['fc_out']);
     expect(result2['fc_out'].data.length).toEqual(10);

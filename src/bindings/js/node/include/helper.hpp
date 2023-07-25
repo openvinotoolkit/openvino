@@ -118,15 +118,14 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
 template <>
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
 
+/// @brief Creates ov::tensor from TensorWrap Object
+ov::Tensor value_to_tensor(Napi::Object value);
+
 /** @brief  A helper function to create a ov::Tensor from Napi::Value
  * @param info Contains the environment in which to construct a JavaScript object.
  * @param infer_request 
  * @return ov::Tensor
  */
-ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request);
-
-ov::Tensor value_to_tensor(Napi::Object value);
-
 template <typename KeyType>
 ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key){
     if (value.IsTypedArray()) {
