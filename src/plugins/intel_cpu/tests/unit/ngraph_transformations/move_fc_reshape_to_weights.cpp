@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <transformations/cpu_opset/common/pass/move_fc_reshape_to_weights.hpp>
+
 #include <gtest/gtest.h>
 
 #include <string>
@@ -10,7 +12,6 @@
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <transformations/cpu_opset/common/op/fully_connected.hpp>
-#include <transformations/cpu_opset/common/pass/move_fc_reshape_to_weights.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -93,7 +94,7 @@ protected:
 TEST_P(MoveFCReshapeToWeightsTests, CompareFunctions) {}
 
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {
-    {{1, 2, 3}, {1, 4, 3}}
+    {{-1, -1, -1}, {1, 4, 3}}
 };
 const std::vector<bool> add_transpose = {false, true};
 const std::vector<bool> add_subtract = {false, true};
@@ -104,33 +105,3 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose, MoveFCReshapeToWeight
                                 ::testing::ValuesIn(add_transpose),
                                 ::testing::ValuesIn(add_subtract)),
                             MoveFCReshapeToWeightsTests::getTestCaseName);
-
-// TEST_F(TransformationTestsF, MoveFCReshapeToWeights) {
-//     {
-//         auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 2});
-//         auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 2, 2}, {1});
-//         auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f32);
-//         auto sub_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
-//         auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
-//         auto mul_const = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 2}, {1});
-//         auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
-
-//         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {2}, {2, -1});
-//         auto reshape = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
-//         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {2}, {1, 0});
-//         auto transpose = std::make_shared<ov::opset1::Transpose>(reshape, transpose_const);
-//         auto matmul = std::make_shared<FullyConnectedNode>(data, transpose, ov::Rank(3));
-
-//         model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data});
-//         manager.register_pass<MoveFCReshapeToWeights>();
-//     }
-//     {
-//         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 2});
-//         auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
-//         auto transpose = std::make_shared<ov::opset1::Transpose>(input1, transpose_constant);
-//         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
-//         auto matmul = std::make_shared<FullyConnectedNode>(transpose, input2, ov::Rank(3));
-
-//         model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
-//     }
-// }

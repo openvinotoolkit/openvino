@@ -188,6 +188,8 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // Issue: 113727
+        R"(.*MatMulCompressedU8Weights.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

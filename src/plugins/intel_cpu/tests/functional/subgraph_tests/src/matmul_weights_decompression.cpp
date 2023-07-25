@@ -13,37 +13,24 @@ using namespace CPUTestUtils;
 using namespace ov::test;
 
 namespace SubgraphTestsDefinitions {
-
-/* Graph before:
-   ------------             ------------
-   |Input(f32)|             |Input(f16)|
-   ------------             ------------
-        |                        |
-        |                   --------------
-        |                   |Convert(f32)|
-        |                   --------------
-        |                        |
-    -----------------------------------------------
-    |                   MatMul                    |
-    -----------------------------------------------
-                          |
-                       --------
-                       |Output|
-                       --------
-
- * Exec graph:
-   ------------    ------------
-   |Input(f32)|    |Input(f16)|
-   ------------    ------------
-        |               |
-   ----------------------------
-   |      FullyConnected      |
-   ----------------------------
-                 |
-              --------
-              |Output|
-              --------
-*/
+/*
+ *                        Subtract_const(U8)
+ *                           /
+ *    Weights(U8)       Convert(F32)
+ *       |               /
+ *    Convert(F32)   Reshape
+ *            \        /       Multiply_const(F32)
+ *            Subtract(opt)     /
+ *                  \       Reshape
+ *                   \       /
+ *                   Multiply
+ *                      |
+ *      Data(F32)   Transpose(opt)
+ *            \     /
+ *             Matmul
+ *               |
+ *              Bias
+ */
 static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& inputShapes,
                                                const ov::element::Type data_precision,
                                                const ov::element::Type weights_precision,
@@ -91,30 +78,29 @@ static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& in
         }
         auto matMul = builder::makeMatMul(params[0], matmul_weights);
         ov::Shape bias_const_shape{static_cast<size_t>(matMul->get_output_partial_shape(0).rbegin()->get_length())};
-        // TODO: remove bias?
         auto bias_const = ngraph::builder::makeConstant<float>(data_precision, bias_const_shape, {}, true);
         auto bias = std::make_shared<ov::opset10::Add>(matMul, bias_const);
 
         return std::make_shared<ov::Model>(matMul, params, "MatmulWeightsDecompression");
 }
 
-using MatMulDecompressConvertParams = std::tuple<std::vector<InputShape>,            // input shapes
-                                                 bool,                               // transpose on weights
-                                                 bool,                               // decompression subtract
-                                                 std::map<std::string, std::string>  // additional config
-                                                 >;
+using MatmulWeightsDecompressionParams = std::tuple<std::vector<InputShape>,            // input shapes
+                                                    bool,                               // transpose on weights
+                                                    bool,                               // decompression subtract
+                                                    std::map<std::string, std::string>  // additional config
+                                                    >;
 
-class MatMulCompressedI8Weights : public testing::WithParamInterface<MatMulDecompressConvertParams>,
+class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
                                   virtual public SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
         std::vector<InputShape> inputShapes;
         bool transpose;
         bool decompression_sub;
-        std::map<std::string, std::string> additionalConfig;
+        std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, transpose, decompression_sub, additionalConfig) = obj.param;
+        std::tie(inputShapes, transpose, decompression_sub, additional_config) = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
@@ -135,7 +121,7 @@ public:
         result << "decompression_subtract=" << decompression_sub << "_";
 
         result << "config=(";
-        for (const auto& configEntry : additionalConfig) {
+        for (const auto& configEntry : additional_config) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")";
@@ -150,15 +136,15 @@ protected:
         std::vector<InputShape> inputShapes;
         bool transpose_weights;
         bool decompression_sub;
-        std::map<std::string, std::string> additionalConfig;
+        std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, transpose_weights, decompression_sub, additionalConfig) = this->GetParam();
+        std::tie(inputShapes, transpose_weights, decompression_sub, additional_config) = this->GetParam();
 
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
 
         ElementType netType = element::f32;
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+        if (additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
             netType = ElementType::bf16;
         inType = outType = netType;
 
@@ -166,38 +152,54 @@ protected:
     }
 };
 
-TEST_P(MatMulCompressedI8Weights, CompareWithRefs) {
+TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
     run();
-    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Eltwise", 0);
+    std::map<std::string, std::string> additional_config = std::get<3>(GetParam());
+    const size_t expected_count = additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES ? 1 : 0;
+    CheckNumberOfNodesWithType(compiledModel, "Convert", expected_count);
+    CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_count);
 }
 
 namespace {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
-    std::vector<std::map<std::string, std::string>> additionalConfig{CPUTestUtils::cpuEmptyPluginConfig};
-    // if (with_cpu_x86_avx512_core()) {
-    //     additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
-    // }
-
-    return additionalConfig;
+    std::vector<std::map<std::string, std::string>> additional_config{CPUTestUtils::cpuEmptyPluginConfig};
+    if (with_cpu_x86_avx512_core())
+        additional_config.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
+    return additional_config;
 }
 
-const std::vector<std::vector<InputShape>> input_shapes = {
-    {{{}, {{1, 4, 16}}}, {{}, {{16, 32}}}},
+const std::vector<std::vector<InputShape>> input_shapes_basic = {
+    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {{}, {{16, 32}}}},
     {{{}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
-    {{{}, {{1, 2, 3}}}, {{}, {{1, 3, 4}}}}
+    {{{}, {{10, 40, 496}}}, {{}, {{1, 496, 240}}}},
+    {{{}, {{1, 4, 32}}}, {{}, {{32, 256}}}},
+    {{{}, {{1, 4, 48}}}, {{}, {{48, 256}}}},
+    {{{}, {{1, 4, 512}}}, {{}, {{512, 256}}}},
+    {{{}, {{1, 16, 32}}}, {{}, {{32, 64}}}},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedU8Weights_basic,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> input_shapes_corner_cases = {
+    {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
+    {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{16, 32}}}},
 };
 const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> add_decompression_sub = {true, false};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedI8Weights,
-                         MatMulCompressedI8Weights,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedU8Weights_corner_cases,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
-                                            ::testing::ValuesIn(filterAdditionalConfig())),
-                         MatMulCompressedI8Weights::getTestCaseName);
+                                            ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MatmulWeightsDecompression::getTestCaseName);
 } // namespace
 
 } // namespace SubgraphTestsDefinitions

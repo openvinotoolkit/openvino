@@ -75,10 +75,6 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMatmulAndWeightsDecompression");
-    FuseFCAndWeightsDecompression(graph);
-    graph.RemoveDroppedNodes();
-
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
@@ -288,22 +284,17 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
 
     auto& graphNodes = graph.GetNodes();
     for (size_t i = 0; i < graphNodes.size(); i++) {
-        auto node = graphNodes[i];
-        if (node->getType() != Type::FullyConnected)
+        const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
+        if (fcNode == nullptr)
             continue;
 
-        const auto parent = node->getParentEdgesAtPort(1)[0]->getParent();
+        const auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
         const bool with_transpose = parent->getType() == Type::Transpose;
-
-        NodePtr transposeNode;
-        if (with_transpose)
-            transposeNode = parent;
+        const NodePtr transposeNode = with_transpose ? parent : nullptr;
 
         const auto multiplyNode = with_transpose ? parent->getParentEdgesAtPort(0)[0]->getParent() : parent;
-        if (!multiplyNode->isConstant())
-            continue;
-
-        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply)
+        if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
+            !multiplyNode->isConstant())
             continue;
 
         const auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
@@ -317,7 +308,6 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             subtractNode = mulParent;
             if (!expectedNode(subtractNode, Type::Eltwise))
                 continue;
-
             subtractConstNode = subtractNode->getParentEdgesAtPort(1)[0]->getParent();
             if (!expectedNode(subtractConstNode, Type::Input))
                 continue;
@@ -326,12 +316,11 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         const auto convertNode = with_subtract ? subtractNode->getParentEdgesAtPort(0)[0]->getParent() : mulParent;
         if (!expectedNode(convertNode, Type::Convert))
             continue;
-
         const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
         if (!expectedNode(weightsNode, Type::Input))
             continue;
 
-        // precision limitations
+        // Precision limitations
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
         if (weightsNode->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
@@ -339,7 +328,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (with_subtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
 
-        // shape limitations
+        // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
         const auto fcInputWeightsShape = multiplyNode->getOutputShapeAtPort(0);
         if (weightsShape != fcInputWeightsShape)
@@ -352,20 +341,15 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (with_subtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
             continue;
 
-        const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
-        if (fcNode == nullptr)
-            IE_THROW() << "Cannot cast to FullyConnected node";
-
         fcNode->fuseDecompressionMultiply(multiplyConstNode);
         if (with_subtract)
             fcNode->fuseDecompressionSubtract(subtractConstNode);
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
-        if (with_subtract)
-            fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
 
         if (with_subtract) {
+            fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
             auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
             graph.RemoveEdge(subtractConstEdge);
         }
