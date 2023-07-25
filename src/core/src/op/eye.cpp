@@ -133,7 +133,7 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             break;
         default:
             OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
-                           diagonal_index_data->get_element_type().get_type_name());
+                           diagonal_index_data->get_element_type().to_string());
         }
     } else {
         diagonal_index = 0;

@@ -78,6 +78,7 @@ void regclass_graph_Type(py::module m) {
     type.def_property_readonly("signed", &ov::element::Type::is_signed);
     type.def("is_quantized", &ov::element::Type::is_quantized);
     type.def_property_readonly("quantized", &ov::element::Type::is_quantized);
+    type.def("to_string", &ov::element::Type::to_string);
     type.def("get_type_name", &ov::element::Type::get_type_name);
     type.def_property_readonly("type_name", &ov::element::Type::get_type_name);
     type.def("compatible",

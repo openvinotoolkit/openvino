@@ -155,7 +155,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
             // doesn't require shape or type propagation.
             return std::make_tuple(res, false);
         },
-        "convert type (" + type.get_type_name() + ")");
+        "convert type (" + type.to_string() + ")");
 }
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
@@ -656,7 +656,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             auto convert = std::make_shared<op::v0::Convert>(node, t);
             return std::make_tuple(Output<Node>(convert), true);
         },
-        "convert type (" + type.get_type_name() + ")");
+        "convert type (" + type.to_string() + ")");
 }
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {

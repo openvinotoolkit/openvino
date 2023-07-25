@@ -50,10 +50,10 @@ void PSROIPooling::validate_and_infer_types() {
     const auto& coords_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           feat_maps_et.is_real(),
-                          "Feature maps' data type must be floating point. Got " + feat_maps_et.get_type_name());
+                          "Feature maps' data type must be floating point. Got " + feat_maps_et.to_string());
     NODE_VALIDATION_CHECK(this,
                           coords_et.is_real(),
-                          "Coords' data type must be floating point. Got " + coords_et.get_type_name());
+                          "Coords' data type must be floating point. Got " + coords_et.to_string());
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
