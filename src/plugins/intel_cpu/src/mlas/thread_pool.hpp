@@ -11,10 +11,10 @@
 
 namespace ov {
 namespace cpu {
-class OVThreadPool : public IMlasThreadPool {
+class OVMlasThreadPool : public IMlasThreadPool {
 public:
-    OVThreadPool() = delete;
-    explicit OVThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+    OVMlasThreadPool() = delete;
+    explicit OVMlasThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
     size_t DegreeOfParallelism() override;
     void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) override;
 public:
