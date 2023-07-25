@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /** \brief Check shape_infer for concat op on static shapes. */
 TEST_P(ConcatStaticShapeInferenceTest, concat_static) {
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }

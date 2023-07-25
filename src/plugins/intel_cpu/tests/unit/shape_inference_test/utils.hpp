@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
 #include <gtest/gtest.h>
 
 #include <openvino/op/ops.hpp>
@@ -9,20 +10,30 @@
 #include <shape_inference/shape_inference.hpp>
 #include <shape_inference/static_shape.hpp>
 
-
-#pragma once
-
+using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 namespace ov {
 namespace intel_cpu {
-template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
+namespace {
+std::vector<StaticShapeRef> make_static_shape_refs(const ShapeVector& shapes) {
+    std::vector<StaticShapeRef> out;
+    out.reserve(shapes.size());
+    for (auto& s : shapes) {
+        out.emplace_back(s);
+    }
+    return out;
+}
+}  // namespace
+
+template <class TIface = IStaticShapeInfer, class TTensorPtr = HostTensorPtr>
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, TTensorPtr>& constant_data = {}) {
-    const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
-    auto result = shape_infer->infer(input_shapes, constant_data);
-    OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
-    output_shapes = std::move(result.shapes);
+    const auto in_shapes = make_static_shape_refs(input_shapes);
+    const auto shape_infer = make_shape_inference(op->shared_from_this());
+    auto result = shape_infer->infer(in_shapes, ov::make_tensor_accessor(constant_data));
+    OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
+    output_shapes = std::move(*result);
 }
 }  // namespace intel_cpu
 }  // namespace ov
@@ -45,7 +56,7 @@ struct TestTensor {
 
         ov::Shape s;
         for (auto dim : shape)
-            s.push_back(dim.get_length());
+            s.push_back(dim);
 
         if (values.size() > 0) {
             tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::from<T>(), s);
@@ -98,8 +109,6 @@ inline void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialSh
         id++;
     }
 }
-
-using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {

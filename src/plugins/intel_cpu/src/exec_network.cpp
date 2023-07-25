@@ -161,11 +161,11 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
 
 ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     int streamId = 0;
-    int numaNodeId = 0;
+    int socketId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->GetStreamId();
-        numaNodeId = streamsExecutor->GetNumaNodeId();
+        socketId = streamsExecutor->GetSocketId();
     }
     auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -176,8 +176,9 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
                     // disable weights caching if graph was created only once
+                    // "socketId != -1" is the WA for MacOS, will remove later
                     auto weightsCache =
-                        _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
+                        (_cfg.streamExecutorConfig._streams != 1 && socketId != -1) ? _socketWeights[socketId] : nullptr;
 
                     auto isQuantizedFlag =
                         (_cfg.lpTransformsMode == Config::On) &&

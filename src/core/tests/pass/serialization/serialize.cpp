@@ -10,11 +10,11 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -67,6 +67,12 @@ TEST_P(SerializationTest, CompareFunctions) {
 TEST_P(SerializationTest, SerializeHelper) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::serialize(m, m_out_xml_path, m_out_bin_path);
+    });
+}
+
+TEST_P(SerializationTest, SaveModel) {
+    CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
+        ov::save_model(m, m_out_xml_path, false);
     });
 }
 

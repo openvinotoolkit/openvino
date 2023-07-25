@@ -18,28 +18,11 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
-namespace InferenceEngine {
-class IPluginWrapper;
-class ICompiledModelWrapper;
-class Core;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class Core;
-class CoreImpl;
-class Plugin;
-class IPlugin;
 class IRemoteContext;
-class ISyncInferRequest;
-class IInferencePluginWrapper;
-class IExecutableNetworkWrapper;
-class ICompiledModel;
 class CompiledModel;
-
-namespace proxy {
-class RemoteContext;
-}
 
 /**
  * @brief This class represents an abstraction
@@ -60,19 +43,8 @@ protected:
      * object is destroyed.
      */
     RemoteContext(const std::shared_ptr<IRemoteContext>& impl, const std::shared_ptr<void>& so);
-    friend class InferenceEngine::Core;
-    friend class InferenceEngine::IPluginWrapper;
-    friend class InferenceEngine::ICompiledModelWrapper;
     friend class ov::Core;
-    friend class ov::CoreImpl;
-    friend class ov::Plugin;
-    friend class ov::IPlugin;
-    friend class ov::ISyncInferRequest;
-    friend class ov::IInferencePluginWrapper;
-    friend class ov::IExecutableNetworkWrapper;
-    friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
-    friend class ov::proxy::RemoteContext;
 
 public:
     /**

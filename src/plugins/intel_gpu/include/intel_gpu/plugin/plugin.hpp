@@ -38,6 +38,7 @@ class Plugin : public InferenceEngine::IInferencePlugin {
     RemoteCLContext::Ptr get_default_context(const std::string& device_id) const;
 
     std::vector<ov::PropertyName> get_supported_properties() const;
+    std::vector<ov::PropertyName> get_supported_internal_properties() const;
     std::vector<std::string> get_device_capabilities(const cldnn::device_info& info) const;
     uint32_t get_optimal_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;
     uint32_t get_max_batch_size(const std::map<std::string, InferenceEngine::Parameter>& options) const;

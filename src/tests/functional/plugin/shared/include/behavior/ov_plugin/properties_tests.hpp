@@ -103,6 +103,7 @@ using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityCo
 using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
 
 using OVGetConfigTest = OVClassBaseTestP;
+using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
 using OVGetAvailableDevicesPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsTest = OVClassBaseTestP;

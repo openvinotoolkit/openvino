@@ -3,6 +3,8 @@
 //
 
 #include "roi_pooling_inst.h"
+#include "roi_pooling_shape_inference.hpp"
+
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include <string>
@@ -23,6 +25,31 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel
                   data_layout.format,
                   {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
 }
+
+template<typename ShapeType>
+std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<roi_pooling>();
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
+    auto data_shape = input0_layout.get<ShapeType>();
+    auto output_format = input0_layout.format;
+
+    ov::op::v0::ROIPooling op;
+    std::vector<int> output_size { desc->pooled_height, desc->pooled_width };
+    op.set_output_roi({ output_size.begin(), output_size.end() });
+    op.set_spatial_scale(desc->spatial_scale);
+
+    ShapeType rois_shape = impl_param.get_input_layout(1).get<ShapeType>();
+    std::vector<ShapeType> input_shapes = {
+        data_shape,
+        rois_shape
+    };
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+
+    return { layout{output_shapes[0], output_type, output_format} };
+}
+
+template std::vector<layout> roi_pooling_inst::calc_output_layouts<ov::PartialShape>(roi_pooling_node const& node, const kernel_impl_params& impl_param);
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node) {
     auto desc = node.get_primitive();

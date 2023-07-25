@@ -19,7 +19,7 @@ TEST_F(StaticShapeAdapterTest, make_from_partial_shape) {
                     ov::Exception,
                     HasSubstr("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime"));
 
-    OV_EXPECT_THROW(std::ignore = StaticShapeCon(partial_shape),
+    OV_EXPECT_THROW(std::ignore = StaticShape(partial_shape),
                     ov::Exception,
                     HasSubstr("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime"));
 }
@@ -34,7 +34,7 @@ TEST_F(StaticShapeAdapterTest, create_empty_ref) {
 }
 
 TEST_F(StaticShapeAdapterTest, create_as_container) {
-    auto shape = StaticShapeCon(VectorDims{2, 4, 5, 7});
+    auto shape = StaticShape(VectorDims{2, 4, 5, 7});
 
     shape[2] = 10;
 
@@ -46,7 +46,7 @@ TEST_F(StaticShapeAdapterTest, create_as_container) {
 }
 
 TEST_F(StaticShapeAdapterTest, create_from_list) {
-    auto shape = StaticShapeCon({2, 4, 5, 7});
+    auto shape = StaticShape({2, 4, 5, 7});
 
     shape[1] = 10;
 
@@ -72,7 +72,7 @@ TEST_F(StaticShapeAdapterTest, make_from_const_dims) {
 TEST_F(StaticShapeAdapterTest, create_as_conatiner_from_dims) {
     auto dims = VectorDims{2, 5, 3, 8, 9, 1};
 
-    auto shape = StaticShapeCon(dims);
+    auto shape = StaticShape(dims);
     std::iota(shape.begin(), shape.end(), 10);
 
     EXPECT_TRUE(shape.is_static());
@@ -97,7 +97,7 @@ TEST_F(StaticShapeAdapterTest, copy_const_reference_to_dims) {
 
 TEST_F(StaticShapeAdapterTest, make_copy_from_empty_ref) {
     auto shape = StaticShapeRef();
-    StaticShapeCon shape_copy = shape;
+    StaticShape shape_copy = shape;
     shape_copy.resize(5);
     shape_copy[shape_copy.size() - 1] = 1000;
 
@@ -108,7 +108,7 @@ TEST_F(StaticShapeAdapterTest, make_copy_from_empty_ref) {
 TEST_F(StaticShapeAdapterTest, make_copy_from_other) {
     const auto dims = VectorDims{10, 12, 1, 3};
     auto shape = StaticShapeRef(dims);
-    StaticShapeCon shape_copy = shape;
+    StaticShape shape_copy = shape;
     shape_copy.resize(shape_copy.size() + 1);
     shape_copy[shape_copy.size() - 1] = 1000;
 
@@ -122,7 +122,7 @@ TEST_F(StaticShapeAdapterTest, make_copy_from_other) {
 TEST_F(StaticShapeAdapterTest, emplace_and_push_back_dims) {
     auto dims = VectorDims{2, 3, 4, 7, 8, 9};
 
-    auto shape = StaticShapeCon(dims);
+    auto shape = StaticShape(dims);
     shape.resize(4);
     shape.emplace_back(11);
     shape.push_back(21);
@@ -147,7 +147,7 @@ TEST_F(StaticShapeAdapterTest, are_compatible) {
     auto dims2 = VectorDims({2, 5, 6, 7});
     auto shape1 = StaticShapeRef(dims1);
     auto shape2 = StaticShapeRef(dims2);
-    auto shape3 = StaticShapeCon(dims1);
+    auto shape3 = StaticShape(dims1);
 
     EXPECT_TRUE(shape1.compatible(shape2));
     EXPECT_TRUE(shape1.compatible(shape3));
@@ -187,7 +187,7 @@ TEST_F(StaticShapeAdapterTest, merge_rank) {
 
 TEST_F(StaticShapeAdapterTest, dereference_as_rvalue_and_move) {
     auto dims = VectorDims{2, 6, 3, 2, 5};
-    auto shape = StaticShapeCon(dims);
+    auto shape = StaticShape(dims);
 
     const auto shape_data_address = reinterpret_cast<uintptr_t>((*shape).data());
     auto out_dims = std::move(*shape);
@@ -213,7 +213,7 @@ TEST_F(StaticShapeAdapterTest, dereference_as_lvalue_and_copy) {
 }
 
 TEST_F(StaticShapeAdapterTest, move_shapes_into_vector_of_vector_dims) {
-    auto output_shapes = std::vector<StaticShapeCon>{{1, 2, 3}, {10, 12}, {100, 1, 2, 3, 4}};
+    auto output_shapes = std::vector<StaticShape>{{1, 2, 3}, {10, 12}, {100, 1, 2, 3, 4}};
 
     std::vector<VectorDims> output_vec_dims;
     output_vec_dims.reserve(output_shapes.size());
@@ -227,15 +227,15 @@ TEST_F(StaticShapeAdapterTest, move_shapes_into_vector_of_vector_dims) {
 
 TEST_F(StaticShapeAdapterTest, compare_empty_ref_and_container) {
     auto shape1 = StaticShapeRef();
-    auto shape2 = StaticShapeCon();
+    auto shape2 = StaticShape();
 
     EXPECT_TRUE(shape1 == shape2);
 }
 
 TEST_F(StaticShapeAdapterTest, compare_ref_and_container) {
     auto dims = VectorDims{2, 5, 3, 4};
-    auto shape1 = StaticShapeCon{2, 5, 3};
-    auto shape2 = StaticShapeCon{2, 5, 3, 4};
+    auto shape1 = StaticShape{2, 5, 3};
+    const auto shape2 = StaticShape{2, 5, 3, 4};
     auto shape3 = StaticShapeRef(dims);
 
     EXPECT_FALSE(shape1 == shape2);
@@ -245,6 +245,29 @@ TEST_F(StaticShapeAdapterTest, compare_ref_and_container) {
 
     EXPECT_TRUE(shape2 == shape3);
     EXPECT_TRUE(shape3 == shape2);
+
+    std::cout << "ref  " << shape2 << std::endl;
+    for (auto& d : shape2) {
+        std::cout << d << " ";
+    }
+    std::cout << std::endl;
+
+    for (size_t i = 0; i < shape2.size(); ++i) {
+        std::cout << shape2[i] << " ";
+    }
+    std::cout << std::endl << "----------------" << std::endl;
+
+    // std::cout << "dims " << dims << std::endl;
+    std::cout << "ref  " << shape3 << std::endl;
+    for (auto& d : shape3) {
+        std::cout << d << " ";
+    }
+    std::cout << std::endl;
+
+    for (size_t i = 0; i < shape3.size(); ++i) {
+        std::cout << shape3[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
 TEST_F(StaticShapeAdapterTest, subscript_op_on_reference) {
@@ -258,7 +281,7 @@ TEST_F(StaticShapeAdapterTest, subscript_op_on_reference) {
 }
 
 TEST_F(StaticShapeAdapterTest, subscript_op_on_container) {
-    auto shape = StaticShapeCon{10, 2, 123, 4, 3};
+    auto shape = StaticShape{10, 2, 123, 4, 3};
 
     EXPECT_EQ(shape[3], StaticDimension(4));
     EXPECT_EQ(shape[1], StaticDimension(2));
