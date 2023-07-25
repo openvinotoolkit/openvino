@@ -14,7 +14,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::AutoTest::create_model()
     add->set_friendly_name("add");
     auto subtract = std::make_shared<ov::opset11::Subtract>(add, const_value);
     subtract->set_friendly_name("sub");
-    auto result = std::make_shared<ov::opset11::Result>(subtract);ё
+    auto result = std::make_shared<ov::opset11::Result>(subtract);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }

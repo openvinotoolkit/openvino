@@ -239,6 +239,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
+                                                                        "onnx/dft_inversed_lenght_provided.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
+                                                3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
                                                 6.000000f,  0.000000f, 7.000000f,  0.000000f, 8.000000f,  0.000000f,
                                                 9.000000f,  0.000000f, 10.000000f, 0.000000f, 11.000000f, 0.000000f,
                                                 12.000000f, 0.000000f, 13.000000f, 0.000000f, 14.000000f, 0.000000f});

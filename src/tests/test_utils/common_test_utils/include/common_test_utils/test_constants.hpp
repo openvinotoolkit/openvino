@@ -64,4 +64,5 @@ using ov::test::utils::DEVICE_TEMPLATE;
 using ov::test::utils::DEVICE_HETERO;
 
 using ov::test::utils::maxFileNameLength;
+using ov::test::utils::DEVICE_SUFFIX_SEPARATOR;
 } // namespace CommonTestUtils

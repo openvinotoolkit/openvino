@@ -566,6 +566,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/dynamic_shapes/expand_dyn.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
     test_case.add_input<float>(Shape{1, 3, 1}, std::vector<float>{7.f, 8.f, 9.f});
     test_case.add_input<int64_t>(Shape{3}, std::vector<int64_t>{3, 1, 3});
 

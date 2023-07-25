@@ -518,4 +518,5 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 namespace CommonTestUtils {
 using ov::test::utils::ie_abs;
 using ov::test::utils::generate_float_numbers;
+using ov::test::utils::fill_data_roi;
 } // namespace CommonTestUtils

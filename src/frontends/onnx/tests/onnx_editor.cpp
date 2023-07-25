@@ -966,6 +966,10 @@ OPENVINO_TEST(onnx_editor, editor_api_select_edge_const_network) {
 OPENVINO_TEST(onnx_editor, editor_api_select_edge_error_handling) {
     ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
+                                                        "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+
+    // node with given output name not found
+    try {
         editor.find_input_edge(EditorNode{EditorOutput{"not_existed"}}, EditorInput{0});
     } catch (const std::exception& e) {
         std::string msg{e.what()};
