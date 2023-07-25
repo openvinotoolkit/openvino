@@ -26,7 +26,8 @@ class TestingBroadcasting(unittest.TestCase):
 
         for idx, (input_shape, target_shape, expected_shape) in enumerate(test_cases):
             with self.subTest(test_cases=idx):
-                self.assertTrue(np.array_equal(uni_directional_shape_broadcasting(input_shape, target_shape), expected_shape))
+                self.assertTrue(np.array_equal(uni_directional_shape_broadcasting(input_shape, target_shape),
+                                               expected_shape))
 
                 input_value = np.array(np.random.rand(*input_shape))
                 if expected_shape is not None:
