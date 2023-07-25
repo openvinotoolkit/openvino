@@ -1000,7 +1000,9 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
     // Reuse intermediate buffer like output buffer.
-    return _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
+    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
+    GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << " " << ret_mem->buffer_ptr() << std::endl;
+    return ret_mem;
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
@@ -1683,7 +1685,8 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         allocation_type _allocation_type;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-        _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
+        _intermediates_memory[i] = get_network().get_memory_pool().get_memory(ibuf_layout, id(), get_network_id(),
+                                                                            _node_mem_deps, _allocation_type, true, true);
     }
 
     bool has_impl;

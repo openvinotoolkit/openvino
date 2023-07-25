@@ -42,6 +42,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
+        add_memory_dependency(id());
     }
 }
 
