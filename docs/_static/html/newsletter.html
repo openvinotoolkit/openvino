@@ -274,7 +274,14 @@
                     <button class="newsletter-submit-btn" type="submit">SUBMIT </button>
                 </div>
             </form>
-            <div class="message-box animated fade-up"></div>
+            <div class="message-box" id="loader">
+                <svg version="1.1" id="loader" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 0 0" xml:space="preserve" style="width: 100px; height: 100px">
+                    <path fill="#a8a8a8" fill-opacity="0.4" d="M73,50c0-12.7-10.3-23-23-23S27,37.3,27,50 M30.9,50c0-10.5,8.5-19.1,19.1-19.1S69.1,39.5,69.1,50">
+                        <animateTransform attributeName="transform" attributeType="XML" type="rotate" dur="1s" from="0 50 50" to="360 50 50" repeatCount="indefinite" />
+                    </path>
+                </svg>
+            </div>
+            <div class="message-box animated fade-up" id="message"></div>
             <div class="newsletter-footer animated fade-in animation-delay--long">
                 <p class="newsletter-footer-text">By submitting this form, you are confirming you are an adult 18 years or older and you agree to share your personal information with Intel to use for this business request. You also agree to subscribe to stay connected to the latest Intel technologies and industry trends by email and telephone. You may unsubscribe at any time. Intel's web sites and communications are subject to our <a href="https://intel.com/content/www/us/en/privacy/intel-privacy-notice.html" target="_blank"> Privacy Notice </a> and <a href="https://intel.com/content/www/us/en/legal/terms-of-use.html" target="_blank"> Terms of Use.</a></p>
             </div>
