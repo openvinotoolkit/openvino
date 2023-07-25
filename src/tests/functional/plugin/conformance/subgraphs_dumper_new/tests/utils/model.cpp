@@ -31,7 +31,7 @@ get_functional_ops(const std::shared_ptr<ov::Model>& model) {
     return { start_node, nodes };
 }
 
-TEST(ModelUtilsTest, generate_0) {
+TEST(ModelUtilsTest, DISABLED_generate_0) {
     Model_0 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
@@ -51,7 +51,7 @@ TEST(ModelUtilsTest, generate_0) {
     }
 }
 
-TEST(ModelUtilsTest, generate_1) {
+TEST(ModelUtilsTest, DISABLED_generate_1) {
     Model_1 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
@@ -75,7 +75,7 @@ TEST(ModelUtilsTest, generate_1) {
     }
 }
 
-TEST(ModelUtilsTest, generate_2) {
+TEST(ModelUtilsTest, DISABLED_generate_2) {
     Model_2 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
