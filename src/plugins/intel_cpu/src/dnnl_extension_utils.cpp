@@ -65,7 +65,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
+            return memory::data_type::undef;
+            // IE_THROW() << "The plugin does not support " << prec.name();
         }
     }
 }

@@ -218,7 +218,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto& input : inputNodesMap) {
         auto prec = InferenceEngine::details::convertPrecision(find_input_port_prec(input.first));
-        const auto precToSet = normalizeToSupportedPrecision(prec);
+        // const auto precToSet = normalizeToSupportedPrecision(prec);
+        const auto precToSet = prec;
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
@@ -489,6 +490,9 @@ void Graph::InitEdges() {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
+        std::cout << "InitEdges() edge " << i << "/" << numberOfEdges << ": name = " << edge->name()
+                  << ", input = " << edge->getInputDesc().getPrecision()
+                  << ", output = " << edge->getOutputDesc().getPrecision() << std::endl;
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
