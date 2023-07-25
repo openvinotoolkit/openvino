@@ -12,7 +12,7 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Merge Gather with Transpose through Reshape.
+ * @brief Merge Gather with Transpose through Reshape or sequence of Reshapes.
  *
  *      Any1[a,b,c]          Any1[a,b,c]
  *       |                     |
@@ -20,7 +20,11 @@ namespace pass {
  *       |                     |
  *     Gather[1,a*b*c]      Gather[1,a*b*c]
  *       |                     |
- *    Reshape[a,b,c]           |
+ *    Reshape1[...]            |
+ *       |                     |
+ *      ...                    |
+ *       |                     |
+ *    ReshapeN[a,b,c]          |
  *       |              =>     |
  *   Transpose[c,b,a]       Reshape[c,b,a]
  *       |                     |
@@ -37,11 +41,15 @@ public:
 };
 
 /**
- * @brief Merge Transpose with Gather through Reshape.
+ * @brief Merge Transpose with Gather through Reshape or sequence of Reshapes.
  *
  *      Any1[a,b,c]            Any1[a,b,c]
  *       |                      |
  *   Transpose[c,b,a]           |
+ *       |                      |
+ *    Reshape1[...]             |
+ *       |                      |
+ *      ...                     |
  *       |                      |
  *    Reshape[1, a*b*c]      Reshape[1, a*b*c]
  *       |               =>     |

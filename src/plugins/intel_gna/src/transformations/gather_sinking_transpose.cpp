@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "openvino/cc/ngraph/itt.hpp"
-// #include "transformations/utils/utils.hpp"
 #include "common/graph_utils.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
@@ -76,10 +75,6 @@ inline std::vector<std::shared_ptr<ov::Node>> merge_nodes_backward(std::shared_p
     return std::vector<std::shared_ptr<ov::Node>>({reshape_in, gather_new});
 }
 
-inline bool is_constant_1d(const ov::Output<ov::Node>& output) {
-    return output.get_partial_shape().size() <= 1;
-}
-
 inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
     return std::dynamic_pointer_cast<Reshape>(node) != nullptr && node->output(0).get_target_inputs().size() == 1;
 }
@@ -88,7 +83,7 @@ inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
 
 GatherSinkingTransposeForward::GatherSinkingTransposeForward() {
     MATCHER_SCOPE(GatherSinkingTransposeForward);
-    auto gather_ids_label = wrap_type<Constant>(is_constant_1d);
+    auto gather_ids_label = wrap_type<Constant>(graph_utils::is_constant_1d);
     auto gather_label = wrap_type<Gather>({any_input(), gather_ids_label, any_input()});
     auto reshape_label = wrap_type<Reshape>({gather_label, any_input()});
     // auto transpose_label = wrap_type<Transpose>({reshape_label, any_input()});
@@ -121,7 +116,7 @@ GatherSinkingTransposeBackward::GatherSinkingTransposeBackward() {
     MATCHER_SCOPE(GatherSinkingTransposeBackward);
 
     auto reshape_label = wrap_type<Reshape>({any_input(), any_input()});
-    auto gather_ids_label = wrap_type<Constant>(is_constant_1d);
+    auto gather_ids_label = wrap_type<Constant>(graph_utils::is_constant_1d);
     auto gather_label = wrap_type<Gather>({reshape_label, gather_ids_label, any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
