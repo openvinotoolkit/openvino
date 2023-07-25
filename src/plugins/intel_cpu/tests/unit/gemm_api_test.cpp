@@ -10,5 +10,5 @@
 TEST(GemmTests, getPackedSize) {
     int N = 51864;
     int K = 384;
-    ASSERT_NO_THROW(mlas_sgemm_pack_get_size(N, K));
+    ASSERT_NO_THROW(ov::intel_cpu::mlas_sgemm_pack_get_size(N, K));
 }
