@@ -38,7 +38,6 @@ public:
 private:
     std::shared_ptr<IStaticShapeInfer> m_shape_infer;
     IShapeInfer::port_mask_t m_port_mask;
-    bool m_has_implemented_accessor;
 };
 
 } // namespace intel_cpu

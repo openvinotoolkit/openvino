@@ -53,12 +53,8 @@ TEST_F(MaxPoolV1StaticShapeInferenceTest, no_auto_pad_round_floor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 12, 14}));
@@ -80,12 +76,8 @@ TEST_F(MaxPoolV1StaticShapeInferenceTest, auto_padding_same_lower_round_ceil) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 10, 4, 10}));
@@ -112,12 +104,8 @@ TEST_F(MaxPoolV8StaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({1, 3, 6, 11})));
@@ -138,12 +126,8 @@ TEST_F(MaxPoolV8StaticShapeInferenceTest, no_dilation) {
 
     input_shapes = ShapeVector{{2, 3, 13, 13}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({2, 3, 13, 13})));
@@ -164,12 +148,8 @@ TEST_F(MaxPoolV8StaticShapeInferenceTest, with_dilations) {
 
     input_shapes = ShapeVector{{2, 4, 13, 13}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({2, 4, 12, 11})));

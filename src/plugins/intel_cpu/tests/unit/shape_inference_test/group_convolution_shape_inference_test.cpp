@@ -68,12 +68,8 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor_three_input_shap
     // Third input shape (bias) can be provided, but is not used
     input_shapes = ShapeVector{{1, 6, 10, 12}, {3, 2, 2, 5, 5}, {3}};
     auto shape_infer = make_shape_inference(op);
-<<<<<<< HEAD
-    output_shapes = shape_infer->infer(input_shapes, std::map<size_t, ov::HostTensorPtr>{}).shapes;
-=======
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
->>>>>>> master
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 10, 11}));
