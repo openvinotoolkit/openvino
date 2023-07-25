@@ -29,7 +29,7 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 2. Read a model -------------------------------------
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
-  const model = core.read_model(modelPath);
+  const model = core.readModel(modelPath);
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -55,27 +55,27 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 4. Apply preprocessing ------------------------------
 
   new ov.PrePostProcessor(model)
-    .set_input_tensor_shape(shape)
+    .setInputTensorShape(shape)
     .preprocessResizeAlgorithm('RESIZE_LINEAR')
 
     // FIXME: Uncomment after support tensor in not f32 precision
     // .set_input_element_type(ov.element.u8)
-    .set_input_tensor_layout('NHWC')
-    .set_input_model_layout('NCHW')
+    .setInputTensorLayout('NHWC')
+    .setInputModelLayout('NCHW')
     // TODO: add output tensor element type setup
     .build();
 
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
-  const compiledModel = core.compile_model(model, deviceName);
+  const compiledModel = core.compileModel(model, deviceName);
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
   const inferRequest = compiledModel
-    .create_infer_request();
+    .createInferRequest();
   // FIXME: doesn't work
   // inferRequest.infer({ 'input_1': inputTensor });
-  inferRequest.set_input_tensor(inputTensor);
+  inferRequest.setInputTensor(inputTensor);
   inferRequest.infer();
 
   //----------------- Step 7. Process output -----------------------------------

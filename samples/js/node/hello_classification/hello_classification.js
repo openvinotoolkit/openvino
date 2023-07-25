@@ -48,10 +48,10 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 4. Apply preprocessing ------------------------------
 
   new ov.PrePostProcessor(model)
-    .set_input_tensor_shape(shape)
+    .setInputTensorShape(shape)
     .preprocessResizeAlgorithm('RESIZE_LINEAR')
-    .set_input_tensor_layout('NHWC')
-    .set_input_model_layout('NCHW')
+    .setInputTensorLayout('NHWC')
+    .setInputModelLayout('NCHW')
     .build();
 
   //----------------- Step 5. Loading model to the device ----------------------
