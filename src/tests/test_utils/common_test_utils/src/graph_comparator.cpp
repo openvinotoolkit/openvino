@@ -499,6 +499,8 @@ public:
             const auto res = sub_comparator.compare(lhs_body, rhs_body);
             if (!res.valid)
                 return res;
+        } else if (lhs_body || rhs_body) {
+            return Result::error("one subgraph's body is missing");
         }
 
         return compare_backedges(sub_lhs, sub_rhs);
