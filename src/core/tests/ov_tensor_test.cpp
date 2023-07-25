@@ -71,9 +71,24 @@ TEST_F(OVTensorTest, canAccessF16Tensor) {
     EXPECT_NE(nullptr, t.data());
     EXPECT_NO_THROW(t.data(ov::element::f16));
     EXPECT_NO_THROW(t.data<ov::float16>());
-    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
+    EXPECT_NO_THROW(t.data<ov::bfloat16>());
     EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
     EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
+}
+
+TEST_F(OVTensorTest, canAccessU8Tensor) {
+    ov::Shape shape = {4, 3, 2};
+    ov::Tensor t{ov::element::u8, shape};
+    EXPECT_NE(nullptr, t.data());
+    EXPECT_NO_THROW(t.data(ov::element::u8));
+    EXPECT_NO_THROW(t.data<char>());
+    EXPECT_NO_THROW(t.data<unsigned char>());
+    EXPECT_NO_THROW(t.data<bool>());
+    EXPECT_NO_THROW(t.data<uint8_t>());
+    EXPECT_NO_THROW(t.data<int8_t>());
+    EXPECT_THROW(t.data<float>(), ov::Exception);
+    EXPECT_THROW(t.data<double>(), ov::Exception);
+    EXPECT_THROW(t.data<uint32_t>(), ov::Exception);
 }
 
 TEST_F(OVTensorTest, emptySize) {
