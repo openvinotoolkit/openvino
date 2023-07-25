@@ -371,12 +371,12 @@ if (ENABLE_CPU_EXTENSIONS)
     reset_deps_cache(cpu_extensions_DIR)
 
     if(LINUX AND X86_64)
-        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine")
+        set(IE_PATH_TO_DEPS "https://github.com/luo-cheng2021/cpu_extensions/releases/download/20230725")
         RESOLVE_DEPENDENCY(CPU_EXTENSIONS
-                ARCHIVE_LIN "cpu_extensions_20230719_lin.tgz"
+                ARCHIVE "cpu_extensions_20230725_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                SHA256 "c1d41df6a9adf4b11ff827cfc3cf760cbcfdcc8a749c606c37e6de6bfd4b4774"
+                SHA256 "9989a7d2145ef862e5ce0fba30a76256dafe114bbc01d73543c700d39e4564c1"
                 USE_NEW_LOCATION TRUE)
         unset(IE_PATH_TO_DEPS)
     else()
