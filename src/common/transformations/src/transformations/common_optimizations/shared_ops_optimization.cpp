@@ -8,6 +8,7 @@
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/slice.hpp>
 #include <openvino/op/tile.hpp>
+#include <openvino/op/transpose.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
 
@@ -131,6 +132,7 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         // no attributes
         RECORD(v8::Slice, inputs_from_same_source_or_equal_constants),
         RECORD(v0::Tile, inputs_from_same_source_or_equal_constants),
+        RECORD(v1::Transpose, inputs_from_same_source_or_equal_constants),
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),
