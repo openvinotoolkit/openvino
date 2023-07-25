@@ -508,19 +508,20 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         }
     }
 
+    const auto tensor_accessor = ov::make_tensor_accessor(const_data);
     if (primitive->is_clustered()) {
         ov::op::v0::PriorBoxClustered op;
         op.set_attrs(primitive->get_attrs_clustered());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
     } else {
         if (primitive->is_v8_support()) {
             ov::op::v8::PriorBox op;
             op.set_attrs(primitive->get_attrs_v8());
-            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, const_data);
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, tensor_accessor);
         } else {
             ov::op::v0::PriorBox op;
             op.set_attrs(primitive->get_attrs_v0());
-            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
         }
     }
     const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
