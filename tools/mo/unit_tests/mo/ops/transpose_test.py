@@ -5,7 +5,6 @@ import itertools
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
     dynamic_dimension_value
@@ -19,7 +18,6 @@ from unit_tests.utils.graph import valued_const_with_data, result, regular_op_wi
 input_shape = np.array([1, 3, 224, 224])
 
 
-@generator
 class TestTransposeOp(unittest.TestCase):
     nodes_attributes = {
         'parameter': {
@@ -71,15 +69,17 @@ class TestTransposeOp(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         return graph
 
-    @generate(*[list(order) for order in list(itertools.permutations(np.arange(4)))])
-    def test_transpose_infer_1(self, order):
-        graph = self._create_graph_with_transpose(order)
-        transpose_node = Node(graph, 'transpose')
+    def test_transpose_infer_1(self):
+        test_cases=[list(order) for order in list(itertools.permutations(np.arange(4)))]
+        for idx, (order) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = self._create_graph_with_transpose(order)
+                transpose_node = Node(graph, 'transpose')
 
-        Transpose.infer(transpose_node)
+                Transpose.infer(transpose_node)
 
-        ref = [transpose_node.in_node().shape[i] for i in order]
-        self.assertTrue(np.array_equal(transpose_node.out_node().shape, np.array(ref)))
+                ref = [transpose_node.in_node().shape[i] for i in order]
+                self.assertTrue(np.array_equal(transpose_node.out_node().shape, np.array(ref)))
 
     def test_transpose_infer_2(self):
         order = None
