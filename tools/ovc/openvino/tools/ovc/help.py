@@ -97,5 +97,4 @@ def get_to_string_methods_for_params():
         'input_model': path_to_str_or_object,
         'output': str_list_to_str,
         'extensions': extensions_to_str_or_extensions_class,
-        'saved_model_tags': str_list_to_str
     }

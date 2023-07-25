@@ -286,7 +286,7 @@ ParamDescription = namedtuple("ParamData",
 def get_mo_convert_params():
     mo_convert_docs = openvino.tools.ovc.convert_model.__doc__ # pylint: disable=no-member
     mo_convert_params = {}
-    group = "Framework-agnostic parameters:"    #FIXME: WA for unknown bug in this function
+    group = "Optional parameters:"    #FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
 
     mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
@@ -637,21 +637,20 @@ def add_args_by_description(args_group, params_description):
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
-    common_group = parser.add_argument_group('Framework-agnostic parameters')
     mo_convert_params = get_mo_convert_params()
-    mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
+    mo_convert_params_common = mo_convert_params['Optional parameters:']
 
     from openvino.tools.ovc.version import VersionChecker
 
     # Command line tool specific params
-    common_group.add_argument('--output_model',
+    parser.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
-    common_group.add_argument('--compress_to_fp16', action='store_true',
+    parser.add_argument('--compress_to_fp16', action='store_true',
                               help='Compress weights in output IR .xml/bin files to FP16.')
-    common_group.add_argument('--version', action='version',
+    parser.add_argument('--version', action='version',
                               help='Print ovc version and exit.',
                               version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
-    add_args_by_description(common_group, mo_convert_params_common)
+    add_args_by_description(parser, mo_convert_params_common)
     return parser
 
 
@@ -670,32 +669,6 @@ def get_params_with_paths_list():
     return ['input_model', 'output_model', 'extensions']
 
 
-def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for TF
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
-
-    tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    add_args_by_description(tf_group, mo_convert_params_tf)
-    return parser
-
-
-def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for ONNX
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    return parser
-
-
 def get_all_cli_parser():
     """
     Specifies cli arguments for Model Conversion
@@ -707,8 +680,6 @@ def get_all_cli_parser():
     parser = argparse.ArgumentParser()
 
     get_common_cli_parser(parser=parser)
-    get_tf_cli_parser(parser=parser)
-    get_onnx_cli_parser(parser=parser)
 
     return parser
 

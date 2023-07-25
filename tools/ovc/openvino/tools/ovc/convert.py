@@ -29,9 +29,6 @@ def convert_model(
 
         # PaddlePaddle-specific parameters:
         example_output: Any = None,  # TODO: Consider removing
-
-        # TensorFlow*-specific parameters
-        saved_model_tags: [str, list] = None,   # TODO: Consider removing
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -114,11 +111,6 @@ def convert_model(
     PaddlePaddle-specific parameters:
         :param example_output:
             Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
-
-    TensorFlow*-specific parameters:
-        :param saved_model_tags:
-            Group of tag(s) of the MetaGraphDef to load, in string format, separated
-            by ','. For tag-set contains multiple tags, all tags must be passed in.
 
     Returns:
         openvino.runtime.Model
