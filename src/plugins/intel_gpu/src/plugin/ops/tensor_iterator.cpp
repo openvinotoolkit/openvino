@@ -119,7 +119,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
         cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
-        p.add_primitive(*op, execution_condition);
+        p.add_primitive(*op, std::move(execution_condition));
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {

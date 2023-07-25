@@ -254,7 +254,7 @@ public:
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
-                body_output_prim.reset(new mutable_data(body_output->first, mem));
+                body_output_prim.reset(new mutable_data(body_output->first, std::move(mem)));
             }
         }
     }
@@ -365,7 +365,7 @@ public:
             memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
             from_primitive(_from_primitive),
             to_primitive(std::move(_to_primitive)),
-            from_mems{_from_mem},
+            from_mems{std::move(_from_mem)},
             initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
@@ -402,7 +402,7 @@ public:
                     mem1->copy_from(stream, *initial_mem);
                 } else {
                     memory::ptr mem2 = from_primitive->output_memory_ptr();
-                    to_primitive->set_output_memory(mem2);
+                    to_primitive->set_output_memory(std::move(mem2));
                     from_primitive->set_output_memory(mem1);
                 }
             }

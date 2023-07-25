@@ -562,7 +562,7 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     prior_info.add("flip", flip);
     prior_info.add("clip", clip);
     prior_info.add("scale all sizes", scale_all_sizes);
-    prior_info.add("fixed size", str_fixed_size);
+    prior_info.add("fixed size", std::move(str_fixed_size));
     prior_info.add("fixed ratio", str_fixed_ratio);
     prior_info.add("density", str_density);
 

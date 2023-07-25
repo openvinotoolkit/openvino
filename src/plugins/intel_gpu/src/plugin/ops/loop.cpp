@@ -140,7 +140,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
         cldnn::mutable_data num_iteration = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, 0);
-        p.add_primitive(*op, num_iteration);
+        p.add_primitive(*op, std::move(num_iteration));
     }
 
     // set output mapping
@@ -154,7 +154,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.add_primitive(*op, output_data);
+            p.add_primitive(*op, std::move(output_data));
             external_id = layerNameWithIndex;
         } else {
             external_id = layerName;

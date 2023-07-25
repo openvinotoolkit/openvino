@@ -780,7 +780,7 @@ void InferRequestLegacy::wait_dynamic() {
                 auto outputMemory = internal_outputs_dynamic[nb].at(outputID).get_memory();
                 Blob::Ptr bptr = _outputs[no.first];
 
-                copy_output_data(outputMemory, bptr, &batchOutputs[no.first][nb]);
+                copy_output_data(outputMemory, std::move(bptr), &batchOutputs[no.first][nb]);
             }
         }
     }
@@ -945,7 +945,7 @@ void InferRequestLegacy::allocate_inputs() {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
                 auto blobPtr = create_device_blob(desc_fp32, litr->second);
-                _deviceInputs[name] = blobPtr;
+                _deviceInputs[name] = std::move(blobPtr);
                 Blob::Ptr inputBlob = create_host_blob(desc);
                 _inputs[name] = inputBlob;
             } else {

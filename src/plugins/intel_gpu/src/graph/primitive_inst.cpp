@@ -610,7 +610,7 @@ bool primitive_inst::update_impl() {
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
-                    _impl->set_kernels(kernels);
+                    _impl->set_kernels(std::move(kernels));
                     cache.add(updated_params_no_dyn_pad, _impl->clone());
                 }
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
