@@ -148,5 +148,7 @@ if(ENABLE_CPU_EXTENSIONS)
         add_subdirectory(cpu_extensions EXCLUDE_FROM_ALL)
         # install static libraries
         ov_install_static_lib(cpu_extensions cpu)
+        # align with prebuilt package
+        add_library(cpu_extensions::cpu_extensions ALIAS cpu_extensions)
     endif()
 endif()

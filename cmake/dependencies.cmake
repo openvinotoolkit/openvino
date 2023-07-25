@@ -376,7 +376,7 @@ if (ENABLE_CPU_EXTENSIONS)
                 ARCHIVE "cpu_extensions_20230725_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                SHA256 "507e17cd917243cca6bc7d4e9f72a9003058a359bbc8e6ed1c5773415bb13c6d"
+                SHA256 "b7f1b71ec47e29ff15f35c54bd0236dcebfb21817863ff016e6f8ec6e8bed541"
                 USE_NEW_LOCATION TRUE)
         unset(IE_PATH_TO_DEPS)
     else()
@@ -387,6 +387,9 @@ if (ENABLE_CPU_EXTENSIONS)
 
     update_deps_cache(cpu_extensions_DIR "${CPU_EXTENSIONS_PATH}" "Path to cpu_extensions package folder")
     debug_message(STATUS "cpu_extensions=" ${CPU_EXTENSIONS})
+    if(NOT BUILD_SHARED_LIBS)
+        list(APPEND PATH_VARS "CPU_EXTENSIONS_PATH")
+    endif()
 else()
     reset_deps_cache(cpu_extensions_DIR)
 endif()
