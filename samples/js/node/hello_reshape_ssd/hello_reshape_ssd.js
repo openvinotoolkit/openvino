@@ -71,9 +71,10 @@ async function main(modelPath, imagePath, deviceName) {
 
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
-  const inferRequest = compiledModel
-    .createInferRequest();
-  inferRequest.infer({ data: inputTensor });
+
+  const inferRequest = compiledModel.createInferRequest();
+  inferRequest.setInputTensor(inputTensor);
+  inferRequest.infer();
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
