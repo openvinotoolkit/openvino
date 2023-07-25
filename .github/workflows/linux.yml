@@ -46,7 +46,6 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary/run_parallel.py
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -710,6 +709,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
 
     steps:
       - name: Create Directories
@@ -741,15 +741,15 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Intel CPU plugin func tests
-        run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
-
       - name: Intel CPU plugin func tests in parallel
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+
+      - name: Intel CPU plugin func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
