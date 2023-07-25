@@ -118,7 +118,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
             std::string file = ::FileUtils::makePath(path_mb, std::string(ent->d_name));
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
-            if (!S_ISDIR(stat_path.st_mode) && ::ov::test::utils::endsWith(file, "." + ext_mb)) {
+            if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext_mb)) {
                 auto err = std::remove(file.c_str());
                 if (err != 0) {
                     closedir(dir);
