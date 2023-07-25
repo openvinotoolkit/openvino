@@ -688,7 +688,7 @@ inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_cons
 /**
  * @brief Merge gather indexes.
  * @param ids_in vector with indexes to 1st gather
- * @param ids_out vector with indexes to 2bd gather
+ * @param ids_out vector with indexes to 2nd gather
  * @return vector with indexes to merged gather
  */
 inline std::vector<size_t> combine_gather_indexes(const std::vector<size_t>& ids_in,
