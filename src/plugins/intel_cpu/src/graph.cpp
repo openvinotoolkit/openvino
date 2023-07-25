@@ -812,8 +812,34 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
+        // Use proxy memory manager for output edges
+        for (auto& box : undefinedBoxes) {
+            for (auto& edge : edge_clusters[box.id]) {
+                const auto child = edge->getChild();
+                if (child->getType() == Type::Output &&
+                    edge->getStatus() == Edge::Status::NeedAllocation) {
+                    auto proxyMemMngr =
+                        std::make_shared<ProxyMemoryMngr>();
+                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
+                    edge->allocate(proxyMemMngr);
+
+                    // Store the output memory managers.
+                    // So that, the infer requests can be able to access them.
+                    int count = 0;
+                    for (auto &output : outputNodesMap) {
+                        if (output.second == child) {
+                            outputNodesMemMngrMap[output.first] = proxyMemMngr;
+                            count++;
+                        }
+                    }
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                }
+            }
+        }
+
         if (!syncNodesInds.empty()) {
-            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
             std::vector<int> vecIntervals = {0};
             for (const auto& item : syncNodesInds) {
@@ -990,6 +1016,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
     }
 }
 
+// suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
@@ -1005,6 +1032,8 @@ void Graph::PullOutputData(BlobMap &out) {
         if (ext_blob_map == out.end()) {
             IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
+
+        DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();
@@ -1029,7 +1058,12 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
+            DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()),
+            " dims ", PartialShape(out[name]->getTensorDesc().getDims()), " -> ", PartialShape(outDims),
+            ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             out[name]->setShape(outDims);
+            DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()),
+            " dims ", PartialShape(out[name]->getTensorDesc().getDims()), ", intr ptr ", intr_blob.getData());
         }
 
         // check for empty output blob
@@ -1046,6 +1080,8 @@ void Graph::PullOutputData(BlobMap &out) {
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.getData();
+
+        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1313,13 +1349,12 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     DUMP(node, getConfig().debugCaps, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-
+    DEBUG_LOG(*node);
     if (node->isDynamicNode()) {
         node->executeDynamic(stream);
     } else {
         node->execute(stream);
     }
-    DEBUG_LOG(*node);
 }
 
 void Graph::Infer(InferRequestBase* request) {
