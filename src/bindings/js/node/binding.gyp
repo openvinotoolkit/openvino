@@ -6,7 +6,7 @@
       "cflags_cc!": ["-fno-exceptions", "-fno-rtti", "-std=gnu++14"],
       "cflags_cc": ["-std=c++17"],
 
-      "sources": [  
+      "sources": [
         "src/node_input.cpp",
         "src/node_output.cpp",
         "src/shape.cpp",
@@ -17,15 +17,16 @@
         "src/tensor.cpp",
         "src/infer_request.cpp",
         "src/compiled_model.cpp",
-        "src/core_wrap.cpp", 
+        "src/core_wrap.cpp",
         "src/model_wrap.cpp",
         "src/addon.cpp",
-        "src/element_type.cpp"
+        "src/element_type.cpp",
+        "src/resize_algorithm.cpp"
       ],
 
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
-        "include", 
+        "include",
         "$(INTEL_OPENVINO_DIR)/runtime/include",
         "$(INTEL_OPENVINO_DIR)/runtime/include/ie"
       ],
@@ -33,8 +34,8 @@
       "dependencies": ["<!(node -p \"require('node-addon-api').gyp\")"],
 
       "defines": ["NAPI_DISABLE_CPP_EXCEPTIONS", "DNAPI_VERSION=6"],
- 
-      "libraries": ["-lopenvino", 
+
+      "libraries": ["-lopenvino",
                     "-L$(INTEL_OPENVINO_DIR)/runtime/lib/intel64"],
     }
   ]

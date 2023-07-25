@@ -56,7 +56,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
-    .preprocessResizeAlgorithm('RESIZE_LINEAR')
+    .preprocessResizeAlgorithm(ov.resizeAlgorithms.RESIZE_LINEAR)
 
     // FIXME: Uncomment after support tensor in not f32 precision
     // .set_input_element_type(ov.element.u8)
@@ -73,10 +73,7 @@ async function main(modelPath, imagePath, deviceName) {
   console.log('Starting inference in synchronous mode');
   const inferRequest = compiledModel
     .createInferRequest();
-  // FIXME: doesn't work
-  // inferRequest.infer({ 'input_1': inputTensor });
-  inferRequest.setInputTensor(inputTensor);
-  inferRequest.infer();
+  inferRequest.infer({ data: inputTensor });
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
