@@ -28,8 +28,10 @@ protected:
             auto compiled_names = extract_compiled_model_names(model);
             std::vector<size_t> op_cnt;
             for (const auto& op : model->get_ordered_ops()) {
-                if (this->is_node_to_skip(op))
+                if (this->is_node_to_skip(op)) {
+                    op_cnt.push_back(1);
                     continue;
+                }
                 auto op_name = op->get_friendly_name();
                 if (!compiled_names.count(op_name)) {
                     op_cnt.push_back(1);
@@ -38,12 +40,14 @@ protected:
                 }
             }
             for (const auto& cnt : op_cnt) {
+                std::cout << "DDD: " << cnt << std::endl;
                 if (cnt > 1) {
                     ++graph_cnt;
                 }
             }
         }
         auto models = this->extract(model);
+        std::cout << "DEBUG " << models.size() << " " << graph_cnt << std::endl;
         return models.size() == graph_cnt;
     }
 };

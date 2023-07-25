@@ -74,6 +74,9 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
         throw std::runtime_error("Incorrect node number to create model");
     }
     auto model_map = update_nodes(nodes, start_node);
+    if (model_map.size() < 2) {
+        throw std::runtime_error("Incorrect node number to create model");
+    }
     ov::OutputVector results;
     std::map<std::string, InputInfo> input_info;
     for (const auto& op : model_map) {
