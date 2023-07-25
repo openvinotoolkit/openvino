@@ -105,7 +105,7 @@ TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_common_default_ctor) {
     ShapeVector input_shapes{{8, 3, 11, 12}, {8, 5, 2}};
     ShapeVector output_shapes(1);
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{8, 5, 12}));
 }
 
