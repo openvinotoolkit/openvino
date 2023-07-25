@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace cpu {
-class OVThreadPool : public ThreadPool {
+class OVThreadPool : public IMlasThreadPool {
 public:
     OVThreadPool() = delete;
     explicit OVThreadPool(const size_t& threadNum) : threadNum(threadNum) {}

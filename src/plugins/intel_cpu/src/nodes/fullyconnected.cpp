@@ -286,7 +286,7 @@ void FullyConnected::getSupportedDescriptors() {
               (inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32) &&
               fusedWith.empty();
     auto wgtDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
-    // MLAS cannot find weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
+    // MLAS cannot support weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
     if (useMlas && wgtDims.size() > 2) {
         bool allOnes = true;
         for (size_t i = 2; i < wgtDims.size(); i++) {
@@ -303,14 +303,15 @@ void FullyConnected::getSupportedDescriptors() {
         useMlas = useMlas && isByChannel;
     }
 #endif
-    std::string sgemmType = "MLAS";
 #ifdef CPU_DEBUG_CAPS
     // Select Sgemm type by ENV MLAS/ONEDNN, MLAS is used by default
-    if (getenv("OV_CPU_GEMM")) {
-        sgemmType = std::string(getenv("OV_CPU_GEMM"));
+    if (getenv("OV_CPU_FC_EXEC_TYPE")) {
+        if (std::string(getenv("OV_CPU_GEMM")) != "MLAS") {
+            useMlas = false;
+        }
     }
 #endif
-    if (useMlas && sgemmType == "MLAS") return;
+    if (useMlas) return;
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);

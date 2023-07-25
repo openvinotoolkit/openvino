@@ -131,7 +131,6 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     file_name = path.name
     if path.is_file() and not file_name.startswith("."):
         model = {"model_name": path, "model_file": file_name, "dir": mdir}
-        print(model)
         basedir = mdir.stem
         if basedir in tolerance_map:
             # updated model looks now:

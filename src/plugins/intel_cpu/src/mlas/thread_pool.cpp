@@ -7,12 +7,13 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace cpu {
-
-size_t getCacheSize(int level, bool perCore) {
+// This function impl the forward declaration in MLAS
+size_t getCacheSizeMlas(int level, bool perCore) {
     return dnnl::utils::get_cache_size(level, perCore);
 }
+
+namespace ov {
+namespace cpu {
 
 size_t OVThreadPool::DegreeOfParallelism() {
     // threadpool nullptr means single threaded
