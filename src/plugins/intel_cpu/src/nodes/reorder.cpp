@@ -338,9 +338,6 @@ void Reorder::execute(dnnl::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        // src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
-        // dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
-
         if (prim) {
             prim.execute(strm, primArgs);
         } else {
