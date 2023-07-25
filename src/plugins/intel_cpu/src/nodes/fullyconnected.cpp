@@ -258,7 +258,9 @@ void FullyConnected::getSupportedDescriptors() {
         if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
             outputDataType = memory::data_type::f16;
         }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         weightsDataType = memory::data_type::f16;
+#endif
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
