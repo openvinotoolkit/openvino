@@ -26,7 +26,7 @@ using namespace gather_sinking;
 namespace {
 
 std::vector<std::shared_ptr<ov::Node>> gather_sink_forward(std::shared_ptr<ov::Node> transpose,
-                                                   std::shared_ptr<ov::Node> reshape) {
+                                                           std::shared_ptr<ov::Node> reshape) {
     std::vector<std::shared_ptr<ov::Node>> new_nodes = {};
 
     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
@@ -69,7 +69,7 @@ std::vector<std::shared_ptr<ov::Node>> gather_sink_forward(std::shared_ptr<ov::N
 }
 
 std::vector<std::shared_ptr<ov::Node>> gather_sink_backward(std::shared_ptr<ov::Node> reshape,
-                                                    std::shared_ptr<ov::Node> transpose) {
+                                                            std::shared_ptr<ov::Node> transpose) {
     std::vector<std::shared_ptr<ov::Node>> new_nodes = {};
     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
     ov::Shape shape_out = transpose->get_output_shape(0);
