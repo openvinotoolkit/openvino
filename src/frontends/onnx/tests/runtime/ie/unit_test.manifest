@@ -389,6 +389,3 @@ IE_CPU.onnx_model_top_k_repeating_unsorted
 
 # Accuracy regression - Ticket 105909
 IE_CPU.onnx_model_attention_qkv_hidden_sizes
-
-# Ticket: 111110, ScatterElementsUpdate-12 (not fully implemented)
-IE_CPU.onnx_model_scatter_elements_none_neg_ind_opset18
