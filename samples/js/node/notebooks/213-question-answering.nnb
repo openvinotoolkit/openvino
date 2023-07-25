@@ -65,7 +65,7 @@
         {
             "language": "javascript",
             "source": [
-                "console.log('===')\noutputs.forEach(o => console.log(`${o}`));"
+                "console.log('=== Model Inputs:');\ninputs.forEach(i => console.log(`${i}`));\nconsole.log('=== Model Outputs:');\noutputs.forEach(o => console.log(`${o}`));"
             ],
             "outputs": [
                 {
@@ -73,7 +73,12 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
-                                "===",
+                                "=== Model Inputs:",
+                                "input_ids",
+                                "attention_mask",
+                                "token_type_ids",
+                                "position_ids",
+                                "=== Model Outputs:",
                                 "output_s",
                                 "output_e",
                                 ""
@@ -182,7 +187,7 @@
                                 "Question: What is the term for a task that generally lends itself to being solved by a computer?",
                                 "Answer: A computational problem",
                                 "Score: 0.5169314246438148",
-                                "Time: 0.100924645s",
+                                "Time: 0.100610685s",
                                 ""
                             ]
                         }
