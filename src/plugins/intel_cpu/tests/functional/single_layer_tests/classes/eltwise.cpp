@@ -168,7 +168,7 @@ const ov::AnyMap& additional_config() {
 
 const std::vector<ElementType>& netType() {
         static const std::vector<ElementType> netType = {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
                 ElementType::f16,
 #endif
                 ElementType::f32};

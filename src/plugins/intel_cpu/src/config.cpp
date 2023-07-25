@@ -184,7 +184,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }
-#else
+#elif defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 // TODO: add runtime FP16 feature support check for ARM
                 inferencePrecision = ov::element::f16;
                 inferencePrecisionSetExplicitly = true;

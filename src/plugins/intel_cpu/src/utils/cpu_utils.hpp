@@ -102,7 +102,6 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::I32:
         case InferenceEngine::Precision::BF16:
-        case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::FP32: {
             break;
         }
@@ -120,6 +119,12 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         case InferenceEngine::Precision::I64:
         case InferenceEngine::Precision::U64: {
             precision = InferenceEngine::Precision::I32;
+            break;
+        }
+        case InferenceEngine::Precision::FP16: {
+#if !defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+            precision = InferenceEngine::Precision::FP32;
+#endif
             break;
         }
         default: {
