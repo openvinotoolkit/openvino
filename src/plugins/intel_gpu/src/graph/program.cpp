@@ -622,8 +622,7 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
