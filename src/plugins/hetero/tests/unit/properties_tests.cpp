@@ -40,8 +40,7 @@ TEST_F(HeteroTests, get_property_supported_metrics) {
 TEST_F(HeteroTests, get_property_supported_configs) {
     const std::vector<std::string> supported_configs = {"HETERO_DUMP_GRAPH_DOT",
                                                         "TARGET_FALLBACK",
-                                                        ov::device::priorities.name(),
-                                                        "EXCLUSIVE_ASYNC_REQUESTS"};
+                                                        ov::device::priorities.name()};
     auto actual_supported_configs =
         core.get_property("HETERO", METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
     EXPECT_EQ(supported_configs.size(), actual_supported_configs.size());
@@ -76,10 +75,4 @@ TEST_F(HeteroTests, set_property_device_priorities) {
     core.set_property("HETERO", {{"TARGET_FALLBACK", "MOCK1,MOCK0"}});
     EXPECT_EQ("MOCK1,MOCK0", core.get_property("HETERO", ov::device::priorities));
     EXPECT_EQ("MOCK1,MOCK0", core.get_property("HETERO", "TARGET_FALLBACK").as<std::string>());
-}
-
-TEST_F(HeteroTests, set_property_exclusive_async_request) {
-    EXPECT_EQ(true, core.get_property("HETERO", "EXCLUSIVE_ASYNC_REQUESTS").as<bool>());
-    core.set_property("HETERO", {{"EXCLUSIVE_ASYNC_REQUESTS", "NO"}});
-    EXPECT_EQ(false, core.get_property("HETERO", "EXCLUSIVE_ASYNC_REQUESTS").as<bool>());
 }
