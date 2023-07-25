@@ -48,12 +48,12 @@ OutputVector translate_group_norm_common(const NodeContext& context,
     auto skip_last = context.mark_node(std::make_shared<v1::Subtract>(input_rank, scalar_one));
     auto axes = context.mark_node(std::make_shared<v4::Range>(scalar_one, skip_last, scalar_one, element::i32));
     if (!context.input_is_none(weights_idx)) {
-        auto weights = context.get_input(weights_idx);
+        auto weights = context.get_input(static_cast<int>(weights_idx));
         weights = context.mark_node(std::make_shared<v0::Unsqueeze>(weights, axes));
         norm = context.mark_node(std::make_shared<v1::Multiply>(norm, weights));
     }
     if (!context.input_is_none(bias_idx)) {
-        auto bias = context.get_input(bias_idx);
+        auto bias = context.get_input(static_cast<int>(bias_idx));
         bias = context.mark_node(std::make_shared<v0::Unsqueeze>(bias, axes));
         norm = context.mark_node(std::make_shared<v1::Add>(norm, bias));
     }
