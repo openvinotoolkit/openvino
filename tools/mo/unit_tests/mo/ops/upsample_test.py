@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.ops.upsample import UpsampleOp
 from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
@@ -18,7 +17,6 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
                     }
 
 
-@generator
 class TestUpsampleOp(unittest.TestCase):
     def test_upsample_with_scales_infer(self):
         test_cases=[
