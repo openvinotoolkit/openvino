@@ -37,7 +37,7 @@ TEST_F(PropertyTest, default_perfmode_for_multi) {
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("THROUGHPUT")))).Times(1);
     EXPECT_CALL(*mock_plugin_gpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("THROUGHPUT")))).Times(1);
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("MOCK_GPU", "MOCK_CPU")));
+    compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("MOCK_GPU", "MOCK_CPU"));
     EXPECT_EQ(compiled_model.get_property(ov::hint::performance_mode), ov::hint::PerformanceMode::THROUGHPUT);
 }
 
