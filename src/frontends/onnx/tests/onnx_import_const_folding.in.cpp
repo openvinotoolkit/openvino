@@ -51,7 +51,7 @@ void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
 }
 }  // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
     const auto fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/scatter_elements_opset11.onnx"));
@@ -59,28 +59,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
     test_constant_folding<float>(fn, {1.0f, 1.1f, 3.0f, 2.1f, 5.0f}, Shape{1, 5});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {
     const auto fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_scalar.onnx"));
 
     test_constant_folding<int64_t>(fn, {0}, Shape{1, 1});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d) {
     const auto fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d.onnx"));
 
     test_constant_folding<int64_t>(fn, {1, 2, 4}, Shape{1, 3});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d_float) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d_float) {
     const auto fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d_float.onnx"));
 
     test_constant_folding<int64_t>(fn, {0, 1, 3, 4, 5, 6, 7, 8, 9});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
     const auto fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_3d.onnx"));
 
@@ -91,7 +91,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
     test_constant_folding<int64_t>(fn, {0, 0, 0, 1, 1, 2, 2, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_2d_bool) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_2d_bool) {
     const auto fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_2d_bool.onnx"));
 
