@@ -14,9 +14,7 @@ std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov
         std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
-            if (ov::shape_size(input_node->get_output_partial_shape(0).get_max_shape()) == 0)
-                continue;
-            if (input_node->get_output_partial_shape(0).is_dynamic())
+            if (ov::shape_size(input_node->get_output_shape(0)) == 0)
                 continue;
             auto const_node =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node);

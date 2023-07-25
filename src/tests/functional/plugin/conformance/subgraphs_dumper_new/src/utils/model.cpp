@@ -33,9 +33,10 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
         cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
         ov::OutputVector in_out_vector(inputs_size);
-        bool is_input_filled = false;
+        // bool is_input_filled = false;
+        size_t filled_input_cnt = 0;
         for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
-            bool is_this_input_filled = false;
+            // bool is_this_input_filled = false;
             auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
             for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
                 for (const auto& target_input : in_node->output(in_out_idx).get_target_inputs()) {
@@ -45,17 +46,18 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
                         in_out_vector[in_idx] = model_map.count(in_node_name) ?
                                                 model_map.at(in_node_name)->output(in_out_idx) :
                                                 cloned_op->get_input_node_ptr(in_idx)->output(0);
-                        is_this_input_filled = true;
+                        // is_this_input_filled = true;
+                        filled_input_cnt++;
                         break;
                     }
                 }
-                if (is_this_input_filled) {
-                    is_input_filled = true;
+                if (filled_input_cnt == inputs_size) {
                     break;
+                    // is_input_filled = true;
                 }
             }
         }
-        if (!is_input_filled && op_name != start_node->get_friendly_name()) {
+        if (filled_input_cnt == 0 && op_name != start_node->get_friendly_name()) {
             model_map.erase(op_name);
         } else {
             model_map[op_name] = cloned_op->clone_with_new_inputs(in_out_vector);
@@ -68,11 +70,10 @@ std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                const std::shared_ptr<ov::Node>& start_node,
                std::unordered_set<std::string>& checked_ops) {
-    auto model_map = update_nodes(nodes, start_node);
-    if (model_map.size() < 2) {
+    if (nodes.size() < 2) {
         throw std::runtime_error("Incorrect node number to create model");
     }
-
+    auto model_map = update_nodes(nodes, start_node);
     ov::OutputVector results;
     std::map<std::string, InputInfo> input_info;
     for (const auto& op : model_map) {

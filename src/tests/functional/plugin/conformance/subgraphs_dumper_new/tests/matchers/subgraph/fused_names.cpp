@@ -23,16 +23,28 @@ class FusedNamesExtractorTest : public FusedNamesExtractor,
                                    public ::testing::Test {
 protected:
     bool is_match(const std::shared_ptr<ov::Model>& model) {
-        auto compiled_names = extract_compiled_model_names(model);
-        std::set<std::string> diff;
-        for (const auto& op : model->get_ordered_ops()) {
-            auto op_name = op->get_friendly_name();
-            if (!compiled_names.count(op_name)) {
-                diff.insert(op_name);
+        size_t graph_cnt = 0;
+        {
+            auto compiled_names = extract_compiled_model_names(model);
+            std::vector<size_t> op_cnt;
+            for (const auto& op : model->get_ordered_ops()) {
+                if (this->is_node_to_skip(op))
+                    continue;
+                auto op_name = op->get_friendly_name();
+                if (!compiled_names.count(op_name)) {
+                    op_cnt.push_back(1);
+                } else if (op_cnt.size() > 0) {
+                    ++op_cnt[op_cnt.size() - 1];
+                }
+            }
+            for (const auto& cnt : op_cnt) {
+                if (cnt > 1) {
+                    ++graph_cnt;
+                }
             }
         }
         auto models = this->extract(model);
-        return diff.size() == 0 ? true : models.size() + 2 == diff.size();
+        return models.size() == graph_cnt;
     }
 };
 
