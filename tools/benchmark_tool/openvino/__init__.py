@@ -38,6 +38,7 @@ try:
     from openvino.runtime import shutdown
     from openvino.runtime import tensor_from_file
     from openvino.runtime import compile_model
+    from openvino.runtime import save_model
     from openvino.runtime import get_version
     # Set version for openvino package
     __version__ = get_version()
