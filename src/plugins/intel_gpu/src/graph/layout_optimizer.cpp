@@ -1463,8 +1463,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         std::vector<format> onednn_optimized_fmt = {
             format::bfyx,
+            format::bfzyx,
             format::b_fs_zyx_fsv16,
             format::b_fs_yx_fsv16,
+            format::b_fs_zyx_fsv32,
             format::b_fs_yx_fsv32,
             format::bs_fs_zyx_bsv8_fsv4,
             format::bs_fs_yx_bsv8_fsv4,

@@ -1834,6 +1834,7 @@ TYPED_TEST_SUITE(onnx_5d_format,  cldnn_5d_formats);
 TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
 {
     auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
 
     std::size_t i = 0;
     for (const auto& s : this->shapes_and_attrs) {
@@ -1858,7 +1859,7 @@ TYPED_TEST(onnx_5d_format, interpolate_linear_onnx5d)
 
         set_values(input, this->input_data_list[i]);
 
-        cldnn::network net {engine, topology };
+        cldnn::network net {engine, topology, config};
         net.set_input_data("input", input);
         auto outputs = net.execute();
 
