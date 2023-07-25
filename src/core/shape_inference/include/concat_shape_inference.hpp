@@ -12,14 +12,15 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-template <class T>
-void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const Concat* op, const std::vector<T>& input_shapes) {
+    using DimType = typename T::value_type;
 
     const auto concat_axis = op->get_concatenation_axis();
     const auto empty_dim = DimType{};
 
     auto concat_dim = DimType{0};
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes.front();
 
     if (std::is_same<T, PartialShape>::value) {
@@ -29,16 +30,16 @@ void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vect
         output_shape[concat_axis] = empty_dim;
     }
 
-    for (auto input : input_shapes) {
+    for (auto& input : input_shapes) {
         if (input.rank().is_static()) {
-            concat_dim += input[concat_axis];
-            input[concat_axis] = empty_dim;
+            auto in_copy = TRShape(input);
+            concat_dim += in_copy[concat_axis];
+            in_copy[concat_axis] = empty_dim;
 
             NODE_VALIDATION_CHECK(op,
-                                  T::merge_into(output_shape, input),
+                                  TRShape::merge_into(output_shape, in_copy),
                                   "Argument shapes are inconsistent; they must have the same rank, and must "
-                                  "have ",
-                                  "equal dimension everywhere except on the concatenation axis (axis ",
+                                  "have equal dimension everywhere except on the concatenation axis (axis ",
                                   concat_axis,
                                   ").");
         } else {
@@ -49,6 +50,7 @@ void shape_infer(const Concat* op, const std::vector<T>& input_shapes, std::vect
     if (output_shape.rank().is_static()) {
         output_shape[concat_axis] = concat_dim;
     }
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

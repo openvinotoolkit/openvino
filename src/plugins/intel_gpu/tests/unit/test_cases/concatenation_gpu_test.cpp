@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "concatenation_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -160,7 +161,7 @@ void start_concat_test_dynamic(impl_types impl_type) {
         ASSERT_EQ(outputs.begin()->first, "concat");
 
         auto output_memory = outputs.at("concat").get_memory();
-        auto output_layout = output_memory->get_layout();
+        auto output_layout = outputs.at("concat").get_layout();
         cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
         ov::PartialShape expected_shape = layout0.get_partial_shape();
@@ -654,6 +655,12 @@ using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
 
 struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     static std::string
     PrintToStringParamName(testing::TestParamInfo<TestParamType_concat> param_info)
     {
@@ -677,6 +684,11 @@ using TestParamType_concat_axis3 = ::testing::tuple<size_t,   // 0 - Input Batch
 
 struct concat_axis3_gpu : public ::testing::TestWithParam<TestParamType_concat_axis3>
 {
+    tests::random_generator rg;
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     static std::string
     PrintToStringParamName(testing::TestParamInfo<TestParamType_concat_axis3> param_info)
     {
@@ -762,7 +774,7 @@ public:
                                static_cast<int32_t>(in_features[i]),
                                static_cast<int32_t>(input_x),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -848,7 +860,7 @@ public:
                                static_cast<int32_t>(in_feature),
                                static_cast<int32_t>(input_x[i]),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_feature, input_y, input_x[i], -1, 1);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_feature, input_y, input_x[i], -1, 1);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -997,7 +1009,7 @@ public:
                                static_cast<int32_t>(in_features[i]),
                                static_cast<int32_t>(input_x),
                                static_cast<int32_t>(input_y));
-            auto data = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -128, 128);
+            auto data = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -128, 128);
             auto in_lay = layout(data_type, fmt, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
@@ -1204,7 +1216,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input(in_features.size());
         for (size_t i = 0; i < in_features.size(); ++i) {
-            input[i] = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            input[i] = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
         }
         return input;
     }
@@ -1425,7 +1437,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input(in_features.size());
         for (size_t i = 0; i < in_features.size(); ++i) {
-            input[i] = generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
+            input[i] = rg.generate_random_4d<Type>(batch_num, in_features[i], input_y, input_x, -1, 1);
         }
         return input;
     }
@@ -1592,7 +1604,7 @@ public:
 
         std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> inputs(4);
         for (size_t i = 0; i < 4; ++i) {
-            inputs[i] = generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
+            inputs[i] = rg.generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
         }
         return inputs;
     }

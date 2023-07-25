@@ -7,7 +7,10 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
@@ -63,10 +66,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "sequnce_generator.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -1509,8 +1508,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
         EXPECT_NEAR(cval[i], out[i], 1e-5f);
 }
 
-TEST(eval, DISABLED_evaluate_static_scatter_elements_update_reduction_mean_ints) {
-    // on MAC rounding towards -infinity doesn't work as expected, to be investigated
+TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::i32, data_shape);
@@ -1875,6 +1873,35 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_sum_negative_idx) {
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
     const vector<float> out{6.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 8.5f, 8.0f, 9.0f};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_reduction_none_negative_idx) {
+    const Shape data_shape{2, 5};
+    const Shape indices_shape{2, 2};
+    auto arg1 = make_shared<op::Parameter>(element::f32, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::f32, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::NONE);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate(
+        {result_tensor},
+        {make_host_tensor<element::Type_t::f32>(data_shape,
+                                                {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}),
+         make_host_tensor<element::Type_t::i32>(indices_shape, {-5, -4, -3, -1}),
+         make_host_tensor<element::Type_t::f32>(indices_shape, {11.5f, 12.5f, 13.5f, 14.5f}),
+         make_host_tensor<element::Type_t::i64>({}, {1})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<float>(result_tensor);
+    const vector<float> out{11.5f, 12.5f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 13.5f, 8.0f, 14.5f};
     ASSERT_EQ(cval, out);
 }
 

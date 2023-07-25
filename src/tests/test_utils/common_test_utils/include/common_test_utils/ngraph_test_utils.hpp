@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <limits>
-#include <memory>
-#include <queue>
-
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
@@ -18,9 +14,9 @@
 
 #define DYN ov::Dimension::dynamic()
 
-using TransformationTests = CommonTestUtils::TestsCommon;
+using TransformationTests = ov::test::TestsCommon;
 
-class TransformationTestsF : public CommonTestUtils::TestsCommon {
+class TransformationTestsF : public ov::test::TestsCommon {
 public:
     TransformationTestsF();
 

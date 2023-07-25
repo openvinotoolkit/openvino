@@ -343,7 +343,8 @@ endmacro()
 macro(_ov_find_intel_cpu_dependencies)
     set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
-        if(_ov_as_external_package)
+        set(_ov_in_install_tree "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
+        if(_ov_in_install_tree)
             set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
             set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
         else()
@@ -352,8 +353,8 @@ macro(_ov_find_intel_cpu_dependencies)
 
         _ov_find_dependency(ACL)
 
+        unset(_ov_in_install_tree)
         unset(ARM_COMPUTE_LIB_DIR)
-        unset(_ov_find_acl_path)
     endif()
     unset(_OV_ENABLE_CPU_ACL)
 endmacro()
@@ -418,15 +419,17 @@ macro(_ov_find_onnx_frontend_dependencies)
 endmacro()
 
 function(_ov_target_no_deprecation_error)
-    if(NOT MSVC)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # older macOS x86_64 does not support this linker option
+        if(CMAKE_CROSSCOMPILING AND NOT APPLE)
+            set_target_properties(${ARGV} PROPERTIES
+                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(flags "-diag-warning=1786")
         else()
             set(flags "-Wno-error=deprecated-declarations")
-        endif()
-        if(CMAKE_CROSSCOMPILING)
-            set_target_properties(${ARGV} PROPERTIES
-                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
 
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})

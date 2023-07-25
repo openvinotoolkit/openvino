@@ -87,6 +87,19 @@ inline std::string get_ie_output_name(const Output<Node>& output) {
     return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
 }
 
+/**
+ * \brief Convert epsilon value from double to float type.
+ *
+ * If the value is too large, the epsilon is converted to std::numeric_limits<float>::min() or
+ * std::numeric_limits<float>::min(), otherwise static cast to float is called.
+ * The adjustment is made for positive values only, for negative it works as static cast.
+ *
+ * \param eps  Original value of the epsilon (double).
+ *
+ * \return Epsilon value as float.
+ */
+float cast_eps_to_float(double eps_d);
+
 template <typename T>
 bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,
@@ -208,6 +221,11 @@ TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                                     const Output<Node>& constant,
                                                     const Output<Node>& non_constant_input);
+
+TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
+
+TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

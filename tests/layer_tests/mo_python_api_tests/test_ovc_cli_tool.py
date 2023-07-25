@@ -27,7 +27,9 @@ def generate_ir_ovc(coverage=False, **kwargs):
     else:
         params = [sys.executable, ovc_runner]
     for key, value in kwargs.items():
-        if key == "batch":
+        if key == "input_model":
+            params.append((str(value)))
+        elif key == "batch":
             params.extend(("-b", str(value)))
         elif key == "k":
             params.extend(("-k", str(value)))
@@ -81,7 +83,7 @@ class TestOVCTool(CommonMOConvertTest):
         core = Core()
 
         # tests for MO cli tool
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_dir": temp_dir})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir + os.sep + "model"})
         assert not exit_code
 
         ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))

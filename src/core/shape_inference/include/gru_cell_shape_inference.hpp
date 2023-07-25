@@ -12,16 +12,11 @@
 namespace ov {
 namespace op {
 namespace v3 {
-template <class TShape>
-std::vector<TShape> shape_infer(const GRUCell* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const GRUCell* op, const std::vector<TShape>& input_shapes) {
     constexpr auto num_gates = 3;
     constexpr auto num_state_nodes = 1;
     return rnn::cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_linear_before_reset());
-}
-
-template <class TShape>
-void shape_infer(const GRUCell* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v3
 }  // namespace op
