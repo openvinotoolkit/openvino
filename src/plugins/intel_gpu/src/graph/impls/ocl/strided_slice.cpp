@@ -120,7 +120,7 @@ public:
         std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
         params.end_mask = end_mask;
         pad_vector_to_size(params.end_mask, dims_num, 0);
-        params.begin_mask = begin_mask;
+        params.begin_mask = std::move(begin_mask);
         pad_vector_to_size(params.begin_mask, dims_num, 0);
 
         params.new_axis_mask = new_axis_mask;

@@ -717,7 +717,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto& engine = _network.get_engine();
                     // Need to use actual layout, not the fake aligned memory layout
                     auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
-                    subgraph->set_input_data(d.first->id(), actual_mem);
+                    subgraph->set_input_data(d.first->id(), std::move(actual_mem));
                 }
             }
             GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;

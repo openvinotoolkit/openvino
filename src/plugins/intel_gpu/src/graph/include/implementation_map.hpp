@@ -128,7 +128,7 @@ public:
 
     static void add(impl_types impl_type, factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
-        add(impl_type, factory, combine(types, formats));
+        add(impl_type, std::move(factory), combine(types, formats));
     }
 
     static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {

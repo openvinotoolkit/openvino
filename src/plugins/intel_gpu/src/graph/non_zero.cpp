@@ -60,7 +60,7 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
         auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.get_stream());
         ov::Shape output_shape(out_size.begin(), out_size.end());
         ov::PartialShape output_pshape(output_shape);
-        return layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
+        return layout{std::move(output_pshape), cldnn::data_types::i32, cldnn::format::bfyx};
     } else {
         return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
     }

@@ -48,7 +48,7 @@ std::string lstm_inst::to_string(lstm_node const& node) {
     lstm_info.add("weights id", weights_id);
     lstm_info.add("recurrent id", recurrent_id);
     lstm_info.add("bias id", bias_id);
-    lstm_info.add("peepholes id", peepholes_id);
+    lstm_info.add("peepholes id", std::move(peepholes_id));
     lstm_info.add("initial_hidden id", initial_hidden_id);
     lstm_info.add("initial_cell id", initial_cell_id);
     node_info->add("lstm info", lstm_info);

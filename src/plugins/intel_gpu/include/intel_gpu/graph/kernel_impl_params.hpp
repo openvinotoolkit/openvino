@@ -75,7 +75,7 @@ struct kernel_impl_params {
                        : has_runtime_layouts(true)
                        , prog(&_prog)
                        , strm(_strm)
-                       , desc(_desc)
+                       , desc(std::move(_desc))
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
                        , output_layouts(_out_layouts)

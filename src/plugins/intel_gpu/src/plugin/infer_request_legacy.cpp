@@ -1008,7 +1008,7 @@ void InferRequestLegacy::allocate_outputs() {
                 device_blob_desc.setPrecision(Precision::FP32);
 
             auto host_blob = create_host_blob(desc);
-            _outputs[no.first] = host_blob;
+            _outputs[no.first] = std::move(host_blob);
             auto device_blob = create_device_blob(device_blob_desc, output_layout);
             _deviceOutputs[no.first] = device_blob;
         } else {

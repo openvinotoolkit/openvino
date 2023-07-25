@@ -72,7 +72,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // read trip_count from outer network
         bool update_num_iterations = false;
         memory::ptr trip_count_mem = outer_network.get_primitive(primitive->trip_count_id)->output_memory_ptr();
-        int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
+        int64_t trip_count = loop_node::read_scalar_value(std::move(trip_count_mem), stream);
         if (trip_count < 0) {
             trip_count = _max_iteration;
             update_num_iterations = true;
