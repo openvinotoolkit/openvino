@@ -69,6 +69,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                          bool is_runtime) {
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
+    bool do_runtime_buffer_fusing = true;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        do_runtime_buffer_fusing = false;
+    }
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -79,9 +84,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // for simple patterns where the concat is the only user of all the preds.
         // Also cascaded concat is not handled for dynamic shape. for now.
         // If we have more flexible exec order handling in the future we'll be able to remove this condition below
-        if (p.first->is_dynamic() && p.first->get_users().size() > 1)
+        if (p.first->is_dynamic() && (!do_runtime_buffer_fusing || p.first->get_users().size() > 1))
             return false;
-        if (concat_node.is_dynamic() && !p.first->is_dynamic())
+        if (concat_node.is_dynamic() && (!do_runtime_buffer_fusing || !p.first->is_dynamic()))
             return false;
     }
     // if this is called in primitive_inst::execute() and concat is static, that concat should already be optimized in build time, not in runtime.

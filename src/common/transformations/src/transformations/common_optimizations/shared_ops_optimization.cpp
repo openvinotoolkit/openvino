@@ -8,7 +8,6 @@
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/slice.hpp>
 #include <openvino/op/tile.hpp>
-#include <openvino/op/transpose.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
 
@@ -76,10 +75,8 @@ bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs
     for (size_t i = 0; i < input_size; ++i) {
         if (lhs->input_value(i) == rhs->input_value(i))
             continue;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto lhs_constant = get_constant_from_source(lhs->input_value(i));
-        auto rhs_constant = get_constant_from_source(rhs->input_value(i));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto lhs_constant = as_type_ptr<v0::Constant>(lhs->get_input_node_shared_ptr(i));
+        auto rhs_constant = as_type_ptr<v0::Constant>(rhs->get_input_node_shared_ptr(i));
         if (!lhs_constant || !rhs_constant)
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())

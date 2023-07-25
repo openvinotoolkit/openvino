@@ -51,10 +51,9 @@ void op::v1::OneHot::validate_and_infer_types() {
     const auto& on_value_shape = get_input_partial_shape(2);
     const auto& off_value_shape = get_input_partial_shape(3);
 
-    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape},
-                              output_shapes = {PartialShape{}};
+    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape};
     resolve_axis(this);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, on_value_et, output_shapes[0]);
 }

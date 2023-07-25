@@ -32,6 +32,7 @@ namespace ov {
 namespace intel_cpu {
 
 class Memory;
+class ProxyMemoryMngr;
 
 /**
  * @interface IMemoryMngr
@@ -313,6 +314,7 @@ public:
 
 private:
     friend DnnlMemoryMngr;
+    friend ProxyMemoryMngr;
 
 private:
     void update();
