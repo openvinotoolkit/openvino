@@ -229,6 +229,8 @@ std::vector<CPUSpecificParams> filterSpecificParams() {
     return specificParams;
 }
 
+//For FP32 precision, FC has brgemm avx2 support but Matmul doen't have brgemm avx2.
+//Need to specify tryBrgAVX2 based on test case.
 std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = false) {
     std::vector<CPUSpecificParams> specificParams;
     if (with_cpu_x86_avx512_core()) {
