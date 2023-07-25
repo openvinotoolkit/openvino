@@ -33,7 +33,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
-    CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
+    CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
