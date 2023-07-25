@@ -379,6 +379,10 @@ def compare_dump_file(ieb_file1, ieb_file2, visualize):
     else:
         diff_abs = np.abs(ieb1.value - ieb2.value)
 
+    if not np.all(diff_abs.shape):
+        print(" Shape{} has dim 0".format(ieb1.shape))
+        return
+
     max_abs = np.amax(diff_abs)
     max_idx = np.where(diff_abs >= max_abs)
     max_org = np.abs(ieb2.value)[max_idx]
