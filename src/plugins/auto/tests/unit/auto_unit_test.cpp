@@ -80,8 +80,9 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
 ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     // prepare mockicore and cnnNetwork for loading
     core = std::make_shared<NiceMock<MockICore>>();
-    NiceMock<MockAutoPlugin>* mock_multi = new NiceMock<MockAutoPlugin>();
-    plugin.reset(mock_multi);
+    // construct mock auto plugin
+    NiceMock<MockAutoPlugin>* mock_auto = new NiceMock<MockAutoPlugin>();
+    plugin.reset(mock_auto);
     // replace core with mock Icore
     plugin->set_core(core);
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
@@ -122,7 +123,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(metrics));
     ON_CALL(*core, get_property(_, ov::supported_properties.name(), _))
-           .WillByDefault(Return(ov::Any(supported_props)));
+           .WillByDefault(Return(ov::Any(supportedProps)));
     ON_CALL(*core, get_property(StrEq("GPU"),
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
     ON_CALL(*core, get_property(StrEq("GPU"),
@@ -133,25 +134,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
-    ON_CALL(*plugin, parse_meta_devices)
-    .WillByDefault(
-        [this](const std::string& priorityDevices, const ov::AnyMap& config) {
-            return plugin->Plugin::parse_meta_devices(priorityDevices, config);
-        });
-
-    ON_CALL(*plugin, select_device)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                                const std::string& netPrecision,
-                                unsigned int priority) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
-        });
-
-    ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
-            return devices;
-        });
-
     ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
@@ -175,16 +157,33 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         }
         return deviceConfigs;
     });
-
     ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
         return plugin->Plugin::get_device_list(config);
     });
+    ON_CALL(*plugin, parse_meta_devices)
+    .WillByDefault(
+        [this](const std::string& priorityDevices, const ov::AnyMap& config) {
+            return plugin->Plugin::parse_meta_devices(priorityDevices, config);
+        });
+
+    ON_CALL(*plugin, select_device)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                const std::string& netPrecision,
+                                unsigned int priority) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+        });
+
+    ON_CALL(*plugin, get_valid_device)
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
 }
 
 ov::mock_auto_plugin::tests::AutoTest::~AutoTest() {
     testing::Mock::AllowLeak(plugin.get());
-    core.reset();
     plugin.reset();
+    core.reset();
 }
 
 namespace {
@@ -213,7 +212,11 @@ ov::PropertyName RW_property(const std::string& propertyName) {
 
 ov::mock_auto_plugin::tests::AutoTestWithRealCore::AutoTestWithRealCore() {
     register_plugin_simple(core, "MOCK_CPU", {});
+    // validate the mock plugin, to ensure the order as well
+    core.get_property("MOCK_CPU", ov::supported_properties);
     register_plugin_support_batch_and_context(core, "MOCK_GPU", {});
+    // validate the mock plugin
+    core.get_property("MOCK_GPU", ov::supported_properties);
     ov::Any optimalNum = (uint32_t)1;
     ON_CALL(*mock_plugin_cpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_), _))
                     .WillByDefault(Return(mockIExeNet));
@@ -228,7 +231,8 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::reg_plugin(ov::Core& cor
     std::string libraryPath = get_mock_engine_path();
     if (!m_so)
         m_so = ov::util::load_shared_object(libraryPath.c_str());
-    plugin->set_device_name(device_name);
+    if (device_name.find("MULTI") == std::string::npos && device_name.find("AUTO") == std::string::npos)
+        plugin->set_device_name(device_name);
     std::function<void(ov::IPlugin*)> inject_mock_plugin = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
     inject_mock_plugin(plugin.get());
@@ -259,7 +263,8 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_support_
                 RW_property(ov::num_streams.name()),
                 RW_property(ov::enable_profiling.name()),
                 RW_property(ov::compilation_num_threads.name()),
-                RW_property(ov::hint::performance_mode.name())
+                RW_property(ov::hint::performance_mode.name()),
+                RW_property(ov::hint::num_requests.name())
             };
             if (name == ov::supported_properties) {
                 std::vector<ov::PropertyName> supportedProperties;
