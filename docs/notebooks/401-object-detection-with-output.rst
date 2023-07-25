@@ -14,13 +14,40 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
+Preparation
+-----------
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q tensorflow
+    !pip install -q opencv-python requests tqdm
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+
+
+
+
+.. parsed-literal::
+
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7ff46817ce50>)
+
+
+
 Imports
--------
+~~~~~~~
 
 .. code:: ipython3
 
     import collections
-    import sys
     import tarfile
     import time
     from pathlib import Path
@@ -32,7 +59,6 @@ Imports
     from openvino.tools.mo.front import tf as ov_tf_front
     from openvino.tools import mo
     
-    sys.path.append("../utils")
     import notebook_utils as utils
 
 The Model
@@ -400,8 +426,8 @@ Run the object detection:
 
 .. parsed-literal::
 
-    [ WARN:0@42.904] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@42.904] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@43.661] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@43.661] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 Run Object Detection on a Video File
@@ -414,13 +440,13 @@ will work.
 
 .. code:: ipython3
 
-    video_file = "../data/video/Coco Walking in Berkeley.mp4"
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     
     run_object_detection(source=video_file, flip=False, use_popup=False)
 
 
 
-.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_18_0.png
+.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_20_0.png
 
 
 .. parsed-literal::

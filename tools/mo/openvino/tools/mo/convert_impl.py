@@ -14,6 +14,7 @@ from pathlib import Path
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -48,7 +49,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
-    get_tid
+    init_mo_telemetry
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter  # pylint: disable=no-name-in-module,import-error
@@ -314,8 +315,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
         "LoopCond", "Enter", "NextIteration", "Exit",
-        # corresponds to TF1 If and TF1 While operations
-        "Switch", "Merge",
         # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
@@ -445,8 +444,8 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
     # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
-    enable_mmap = False
-    function = fe.convert(fe.load(path_to_xml, enable_mmap))
+    share_weights = False
+    function = fe.convert(fe.load(path_to_xml, share_weights))
     return function
 
 
@@ -826,7 +825,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version)
+    telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

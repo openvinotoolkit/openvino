@@ -40,12 +40,10 @@ std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& no
         input2_layout.get<ShapeType>()      // batch indices shape
     };
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
-
     ov::op::v3::ROIAlign op;
     op.set_pooled_h(primitive->pooled_h);
     op.set_pooled_w(primitive->pooled_w);
-    shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
 }
