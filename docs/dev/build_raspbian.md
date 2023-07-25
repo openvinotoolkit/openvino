@@ -1,6 +1,6 @@
 # Build OpenVINO™ Runtime for Raspbian Stretch OS
 
-> **NOTE**: [ARM CPU plugin](https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/arm_plugin) are supported. The detailed instruction how to build ARM plugin is available in [OpenVINO contrib wiki](https://github.com/openvinotoolkit/openvino_contrib/wiki/How-to-build-ARM-CPU-plugin).
+> **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on ARM platforms.
 
 ## Hardware Requirements
 * Raspberry Pi 2 or 3 with Raspbian Stretch OS (32 or 64-bit).
