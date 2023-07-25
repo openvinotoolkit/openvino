@@ -51,7 +51,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);"
+                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);"
             ],
             "outputs": []
         },
@@ -88,7 +88,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensor_data = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensor_data);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconst { data: outputData } = output;\nconst layers = { bg: [], c: [], h: [], w: [] };\nconst resultLayer = [];\nconst colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];\n\nconst size = outputData.length/4;\n\nfor (let i = 0; i < size; i++) {\n  const valueAt = (i, number) => outputData[i + number*size];\n\n  const currentValues = { \n    bg: valueAt(i, 0),\n    c: valueAt(i, 1),\n    h: valueAt(i, 2),\n    w: valueAt(i, 3),\n  };\n  const values = Object.values(currentValues);\n  const maxIndex = values.indexOf(Math.max(...values));\n\n  resultLayer.push(maxIndex);\n}\n\nconst pixels = [];\nresultLayer.forEach(i => pixels.push(...colormap[i]));\n\ndisplayArrayAsImage(pixels, W, H, display);\n"
+                "const tensor_data = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, inputLayer.shape, tensor_data);\n\nconst inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconst { data: outputData } = output;\nconst layers = { bg: [], c: [], h: [], w: [] };\nconst resultLayer = [];\nconst colormap = [[68, 1, 84, 255], [48, 103, 141, 255], [53, 183, 120, 255], [199, 216, 52, 255]];\n\nconst size = outputData.length/4;\n\nfor (let i = 0; i < size; i++) {\n  const valueAt = (i, number) => outputData[i + number*size];\n\n  const currentValues = { \n    bg: valueAt(i, 0),\n    c: valueAt(i, 1),\n    h: valueAt(i, 2),\n    w: valueAt(i, 3),\n  };\n  const values = Object.values(currentValues);\n  const maxIndex = values.indexOf(Math.max(...values));\n\n  resultLayer.push(maxIndex);\n}\n\nconst pixels = [];\nresultLayer.forEach(i => pixels.push(...colormap[i]));\n\ndisplayArrayAsImage(pixels, W, H, display);\n"
             ],
             "outputs": [
                 {

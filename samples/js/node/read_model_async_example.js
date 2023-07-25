@@ -14,7 +14,7 @@ async function run()
 
   /*   ---Read model asynchronously and create a promise---   */
 
-  const modelPromise = core.read_model_async(modelPath);
+  const modelPromise = core.readModelAsync(modelPath);
 
   /*   ---Create a promise with tensor---   */
   const tensorPromise = createTensor(imgPath);

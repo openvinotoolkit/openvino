@@ -8,9 +8,9 @@ CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(
 Napi::Function CoreWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "Core",
-                       {InstanceMethod("read_model", &CoreWrap::read_model),
-                        InstanceMethod("read_model_async", &CoreWrap::read_model_async),
-                        InstanceMethod("compile_model", &CoreWrap::compile_model)});
+                       {InstanceMethod("readModel", &CoreWrap::read_model),
+                        InstanceMethod("readModelAsync", &CoreWrap::read_model_async),
+                        InstanceMethod("compileModel", &CoreWrap::compile_model)});
 }
 
 Napi::Object CoreWrap::Init(Napi::Env env, Napi::Object exports) {

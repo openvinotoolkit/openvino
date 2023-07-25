@@ -7,7 +7,7 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<ModelWra
 Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
-                       {InstanceMethod("get_name", &ModelWrap::get_name),
+                       {InstanceMethod("getName", &ModelWrap::get_name),
                         InstanceMethod("read_model", &ModelWrap::read_model),
                         InstanceMethod("compile", &ModelWrap::compile_model),
                         InstanceMethod("infer", &ModelWrap::infer),
