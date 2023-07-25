@@ -1036,7 +1036,7 @@ void InferRequestLegacy::allocate_outputs_dynamic() {
 
         Blob::Ptr outputBlob = create_host_blob(desc);
         _outputs[no.first] = outputBlob;
-        outputsMap[no.first] = outputID;
+        outputsMap[no.first] = std::move(outputID);
     }
 }
 
@@ -1151,7 +1151,7 @@ void InferRequestLegacy::prepare_output(const cldnn::primitive_id& outputName, B
         IE_THROW(NotAllocated) << str_output_not_allocated;
     }
     auto outputMem = impl->get_memory();
-    _nw_ptr->set_output_memory(internalName, outputMem);
+    _nw_ptr->set_output_memory(internalName, std::move(outputMem));
 }
 
 InferenceEngine::Blob::Ptr InferRequestLegacy::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {

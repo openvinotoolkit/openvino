@@ -48,7 +48,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {
     }
     explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
-        primitive_impl(nullptr, kernel_name, is_dynamic) {}
+        primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
@@ -501,7 +501,7 @@ protected:
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
-        _outputs[0] = buffer;
+        _outputs[0] = std::move(buffer);
     }
 
 private:

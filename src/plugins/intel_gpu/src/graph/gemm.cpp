@@ -199,7 +199,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         };
 
         output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = N;
-        output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = M;
+        output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
         updated_output_layout.set_partial_shape(output_pshape);
     }
     return updated_output_layout;

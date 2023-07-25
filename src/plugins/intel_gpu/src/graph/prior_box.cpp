@@ -551,11 +551,11 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     json_composite prior_info;
     prior_info.add("input id", node.input().id());
     prior_info.add("iamge size", desc->img_size);
-    prior_info.add("variance", str_variance);
+    prior_info.add("variance", std::move(str_variance));
 
     json_composite box_sizes_info;
-    box_sizes_info.add("min sizes", str_min_sizes);
-    box_sizes_info.add("max sizes", str_max_sizes);
+    box_sizes_info.add("min sizes", std::move(str_min_sizes));
+    box_sizes_info.add("max sizes", std::move(str_max_sizes));
     prior_info.add("box sizes", box_sizes_info);
 
     prior_info.add("aspect_ratio", str_aspect_ratio);
