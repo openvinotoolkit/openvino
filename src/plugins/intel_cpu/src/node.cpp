@@ -663,7 +663,7 @@ void Node::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 
-    /* Iterata all the ONEDNN implementations supported.
+    /* Iterate all the ONEDNN implementations supported.
      * since custom implementations can be not available at all, so a fallback to the default ones must happen
      * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
      * since oneDNN primitive is mutating while iterating */

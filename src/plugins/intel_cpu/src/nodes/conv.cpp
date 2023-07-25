@@ -1564,10 +1564,10 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;
     }
-    // Only enable per-tensor zero point on avx512-core-amx , avx512-core-vnni, avx2-vnni:
-    // For avx512-core/avx2 vnni platform, attr[0]: try jit+legacy_zp , attr[1]: try brgconv+per-tensor zp;
-    // For avx512-core/avx2 non-vnni platform, no exposed brgconv kernel.jit+legacy zp;
-    // Fro AMX, only can support per-tensor zp.
+    // Only enable per-tensor zero point on avx512-core-amx , avx512-core-vnni, avx2-vnni ISAs.
+    // For avx512-core/avx2-vnni platforms, attr[0]: try jit+legacy_zp , attr[1]: try brgconv+per-tensor zp;
+    // For avx512-core/avx2 non-vnni platform, no exposed brgconv kernel. Only have jit+legacy zp;
+    // For AMX platforms, only can support per-tensor zp.
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
