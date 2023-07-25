@@ -90,7 +90,7 @@ TEST_F(TypePropRegionYoloV0Test, data_input_static_rank_do_softmax) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 0));
 }
 
-TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_out_side_data_rank) {
+TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_is_negative) {
     constexpr size_t num = 5, coords = 4, classes = 20;
     constexpr int axis = 1, end_axis = -1;
     const std::vector<int64_t> mask{0, 1, 2};
@@ -105,6 +105,57 @@ TEST_F(TypePropRegionYoloV0Test, do_softmax_end_axis_out_side_data_rank) {
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic(2));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 0));
+}
+
+TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_eq_end_axis) {
+    constexpr size_t num = 5, coords = 4, classes = 20;
+    constexpr int axis = 2, end_axis = 2;
+    const std::vector<int64_t> mask{0, 1, 2};
+
+    auto data_shape = PartialShape{5, 4, 10, 11};
+    set_shape_labels(data_shape, 10);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+}
+
+TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_gt_end_axis) {
+    constexpr size_t num = 5, coords = 4, classes = 20;
+    constexpr int axis = 3, end_axis = 1;
+    const std::vector<int64_t> mask{0, 1, 2};
+
+    auto data_shape = PartialShape{5, 4, 10, 11};
+    set_shape_labels(data_shape, 10);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+}
+
+TEST_F(TypePropRegionYoloV0Test, do_softmax_axis_end_axis_on_last_dim) {
+    constexpr size_t num = 5, coords = 4, classes = 20;
+    constexpr int axis = -1, end_axis = -1;
+    const std::vector<int64_t> mask{0, 1, 2};
+
+    auto data_shape = PartialShape{5, 4, 10, 11};
+    set_shape_labels(data_shape, 10);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto op = make_op(data, coords, classes, num, true, mask, axis, end_axis);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({5, 4, 10, 11}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
 }
 
 TEST_F(TypePropRegionYoloV0Test, data_input_interval_shape_with_labels_do_softmax) {

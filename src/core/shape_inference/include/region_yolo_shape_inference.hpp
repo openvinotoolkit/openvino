@@ -40,16 +40,15 @@ std::vector<TRShape> shape_infer(const RegionYolo* op, const std::vector<TShape>
             const auto end_axis = ov::normalize_axis(op, op->get_end_axis(), input_rank);
             OPENVINO_SUPPRESS_DEPRECATED_END
 
-            std::copy_n(input_shape.cbegin(), axis, std::back_inserter(output_shape));
+            auto input_it = input_shape.cbegin();
+            auto out_it = std::copy_n(input_it, axis + 1, std::back_inserter(output_shape));
+            input_it += (axis + 1);
 
-            if (end_axis > axis) {
-                output_shape.push_back(input_shape[axis]);
-                for (int64_t i = axis + 1; i < end_axis + 1; ++i) {
-                    output_shape[axis] *= input_shape[i];
-                }
+            for (; input_it <= input_shape.cbegin() + end_axis; ++input_it) {
+                output_shape[axis] *= *input_it;
             }
 
-            std::copy(input_shape.begin() + (end_axis + 1), input_shape.end(), std::back_inserter(output_shape));
+            std::copy(input_it, input_shape.end(), out_it);
         } else {
             output_shape = input_shape;
             output_shape[1] = TDim((op->get_num_classes() + op->get_num_coords() + 1) * op->get_mask().size());
