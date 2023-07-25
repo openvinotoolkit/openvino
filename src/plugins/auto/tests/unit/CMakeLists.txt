@@ -21,6 +21,7 @@ addIeTargetTest(
             template_extension
             mock_engine
             ngraphFunctions
+            openvino_auto_plugin
         LABELS
             Multi
             Auto

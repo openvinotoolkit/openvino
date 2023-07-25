@@ -37,12 +37,11 @@ TEST_F(PropertyTest, default_perfmode_for_multi) {
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("THROUGHPUT")))).Times(1);
     EXPECT_CALL(*mock_plugin_gpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("THROUGHPUT")))).Times(1);
-    compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("MOCK_GPU", "MOCK_CPU"));
+    ASSERT_NO_THROW(compiled_model = core.compile_model(model, "MULTI", ov::device::priorities("MOCK_GPU", "MOCK_CPU")));
     EXPECT_EQ(compiled_model.get_property(ov::hint::performance_mode), ov::hint::PerformanceMode::THROUGHPUT);
 }
 
 TEST_F(PropertyTest, respect_secondary_property) {
-    compiled_model = core.compile_model(model, "HETERO", ov::device::priorities("MOCK_GPU", "MOCK_CPU"));
     EXPECT_CALL(*mock_plugin_cpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("LATENCY")))).Times(1);
     EXPECT_CALL(*mock_plugin_gpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -72,7 +71,7 @@ TEST_F(PropertyTest, default_perfmode_for_auto) {
     EXPECT_EQ(compiled_model.get_property(ov::hint::performance_mode), ov::hint::PerformanceMode::LATENCY);
 }
 
-TEST_F(PropertyTest, respect_secondary_property_auto) {
+TEST_F(PropertyTest, respect_secondary_property_auto_ctput) {
     EXPECT_CALL(*mock_plugin_cpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                 ::testing::Matcher<const ov::AnyMap&>(ComparePerfHint("LATENCY")))).Times(1);
     EXPECT_CALL(*mock_plugin_gpu.get(), compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
