@@ -56,7 +56,8 @@ std::vector<TRShape> shape_infer(const ExtractImagePatches* op, const std::vecto
         const auto num_non_spatial_dims = input_shape.size() - num_spatial_dim;
 
         auto out_it = std::copy_n(input_shape.begin(), num_non_spatial_dims, std::back_inserter(output_shape));
-        output_shape[1] *= std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<size_t>());
+        output_shape[1] *=
+            std::accumulate(sizes.begin(), sizes.end(), static_cast<size_t>(1), std::multiplies<size_t>());
 
         auto stride_it = strides.cbegin();
 

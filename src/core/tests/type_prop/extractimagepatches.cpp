@@ -330,3 +330,74 @@ TEST(type_prop, extractimagepatches_not_supported_padding) {
                     NodeValidationFailure,
                     HasSubstr("Attribute padding should be in either valid or same_lower or same_upper"));
 }
+
+using ExtractImagesPatchesParams = std::tuple<op::PadType,
+                                              size_t,  // size
+                                              size_t,  // rate
+                                              size_t   // stride
+                                              >;
+
+class ExtractImagesPatchesV3Test : public TypePropOpTest<op::v3::ExtractImagePatches>,
+                                   public WithParamInterface<ExtractImagesPatchesParams> {
+protected:
+    void SetUp() override {
+        const auto& p = GetParam();
+
+        pad_type = std::get<0>(p);
+        sizes = Shape(2, std::get<1>(p));
+        rates = Shape(2, std::get<2>(p));
+        strides = Shape(2, std::get<3>(p));
+    }
+
+    int64_t calc_shape_padding(const int64_t input,
+                               const int64_t rate,
+                               const int64_t stride,
+                               const int64_t patch_size,
+                               const op::PadType type) {
+        int64_t out = 0;
+        if (type == op::PadType::VALID) {
+            out = (input - rate * (patch_size - 1) - 1) / stride + 1;
+        } else {
+            out = 1 + (input - 1) / stride;
+        }
+        return out < 0 ? 0 : out;
+    }
+
+    PartialShape exp_shape() {
+        auto shape = PartialShape{dim0, dim1, -1, -1};
+        shape[1] *= sizes[0] * sizes[1];
+        shape[2] = calc_shape_padding(100,
+                                      static_cast<int64_t>(rates[0]),
+                                      static_cast<int64_t>(strides[0]),
+                                      static_cast<int64_t>(sizes[0]),
+                                      pad_type);
+        shape[3] = calc_shape_padding(100,
+                                      static_cast<int64_t>(rates[1]),
+                                      static_cast<int64_t>(strides[1]),
+                                      static_cast<int64_t>(sizes[1]),
+                                      pad_type);
+
+        return shape;
+    }
+
+    Shape sizes, rates;
+    Strides strides;
+    op::PadType pad_type;
+    int64_t dim0 = 64, dim1 = 2;
+};
+
+INSTANTIATE_TEST_SUITE_P(type_prop,
+                         ExtractImagesPatchesV3Test,
+                         Combine(Values(op::PadType::VALID, op::PadType::SAME_LOWER),
+                                 Range<size_t>(1, 11),
+                                 Range<size_t>(1, 11),
+                                 Range<size_t>(1, 11)),
+                         PrintToStringParamName());
+
+TEST_P(ExtractImagesPatchesV3Test, check_calc_padding) {
+    auto data = make_shared<op::v0::Parameter>(element::i32, PartialShape{dim0, dim1, 100, 100});
+    auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, pad_type);
+
+    EXPECT_EQ(extractimagepatches->get_output_element_type(0), element::i32);
+    EXPECT_EQ(extractimagepatches->get_output_partial_shape(0), exp_shape());
+}
