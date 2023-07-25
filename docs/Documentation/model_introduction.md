@@ -35,18 +35,18 @@ You can still choose to convert a model from original framework to `openvino.run
 Convert a model with Python using ``mo.convert_model()``
 ###########################################################
 
-Model conversion API, specifically, the ``mo.convert_model()`` method converts a model from original framework to ``ov.Model``. ``mo.convert_model()`` returns ``ov.Model`` object in memory so the ``read_model()`` method is not required. The resulting ``ov.Model`` can be inferred in the same training environment (python script or Jupiter Notebook). ``mo.convert_model()`` provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application. In addition to model files, ``mo.convert_model()`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO. The ``mo.convert_model()`` method also has a set of parameters to :doc:`cut the model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`, :doc:`set input shapes or layout <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`, :doc:`add preprocessing <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`, etc.
+Model conversion API, specifically, the ``mo.convert_model()`` method converts a model from original framework to ``ov.Model``. ``mo.convert_model()`` returns ``ov.Model`` object in memory so the ``read_model()`` method is not required. The resulting ``ov.Model`` can be inferred in the same training environment (python script or Jupiter Notebook). ``mo.convert_model()`` provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application. 
 
-The figure below illustrates the typical workflow for deploying a trained deep learning model:
+In addition to model files, ``mo.convert_model()`` can take OpenVINO extension objects constructed directly in Python for easier conversion of operations that are not supported in OpenVINO. The ``mo.convert_model()`` method also has a set of parameters to :doc:`cut the model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`, :doc:`set input shapes or layout <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`, :doc:`add preprocessing <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`, etc.
+
+The figure below illustrates the typical workflow for deploying a trained deep learning model, where IR is a pair of files describing the model:
+
+* ``.xml`` - Describes the network topology.
+* ``.bin`` - Contains the weights and biases binary data.
 
 .. image:: _static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
 
-
-where IR is a pair of files describing the model:
-
-* ``.xml`` - Describes the network topology.
-* ``.bin`` - Contains the weights and biases binary data.
 
 Convert a model using ``mo`` command-line tool
 #################################################
