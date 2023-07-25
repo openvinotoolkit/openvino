@@ -17,7 +17,7 @@ namespace utils {
 
 #define all_close_ov_type(type)\
     case ov::element::type:\
-         return ov::test::all_close<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
+         return all_close<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
              static_cast<ov::element_type_traits<ov::element::type>::value_type>(rtol), \
              static_cast<ov::element_type_traits<ov::element::type>::value_type>(atol));\
 
