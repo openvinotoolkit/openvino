@@ -11,7 +11,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
 * Not enough memory to compile a model. To decrease memory requirement, the following options may be applied: 
   
   * Weights mapping - memory mapping (using ``mmap``) has been introduced as the default way to work
-    with weights. Currently, this feature is supported by the IR frontend.
+    with weights. Currently, this feature is supported by the IR and ONNX frontends.
     Mapping may be switched by specifying the ``ov::enable_mmap(BOOL)`` property for the ``ov::Core``.
     Because of its "memory-on-demand" nature, there is no need to store all weights
     in RAM. Storing just the data that is needed at the moment lowers the amount of memory
