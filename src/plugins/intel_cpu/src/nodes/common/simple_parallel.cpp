@@ -8,16 +8,14 @@
 #include <string>
 #include "ie_parallel.hpp"
 
-namespace ov {
-namespace cpu {
+namespace utility {
 
-size_t getTotalThreads() {
+size_t get_total_threads() {
     return parallel_get_max_threads();
 }
 
-void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
-    parallel_for(total, fn);
+void simple_parallel_for(const size_t total, const std::function<void(size_t)>& fn) {
+    ov::parallel_for(total, fn);
 }
 
-};  // namespace cpu
-};  // namespace ov
+}  // namespace utility

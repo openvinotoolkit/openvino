@@ -8,12 +8,9 @@
 #include <string>
 #include <functional>
 
-namespace ov {
-namespace cpu {
+namespace utility {
 
-// TODO: remove after mlas merged
-size_t getTotalThreads();
-void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn);
+size_t get_total_threads();
+void simple_parallel_for(const size_t total, const std::function<void(size_t)>& fn);
 
-};  // namespace cpu
-};  // namespace ov
+};  // namespace utility

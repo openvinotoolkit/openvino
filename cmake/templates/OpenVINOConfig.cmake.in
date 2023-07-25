@@ -357,7 +357,7 @@ macro(_ov_find_intel_cpu_dependencies)
         unset(_ov_in_install_tree)
         unset(ARM_COMPUTE_LIB_DIR)
     endif()
-    if(NOT _OV_COMPILE_CPU_EXTENSIONS)        
+    if(LINUX AND X86_64 AND (NOT _OV_COMPILE_CPU_EXTENSIONS))
         _ov_find_dependency(cpu_extensions)
     endif()
 

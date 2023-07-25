@@ -1192,11 +1192,11 @@ bool FullyConnected::tryUseLLMFc() {
         return false;
     }
 
-    auto thread_num = ov::cpu::getTotalThreads();
+    auto thread_num = utility::get_total_threads();
     fcLLMs.resize(thread_num);
     volatile bool ret = true;
     // force to reference the function once
-    ov::cpu::TrySimpleParallelFor(thread_num, [&] (size_t i) {
+    utility::simple_parallel_for(thread_num, [&] (size_t i) {
         llmdnn::fc_kernel* fc;
         if (!fc_kernel_create(&fc, &param)) {
             ret = false;
