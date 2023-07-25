@@ -36,8 +36,10 @@ public:
     }
 
     void SetUp() override {
-       ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
-       ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
+        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
+           .WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
                    const ov::AnyMap& config) {
                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
                });
@@ -127,6 +129,11 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
+    ConfigParams{"CPU,GPU.2,OTHER",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
+                 false,
+                 3},
     ConfigParams{"CPU,GPU,OTHER",
                  {{"CPU", {}, -1, "", "CPU_", 0},
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
