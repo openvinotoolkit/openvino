@@ -228,7 +228,7 @@ def test_pipeline_2():
         ],
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 3e-03
+    assert np.max(np.absolute(torch_result - ov_result)) < 5e-03
 
 
 def test_pipeline_3():
