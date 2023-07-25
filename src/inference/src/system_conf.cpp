@@ -243,7 +243,7 @@ int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
 int get_num_sockets() {
-    return -1;
+    return cpu_info()._sockets;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
