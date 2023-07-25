@@ -58,7 +58,7 @@
         {
             "language": "javascript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
+                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },
@@ -109,7 +109,7 @@
         {
             "language": "javascript",
             "source": [
-                "const inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));"
+                "const inferRequest = compiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\n\nconst resultInfer = inferRequest.getTensor(outputLayer);\nconst resultIndex = resultInfer.data.indexOf(Math.max(...resultInfer.data));"
             ],
             "outputs": []
         },

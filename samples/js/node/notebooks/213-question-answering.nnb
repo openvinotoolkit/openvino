@@ -58,34 +58,16 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
+                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\n\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
             ],
             "outputs": []
         },
         {
             "language": "javascript",
             "source": [
-                "inputs.forEach(i => console.log(`${i}`));\nconsole.log('===')\noutputs.forEach(o => console.log(`${o}`));"
+                "console.log('===')\noutputs.forEach(o => console.log(`${o}`));"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "input_ids",
-                                "attention_mask",
-                                "token_type_ids",
-                                "position_ids",
-                                "===",
-                                "output_s",
-                                "output_e",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "markdown",
@@ -160,7 +142,7 @@
         {
             "language": "javascript",
             "source": [
-                "function getBestAnswer(question, context) {\n  // Convert the context string to tokens.\n  const [contextTokens, contextTokensStartEnd] = tokens.textToTokens(context.toLowerCase(), vocab);\n  // Convert the question string to tokens.\n  const [questionTokens] = tokens.textToTokens(question.toLowerCase(), vocab);\n\n  const results = [];\n  // Iterate through different parts of the context.\n  for ([networkInput, padding, startIdx] of prepareInput(questionTokens, contextTokens)) {\n    // Get output layers.\n    const outputStartKey = compiledModel.output('output_s');\n    const outputEndKey = compiledModel.output('output_e');\n\n    // OpenVINO inference.\n    const inferRequest = compiledModel.create_infer_request();\n\n    const transformedInput = {\n      'input_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['input_ids']),\n      'attention_mask': new ov.Tensor(ov.element.f32, [1, 384], networkInput['attention_mask']),\n      'token_type_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['token_type_ids']),\n      'position_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['position_ids']),\n    }\n\n    inferRequest.infer(transformedInput);\n    inferRequest.getOutputTensors();\n\n    const resultStart = inferRequest.getTensor(outputStartKey).data;\n    const resultEnd = inferRequest.getTensor(outputEndKey).data;\n\n    // Postprocess the result, getting the score and context range for the answer.\n    const scoreStartEnd = postprocess(resultStart,\n                                  resultEnd,\n                                  questionTokens,\n                                  contextTokensStartEnd,\n                                  padding,\n                                  startIdx);\n    results.push(scoreStartEnd);\n  }\n\n  // Find the highest score.\n  const scores = results.map(r => r[0]);\n  const maxIndex = scores.indexOf(Math.max(scores));\n\n  const answer = results[maxIndex];\n  // Return the part of the context, which is already an answer.\n  return [context.slice(answer[1], answer[2]), answer[0]];\n}"
+                "function getBestAnswer(question, context) {\n  // Convert the context string to tokens.\n  const [contextTokens, contextTokensStartEnd] = tokens.textToTokens(context.toLowerCase(), vocab);\n  // Convert the question string to tokens.\n  const [questionTokens] = tokens.textToTokens(question.toLowerCase(), vocab);\n\n  const results = [];\n  // Iterate through different parts of the context.\n  for ([networkInput, padding, startIdx] of prepareInput(questionTokens, contextTokens)) {\n    // Get output layers.\n    const outputStartKey = compiledModel.output('output_s');\n    const outputEndKey = compiledModel.output('output_e');\n\n    // OpenVINO inference.\n    const inferRequest = compiledModel.createInferRequest();\n\n    const transformedInput = {\n      'input_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['input_ids']),\n      'attention_mask': new ov.Tensor(ov.element.f32, [1, 384], networkInput['attention_mask']),\n      'token_type_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['token_type_ids']),\n      'position_ids': new ov.Tensor(ov.element.f32, [1, 384], networkInput['position_ids']),\n    }\n\n    inferRequest.infer(transformedInput);\n    inferRequest.getOutputTensors();\n\n    const resultStart = inferRequest.getTensor(outputStartKey).data;\n    const resultEnd = inferRequest.getTensor(outputEndKey).data;\n\n    // Postprocess the result, getting the score and context range for the answer.\n    const scoreStartEnd = postprocess(resultStart,\n                                  resultEnd,\n                                  questionTokens,\n                                  contextTokensStartEnd,\n                                  padding,\n                                  startIdx);\n    results.push(scoreStartEnd);\n  }\n\n  // Find the highest score.\n  const scores = results.map(r => r[0]);\n  const maxIndex = scores.indexOf(Math.max(scores));\n\n  const answer = results[maxIndex];\n  // Return the part of the context, which is already an answer.\n  return [context.slice(answer[1], answer[2]), answer[0]];\n}"
             ],
             "outputs": []
         },
@@ -176,20 +158,7 @@
             "source": [
                 "function runQuestionAnswering(sources, exampleQuestion) {\n  console.log(`Context: ${sources}`);\n  const context = loadContext(sources);\n\n  if (!context.length)\n    return console.log('Error: Empty context or outside paragraphs');\n\n  if (exampleQuestion) {\n    const startTime = process.hrtime.bigint();\n    const [answer, score] = getBestAnswer(exampleQuestion, context);\n    const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;\n\n    console.log(`Question: ${exampleQuestion}`);\n    console.log(`Answer: ${answer}`);\n    console.log(`Score: ${score}`);\n    console.log(`Time: ${execTime}s`);\n  }\n}\n\nconst sources = [\"Computational complexity theory is a branch of the theory of computation in theoretical computer \" +\n  \"science that focuses on classifying computational problems according to their inherent difficulty, \" +\n  \"and relating those classes to each other. A computational problem is understood to be a task that \" +\n  \"is in principle amenable to being solved by a computer, which is equivalent to stating that the \" +\n  \"problem may be solved by mechanical application of mathematical steps, such as an algorithm.\"]\n\nrunQuestionAnswering(sources, 'What is the term for a task that generally lends itself to being solved by a computer?');\n"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.stdout",
-                            "value": [
-                                "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
-                                "Time: 0.054585038s",
-                                ""
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         }
     ]
 }

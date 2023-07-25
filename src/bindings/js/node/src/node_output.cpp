@@ -10,6 +10,7 @@ Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
                                {Output<ov::Node>::InstanceMethod("getShape", &Output<ov::Node>::get_shape),
                                 Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_shape_data>("shape"),
                                 Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
+                                Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_any_name>("anyName"),
                                 Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
                                 Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
                                 Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
@@ -77,6 +78,7 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
         {Output<const ov::Node>::InstanceMethod("getShape", &Output<const ov::Node>::get_shape),
          Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_shape_data>("shape"),
          Output<const ov::Node>::InstanceMethod("getAnyName", &Output<const ov::Node>::get_any_name),
+         Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_any_name>("anyName"),
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
 }
 

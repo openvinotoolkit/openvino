@@ -17,8 +17,8 @@ var testXml = getModelPath();
 describe('Output class', () => {
 
   const core = new ov.Core();
-  const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
+  const model = core.readModel(testXml);
+  const compiledModel = core.compileModel(model, 'CPU');
 
   test.each([
     model,
@@ -33,16 +33,19 @@ describe('Output class', () => {
     expect(obj.output(0).shape).toEqual([1, 10]);
     expect(obj.output(0).getShape().getData()).toEqual([1, 10]);
     expect(obj.output().getAnyName()).toEqual('fc_out');
+    expect(obj.output().anyName).toEqual('fc_out');
   });
 
   test('Ouput<ov::Node>.setNames() method', () => {
     model.output().setNames(['bTestName', 'cTestName']);
     expect(model.output().getAnyName()).toEqual('bTestName');
+    expect(model.output().anyName).toEqual('bTestName');
   });
 
   test('Ouput<ov::Node>.addNames() method', () => {
     model.output().addNames(['aTestName']);
     expect(model.output().getAnyName()).toEqual('aTestName');
+    expect(model.output().anyName).toEqual('aTestName');
   });
 
   test('Ouput<const ov::Node>.setNames() method', () => {
@@ -57,8 +60,8 @@ describe('Output class', () => {
 
 describe('Input class for ov::Input<const ov::Node>', () => {
   const core = new ov.Core();
-  const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
+  const model = core.readModel(testXml);
+  const compiledModel = core.compileModel(model, 'CPU');
 
   test('CompiledModel.input() method', () => {
     // TO_DO check if object is an instance of a value/class
@@ -93,9 +96,9 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
 describe('InferRequest', () => {
   const core = new ov.Core();
-  const model = core.read_model(testXml);
-  const compiledModel = core.compile_model(model, 'CPU');
-  const inferRequest = compiledModel.create_infer_request();
+  const model = core.readModel(testXml);
+  const compiledModel = core.compileModel(model, 'CPU');
+  const inferRequest = compiledModel.createInferRequest();
 
   const tensor = new ov.Tensor(
     ov.element.f32,
