@@ -16,6 +16,17 @@ using namespace ov;
 
 bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AlignMixedFP32FP16Types);
+    std::unordered_set<std::string> new_friendly_names;
+
+    auto generate_uniq_name = [&new_friendly_names](const std::string& initial_name) {
+        int idx = 0;
+        auto cur_name = initial_name;
+        while (new_friendly_names.find(cur_name) != new_friendly_names.end()) {
+            cur_name = initial_name + ":" + std::to_string(idx++);
+        }
+        new_friendly_names.insert(cur_name);
+        return cur_name;
+    };
 
     std::function<bool(const std::shared_ptr<Node>&)> insert_converts_before_if_needed =
         [&](const std::shared_ptr<Node>& node) {
@@ -32,7 +43,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
 
                 auto convert =
                     std::make_shared<ov::op::v0::Convert>(incoming_output, incoming_output.get_element_type());
-                convert->set_friendly_name(incoming_node->get_friendly_name() + "_decompressed_to_f32");
+                auto init_name = incoming_node->get_friendly_name() + "_decompressed_to_f32";
+                convert->set_friendly_name(generate_uniq_name(init_name));
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);
                 disable_fp16_compression(convert);
@@ -61,7 +73,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                     // ConvertPrecision(f32 -> f16). It's kept here f32 to keep ov::Model validatable
                     auto convert = std::make_shared<ov::op::v0::Convert>(output, out_inputs.get_element_type());
                     copy_runtime_info(node, convert);
-                    convert->set_friendly_name(node->get_friendly_name() + "_compressed_to_f16");
+                    auto init_name = node->get_friendly_name() + "_compressed_to_f16";
+                    convert->set_friendly_name(generate_uniq_name(init_name));
                     out_inputs.replace_source_output(convert);
                     pass::disable_constant_folding(convert);
                     is_changed = true;
