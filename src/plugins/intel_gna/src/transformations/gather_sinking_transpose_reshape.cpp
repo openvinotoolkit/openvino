@@ -30,7 +30,7 @@ std::vector<std::shared_ptr<ov::Node>> sink_forward(std::shared_ptr<ov::Node> tr
     std::vector<std::shared_ptr<ov::Node>> new_nodes = {};
 
     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-    const auto gather_indices_value =
+    const auto gather_indexes_value =
         graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
     ov::Shape shape_out = reshape->get_output_shape(0);
@@ -51,7 +51,7 @@ std::vector<std::shared_ptr<ov::Node>> sink_forward(std::shared_ptr<ov::Node> tr
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape_in->get_output_shape(0));
     auto gather_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, gather_axis_value);
     auto gather_indices =
-        std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_indices_value.size()}, gather_indices_value);
+        std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_indexes_value.size()}, gather_indexes_value);
     auto gather = std::make_shared<Gather>(reshape_in, gather_indices, gather_axis);
     new_nodes.push_back(gather);
 
@@ -89,13 +89,13 @@ std::vector<std::shared_ptr<ov::Node>> sink_backward(std::shared_ptr<ov::Node> r
     new_nodes.push_back(reshape_in);
 
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape_in->get_output_shape(0));
-    const auto gather_indices_value =
+    const auto gather_indexes_value =
         graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
 
     auto gather_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, gather_axis_value);
     auto gather_indices =
-        std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_indices_value.size()}, gather_indices_value);
+        std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_indexes_value.size()}, gather_indexes_value);
     auto gather = std::make_shared<Gather>(reshape_in, gather_indices, gather_axis);
     new_nodes.push_back(gather);
 
