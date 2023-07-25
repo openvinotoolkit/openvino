@@ -40,11 +40,11 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     TensorInfo dstTensorInfo = TensorInfo(shapeCast(dstDims), 1,
     precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    unsigned int pad_l = deconvAttrs.paddingL.at(1);
-    unsigned int pad_r = deconvAttrs.paddingR.at(1);
-    unsigned int pad_t = deconvAttrs.paddingL.at(0);
-    unsigned int pad_b = deconvAttrs.paddingR.at(0);
-    unsigned int stride_x = deconvAttrs.stride.at(1);
+    unsigned int pad_l = (deconvAttrs.paddingL.size() > 1) ? std::abs(deconvAttrs.paddingL.at(1)) : std::abs(deconvAttrs.paddingL.at(0));
+    unsigned int pad_r = (deconvAttrs.paddingR.size() > 1) ? std::abs(deconvAttrs.paddingR.at(1)) : std::abs(deconvAttrs.paddingR.at(0));
+    unsigned int pad_t = std::abs(deconvAttrs.paddingL.at(0));
+    unsigned int pad_b = std::abs(deconvAttrs.paddingR.at(0));
+    unsigned int stride_x = (deconvAttrs.stride.size() > 1) ? deconvAttrs.stride.at(1) : deconvAttrs.stride.at(0);
     unsigned int stride_y = deconvAttrs.stride.at(0);
 
     arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
