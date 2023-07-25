@@ -538,9 +538,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
 
-        const bool first_match = !customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
-                                                    first_match,
                                                     [&](impl_desc_type implType) {
                                                         return contains(getImplPriority(), implType);
                                                     },
