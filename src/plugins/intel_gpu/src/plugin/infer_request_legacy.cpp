@@ -26,8 +26,6 @@ namespace {
 
 const char fp32_suffix[] = "_fp32";
 const char cannot_set_compound[] = "cannot set compound blob: supported only for input pre-processing";
-const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
-const char unsupported_batched_blob[] = "Batched input blob is expected to contain NV12 blobs";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
 const char str_host_mem_not_allocated[] = "Failed to allocate host memory.";
@@ -103,13 +101,6 @@ inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
     }
 }
 
-NV12Blob *getNV12BlobOrException(BatchedBlob *batched_ptr, int idx) {
-    auto nv12_ptr = batched_ptr->getBlob(idx)->as<NV12Blob>();
-    if (nv12_ptr == nullptr)
-        IE_THROW(NotImplemented) << unsupported_batched_blob;
-    return nv12_ptr;
-}
-
 void checkInputBlob(const Blob::Ptr &blob,
     const std::string &name,
     const InputInfo::Ptr foundInput,
@@ -120,34 +111,17 @@ void checkInputBlob(const Blob::Ptr &blob,
         IE_THROW(NotAllocated) << str_input_not_allocated;
     }
 
-    if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-        nv12_two_inputs) {
-        if (auto nv12_ptr = blob->as<NV12Blob>()) {
-            checkAlloc(nv12_ptr->y(), str_input_not_allocated);
-            checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
-        } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
-            for (size_t i = 0; i < batched_ptr->size(); i++) {
-                auto nv12_ptr = getNV12BlobOrException(batched_ptr, static_cast<int>(i));
-                checkAlloc(nv12_ptr->y(), str_input_not_allocated);
-                checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
-            }
-        } else {
-            IE_THROW(ParameterMismatch) << wrong_nv12_blob;
-        }
+    SizeVector dims = foundInput->getTensorDesc().getDims();
 
-    } else {
-        SizeVector dims = foundInput->getTensorDesc().getDims();
+    size_t refSize = foundInput->getTensorDesc().getLayout() != SCALAR
+        ? details::product(dims)
+        : 1;
 
-        size_t refSize = foundInput->getTensorDesc().getLayout() != SCALAR
-            ? details::product(dims)
-            : 1;
-
-        if (refSize != blob->size()) {
-            IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
-        }
-
-        checkAlloc(blob, str_input_not_allocated);
+    if (refSize != blob->size()) {
+        IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
+
+    checkAlloc(blob, str_input_not_allocated);
 }
 
 void checkOutputBlob(const Blob::Ptr &blob,
@@ -284,52 +258,6 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
         if (is_remote) {
             _deviceInputs[name] = data;
             _inputs[name] = data;
-        } else {
-            auto nv12_ptr = data->as<NV12Blob>();
-            auto batched_ptr = data->as<BatchedBlob>();
-            bool is_batched = batched_ptr != nullptr;
-            bool is_nv12 = nv12_ptr != nullptr;
-            auto expected_batch = is_batched ? static_cast<int>(desc.getDims()[0]) : 1;
-            if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
-                m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
-                // try extracting Y and UV remote blobs from it
-                // and put them into appropriate network inputs
-                // that should then go into biplanar NV12 reorder
-
-                if (is_nv12 || is_batched) {
-                    auto num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
-                    for (auto i = 0; i < expected_batch; i++) {
-                        std::string y_name = name + "_Y" + std::to_string(i);
-                        std::string uv_name = name + "_UV" + std::to_string(i);
-                        if (is_batched) {
-                            int idx = i < num_blobs ? i : static_cast<int>(num_blobs)-1;
-                            nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
-                        }
-
-                        auto y_ptr = nv12_ptr->y()->as<gpu::ClBlob>();
-                        if (y_ptr) {
-                            auto y_impl = getBlobImpl(y_ptr);
-                            if (!y_impl->is_allocated()) {
-                                y_impl->allocate();
-                            }
-                            _deviceInputs[y_name] = nv12_ptr->y();
-                            is_remote = true;
-                        }
-
-                        auto uv_ptr = nv12_ptr->uv()->as<gpu::ClBlob>();
-                        if (uv_ptr) {
-                            auto uv_impl = getBlobImpl(uv_ptr);
-                            if (!uv_impl->is_allocated()) {
-                                uv_impl->allocate();
-                            }
-                            _deviceInputs[uv_name] = nv12_ptr->uv();
-                            is_remote = true;
-                        }
-                    }
-                }
-            }
-            if (is_remote)
-                _inputs[name] = data;
         }
 
         if (!is_remote) {
@@ -727,30 +655,8 @@ void InferRequestLegacy::enqueue() {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
 
-        auto nv12_ptr = inputBlob->as<NV12Blob>();
-        auto batched_ptr = inputBlob->as<BatchedBlob>();
-        bool is_batched = batched_ptr != nullptr;
-        bool is_nv12 = nv12_ptr != nullptr;
-
-        if (is_nv12 || is_batched) {
-            int num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
-            int expected_batch = is_batched
-                ? static_cast<int>(_networkInputs.at(inputName)->getTensorDesc().getDims()[0])
-                : 1;
-            for (auto i = 0; i < expected_batch; i++) {
-                std::string y_name = inputName + "_Y" + std::to_string(i);
-                std::string uv_name = inputName + "_UV" + std::to_string(i);
-                if (is_batched) {
-                    int idx = i < num_blobs ? i : num_blobs - 1;
-                    nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
-                }
-                prepare_input(y_name, nv12_ptr->y(), dependencies);
-                prepare_input(uv_name, nv12_ptr->uv(), dependencies);
-            }
-        } else {
-            // regular blob
-            prepare_input(inputName, inputBlob, dependencies);
-        }
+        // regular blob
+        prepare_input(inputName, inputBlob, dependencies);
     }
 
     cldnn::network::variables_states_map variables_states;
@@ -1012,8 +918,7 @@ void InferRequestLegacy::allocate_inputs() {
         std::string name = ni.first;
         const TensorDesc& desc = ni.second->getTensorDesc();
 
-        bool is_nv12_input = ColorFormat::NV12 == ni.second->getPreProcess().getColorFormat() &&
-                             m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs);
+        bool is_nv12_input = false;
 
         auto parameter = std::find_if(_parameters.begin(), _parameters.end(), [&](const std::shared_ptr<const ov::Node>& node) {
             return node->get_friendly_name() == name;

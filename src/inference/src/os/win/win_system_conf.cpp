@@ -13,13 +13,12 @@
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 
 namespace ov {
 
 CPU::CPU() {
     DWORD len = 0;
-    _num_threads = parallel_get_max_threads();
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;
     }
@@ -34,14 +33,17 @@ CPU::CPU() {
                              len,
                              _processors,
                              _numa_nodes,
+                             _sockets,
                              _cores,
                              _proc_type_table,
                              _cpu_mapping_table);
+    _org_proc_type_table = _proc_type_table;
 }
 
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
                               int& _processors,
+                              int& _numa_nodes,
                               int& _sockets,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
@@ -49,7 +51,7 @@ void parse_processor_info_win(const char* base_ptr,
     std::vector<int> list;
     std::vector<int> proc_info;
 
-    std::vector<int> proc_init_line(PROC_TYPE_TABLE_SIZE, 0);
+    std::vector<int> proc_init_line({0, 0, 0, 0, -1, -1});
     std::vector<int> cpu_init_line(CPU_MAP_TABLE_SIZE, -1);
 
     char* info_ptr = (char*)base_ptr;
@@ -107,6 +109,7 @@ void parse_processor_info_win(const char* base_ptr,
             if (2 == list_len) {
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                proc_info[CPU_MAP_NUMA_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 proc_info[CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
@@ -115,6 +118,7 @@ void parse_processor_info_win(const char* base_ptr,
 
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[1] + base_proc;
+                proc_info[CPU_MAP_NUMA_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
@@ -128,6 +132,7 @@ void parse_processor_info_win(const char* base_ptr,
             } else {
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                proc_info[CPU_MAP_NUMA_NODE_ID] = _sockets;
                 proc_info[CPU_MAP_SOCKET_ID] = _sockets;
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 if ((_processors > group_start) && (_processors <= group_end)) {
@@ -185,11 +190,17 @@ void parse_processor_info_win(const char* base_ptr,
         _proc_type_table[0] = proc_init_line;
 
         for (int m = 1; m <= _sockets; m++) {
-            for (int n = 0; n < PROC_TYPE_TABLE_SIZE; n++) {
+            for (int n = 0; n <= HYPER_THREADING_PROC; n++) {
                 _proc_type_table[0][n] += _proc_type_table[m][n];
             }
+            _proc_type_table[m][PROC_SOCKET_ID] = m - 1;
+            _proc_type_table[m][PROC_NUMA_NODE_ID] = m - 1;
         }
+    } else {
+        _proc_type_table[0][PROC_SOCKET_ID] = 0;
+        _proc_type_table[0][PROC_NUMA_NODE_ID] = 0;
     }
+    _numa_nodes = _sockets;
 }
 
 int get_number_of_cpu_cores(bool bigCoresOnly) {

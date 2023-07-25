@@ -177,7 +177,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS estate=64)
         if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
             # arm_sve.h header is not available on gcc older 10.2
-            list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+            # TODO: validate it on machines with FP16 / SVE support and enabled back
+            # list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
         endif()
     endif()
 
@@ -326,9 +327,14 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     if(ENABLE_LTO)
-        if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND NOT CMAKE_CROSSCOMPILING)
-            set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
-            set(extra_link_flags "${extra_link_flags} -flto=thin")
+        if(NOT CMAKE_CROSSCOMPILING)
+            if(CMAKE_COMPILER_IS_GNUCXX)
+                set(extra_cxx_flags "${extra_cxx_flags} -flto -fno-fat-lto-objects")
+                set(extra_link_flags "${extra_link_flags} -flto -fno-fat-lto-objects")
+            elseif(OV_COMPILER_IS_CLANG)
+                set(extra_cxx_flags "${extra_cxx_flags} -flto=thin")
+                set(extra_link_flags "${extra_link_flags} -flto=thin")
+            endif()
         endif()
     endif()
 
@@ -354,6 +360,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute ${ARM_COMPUTE_BINARY_DIR}/libarm_compute-static.a)
         set(arm_compute_full_path "${arm_compute}")
     endif()
+
+    list(APPEND ARM_COMPUTE_OPTIONS experimental_fixed_format_kernels=True)
 
     add_custom_command(
         OUTPUT

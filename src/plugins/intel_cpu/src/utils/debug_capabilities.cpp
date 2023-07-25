@@ -18,6 +18,13 @@
 #include "snippets/op/subgraph.hpp"
 #include <ie_ngraph_utils.hpp>
 
+namespace dnnl {
+namespace impl {
+std::ostream &operator<<(std::ostream &ss, const primitive_attr_t *attr);
+std::ostream &operator<<(std::ostream &ss, alg_kind_t alg);
+}
+}
+
 namespace ov {
 namespace intel_cpu {
 
@@ -108,6 +115,14 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
     return os;
 }
 
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr) {
+    return dnnl::impl::operator<<(os, attr.get());
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg) {
+    return dnnl::impl::operator<<(os, convert_to_c(alg));
+}
+
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     std::stringstream ss;
     ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
@@ -184,7 +199,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << ptr->GetData();
+                                << "_" << ptr->getData();
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -239,7 +254,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     } else {
         // no SPD yet, use orginal shapes
         comma = "";
-        for (int i = 0; i < num_output_port; i++) {
+        for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
             prec_name = node.getOriginalOutputPrecisionAtPort(i).name();
@@ -267,6 +282,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto n = edge->getParent();
             os << comma;
             os << node_id(*edge->getParent());
+            auto ptr = edge->getMemoryPtr();
+            if (ptr) {
+                os << "_" << ptr->getData();
+            }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
             comma = ",";
@@ -277,7 +296,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
         if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
             auto pmem = input_node->getMemoryPtr();
-            void * data = pmem->GetData();
+            void * data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
 
             if (shape_size(shape) <= 8) {
@@ -468,11 +487,11 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
 
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
             if (constop->get_element_type() == element::Type_t::f32) {
-                os << PrintableVector<float>(constop->get_vector<float>());
+                os << printable(constop->get_vector<float>());
             } else if (constop->get_element_type() == element::Type_t::i8) {
-                os << PrintableVector<int8_t>(constop->get_vector<int8_t>());
+                os << printable(constop->get_vector<int8_t>());
             } else if (constop->get_element_type() == element::Type_t::u8) {
-                os << PrintableVector<uint8_t>(constop->get_vector<uint8_t>());
+                os << printable(constop->get_vector<uint8_t>());
             } else {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {

@@ -81,7 +81,6 @@ void register_implementations() {
     REGISTER_OCL(tile);
     REGISTER_OCL(lstm_dynamic_input);
     REGISTER_OCL(lstm_dynamic_timeloop);
-    REGISTER_OCL(generic_layer);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);
     REGISTER_OCL(grn);
@@ -94,6 +93,8 @@ void register_implementations() {
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
     REGISTER_OCL(eye);
+    REGISTER_OCL(unique_count);
+    REGISTER_OCL(unique_gather);
 }
 
 }  // namespace ocl

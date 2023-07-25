@@ -29,7 +29,7 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
             else
                 return kernel_selector::argm_axis::X;
         case 4: return kernel_selector::argm_axis::X;
-        default: IE_THROW() << "Invalid arg_max_min axis " << axis;
+        default: OPENVINO_THROW("Invalid arg_max_min axis ", axis);
     }
 }
 
@@ -66,6 +66,7 @@ public:
         const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
+        const auto& stable = primitive->stable;
         const auto& outputs_num = primitive->input_size() == 3 ? 2 : static_cast<uint32_t>(primitive->output_size());
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param, is_shape_agnostic);
@@ -107,6 +108,7 @@ public:
         }
 
         argm_params.values_first = values_first;
+        argm_params.stable = stable;
 
         return {argm_params, argm_optional_params};
     }

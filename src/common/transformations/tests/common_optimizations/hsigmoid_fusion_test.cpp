@@ -146,13 +146,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
     {
-        auto input =
-            std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto add_constant = ngraph::opset6::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
-        auto add = std::make_shared<ngraph::opset6::Add>(input, add_constant);
-        auto clamp = std::make_shared<ngraph::opset6::Clamp>(add, 0.0f, 6.0f);
-        auto div_constant = ngraph::opset6::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
-        auto div = std::make_shared<ngraph::opset6::Divide>(clamp, div_constant);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ov::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
+        auto add = std::make_shared<ov::op::v1::Add>(input, add_constant);
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);
+        auto div_constant = ov::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
+        auto div = std::make_shared<ov::op::v1::Divide>(clamp, div_constant);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 

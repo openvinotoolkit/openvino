@@ -9,8 +9,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "eltwise_shape_inference.hpp"
 #include "openvino/op/add.hpp"
-#include "utils.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
@@ -128,7 +128,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         for (size_t i = 0; i < desc->input_size(); i++) {
             input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
         }
-        eltwise_shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
 
         if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             out_format = format::b_fs_zyx_fsv16;
@@ -305,7 +305,7 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
     }
 
     json_composite eltwise_info;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.get_inputs_count(); i++) {
         eltwise_info.add("input_" + std::to_string(i), node.input(i).id());
     }
     eltwise_info.add("mode", str_mode);
@@ -322,7 +322,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     check_inputs_count(node);
     // check for stride
     auto prim = node.get_primitive();
-    auto inputs_count = node.inputs_count();
+    auto inputs_count = node.get_inputs_count();
 
     if (is_dynamic())
         return;
@@ -363,10 +363,10 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
         }
     } else {
         bool use_new_shape_infer = network.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
-        auto input0_pshape = node.input().get_output_layout().get_partial_shape();
+        auto input0_pshape = node.get_input_pshape(0);
 
         for (size_t i = 1; i < inputs_count; ++i) {
-            auto input_pshape = node.input(i).get_output_layout().get_partial_shape();
+            auto input_pshape = node.get_input_pshape(i);
 
             if (input0_pshape.size() > input_pshape.size()) {
                 if (use_new_shape_infer) {

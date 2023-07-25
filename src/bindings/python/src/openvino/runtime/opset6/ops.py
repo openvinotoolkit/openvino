@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 
 from openvino.runtime import Node, Shape
-from openvino.runtime.op import Constant, Parameter
+from openvino.runtime.op import assign, Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.input_validation import (
@@ -122,22 +122,6 @@ def mvn(
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
-
-
-@nameable_op
-def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
-    """Return a node which produces the Assign operation.
-
-    :param new_value:    Node producing a value to be assigned to a variable.
-    :param variable_id:  Id of a variable to be updated.
-    :param name:         Optional name for output node.
-    :return: Assign node
-    """
-    return _get_node_factory_opset6().create(
-        "Assign",
-        [as_node(new_value)],
-        {"variable_id": variable_id},
-    )
 
 
 @nameable_op

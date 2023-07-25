@@ -46,7 +46,7 @@ struct format_traits {
     /// @brief Characters representing feature map/channel dimensions in an order.
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
-    static const char* spatial_chars() { return "xyzhsw"; }
+    static const char* spatial_chars() { return "xyzwuvhs"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
@@ -217,6 +217,7 @@ struct format {
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
         os_i_yxs_osv4_yxsv4,
+        os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,

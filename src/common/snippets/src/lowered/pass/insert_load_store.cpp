@@ -19,24 +19,6 @@ using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
-void InsertLoadStore::update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
-                                   const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    for (auto loop_id : loop_ids) {
-        update_loop(loop_manager->get_loop_info(loop_id), actual_port, target_ports, is_entry);
-    }
-}
-
-void InsertLoadStore::update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
-                                  const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopManager::LoopPort& point) { return *point.expr_port.get() == actual_port; });
-    if (port_it == ports.end())
-        return;
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
-}
-
 size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
     const auto layout = port_desc->get_layout();
     const auto shape = port_desc->get_shape();
@@ -67,7 +49,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_connector});
-        linear_ir.insert(std::find(data_expr_it, linear_ir.cend(), consumer_expr), load_expr);
+        linear_ir.insert(linear_ir.find_after(data_expr_it, consumer_expr), load_expr);
         linear_ir.replace_input(consumer_input, load_expr->get_output_port_connector(0));
         // Copy Loop identifies
         load_expr->set_loop_ids(loop_ids);
@@ -75,7 +57,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         // Need to update all the corresponding Loops with the same Entry Point
         const auto prev_entry_point = consumer_input;
         const auto new_entry_point = load_expr->get_input_port(0);
-        update_loops(loop_manager, loop_ids, prev_entry_point, {new_entry_point}, true);
+        loop_manager->update_loops_port(loop_ids, prev_entry_point, {new_entry_point}, true);
         was_inserted = true;
     }
 
@@ -98,8 +80,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port_descriptor(0)));
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto store_expr = linear_ir.create_expression(store, {input_connector});
-    const auto& reverse_insertion_pos = std::find(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), linear_ir.crend(), parent_expr);
-    const auto& insertion_pos = reverse_insertion_pos.base();
+    const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
     linear_ir.insert(insertion_pos, store_expr);
     linear_ir.replace_input(data_expr->get_input_port(0), store_expr->get_output_port_connector(0));
     // Copy Loop identifies
@@ -122,7 +103,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto new_exit_point = store_expr->get_output_port(0);
     const auto new_exit_points = should_be_saved ? std::vector<ExpressionPort>{prev_exit_point, new_exit_point}
                                                  : std::vector<ExpressionPort>{new_exit_point};
-    update_loops(loop_manager, loop_ids, prev_exit_point, new_exit_points, false);
+    loop_manager->update_loops_port(loop_ids, prev_exit_point, new_exit_points, false);
     return true;
 }
 

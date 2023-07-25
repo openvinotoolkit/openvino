@@ -5,7 +5,7 @@ import re
 
 
 class BasicError(Exception):
-    """ Base class for all exceptions in Model Optimizer
+    """ Base class for all exceptions in Model Conversion API
 
         It operates like Exception but when it is converted to str,
         it formats string as args[0].format(*args[1:]), where
@@ -47,3 +47,8 @@ def classify_error_type(e):
         if m:
             return m.group(0)
     return "undefined"
+
+
+def legacy_path_error(functionality_description):
+    raise Exception("{}Please try to install openvino-dev and use convert_model() "
+                    "from openvino.tools.mo.".format(functionality_description))

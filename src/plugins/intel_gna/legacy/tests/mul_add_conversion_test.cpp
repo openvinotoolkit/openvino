@@ -45,7 +45,7 @@ using RefFunction = std::function<std::shared_ptr<
     ngraph::Function>(const InputShape&, const MulConstant&, const AddConstant&, const IsDequantization&)>;
 
 class MulAddConversionTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<
           std::tuple<std::tuple<InputShape, MulConstant, AddConstant, IsDequantization>, RefFunction>> {
 public:
@@ -145,14 +145,14 @@ public:
 class MulOrAddConversionTests : public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
     manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -166,14 +166,14 @@ TEST_P(MulAddConversionTests, CompareFunctions) {
 }
 
 TEST_P(MulOrAddConversionTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
     manager.register_pass<ngraph::pass::ConstantFolding>();

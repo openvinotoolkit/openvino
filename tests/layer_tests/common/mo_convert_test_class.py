@@ -4,8 +4,9 @@
 from pathlib import Path
 
 from openvino.runtime import serialize
+from openvino.tools.ovc import convert_model
+from openvino.tools.mo import convert_model as legacy_convert_model
 from openvino.test_utils import compare_functions
-from openvino.tools.mo import convert_model
 
 from common.utils.common_utils import generate_ir
 
@@ -16,7 +17,13 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        model = convert_model(**kwargs)
+        del kwargs['model_name']
+        if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
+            if 'use_convert_model_from_mo' in kwargs:
+                del kwargs['use_convert_model_from_mo']
+            model = legacy_convert_model(**kwargs)
+        else:
+            model = convert_model(**kwargs)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
     def _test(self, temp_dir, test_params, ref_params):

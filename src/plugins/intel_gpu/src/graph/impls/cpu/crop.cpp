@@ -53,7 +53,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto output_layout = params->output_layouts[0];
 
         auto input_shape = input_layout.get_partial_shape().to_shape();
-        auto offsets_shape = input_offset.get_partial_shape(input_shape.size()).to_shape();
+        auto offsets_shape = input_offset.get_partial_shape(input_shape.size(), input_layout.get_rank()).to_shape();
         auto output_shape = output_layout.get_partial_shape().to_shape();
 
         OPENVINO_ASSERT(offsets_shape.size() == output_shape.size(), "[GPU] Offset shape is supposed to have the same rank as output shape");
@@ -82,8 +82,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto stop_tensor = ov::Tensor(ov::element::i64, {stop_vec.size()}, stop_vec.data());
         auto steps_tensor = ov::Tensor(ov::element::i64, {steps_vec.size()}, steps_vec.data());
 
-        auto input_tensor = make_tensor(input_mem_ptr->get_layout(), input_lock.data());
-        auto output_tensor = make_tensor(output_mem_ptr->get_layout(), output_lock.data());
+        auto input_tensor = make_tensor(params->input_layouts[0], input_lock.data());
+        auto output_tensor = make_tensor(params->output_layouts[0], output_lock.data());
 
         input_host_tensors.push_back(input_tensor);
         input_host_tensors.push_back(start_tensor);

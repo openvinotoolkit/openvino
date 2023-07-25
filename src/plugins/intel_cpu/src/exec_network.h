@@ -68,17 +68,13 @@ protected:
 
     // WARNING: Do not use _graphs directly.
     mutable std::deque<GraphGuard>              _graphs;
-    mutable NumaNodesWeights                    _numaNodesWeights;
+    mutable SocketsWeights                      _socketWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
      *       even from main thread
      */
     GraphGuard::Lock GetGraph() const;
-
-    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
-
-    bool isLegacyAPI() const;
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about StridedSlice-1 - a data movement operation, 
+                which can be performed on three required and one optional input tensor.
+
 **Versioned name**: *StridedSlice-1*
 
 **Category**: *Data movement*
@@ -70,7 +74,8 @@
 **Example**
 Example of ``begin_mask`` & ``end_mask`` usage.
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="StridedSlice" ...>
         <data begin_mask="0,1,1" ellipsis_mask="0,0,0" end_mask="1,1,0" new_axis_mask="0,0,0" shrink_axis_mask="0,0,0"/>
@@ -102,8 +107,8 @@ Example of ``begin_mask`` & ``end_mask`` usage.
 
 Example of ``new_axis_mask`` usage.
 
-.. code-block:: cpp 
-
+.. code-block:: xml
+   :force:
 
     <layer ... type="StridedSlice" ...>
         <data begin_mask="0,1,1" ellipsis_mask="0,0,0" end_mask="0,1,1" new_axis_mask="1,0,0" shrink_axis_mask="0,0,0"/>
@@ -135,7 +140,8 @@ Example of ``new_axis_mask`` usage.
 
 Example of ``shrink_axis_mask`` usage.
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="StridedSlice" ...>
         <data begin_mask="1,0,1,1,1" ellipsis_mask="0,0,0,0,0" end_mask="1,0,1,1,1" new_axis_mask="0,0,0,0,0" shrink_axis_mask="0,1,0,0,0"/>

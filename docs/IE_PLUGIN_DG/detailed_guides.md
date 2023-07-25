@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn more about plugin development and specific features in 
+                 OpenVINO: precision transformations and support for quantized 
+                 models with different precisions.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
