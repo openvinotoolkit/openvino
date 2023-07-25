@@ -177,7 +177,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS estate=64)
         if(NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
             # arm_sve.h header is not available on gcc older 10.2
-            list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
+            # TODO: validate it on machines with FP16 / SVE support and enabled back
+            # list(APPEND ARM_COMPUTE_OPTIONS multi_isa=1)
         endif()
     endif()
 
