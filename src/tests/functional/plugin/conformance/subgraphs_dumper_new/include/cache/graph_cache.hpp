@@ -9,6 +9,8 @@
 #include "cache/meta/input_info.hpp"
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
+#include "matchers/subgraph/fused_names.hpp"
+#include "matchers/subgraph/repeat_pattern.hpp"
 
 namespace ov {
 namespace tools {
@@ -43,7 +45,10 @@ protected:
     static std::shared_ptr<GraphCache> m_cache_instance;
 
     GraphCache() {
-        ExtractorsManager::ExtractorsMap matchers = {};
+        ExtractorsManager::ExtractorsMap matchers = {
+            { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+        };
         m_manager.set_extractors(matchers);
     }
 

@@ -6,6 +6,8 @@
 
 #include <openvino/op/detection_output.hpp>
 
+#include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace util {
@@ -118,17 +120,17 @@ void compute_num_classes(const DetectionOutputBase* op,
     }
 }
 
-template <class T>
-void shape_infer_base(const DetectionOutputBase* op,
-                      const DetectionOutputBase::AttributesBase& attrs,
-                      const std::vector<T>& input_shapes,
-                      std::vector<T>& output_shapes,
-                      int64_t attribute_num_classes) {
-    using dim_t = typename std::iterator_traits<typename T::iterator>::value_type;
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer_base(const DetectionOutputBase* op,
+                                      const DetectionOutputBase::AttributesBase& attrs,
+                                      const std::vector<T>& input_shapes,
+                                      int64_t attribute_num_classes) {
+    using dim_t = typename T::value_type;
     using val_type = typename dim_t::value_type;
 
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 5) && output_shapes.size() == 1);
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 5));
 
+    auto output_shapes = std::vector<TRShape>(1);
     auto& ret_output_shape = output_shapes[0];
     ret_output_shape.resize(4);
 
@@ -310,6 +312,7 @@ void shape_infer_base(const DetectionOutputBase* op,
     } else {
         ret_output_shape[2] = dim_num_images * dim_num_prior_boxes * dim_num_classes;
     }
+    return output_shapes;
 }
 
 }  // namespace util
@@ -319,12 +322,11 @@ void shape_infer_base(const DetectionOutputBase* op,
 namespace ov {
 namespace op {
 namespace v0 {
-template <class T>
-void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const DetectionOutput* op, const std::vector<TShape>& input_shapes) {
     const auto& attrs = op->get_attrs();
-    ov::op::util::shape_infer_base(op, attrs, input_shapes, output_shapes, attrs.num_classes);
+    return ov::op::util::shape_infer_base(op, attrs, input_shapes, attrs.num_classes);
 }
-
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
@@ -332,12 +334,11 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
 namespace ov {
 namespace op {
 namespace v8 {
-
-template <class T>
-void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    ov::op::util::shape_infer_base(op, op->get_attrs(), input_shapes, output_shapes, -1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const DetectionOutput* op, const std::vector<TShape>& input_shapes) {
+    const auto& attrs = op->get_attrs();
+    return ov::op::util::shape_infer_base(op, attrs, input_shapes, -1);
 }
-
 }  // namespace v8
 }  // namespace op
 }  // namespace ov

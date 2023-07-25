@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "common_test_utils/all_close.hpp"
-#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_control.hpp"
@@ -35,7 +34,7 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_reduced_dims.onnx"));
@@ -56,7 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_reordered_dims.onnx"));
@@ -79,7 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_extended_dims.onnx"));
@@ -101,7 +100,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_single_dim.onnx"));
@@ -122,7 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
     // the model contains the target shape in the initializers: [2, -1, 2]
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
@@ -160,7 +159,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_negative_with_zero_dims.onnx"));
@@ -181,7 +180,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_output_shape_as_input.onnx"));
@@ -202,7 +201,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
 
@@ -219,7 +218,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
 
@@ -236,7 +235,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/depth_to_space_crd.onnx"));
@@ -254,7 +253,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
     EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -263,7 +262,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
                  std::runtime_error);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
     // This model fails to import since it lacks of required parameter `blocksize`.
     EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
@@ -271,7 +270,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
                  std::runtime_error);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
     try {
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -285,7 +284,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
     try {
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -299,7 +298,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
 
@@ -317,7 +316,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
     try {
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -332,7 +331,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
     EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -341,7 +340,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
                  std::runtime_error);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
     // This model fails to import since it lacks of required `blocksize` attribute.
     EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
@@ -349,7 +348,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
                  std::runtime_error);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/squeeze.onnx"));
 
@@ -367,7 +366,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/squeeze_empty_axes_attribute.onnx"));
@@ -379,7 +378,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/squeeze_opset13_no_axes.onnx"));
@@ -391,7 +390,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
 
@@ -412,7 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_negative_axes.onnx"));
@@ -434,7 +433,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/concat.onnx"));
 
@@ -451,7 +450,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/concat_negative_axis.onnx"));
@@ -469,7 +468,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/split_equal_parts_default.onnx"));
@@ -485,7 +484,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
     // Split into 2 equal parts along axis=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -498,7 +497,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
     // Split into variable parts {2, 4} along axis=1
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -511,7 +510,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_expand_static_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_static_shape) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/expand_static_shape.onnx"));
