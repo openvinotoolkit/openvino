@@ -20,23 +20,22 @@ void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-template <class T>
-void shape_infer(const Unsqueeze* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Unsqueeze* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     check_unsqueeze_axes_rank(op, input_shapes[1].rank());
     const auto& arg_shape = input_shapes[0];
+    auto output_shapes = std::vector<TRShape>(1);
     auto& out_shape = output_shapes[0];
 
-    std::vector<int64_t> axes_val;
-    const auto has_axes = get_data_as_int64<T>(1, op, axes_val, constant_data);
+    const auto axes_val = get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
-    if (has_axes && arg_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op, !axes_val.empty(), "'axes' input is mandatory");
+    if (axes_val && arg_shape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op, !axes_val->empty(), "'axes' input is mandatory");
         // Remove repeated axes on input
-        std::unordered_set<int64_t> tmp(axes_val.begin(), axes_val.end());
+        std::unordered_set<int64_t> tmp(axes_val->begin(), axes_val->end());
         std::vector<int64_t> unique_axes(tmp.begin(), tmp.end());
 
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
@@ -69,6 +68,7 @@ void shape_infer(const Unsqueeze* op,
     } else {
         out_shape = ov::PartialShape::dynamic();
     }
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op
