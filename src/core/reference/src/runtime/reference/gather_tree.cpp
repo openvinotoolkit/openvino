@@ -34,7 +34,7 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
         return static_cast<size_t>(tmpBuff);
     }
     default: {
-        OPENVINO_THROW("Unsupported input data type: ", element_type.get_type_name());
+        OPENVINO_THROW("Unsupported input data type: ", element_type.to_string());
     }
     }
 }

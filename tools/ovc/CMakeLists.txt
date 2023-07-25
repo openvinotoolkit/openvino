@@ -41,3 +41,11 @@ if(ENABLE_TESTS)
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 endif()
+
+#
+# Cpack
+#
+
+if(CMAKE_SOURCE_DIR STREQUAL OpenVINOConverter_SOURCE_DIR)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()

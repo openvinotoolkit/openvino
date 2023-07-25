@@ -12,10 +12,11 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-template <class T>
-void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 1) && output_shapes.size() == 1);
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 1));
     const auto& input_shape = input_shapes[0];
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
     const auto& strides = op->get_strides();
     if (input_shape.rank().is_static()) {
@@ -34,7 +35,7 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
                                   static_cast<size_t>(input_shape[1].get_length()) >= (strides[0] * strides[0]),
                               "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
 
-        output_shape = T({input_shape[0], input_shape[1]});
+        output_shape = TRShape({input_shape[0], input_shape[1]});
 
         for (size_t i = 2; i < input_shape.size(); i++) {
             if (input_shape[i].is_static())
@@ -53,6 +54,7 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
     } else {
         output_shape = ov::PartialShape::dynamic(input_shape.rank());
     }
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op
