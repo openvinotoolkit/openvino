@@ -9,7 +9,7 @@
 #include "openvino/cc/ngraph/itt.hpp"
 // #include "transformations/utils/utils.hpp"
 #include "common/graph_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
