@@ -276,7 +276,7 @@ void primitive_inst::update_shape() {
         if (_deps[i].first->get_node().is_in_shape_of_subgraph()) {
             bool can_skip = true;
             const auto& insts = _deps[i].first->dependant_shape_of_insts;
-            for (auto inst : insts) {
+            for (auto& inst : insts) {
                 can_skip &= !inst->shape_changed();
             }
             if (can_skip)
