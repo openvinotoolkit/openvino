@@ -766,6 +766,11 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
+      - name: Intel CPU plugin func tests in parallel
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
