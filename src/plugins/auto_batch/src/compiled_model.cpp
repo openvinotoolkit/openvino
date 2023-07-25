@@ -171,14 +171,15 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
                        ov::auto_batch_timeout.name());
     } else {
         m_time_out = time_out->second.as<std::uint32_t>();
-        auto it = m_config.find(ov::auto_batch_timeout.name());
-        it->second = m_time_out;
-
     }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     auto it = m_config.find(name);
+    if (name == ov::auto_batch_timeout.name()) {
+        ov::Any time_out = (uint32_t)m_time_out;
+        return time_out;
+    }
     if (it != m_config.end()) {
         return it->second;
     } else {
