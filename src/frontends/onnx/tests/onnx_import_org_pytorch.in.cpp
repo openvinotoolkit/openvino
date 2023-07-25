@@ -27,7 +27,7 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -54,7 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_chw) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_chw) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
