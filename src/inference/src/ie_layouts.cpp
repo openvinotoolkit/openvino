@@ -298,7 +298,9 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     this->offsetPaddingToData = dimOffsets;
 
     // check that strides are valid
-    {
+    if (!std::any_of(blocked_dims.begin(), blocked_dims.end(), [](const size_t dim) {
+            return dim == 0ul;
+        })) {
         size_t denseStride = 1;
 
         for (size_t i = 1; i <= strides.size(); i++) {
