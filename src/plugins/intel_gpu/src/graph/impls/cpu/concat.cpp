@@ -17,7 +17,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
     using parent = typed_primitive_impl<concatenation>;
     using parent::parent;
 
-    int64_t axis;
+    int64_t axis = 0;
 
     std::shared_ptr<ov::op::v0::Concat> op;
 

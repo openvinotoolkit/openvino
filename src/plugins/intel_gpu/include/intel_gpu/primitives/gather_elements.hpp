@@ -73,7 +73,7 @@ struct gather_elements : public primitive_base<gather_elements> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<gather_elements>::load(ib);
-        format::type tmp_type;
+        format::type tmp_type = format::type::any;
         ib >> make_data(&tmp_type, sizeof(format::type));
         output_format = format(tmp_type);
         ib >> output_shape;

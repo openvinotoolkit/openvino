@@ -1204,22 +1204,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
                 (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
                 layout.batch() % 16 == 0) {
-        if (use_onednn_impls && layout.batch() % 32 == 0) {
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
-                auto& conv = node.get_users().front()->as<convolution>();
-                auto ws = conv.get_input_layout(1).get_tensor();
-                if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1 || layout.feature() == 1)
-                    expected = format::bfyx;
-                else
-                    expected = format::bs_fs_yx_bsv16_fsv4;
-
-                auto conv_output_layout = conv.get_output_layout();
-                auto weights_layout = conv.weights().get_output_layout().convert_to_weights_layout(conv.get_primitive()->grouped_weights_shape);
-                format expected_conv_fmt = get_expected_format(conv);
-                if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 && layout.feature() % 32 == 0)
-                    expected = expected_conv_fmt;
-            }
-        } else if (layout.feature() > 8) {
+        if (layout.feature() > 8) {
             expected = format::b_fs_yx_fsv16;
         } else {
             expected = format::b_fs_yx_fsv4;
