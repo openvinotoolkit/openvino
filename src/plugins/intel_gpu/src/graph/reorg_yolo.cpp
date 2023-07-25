@@ -37,8 +37,7 @@ std::vector<layout> reorg_yolo_inst::calc_output_layouts(reorg_yolo_node const& 
     auto output_format = input_layout.format;
 
     ov::op::v0::ReorgYolo op;
-    std::vector<size_t> strides { static_cast<size_t>(desc->stride) };
-    op.set_strides(strides);
+    op.set_strides(static_cast<size_t>(desc->stride));
 
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>()
