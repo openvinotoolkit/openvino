@@ -134,7 +134,8 @@ Below you will find code examples for each method, for all supported model forma
                  compiled_model = core.compile_model("saved_model.pb", "AUTO")
 
               For a guide on how to run inference, see how to 
-              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`. 
+              For TensorFlow format, see :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
          .. tab-item:: C++
             :sync: cpp
@@ -555,5 +556,11 @@ OpenVINO is currently proceeding **to deprecate these formats** and **remove the
 
    To convert models, :doc:`install OpenVINO™ Development Tools <openvino_docs_install_guides_install_dev_tools>`, 
    which include model conversion API.
+
+
+Refer to the following articles for details on conversion for different formats and models:
+
+* :doc:`Conversion examples for specific models <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>`
+* :doc:`Model preparation methods <openvino_docs_model_processing_introduction>`
 
 @endsphinxdirective
