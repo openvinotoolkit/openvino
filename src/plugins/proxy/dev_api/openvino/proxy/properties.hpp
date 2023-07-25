@@ -35,6 +35,13 @@ static constexpr Property<int32_t, PropertyMutability::RW> priority{"PROXY_CONFI
  */
 static constexpr Property<std::string, PropertyMutability::RW> fallback{"PROXY_CONFIGURATION_FALLBACK"};
 
+/**
+ * @brief Read-write property to set internal name if proxy hides plugin under the plugin name.
+ * value type: string the internal name for hardware plugin
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> internal_name{"PROXY_CONFIGURATION_INTERNAL_NAME"};
+
 }  // namespace configuration
 
 /**

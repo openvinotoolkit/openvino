@@ -50,7 +50,13 @@ ov::ICore::~ICore() = default;
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
-static constexpr const char* internal_plugin_suffix = "_ov_internal";
+std::string get_internal_plugin_name(const std::string& device_name, const ov::AnyMap& properties) {
+    static constexpr const char* internal_plugin_suffix = "_ov_internal";
+    auto it = properties.find(ov::proxy::configuration::internal_name.name());
+    if (it != properties.end())
+        return it->second.as<std::string>();
+    return device_name + internal_plugin_suffix;
+}
 #endif
 
 template <typename F>
@@ -362,7 +368,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
             if (alias == fallback)
-                fallback += internal_plugin_suffix;
+                fallback = get_internal_plugin_name(fallback, config);
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
@@ -396,7 +402,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         // Create proxy plugin for alias
         auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
-            dev_name += internal_plugin_suffix;
+            dev_name = get_internal_plugin_name(dev_name, config);
         // Alias can be registered by several plugins
         if (pluginRegistry.find(alias) == pluginRegistry.end()) {
             // Register new plugin
@@ -416,7 +422,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         }
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
         // Fallback without alias means that we need to replace original plugin to proxy
-        dev_name += internal_plugin_suffix;
+        dev_name = get_internal_plugin_name(dev_name, config);
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
         fill_config(desc.defaultConfig, config, dev_name);
         pluginRegistry[device_name] = desc;
@@ -425,6 +431,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::proxy::configuration::alias,
                                                                         ov::proxy::configuration::fallback,
+                                                                        ov::proxy::configuration::internal_name,
                                                                         ov::proxy::configuration::priority};
 
     // Register real plugin
@@ -883,9 +890,6 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());
-    if (device_name.find(internal_plugin_suffix) != std::string::npos)
-        return true;
-
     // Alias hides the device
     for (auto&& it : pluginRegistry) {
         auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
