@@ -95,7 +95,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         if (!op)
             op = std::make_shared<ov::op::v8::Slice>();
 
-        op->evaluate(output_host_tensors, input_host_tensors);
+        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+                        "[GPU] Couldn't execute crop primitive with id ", instance.id());
 
         ev->set();
 
