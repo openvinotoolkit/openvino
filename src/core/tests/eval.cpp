@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
@@ -1509,8 +1508,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
         EXPECT_NEAR(cval[i], out[i], 1e-5f);
 }
 
-TEST(eval, DISABLED_evaluate_static_scatter_elements_update_reduction_mean_ints) {
-    // on MAC rounding towards -infinity doesn't work as expected, to be investigated
+TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::i32, data_shape);

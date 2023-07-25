@@ -29,7 +29,7 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, default_ctor) {
     const auto const_map =
         std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i64, Shape{}, &num_segments)}};
 
-    shape_infer(op.get(), input_shapes, output_shapes, const_map);
+    shape_inference(op.get(), input_shapes, output_shapes, const_map);
     EXPECT_EQ(output_shapes[0], (StaticShape{4, 2, 6}));
 }
 
@@ -62,7 +62,7 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_map) {
     const auto const_map =
         std::map<size_t, HostTensorPtr>{{3, std::make_shared<HostTensor>(element::i64, Shape{}, &num_segm_val)}};
 
-    shape_infer(op.get(), input_shapes, output_shapes, const_map);
+    shape_inference(op.get(), input_shapes, output_shapes, const_map);
     EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
 }
 
