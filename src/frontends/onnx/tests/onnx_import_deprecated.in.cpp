@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "common_test_utils/all_close.hpp"
-#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_control.hpp"
@@ -26,12 +25,13 @@
 #include "onnx_import/onnx.hpp"
 
 using namespace ngraph;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/affine.onnx"));
 
@@ -45,7 +45,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop.onnx"));
 
@@ -65,7 +65,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
 

@@ -4,22 +4,8 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <queue>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <typeinfo>
-#include <vector>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "gtest/gtest.h"
 #include "ie_common.h"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "openvino/op/constant.hpp"
@@ -28,6 +14,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "precomp.hpp"
 
 namespace {
 inline namespace tools {

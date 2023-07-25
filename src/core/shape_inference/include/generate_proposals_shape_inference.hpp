@@ -6,13 +6,15 @@
 
 #include <openvino/op/generate_proposals.hpp>
 
+#include "utils.hpp"
+
 namespace ov {
 namespace op {
 
 namespace v9 {
-template <class T>
-void shape_infer(const GenerateProposals* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const GenerateProposals* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
     const auto& im_info_shape = input_shapes[0];
     const auto& anchors_shape = input_shapes[1];
@@ -123,9 +125,7 @@ void shape_infer(const GenerateProposals* op, const std::vector<T>& input_shapes
     }
 
     auto num_rois = Dimension(0, (num_batches * op->get_attrs().post_nms_count).get_max_length());
-    output_shapes[0] = ov::PartialShape({num_rois, 4});
-    output_shapes[1] = ov::PartialShape({num_rois});
-    output_shapes[2] = ov::PartialShape({num_batches});
+    return {TRShape{num_rois, 4}, TRShape{num_rois}, TRShape{num_batches}};
 }
 
 }  // namespace v9
