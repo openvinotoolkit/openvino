@@ -25,13 +25,13 @@ public:
 
     optional(const optional<T>& other) : m_has_value{other.m_has_value}, m_opt{} {
         if (other.m_has_value) {
-            construct(*other);
+            create(*other);
         }
     }
 
     optional(optional<T>&& other) noexcept : m_has_value{other.m_has_value}, m_opt{} {
         if (other.m_has_value) {
-            construct(std::move(*other));
+            create(std::move(*other));
         }
     }
 
@@ -40,13 +40,8 @@ public:
     }
 
     optional& operator=(const optional& other) {
-        if (other.m_has_value) {
-            if (m_has_value) {
-                m_opt.m_value = *other;
-            } else {
-                construct(*other);
-            }
-            m_has_value = true;
+        if (other) {
+            *this = *other;
         } else {
             reset();
         }
@@ -54,15 +49,20 @@ public:
     }
 
     optional& operator=(optional&& other) noexcept {
-        if (other.m_has_value) {
-            if (m_has_value) {
-                m_opt.m_value = std::move(*other);
-            } else {
-                construct(std::move(*other));
-            }
-            m_has_value = true;
+        if (other) {
+            *this = std::move(*other);
         } else {
             reset();
+        }
+        return *this;
+    }
+
+    template <class U = T>
+    optional& operator=(U&& value) {
+        if (m_has_value) {
+            m_opt.m_value = std::forward<U>(value);
+        } else {
+            emplace(std::forward<U>(value));
         }
         return *this;
     }
@@ -84,7 +84,7 @@ public:
     }
 
     T&& operator*() && noexcept {
-        return m_opt.m_value;
+        return std::move(m_opt.m_value);
     }
 
     constexpr const T* operator->() const noexcept {
@@ -102,9 +102,15 @@ public:
         }
     }
 
+    template <class... Args>
+    void emplace(Args&&... args) {
+        create(std::forward<Args>(args)...);
+        m_has_value = true;
+    }
+
 private:
     template <class... Args>
-    void construct(Args&&... args) {
+    void create(Args&&... args) {
         new (std::addressof(m_opt)) T(std::forward<Args>(args)...);
     }
 
@@ -123,7 +129,7 @@ private:
         ~Storage() {}
     };
 
-    bool m_has_value;
-    Storage<T> m_opt;
+    bool m_has_value = false;
+    Storage<T> m_opt{};
 };
 }  // namespace ov
