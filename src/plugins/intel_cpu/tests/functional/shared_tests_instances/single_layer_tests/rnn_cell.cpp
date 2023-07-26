@@ -35,7 +35,7 @@ namespace {
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(layer_types),
             ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
             RNNCellTest::getTestCaseName);
 
 }  // namespace

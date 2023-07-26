@@ -47,10 +47,10 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
     const auto patterns = getRegexByFrontend();
     for (const auto &dir : dirs) {
         std::vector<std::string> content;
-        if (CommonTestUtils::directoryExists(dir)) {
-            content = CommonTestUtils::getFileListByPatternRecursive({dir}, patterns);
-        } else if (CommonTestUtils::fileExists(dir) && std::regex_match(dir, std::regex(".*.lst"))) {
-            content = CommonTestUtils::readListFiles({dir});
+        if (ov::test::utils::directoryExists(dir)) {
+            content = ov::test::utils::getFileListByPatternRecursive({dir}, patterns);
+        } else if (ov::test::utils::fileExists(dir) && std::regex_match(dir, std::regex(".*.lst"))) {
+            content = ov::test::utils::readListFiles({dir});
         } else {
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
             throw std::runtime_error(msg);
@@ -68,10 +68,10 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
     }
     std::sort(models.begin(), models.end());
     std::reverse(models.begin(), models.end());
-    if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
+    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
         std::cout << msg << std::endl;
-        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
+        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
     }
     return models;
 }
@@ -85,16 +85,16 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
     struct tm *timeinfo;
     char buffer[20];
     size_t all_models = models.size();
-    std::string successful_models_file_path = FLAGS_output_folder + CommonTestUtils::FileSeparator + "successful_models.lst",
-                not_read_models_file_path = FLAGS_output_folder + CommonTestUtils::FileSeparator + "not_read_models.lst",
-                not_fully_cached_models_file_path = FLAGS_output_folder + CommonTestUtils::FileSeparator + "not_fully_cached_models.lst";
+    std::string successful_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "successful_models.lst",
+                not_read_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "not_read_models.lst",
+                not_fully_cached_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "not_fully_cached_models.lst";
     std::ofstream successful_models_file, not_read_models_file, not_fully_cached_models_file;
     successful_models_file.open(successful_models_file_path, std::ios::out | std::ios::trunc);
     not_read_models_file.open(not_read_models_file_path, std::ios::out | std::ios::trunc);
     not_fully_cached_models_file.open(not_fully_cached_models_file_path, std::ios::out | std::ios::trunc);
     for (size_t i = 0; i < all_models; ++i) {
         const auto model = models[i];
-        if (CommonTestUtils::fileExists(model.path)) {
+        if (ov::test::utils::fileExists(model.path)) {
             try {
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
@@ -138,8 +138,8 @@ int main(int argc, char *argv[]) {
     }
     SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
 
-    std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
-    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
+    std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
     std::vector<SubgraphsDumper::Model> models;
     try {

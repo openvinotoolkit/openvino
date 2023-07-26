@@ -30,9 +30,9 @@ public:
         TargetDevice targetDev;
         std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "stride=" << stride << "_";
         result << "netPRC=" << netPrecision << "_";
@@ -78,12 +78,12 @@ const std::vector<ov::test::InputShape> inShapesDynamic2 = {
 const auto testCase_stride1_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic1),
                                                          ::testing::Values(strides[0]),
                                                          ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_GPU));
+                                                         ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 const auto testCase_stride2_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic2),
                                                          ::testing::Values(strides[1]),
                                                          ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_GPU));
+                                                         ::testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride1_DynamicShape, ReorgYoloLayerGPUTest,
                          testCase_stride1_Dynamic,

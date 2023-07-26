@@ -94,19 +94,19 @@ int main(int argc, char* argv[]) {
             FLAGS_shape_mode + "`");
     }
 
-    CommonTestUtils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
-    CommonTestUtils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
+    ov::test::utils::CrashHandler::SetUpTimeout(FLAGS_test_timeout);
+    ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ov::test::conformance::targetDevice = FLAGS_device.c_str();
-    ov::test::conformance::IRFolderPaths = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_skip_config_path.empty()) {
         ov::test::conformance::disabledTests =
-            CommonTestUtils::readListFiles(CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
+            ov::test::utils::readListFiles(ov::test::utils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);

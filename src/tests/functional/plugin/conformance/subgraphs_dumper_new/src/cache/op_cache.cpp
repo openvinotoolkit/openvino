@@ -82,7 +82,8 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         }
     }
 
-    auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
+    size_t priority = get_node_priority_by_version(cloned_node);
+    auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt, priority);
     if (find_op_in_cache != nullptr) {
         std::cout << "[ INFO ][ OP CACHE ] Update cache node: " << cloned_node->get_type_info().name <<
             " " << find_op_in_cache->get_friendly_name() << std::endl;

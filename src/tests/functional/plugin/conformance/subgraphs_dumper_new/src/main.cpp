@@ -16,15 +16,15 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
-    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
+    std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
     std::vector<std::string> models;
 
-    if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
+    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
         std::cout << msg << std::endl;
-        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
+        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
     }
     try {
         models = find_models(dirs, FLAGS_path_regex);
