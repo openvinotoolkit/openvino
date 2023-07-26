@@ -4,15 +4,14 @@
 
 #include "common_test_utils/data_utils.hpp"
 
-#include <cmath>
+#include "debug.h"  // to allow putting vector into exception string stream
 
-#include <debug.h>  // to allow putting vector into exception string stream
-
-#include <ie_blob.h>
-#include <blob_factory.hpp>
+#include "ie_blob.h"
+#include "blob_factory.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "precomp.hpp"
 
 using namespace InferenceEngine::details;
 

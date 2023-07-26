@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
 #include <string>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
-
 
 namespace ov {
 namespace test {

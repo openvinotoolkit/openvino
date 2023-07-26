@@ -136,7 +136,8 @@ def prepare_ir(argv: argparse.Namespace):
             argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                         argv.placeholder_shapes,
                                                         argv.placeholder_data_types,
-                                                        getattr(argv, "example_input", None))
+                                                        getattr(argv, "example_input", None),
+                                                        argv.share_weights)
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         if new_extensions_used(argv):

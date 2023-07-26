@@ -133,6 +133,7 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
     message_list.emplace_back("OV_GPU_DisableAsyncCompilation", "Disable async compilation");
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
+    message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
     message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in"
                               "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
@@ -175,7 +176,8 @@ debug_configuration::debug_configuration()
         , serialize_compile(0)
         , max_kernels_per_batch(0)
         , disable_async_compilation(0)
-        , disable_dynamic_impl(0) {
+        , disable_dynamic_impl(0)
+        , disable_runtime_buffer_fusing(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -205,6 +207,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
     get_gpu_debug_env_var("DisableAsyncCompilation", disable_async_compilation);
     get_gpu_debug_env_var("DisableDynamicImpl", disable_dynamic_impl);
+    get_gpu_debug_env_var("DisableRuntimeBufferFusing", disable_runtime_buffer_fusing);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;

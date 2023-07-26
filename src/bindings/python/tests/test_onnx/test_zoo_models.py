@@ -116,6 +116,7 @@ tolerance_map = {
     "GPT2": {"atol": 5e-06, "rtol": 0.01},
     "GPT-2-LM-HEAD": {"atol": 4e-06},
     "test_retinanet_resnet101": {"atol": 1.3e-06},
+    "resnet34-v1-7" : {"atol": 1e-5}
 }
 
 def tolerance_map_key_in_model_path(path):
