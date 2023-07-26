@@ -9,7 +9,7 @@
 #pragma once
 #include <napi.h>
 
-#include <map>
+#include <unordered_map>
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/openvino.hpp>
 #include <unordered_set>
@@ -21,7 +21,7 @@ typedef enum {
     js_array,
 } js_type;
 
-const std::map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::element::Type_t::i8},
+const std::unordered_map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::element::Type_t::i8},
                                                                      {"u8", ov::element::Type_t::u8},
                                                                      {"i16", ov::element::Type_t::i16},
                                                                      {"u16", ov::element::Type_t::u16},
