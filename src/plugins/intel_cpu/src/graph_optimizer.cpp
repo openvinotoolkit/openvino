@@ -705,6 +705,9 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
         if (parent->getType() == Type::Convert && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
                 && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
                 && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)) {
+            auto childNode = parent->getChildEdgeAt(0)->getChild();
+            // set correct weight precision
+            childNode->setOriginalInputPrecisionAtPort(1, parent->getOriginalInputPrecisionAtPort(0));
             graph.DropNode(parent);
         }
     }
