@@ -30,6 +30,7 @@
 #include "ov_ops/fused_MHA_with_RPE.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
@@ -1242,25 +1243,10 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
     return graph_rewritten;
 }
 
-bool ov::pass::SharedTileOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedTileOptimization);
-    return shared_node_optimization_helper<ov::op::v0::Tile>(model, inputs_from_same_source_or_equal_int_constants);
-}
-
-bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedGatherElementsOptimization);
-    return shared_node_optimization_helper<ov::op::v6::GatherElements>(model, gather_elements_perform_same);
-}
-
 bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
     return shared_node_optimization_helper<ov::op::v1::Transpose>(model,
                                                                   inputs_from_same_source_or_equal_int_constants);
-}
-
-bool ov::pass::SharedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedSliceOptimization);
-    return shared_node_optimization_helper<ov::op::v8::Slice>(model, inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedConcatOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -1625,16 +1611,17 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_0, ChainedMaximumOptimization)
     ADD_MATCHER(optimizations_0, NopBroadcast)
-    REGISTER_PASS(manager, BroadcastOnes)
     optimizations_0->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::0");
     manager.run_passes(m);
 
     ov::pass::Manager manager_1(get_pass_config());
     manager_1.set_per_pass_validation(false);
+
+    REGISTER_PASS(manager_1, NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
+    REGISTER_PASS(manager_1, SharedOpOptimization)  // Shared GatherElements
+
     auto optimizations_1 = manager_1.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_1, DeReshapeMatMul)
-    ADD_MATCHER(optimizations_1, RemoveSliceBeforeGatherElements)
-    REGISTER_PASS(manager_1, SharedGatherElementsOptimization)
     optimizations_1->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::1");
     //    REGISTER_PASS(manager_1, RPE_Optimization)
     REGISTER_PASS(manager_1, LabelResolvingThroughSelect)
@@ -1646,5 +1633,25 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
     manager_1.run_passes(m);
+
+    // TODO Before this transformation:
+    // Nop + ReshapeUpThroughBEAWithConstScalar -- should be same optimization
+    // TS Slice Backward + Shared Transpose Optimization + TS Slice Forward
+    // Grouped Slice -> VSplit
+
+    // TODO: After Symbolic applied
+    // SymbolicPOC
+    // Chained Maximum Optimization
+    // NopBroadcast
+    //   LabelResolvingThroughSelect
+    //   ApplyTableOfEquivalence
+    //   OptimizeLabelsUsedAsValues
+    // DeReshape MatMul
+
+    // TODO After this transformation:
+    // Fuse RPE
+    // NopElimination // Broadcast (Tile) Ones + Remove Slice Before GatherElements
+    // SharedOpOptimization // Shared GatherElements
+
     return true;  // cleans up all the label information
 }
