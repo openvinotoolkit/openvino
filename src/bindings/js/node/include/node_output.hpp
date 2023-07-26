@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
 #include <napi.h>
@@ -30,7 +33,7 @@ public:
     static Napi::Object Wrap(Napi::Env env, ov::Output<ov::Node> output);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
-    
+
     Napi::Value get_shape_data(const Napi::CallbackInfo& info);
 
     Napi::Value get_any_name(const Napi::CallbackInfo& info);

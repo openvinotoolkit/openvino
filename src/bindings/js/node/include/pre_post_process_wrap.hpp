@@ -1,10 +1,8 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC PrePostProcessorWrap
- *
  * @file src/PrePostProcessorWrap.hpp
  */
 #pragma once
@@ -14,10 +12,10 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/openvino.hpp>
 
-#include "model_wrap.hpp"
 #include "element_type.hpp"
 #include "errors.hpp"
 #include "helper.hpp"
+#include "model_wrap.hpp"
 
 class PrePostProcessorWrap : public Napi::ObjectWrap<PrePostProcessorWrap> {
 public:

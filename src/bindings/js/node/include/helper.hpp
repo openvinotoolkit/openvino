@@ -1,6 +1,5 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC helper functions
@@ -123,11 +122,11 @@ ov::Tensor value_to_tensor(Napi::Object value);
 
 /** @brief  A helper function to create a ov::Tensor from Napi::Value
  * @param info Contains the environment in which to construct a JavaScript object.
- * @param infer_request 
+ * @param infer_request
  * @return ov::Tensor
  */
 template <typename KeyType>
-ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key){
+ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key) {
     if (value.IsTypedArray()) {
         // TO_DO
         auto arr = value.As<Napi::Float32Array>();
@@ -141,7 +140,7 @@ ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& inf
 
         return tensor;
 
-    } else if (value.IsObject()) {  
+    } else if (value.IsObject()) {
         return value_to_tensor(value.As<Napi::Object>());
     }
 }
