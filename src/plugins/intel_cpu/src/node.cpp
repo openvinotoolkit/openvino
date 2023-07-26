@@ -663,14 +663,18 @@ void Node::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 
-    /* Iterate all the ONEDNN implementations supported.
-     * since custom implementations can be not available at all, so a fallback to the default ones must happen
-     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
-     * since oneDNN primitive is mutating while iterating */
+    /* When custom implementation priorities are NOT defined it is enough to
+    * just use the first implementation from the priority list.
+    * When custom implementation priorities are defined, all the implementations should be considered,
+    * since custom implementations can be not available at all, so a fallback to the default ones must happen
+    * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+    * since oneDNN primitive is mutating while iterating */
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
                                                     [&](impl_desc_type implType) {
                                                         return contains(getImplPriority(), implType);
                                                     },
