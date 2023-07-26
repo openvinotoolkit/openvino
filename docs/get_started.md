@@ -102,7 +102,7 @@ Use OpenVINO’s model compression tools to reduce your model’s latency and me
 * Tutorial - `OpenVINO Post-Training Model Quantization <notebooks/111-yolov5-quantization-migration-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
-* `Model Optimization Guide <openvino_docs_model_optimization_guide>`__
+* :doc:`Model Optimization Guide <openvino_docs_model_optimization_guide>`
 
 Automated Device Configuration
 ------------------------------
