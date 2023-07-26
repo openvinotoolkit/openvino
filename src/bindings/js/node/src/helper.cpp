@@ -156,17 +156,13 @@ Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackIn
     return str;
 }
 
-template <>
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
     return infer_request.get_tensor(key);
 }
 
-template <>
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
-
-
 
 ov::Tensor value_to_tensor(Napi::Object obj){
     // Check of object type

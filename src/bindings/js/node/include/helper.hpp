@@ -108,13 +108,12 @@ template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type);
 
-template <typename KeyType>
-ov::Tensor get_request_tensor(ov::InferRequest infer_request, KeyType key);
 
-template <>
+
+/// @brief Gets an input/output tensor from InferRequest by key.
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
 
-template <>
+/// @brief Gets an input tensor from InferRequest by index.
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
 
 /// @brief Creates ov::tensor from TensorWrap Object
