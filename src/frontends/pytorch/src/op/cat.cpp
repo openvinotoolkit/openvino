@@ -63,8 +63,12 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     auto axis = context.const_input<int64_t>(1);
     FRONT_END_OP_CONVERSION_CHECK(!list_elems.empty(), "Couldn't find quantized input for quantized::cat operation.");
-    return {
-        quantize(context, translate_cat_common(context, list_elems, axis)[0], context.get_input(2), context.get_input(3), list_elems.front())};
+    return {quantize(context,
+                     translate_cat_common(context, list_elems, axis)[0],
+                     context.get_input(2),
+                     context.get_input(3),
+                     list_elems.front())};
+};
 
 }  // namespace op
 }  // namespace pytorch
