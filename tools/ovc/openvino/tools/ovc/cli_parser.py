@@ -420,7 +420,8 @@ def add_args_by_description(args_group, params_description):
                     nargs=None if param_name == 'input_model' else '?',
                     action=action,
                     help=help_text,
-                    default=None if param_name == 'input_model' else signature.parameters[param_name].default)
+                    default=None if param_name == 'input_model' else signature.parameters[param_name].default,
+                    metavar=param_name.upper() if param_name == 'input_model' else None)
             # Other params
             else:
                 additional_params = {}
@@ -438,10 +439,23 @@ def add_args_by_description(args_group, params_description):
                     **additional_params
                 )
 
+class Formatter(argparse.HelpFormatter):
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
+        usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
+        insert_idx = usage.find('ovc.py') + len('ovc.py')
+        usage = usage[0: insert_idx] + ' INPUT_MODEL ' + usage[insert_idx + 1:]
+        return usage
+
+    def _get_default_metavar_for_optional(self, action):
+        if action.option_strings == ['--compress_to_fp16']:
+            return "True | False"
+        return argparse.HelpFormatter._get_default_metavar_for_optional(self, action)
+
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(formatter_class=Formatter)
     mo_convert_params = get_mo_convert_params()
     mo_convert_params_common = mo_convert_params['Optional parameters:']
 
@@ -450,8 +464,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     # Command line tool specific params
     parser.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
-    parser.add_argument('--compress_to_fp16', action='store_true',
-                              help='Compress weights in output IR .xml/bin files to FP16.')
+    parser.add_argument('--compress_to_fp16', type=check_bool, nargs='?',
+                              help='Compress weights in output OpenVINO model to FP16. '
+                                   'To turn off compression use "--compress_to_fp16=False" command line parameter. '
+                                   'Default value is True.')
     parser.add_argument('--version', action='version',
                               help='Print ovc version and exit.',
                               version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
@@ -482,7 +498,7 @@ def get_all_cli_parser():
     -------
         ArgumentParser instance
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=Formatter)
 
     get_common_cli_parser(parser=parser)
 
