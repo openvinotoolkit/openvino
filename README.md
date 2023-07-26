@@ -6,7 +6,7 @@
 [![brew Status](https://img.shields.io/homebrew/v/openvino)](https://formulae.brew.sh/formula/openvino)
 
 [![PyPI Downloads](https://pepy.tech/badge/openvino)](https://pepy.tech/project/openvino)
-[![Anaconda Downloads](https://anaconda.org/conda-forge/openvino/badges/downloads.svg)](https://anaconda.org/conda-forge/openvino/files)
+[![Anaconda Downloads](https://anaconda.org/conda-forge/libopenvino/badges/downloads.svg)](https://anaconda.org/conda-forge/openvino/files)
 [![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
  </div>
 

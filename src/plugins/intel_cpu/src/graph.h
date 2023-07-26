@@ -19,6 +19,8 @@
 #include <memory>
 #include <atomic>
 
+#include "proxy_mem_mgr.h"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -190,6 +192,8 @@ public:
         return graphHasDynamicInput;
     }
 
+    Status getStatus() const {return status;}
+
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
@@ -226,8 +230,10 @@ protected:
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
+    void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void InitEdges();
+    bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
@@ -246,6 +252,8 @@ private:
     std::map<std::string, NodePtr> inputNodesMap;
     std::map<std::string, NodePtr> outputNodesMap;
 
+    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
@@ -256,6 +264,8 @@ private:
     GraphContext::CPtr context;
 
     void EnforceInferencePrecision();
+    void EnforceBF16();
+    void resolveInPlaceDirection(const NodePtr& node) const;
 };
 
 }   // namespace intel_cpu

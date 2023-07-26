@@ -14,6 +14,8 @@ def tf_type_to_ov_type(tf_type_int):
     tf_type = tf.dtypes.as_dtype(tf_type_int)
     if tf_type.name == "variant":
         return Type.dynamic
+    if tf_type.name == "string":
+        return "DT_STRING"
     numpy_type = tf_type.as_numpy_dtype
     try:
         ret_type = Type(numpy_type)
@@ -45,31 +47,62 @@ def tf_attr_to_ov(attr):
 
 
 class TFGraphNodeDecoder(DecoderBase):
-    def __init__(self, operation: tf.Operation, inner_graph: bool):
+    def __init__(self, operation: tf.Operation, share_weights: bool, inner_graph: bool):
         DecoderBase.__init__(self)
         assert isinstance(operation, tf.Operation), "Unknown operation type. " \
                                                     "Expected tf.Operation, got {}".format(type(operation))
         self.m_operation = operation
         self.m_inner_graph = inner_graph
+        self.m_data_type = None
+
+        # Copies value from inner buffer of TF_Operation to NodeDef class.
+        self.m_node_def = self.m_operation.node_def
+        self.m_shared_memory = share_weights
+
         if self.m_operation.type == "Const":
-            value = self.m_operation.node_def.attr["value"].tensor
-            # copies tensor value from node_def
-            self.m_parsed_content = tf.make_ndarray(value)
+            self.m_data_type = tf.dtypes.DType(self.m_node_def.attr["dtype"].type).name
+
+            # Copies tensor value to parsed TensorProto
+            value = self.m_node_def.attr["value"].tensor
+
+            # As the tensor was copied, shared memory may be lost
+            # after destruction of GraphIteratorTFGraph() when convert_model() finishes its work.
+            # To prevent it we need to turn off sharing.
+            self.m_shared_memory = False
+
+            if self.m_data_type == "string":
+                self.m_parsed_content = [str(val) for val in value.string_val]
+            else:
+                if value.tensor_content:
+                    shape = [d.size for d in value.tensor_shape.dim]
+                    tensor_dtype = tf.dtypes.as_dtype(value.dtype)
+                    dtype = tensor_dtype.as_numpy_dtype
+                    # no copy of content
+                    self.m_parsed_content = (np.frombuffer(value.tensor_content,
+                              dtype=dtype).reshape(shape))
+                else:
+                    # TODO: remove copy of content for cases when tensor value is not in tensor_content field, ticket: 114797
+                    self.m_parsed_content = tf.make_ndarray(value)
 
         if self.m_operation.type == "Placeholder":
-            data_type = self.m_operation.node_def.attr["dtype"].type
-            if tf.dtypes.DType(data_type).name == "resource" and not self.m_inner_graph:
+            self.m_data_type = tf.dtypes.DType(self.m_node_def.attr["dtype"].type).name
+
+            if self.m_data_type == "resource" and not self.m_inner_graph:
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
                 if variable_value is not None:
                     # does not copy data
                     self.m_parsed_content = variable_value.value().__array__()
+
+                    if isinstance(self.m_parsed_content, bytes):
+                        self.m_data_type = "string"
+                        self.m_parsed_content = [str(self.m_parsed_content)]
 
     def get_op_name(self) -> str:
         return self.m_operation.name
 
     def get_op_type(self) -> str:
         if self.m_operation.type == "Placeholder":
-            type_attr = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type)
+            type_attr = tf.dtypes.DType(self.m_node_def.attr["dtype"].type)
             if type_attr.name == "resource" and not self.m_inner_graph:
                 if TFGraphNodeDecoder.get_variable(self.m_operation) is not None:
                     return "Const"
@@ -92,11 +125,11 @@ class TFGraphNodeDecoder(DecoderBase):
 
     def get_attribute(self, name):
         if name == "shape" or name == "_output_shapes":
-            if self.m_operation.node_def.attr["shape"].shape.unknown_rank:
+            if self.m_node_def.attr["shape"].shape.unknown_rank:
                 return OVAny(PartialShape.dynamic())
-            shape_dims = self.m_operation.node_def.attr["shape"].shape.dim
+            shape_dims = self.m_node_def.attr["shape"].shape.dim
             shape = [dim.size for dim in shape_dims]
-            type_num = self.m_operation.node_def.attr["dtype"].type
+            type_num = self.m_node_def.attr["dtype"].type
             if type_num is not None and tf.dtypes.DType(type_num).name == "resource":
                 if self.m_inner_graph:
                     return OVAny(PartialShape.dynamic())
@@ -104,7 +137,7 @@ class TFGraphNodeDecoder(DecoderBase):
                 return OVAny(PartialShape(list(variable_value.shape)))
             return OVAny(PartialShape(shape))
         if name == "dtype":
-            type_num = self.m_operation.node_def.attr["dtype"].type
+            type_num = self.m_node_def.attr["dtype"].type
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
                     variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
@@ -114,14 +147,16 @@ class TFGraphNodeDecoder(DecoderBase):
             return OVAny(tf_type_to_ov_type(type_num))
 
         if name == "value":
+            if self.m_data_type == 'string':
+                return OVAny(self.m_parsed_content)
             if self.m_parsed_content.size == 1:
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
                 return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[1]))
-            ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
+            ov_tensor = Tensor(self.m_parsed_content, shared_memory=self.m_shared_memory)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
-        attr_value = self.m_operation.node_def.attr[name]
+        attr_value = self.m_node_def.attr[name]
 
         return tf_attr_to_ov(attr_value)
 

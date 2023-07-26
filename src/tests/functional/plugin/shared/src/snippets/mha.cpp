@@ -131,6 +131,10 @@ std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() {
     return std::make_shared<ov::test::snippets::MHATransposedInputFunction>(inputDynamicShapes, true);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes, false);
+}
+
 TEST_P(MHA, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
@@ -180,6 +184,12 @@ TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
 }
 
 TEST_P(MHAFQ, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

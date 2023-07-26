@@ -104,7 +104,7 @@ AnyMap RemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(VA_PLANE),  params.plane }
         };
     default:
-        IE_THROW() << "Unsupported shared object type " << static_cast<int>(m_mem_type);
+        OPENVINO_THROW("Unsupported shared object type ", static_cast<int>(m_mem_type));
     }
 }
 
@@ -112,7 +112,7 @@ void RemoteBlobImpl::setShape(const SizeVector& dims) {
     if (ov::shape_size(dims) > m_memory_object->count()) {
         OPENVINO_ASSERT(!is_shared(), "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.");
         if (!deallocate()) {
-            IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
+            OPENVINO_THROW("Cannot deallocate blob while an attempt to enlarge blob area in setShape.");
         }
 
         m_layout.set_partial_shape(ov::PartialShape{dims});
@@ -217,7 +217,7 @@ void RemoteBlobImpl::reinterpret(const cldnn::layout& new_layout) {
 
 void RemoteBlobImpl::lock() const {
     if (!is_allocated()) {
-        IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
+        OPENVINO_THROW("[GPU] Remote blob can't be locked as it's not allocated");
     }
 
     std::lock_guard<std::mutex> locker(lockedMutex);

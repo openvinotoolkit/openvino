@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
 namespace proxy {
@@ -63,11 +64,13 @@ public:
     ov::Core core;
 
     void SetUp() override;
+    void TearDown() override;
 
     std::shared_ptr<ov::Model> create_model_with_subtract();
     std::shared_ptr<ov::Model> create_model_with_subtract_reshape();
     std::shared_ptr<ov::Model> create_model_with_subtract_reshape_relu();
     std::shared_ptr<ov::Model> create_model_with_reshape();
+    std::shared_ptr<ov::Model> create_model_with_add();
     ov::Tensor create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape);
 
 protected:

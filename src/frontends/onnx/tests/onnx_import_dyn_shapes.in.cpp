@@ -22,19 +22,20 @@
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::test;
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic_dims) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic_dims) {
     // the model represents a linear function A * x + B
     // where all 3 operands are model inputs (no initializers)
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -70,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_onnx_dynamic_dims_to_ngraph_dynamic
     EXPECT_EQ(out_ps[1].get_length(), 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/ab_plus_c.onnx"));
@@ -107,7 +108,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
     // initializers defined witout the "dims" field should produce Constants with an empty Shape
     // initializers with "dims: 0" should be have the same way (Shape{} not Shape{0})
     const auto function =
@@ -122,7 +123,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_scalar_initializers_shape_check) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -147,7 +148,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_check) {
     EXPECT_TRUE(out->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
     // the model contains a single Add operation that takes a fully dynamic input and a scalar
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -177,7 +178,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_dynamic_rank_input_inference) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
@@ -189,7 +190,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_1_3) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/acosh_dyn_shape.onnx"));
@@ -201,7 +202,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_acosh_3_2) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
@@ -213,7 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_1_3) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/asinh_dyn_shape.onnx"));
@@ -225,7 +226,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
@@ -237,7 +238,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_1_3) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/atanh_dyn_shape.onnx"));
@@ -250,7 +251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_atanh_3_2) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -274,7 +275,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -298,7 +299,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_bias) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -319,7 +320,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_avg_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -340,7 +341,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -364,7 +365,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -385,7 +386,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -406,7 +407,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_max_pool_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/argmax_dyn.onnx"));
@@ -426,7 +427,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_max_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -447,7 +448,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -463,7 +464,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_float_zeros) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -479,7 +480,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_constant_of_shape_int_ones) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -497,7 +498,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_1_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -514,7 +515,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_2_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -530,7 +531,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_3_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -546,7 +547,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_4_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -563,7 +564,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_5_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/expand_dyn.onnx"));
@@ -580,7 +581,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_6_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -597,7 +598,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_expand_uint16_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile.onnx"));
 
@@ -608,7 +609,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tile_static.onnx"));
 
@@ -619,7 +620,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_tile_static) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
     auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/convtranspose_dyn_data.onnx"));
@@ -661,7 +662,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_data) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
     auto ct_fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/convtranspose_dyn_filters.onnx"));
@@ -703,7 +704,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_convtranspose_dyn_filters) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/transpose.onnx"));
@@ -739,7 +740,7 @@ Shape get_flattened_shape(const Shape& in_shape, size_t axis) {
 }
 }  // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -766,7 +767,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -793,7 +794,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -820,7 +821,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/flatten.onnx"));
 
@@ -832,7 +833,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/global_lp_pool_dynamic_hw.onnx"));
@@ -845,7 +846,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_2d_input.onnx"));
@@ -859,7 +860,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_2d_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -873,7 +874,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_steps) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -887,7 +888,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -901,7 +902,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_clamp_neg_ends) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_3d_input.onnx"));
@@ -919,7 +920,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -938,7 +939,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -956,7 +957,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -975,7 +976,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -993,7 +994,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -1014,7 +1015,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_ma
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1036,7 +1037,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_ma
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -1054,7 +1055,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/slice_default_axes.onnx"));
@@ -1070,7 +1071,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1083,7 +1084,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/hardmax.onnx"));
 
@@ -1114,7 +1115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
 
@@ -1151,7 +1152,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
     test_case.run(3);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
 
@@ -1165,7 +1166,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/range.onnx"));
 
@@ -1179,7 +1180,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1202,7 +1203,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1225,7 +1226,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
     test_case.run();
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
+// OPENVINO_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
 // {
 //     const auto function = onnx_import::import_onnx_model(
 //         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO,
@@ -1244,7 +1245,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 //     test_case.run();
 // }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1256,7 +1257,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_2d_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1268,7 +1269,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_clamp_neg_ends) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -1284,7 +1285,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis) {
     // the ReduceMax node has a fully dynamic input and the reduction axis is -1
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
@@ -1297,7 +1298,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negat
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/dynamic_shapes/size_op_dyn.onnx"));
@@ -1308,7 +1309,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
@@ -1324,7 +1325,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/depth_to_space.onnx"));
@@ -1342,7 +1343,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dynamic_shapes/space_to_depth.onnx"));
@@ -1361,7 +1362,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -1374,7 +1375,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,

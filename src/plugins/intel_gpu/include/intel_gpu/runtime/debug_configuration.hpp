@@ -117,10 +117,25 @@ public:
     int serialize_compile;                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types; // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                  // Maximum number of kernels in a batch during compiling kernels
+    int disable_async_compilation;              // Disable async compilation
+    int disable_dynamic_impl;                   // Disable dynamic implementation
+    int disable_runtime_buffer_fusing;          // Disable runtime buffer fusing
     std::set<int64_t> dump_iteration;           // Dump n-th execution of network.
     static const debug_configuration *get_instance();
     bool is_dumped_layer(const std::string& layerName, bool is_output = false) const;
     bool is_target_iteration(int64_t iteration) const;
+
+    struct memory_preallocation_params {
+        bool is_initialized = false;
+
+        // Iterations mode preallocation
+        size_t next_iters_preallocation_count = 0;
+        size_t max_per_iter_size = 0;
+        size_t max_per_dim_diff = 0;
+
+        // Percentage mode preallocation
+        float buffers_preallocation_ratio = 0.0f;
+    } mem_preallocation_params;
 };
 
 }  // namespace cldnn
