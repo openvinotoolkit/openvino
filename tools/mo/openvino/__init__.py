@@ -5,12 +5,17 @@
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
 try:
-    # Import all modules
+    # Internal modules
+    from openvino import test_utils as test_utils
+except ImportError:
+    pass
+
+try:
+    # Import all public modules
     from openvino import runtime as runtime
     from openvino import frontend as frontend
     from openvino import helpers as helpers
     from openvino import preprocess as preprocess
-    from openvino import test_utils as test_utils
     from openvino import utils as utils
     # Import old API
     # TODO: remove in 2024.0
