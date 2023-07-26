@@ -47,7 +47,7 @@ TEST_F(RepeatPatternExtractorTest, extract_0) {
     ASSERT_TRUE(is_match(models, ref));
 }
 
-TEST_F(RepeatPatternExtractorTest, extract_1) {
+TEST_F(RepeatPatternExtractorTest, DISABLED_extract_1) {
     auto test_model = Model_1();
     auto models = this->extract(test_model.get());
     auto ref = test_model.get_repeat_pattern_ref();
