@@ -87,10 +87,10 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         auto unsqueeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
 
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+
         auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
         auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
-
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
 
         auto body =
             std::make_shared<Function>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
@@ -194,11 +194,11 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
 
         auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
 
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+
         auto unsqueeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
         auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
-
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
 
         auto body =
             std::make_shared<Function>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});

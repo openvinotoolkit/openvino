@@ -85,16 +85,16 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
-          
+
           # For running Python API tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          
+
           # For running ONNX frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-          
+
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-          
+
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
@@ -196,7 +196,7 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_package.zip"
           }
           Compress-Archive @compress
-          
+
           $file=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tests"
           $compress = @{
             Path = $file
@@ -365,14 +365,14 @@ jobs:
       - name: Model Optimizer UT
         shell: cmd
         run: |
-          
+
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-          
+
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};${{ env.INSTALL_TEST_DIR }};${{ env.INSTALL_DIR }}\python\python3.11;%PYTHONPATH%
 
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --ignore=${{ env.INSTALL_TEST_DIR }}/mo/unit_tests/mo/front/mxnet --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
@@ -455,7 +455,7 @@ jobs:
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt ^
           -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
-          
+
           set PYTHONPATH=${{ env.OPENVINO_REPO }}\tools\mo;${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
 
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
@@ -639,6 +639,11 @@ jobs:
         shell: cmd
         run: |
           call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
+
+      - name: Hetero Func Tests
+        shell: cmd
+        run: |
+          call "${{ env.INSTALL_DIR }}\\setupvars.bat" && ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
