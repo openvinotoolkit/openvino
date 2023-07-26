@@ -51,7 +51,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
 
 try:
     import openvino_telemetry as tm
-    from openvino_telemetry.backend import backend_ga4
+    
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -125,7 +125,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
     def test_freeze_placeholder_with_value_onnx_fe(self):
         test_cases = [
             (
-                "in1[1 4]{f32}->[1.0 2.0 3.0 4.0]",
+                "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
                 True,
                 {},
                 np.array([2.0, 4.0, 6.0, 8.0]),
@@ -154,10 +154,11 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ]
 
-        for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
-                    default_fe.return_value = get_test_default_frontends()
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+
+            for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
+                with self.subTest(test_case_idx=idx):
                     args = base_args_config(use_new_fe=use_new_fe)
                     args.input_model = "test_model.onnx"
                     args.input = input_freezing_value
@@ -171,7 +172,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                     values = list(results.values())[0]
                     if dtype is not None:
                         self.assertEqual(values.dtype, dtype)
-                    np.testing.assert_allclose(values, expected)
+                    self.assertTrue(np.allclose(values, expected))
 
     def test_freeze_placeholder_with_value_mul(self):
         test_cases = [
@@ -222,10 +223,11 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ]
 
-        for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
-                    default_fe.return_value = get_test_default_frontends()
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+
+            for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
+                with self.subTest(test_case_idx=idx):
                     args = base_args_config(use_new_fe=use_new_fe)
                     args.input_model = "test_model_2.onnx"
                     args.input = input_freezing_value
@@ -239,7 +241,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                     values = list(results.values())[0]
                     if dtype is not None:
                         self.assertEqual(values.dtype, dtype)
-                    np.testing.assert_allclose(values, expected)
+                    self.assertTrue(np.allclose(values, expected))
 
     def test_value_without_type(self):
         test_cases = [
@@ -252,10 +254,11 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ]
 
-        for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
-                    default_fe.return_value = get_test_default_frontends()
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+
+            for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
+                with self.subTest(test_case_idx=idx):
                     args = base_args_config(use_new_fe=use_new_fe)
                     args.input_model = "test_model_2.onnx"
                     args.input = input_freezing_value
@@ -269,7 +272,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                     values = list(results.values())[0]
                     if dtype is not None:
                         self.assertEqual(values.dtype, dtype)
-                    np.testing.assert_allclose(values, expected)
+                    self.assertTrue(np.allclose(values, expected))
 
     def test_value_without_type_int32(self):
         test_cases = [
@@ -282,10 +285,11 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ]
 
-        for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
-                    default_fe.return_value = get_test_default_frontends()
+        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+            default_fe.return_value = get_test_default_frontends()
+
+            for idx, (input_freezing_value, use_new_fe, inputs, expected, dtype) in enumerate(test_cases):
+                with self.subTest(test_case_idx=idx):
                     args = base_args_config(use_new_fe=use_new_fe)
                     args.input_model = "test_model_int.onnx"
                     args.input = input_freezing_value
@@ -299,4 +303,4 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                     values = list(results.values())[0]
                     if dtype is not None:
                         self.assertEqual(values.dtype, dtype)
-                    np.testing.assert_allclose(values, expected)
+                    self.assertTrue(np.allclose(values, expected))
