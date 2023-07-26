@@ -126,6 +126,7 @@ INSTANTIATE_TEST_SUITE_P(TSCommonGatherForward_3, TSTestFixture, test_forward_ga
 struct GatherBackwardArguments {
     OutputVector inputs_to_main;
     Output<Node> new_Gather_first_input;
+    AxisVector new_transpose_order;
 };
 
 auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
@@ -149,7 +150,15 @@ auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
         new_out_vec[2] = test_arguments.new_Gather_first_input;
         return new_out_vec;
     };
-    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {2}}};
+    auto new_transpose = [&test_arguments](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec = out_vec;
+        auto order = make_shared<Constant>(i32,
+                                           Shape{test_arguments.new_transpose_order.size()},
+                                           test_arguments.new_transpose_order);
+        new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose, new_constant}, {{0}, {2}}};
     test_case.model_ref.main_op = {CREATE_GATHER_FACTORY(Gather)};
     test_case.model_ref.model_template = create_model;
 
@@ -157,10 +166,15 @@ auto test_backward_gather = [](const GatherBackwardArguments& test_arguments) {
 };
 
 vector<GatherBackwardArguments> tests_arguments_bw{
-    {{{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})}},
-     constant<int>(i32, {1}, {1})}};
+    {{parameter(f32, {3, 4, 5, 6}), constant<int>(i32, {2}, {0, 2}), constant<int>(i32, {1}, {2})},
+     constant<int>(i32, {1}, {1}),
+     AxisVector{3, 2, 1, 0}},
+    {{parameter(f32, {1, 2, 16, 3, 64}), constant<int>(i32, {}, {0}), constant<int>(i32, {1}, {3})},
+     constant<int>(i32, {1}, {3}),
+     AxisVector{4, 2, 1, 3, 0}}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackward_0, TSTestFixture, test_backward_gather(tests_arguments_bw[0]));
+INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackward_1, TSTestFixture, test_backward_gather(tests_arguments_bw[1]));
 
 // In some cases shape of 2nd input to Gather op (indices) has `1` dims which can
 // prevent TransposeSinking in backward direction.
@@ -201,8 +215,9 @@ auto test_backward_gather_optimization = [](const GatherBackwardArguments& test_
 };
 
 vector<GatherBackwardArguments> tests_arguments_bw_optimization{
-    {{{parameter(f32, {257, 8}), constant<int>(i32, {1, 2}, {0}), constant<int>(i32, {1}, {0})}},
-     constant<int>(i32, {1}, {1})}};
+    {{{parameter(f32, {257, 8}), constant<int>(i32, {1, 2}, {0}), constant<int>(i32, {1}, {0})},
+      constant<int>(i32, {1}, {1}),
+      AxisVector{}}}};
 
 INSTANTIATE_TEST_SUITE_P(TSCommonGatherBackwardOptimization_0,
                          TSTestFixture,
