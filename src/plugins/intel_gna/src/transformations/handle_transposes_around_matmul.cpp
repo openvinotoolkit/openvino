@@ -163,7 +163,8 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
             }
 
             if (prev_node) {
-                if (Limitations::is_transpose_supported(prev_node->get_output_shape(0))) {
+                if (graph_utils::is_shape_2d(prev_node->get_output_shape(0)) &&
+                    Limitations::is_transpose_supported(prev_node->get_output_shape(0))) {
                     InsertTranspose(prev_node, matmul_node->get_friendly_name(), true);
                 }
             }
