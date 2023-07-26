@@ -34,6 +34,9 @@ try:
     from openvino.runtime import InferRequest
     from openvino.runtime import AsyncInferQueue
 
+    from openvino.runtime import Constant
+    from openvino.runtime import Parameter
+
     from openvino.runtime import Extension
     from openvino.runtime import Dimension
     from openvino.runtime import Strides
