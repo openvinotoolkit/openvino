@@ -9,7 +9,7 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino import Model, PartialShape, Shape, Tensor
+from openvino import Model, PartialShape, Shape, Tensor, Type
 
 from openvino.runtime import layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
