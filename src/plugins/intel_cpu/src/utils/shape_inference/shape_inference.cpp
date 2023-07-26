@@ -72,6 +72,7 @@
 #include "prior_box_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "psroi_pooling_shape_inference.hpp"
+#include "random_uniform_shape_inference.hpp"
 #include "range_shape_inference.hpp"
 #include "rdft_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
@@ -409,6 +410,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::GatherND, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::PriorBox, ShapeInferTA, util::bit::mask(0)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::RandomUniform, ShapeInferTA, util::bit::mask(0, 1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::Slice, ShapeInferTA, util::bit::mask(1, 2, 3, 4)),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset8::Softmax, ShapeInferCopy),
     // opset7

@@ -406,6 +406,9 @@ TEST(copy, loop) {
 }
 
 TEST(copy, random_uniform) {
+    auto shape = std::vector<int64_t>{1, 2, 3};
+    float min = 0., max = 1.;
+
     const auto min_val_param = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto max_val_param = make_shared<op::Parameter>(element::f32, Shape{1});
     auto out_shape = make_shared<op::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
@@ -413,12 +416,11 @@ TEST(copy, random_uniform) {
         std::make_shared<ov::opset8::RandomUniform>(out_shape, min_val_param, max_val_param, element::f32, 150, 10);
 
     // Call `evaluate` to update m_state
-    ru->evaluate({make_host_tensor<element::i64>(out_shape->get_shape(), out_shape->get_vector<int64_t>()),
-                  make_host_tensor<element::f32>(min_val_param->get_shape(), {0}),
-                  make_host_tensor<element::f32>(max_val_param->get_shape(), {1})},
-                 {make_host_tensor<element::i64>(out_shape->get_shape(), out_shape->get_vector<int64_t>()),
-                  make_host_tensor<element::f32>(min_val_param->get_shape(), {0}),
-                  make_host_tensor<element::f32>(max_val_param->get_shape(), {1})});
+    auto outputs = ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()}};
+    ru->evaluate(outputs,
+                 ov::TensorVector{{element::i64, out_shape->get_shape(), shape.data()},
+                                  {element::f32, min_val_param->get_shape(), &min},
+                                  {element::f32, max_val_param->get_shape(), &max}});
 
     auto out_shape_c = make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 3, 2, 1});
     const auto min_val_param_c = make_shared<op::Parameter>(element::f32, Shape{1});
