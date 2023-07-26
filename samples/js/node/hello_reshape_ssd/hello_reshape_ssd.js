@@ -1,7 +1,13 @@
 const ov = require(
   '../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
+const fs = require('fs');
 const cv2 = require('opencv.js');
-const { getImageData } = require('../helpers.js');
+const {
+  setShape,
+  getImageData,
+  getImageBuffer,
+  arrayToImageData,
+} = require('../helpers.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
@@ -22,6 +28,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 2. Read a model -------------------------------------
   console.log(`Reading the model: ${modelPath}`);
+  // (.xml and .bin files) or (.onnx file)
   const model = core.readModel(modelPath);
 
   if (model.inputs.length !== 1)
@@ -50,8 +57,12 @@ async function main(modelPath, imagePath, deviceName) {
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
     .preprocessResizeAlgorithm(ov.resizeAlgorithms.RESIZE_LINEAR)
+
+    // FIXME: Uncomment after support tensor in not f32 precision
+    // .set_input_element_type(ov.element.u8)
     .setInputTensorLayout('NHWC')
     .setInputModelLayout('NCHW')
+    // TODO: add output tensor element type setup
     .build();
 
   //----------------- Step 5. Loading model to the device ----------------------
@@ -68,18 +79,40 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
   const resultInfer = inferRequest.getTensor(outputLayer);
-  const predictions = Array.from(resultInfer.data)
-    .map((prediction, classId) => ({ prediction, classId }))
-    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
-      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+  const predictions = Array.from(resultInfer.data);
+  const [height, width] = [originalImage.rows, originalImage.cols];
+  const detections = setShape(predictions, [200, 7]);
+  const color = [255, 0, 0, 255];
+  const THROUGHPUT = 0.9;
 
-  console.log(`Image path: ${imagePath}`);
-  console.log('Top 10 results:');
-  console.log('class_id probability');
-  console.log('--------------------');
-  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
-  );
+  detections.forEach(detection => {
+    const [classId, confidence, xmin, ymin, xmax, ymax] = detection.slice(1);
+
+    if (confidence < THROUGHPUT) return;
+
+    console.log(`Found: classId = ${classId}, `
+      + `confidence = ${confidence.toFixed(2)}, `
+      + `coords = (${xmin}, ${ymin}), (${xmax}, ${ymax})`,
+    );
+
+    // Draw a bounding box on a output image
+    cv2.rectangle(originalImage,
+      new cv2.Point(xmin*width, ymin*height),
+      new cv2.Point(xmax*width, ymax*height),
+      color,
+      2,
+    );
+  });
+
+  const resultImgData = arrayToImageData(originalImage.data, width, height);
+  const filename = 'out.jpg';
+
+  fs.writeFileSync(`./${filename}`, getImageBuffer(resultImgData));
+
+  if (fs.existsSync(filename))
+    console.log('Image out.jpg was created!');
+  else
+    console.log(`Image ${filename} was not created. Check your permissions.`);
 
   console.log('\nThis sample is an API example, for any performance '
     + 'measurements please use the dedicated benchmark_app tool');

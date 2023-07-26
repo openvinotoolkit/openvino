@@ -17,6 +17,7 @@ Napi::Function PrePostProcessorWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "PrePostProcessorWrap",
                        {InstanceMethod("setInputTensorShape", &PrePostProcessorWrap::set_input_tensor_shape),
+                        InstanceMethod("preprocessResizeAlgorithm", &PrePostProcessorWrap::preprocess_resize_input),
                         InstanceMethod("setInputTensorLayout", &PrePostProcessorWrap::set_input_tensor_layout),
                         InstanceMethod("setInputModelLayout", &PrePostProcessorWrap::set_input_model_layout),
                         InstanceMethod("setInputElementType", &PrePostProcessorWrap::set_input_element_type),
@@ -37,6 +38,28 @@ Napi::Object PrePostProcessorWrap::Init(Napi::Env env, Napi::Object exports) {
 Napi::Value PrePostProcessorWrap::set_input_tensor_shape(const Napi::CallbackInfo& info) {
     auto shape = js_to_cpp<ov::Shape>(info, 0, {napi_int32_array, js_array});
     _ppp->input().tensor().set_shape(shape);
+    return info.This();
+}
+
+Napi::Value PrePostProcessorWrap::preprocess_resize_input(const Napi::CallbackInfo& info) {
+    if (info.Length() > 1 || (info.Length() == 1 && !info[0].IsString())) {
+        reportError(info.Env(), "Invalid number of arguments for `preprocess_resize_input`.");
+        return Napi::Value();
+    }
+
+    auto algorithm = (info.Length() == 0) ? "RESIZE_LINEAR" : info[0].ToString().Utf8Value();
+
+    if (algorithm == "RESIZE_CUBIC")
+    {
+        _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC);
+    }
+    else if (algorithm == "RESIZE_NEAREST") {
+        _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
+    }
+    else if (algorithm == "RESIZE_LINEAR") {
+        _ppp->input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    }
+
     return info.This();
 }
 

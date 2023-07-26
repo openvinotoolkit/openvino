@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('./helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
+                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
             ],
             "outputs": []
         },
@@ -58,14 +58,14 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\n  const model = core.readModel(modelXMLPath);\n\n  new ov.PrePostProcessor(model)\n        .setInputElementType(0, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(1, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(2, ov.element.f32)\n        .build();\n  new ov.PrePostProcessor(model)\n        .setInputElementType(3, ov.element.f32)\n        .build();\n\n  const compiledModel = core.compileModel(model, 'CPU');\n\n  const inputs = compiledModel.inputs;\n  const outputs = compiledModel.outputs;\n\n  const inputSize = compiledModel.input(0).shape[1];"
+                "const core = new ov.Core();\nconst model = core.readModel(modelXMLPath);\n\nnew ov.PrePostProcessor(model)\n  .setInputElementType(0, ov.element.f32)\n  .setInputElementType(1, ov.element.f32)\n  .setInputElementType(2, ov.element.f32)\n  .setInputElementType(3, ov.element.f32)\n  .build();\n\nconst compiledModel = core.compileModel(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
             ],
             "outputs": []
         },
         {
             "language": "javascript",
             "source": [
-                "inputs.forEach(i => console.log(`${i}`));\nconsole.log('===')\noutputs.forEach(o => console.log(`${o}`));"
+                "console.log('=== Model Inputs:');\ninputs.forEach(i => console.log(`${i}`));\nconsole.log('=== Model Outputs:');\noutputs.forEach(o => console.log(`${o}`));"
             ],
             "outputs": [
                 {
@@ -73,11 +73,12 @@
                         {
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
+                                "=== Model Inputs:",
                                 "input_ids",
                                 "attention_mask",
                                 "token_type_ids",
                                 "position_ids",
-                                "===",
+                                "=== Model Outputs:",
                                 "output_s",
                                 "output_e",
                                 ""
@@ -174,7 +175,7 @@
         {
             "language": "javascript",
             "source": [
-                "function runQuestionAnswering(sources, exampleQuestion) {\n    console.log(`Context: ${sources}`);\n    const context = loadContext(sources);\n\n    if (!context.length)\n        return console.log('Error: Empty context or outside paragraphs');\n\n    if (exampleQuestion) {\n        const startTime = process.hrtime.bigint();\n        const [answer, score] = getBestAnswer(exampleQuestion, context);\n        const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;\n\n        console.log(`Question: ${exampleQuestion}`);\n        console.log(`Answer: ${answer}`);\n        console.log(`Score: ${score}`);\n        console.log(`Time: ${execTime}s`);\n    }\n}\n\nconst textSources = [\"Bert is a Cat. His brother is yellow Muppet character on the long running PBS and HBO children's television show Sesame Street. Bert was originally performed by Frank Oz.\"];\n\nconst sources = [\"Computational complexity theory is a branch of the theory of computation in theoretical computer \" +\n        \"science that focuses on classifying computational problems according to their inherent difficulty, \" +\n        \"and relating those classes to each other. A computational problem is understood to be a task that \" +\n        \"is in principle amenable to being solved by a computer, which is equivalent to stating that the \" +\n        \"problem may be solved by mechanical application of mathematical steps, such as an algorithm.\"]\n\nrunQuestionAnswering(sources, 'What is the term for a task that generally lends itself to being solved by a computer?');"
+                "function runQuestionAnswering(sources, exampleQuestion) {\n  console.log(`Context: ${sources}`);\n  const context = loadContext(sources);\n\n  if (!context.length)\n    return console.log('Error: Empty context or outside paragraphs');\n\n  if (exampleQuestion) {\n    const startTime = process.hrtime.bigint();\n    const [answer, score] = getBestAnswer(exampleQuestion, context);\n    const execTime = Number(process.hrtime.bigint() - startTime) / 1e9;\n\n    console.log(`Question: ${exampleQuestion}`);\n    console.log(`Answer: ${answer}`);\n    console.log(`Score: ${score}`);\n    console.log(`Time: ${execTime}s`);\n  }\n}\n\nconst sources = [\"Computational complexity theory is a branch of the theory of computation in theoretical computer \" +\n  \"science that focuses on classifying computational problems according to their inherent difficulty, \" +\n  \"and relating those classes to each other. A computational problem is understood to be a task that \" +\n  \"is in principle amenable to being solved by a computer, which is equivalent to stating that the \" +\n  \"problem may be solved by mechanical application of mathematical steps, such as an algorithm.\"]\n\nrunQuestionAnswering(sources, 'What is the term for a task that generally lends itself to being solved by a computer?');\n"
             ],
             "outputs": [
                 {
@@ -186,7 +187,7 @@
                                 "Question: What is the term for a task that generally lends itself to being solved by a computer?",
                                 "Answer: A computational problem",
                                 "Score: 0.5169314246438148",
-                                "Time: 0.093642659s",
+                                "Time: 0.100610685s",
                                 ""
                             ]
                         }

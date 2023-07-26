@@ -11,6 +11,7 @@
 #include "pre_post_process_wrap.hpp"
 #include "shape.hpp"
 #include "tensor.hpp"
+#include "resize_algorithm.hpp"
 
 Napi::String Method(const Napi::CallbackInfo& info) {
     ov::Version version = ov::get_openvino_version();
@@ -33,6 +34,8 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
+    Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithms");
+    exports.DefineProperty(preprocess);
 
     exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));
 

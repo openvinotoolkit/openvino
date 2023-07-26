@@ -1,23 +1,42 @@
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
-const { createCanvas, createImageData, loadImage, Image, ImageData } = require('canvas');
+const cv2 = require('opencv.js');
+const {
+  Image,
+  ImageData,
+  loadImage,
+  createCanvas,
+  createImageData,
+} = require('canvas');
 
-exports.arrayToImageData = arrayToImageData;
-exports.displayImage = displayImage;
-exports.getImageData = getImageData;
-exports.displayArrayAsImage = displayArrayAsImage;
-exports.transform = transform;
-exports.downloadFile = downloadFile;
-exports.extractValues = extractValues;
-exports.setShape = setShape;
-exports.exp = exp;
+module.exports = {
+  exp,
+  sum,
+  triu,
+  tril,
+  arange,
+  argMax,
+  reshape,
+  sumRows,
+  getShape,
+  setShape,
+  transform,
+  downloadFile,
+  displayImage,
+  getImageData,
+  extractValues,
+  getImageBuffer,
+  arrayToImageData,
+  displayArrayAsImage,
+  matrixMultiplication,
+};
 
 function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
 }
 
-function displayImage(imageOrImageData, display) {
+function getImageBuffer(imageOrImageData) {
   const canvas = createCanvas(imageOrImageData.width, imageOrImageData.height);
   const ctx = canvas.getContext('2d');
 
@@ -26,9 +45,14 @@ function displayImage(imageOrImageData, display) {
   else if (imageOrImageData instanceof ImageData)
     ctx.putImageData(imageOrImageData, 0, 0);
   else
-    throw Error(`Passed parameters has type '${typeof imageOrImageData}'. It is't supported.`);
+    throw Error(`Passed parameters has type '${typeof imageOrImageData}'. `
+      + 'It is\'t supported.');
 
-  const buffer = canvas.toBuffer('image/jpeg');
+  return canvas.toBuffer('image/jpeg');
+}
+
+function displayImage(imageOrImageData, display) {
+  const buffer = getImageBuffer(imageOrImageData);
 
   display.image(buffer);
 }
@@ -38,23 +62,24 @@ function displayArrayAsImage(arr, width, height, display) {
   const componentsPerPixel = arr.length/(width*height);
 
   try {
-    switch(componentsPerPixel) {
-      case 1:
-        arr = arr.reduce((acc, val) => {
-          acc.push(val, val, val, alpha);
+    switch (componentsPerPixel) {
+    case 1:
+      arr = arr.reduce((acc, val) => {
+        acc.push(val, val, val, alpha);
 
-          return acc;
-        }, []);
-        break;
-      case 3:
-        arr = arr.reduce((acc, val, index) => {
-          if (index && index%3 === 0) acc.push(alpha);
+        return acc;
+      }, []);
+      break;
 
-          acc.push(val);
+    case 3:
+      arr = arr.reduce((acc, val, index) => {
+        if (index && index%3 === 0) acc.push(alpha);
 
-          return acc;
-        }, []);
-        break;
+        acc.push(val);
+
+        return acc;
+      }, []);
+      break;
     }
   } catch(e) {
     console.log(e);
@@ -155,7 +180,9 @@ function createMultidimensionArray(flatArray, shape, offset) {
     const innerArrayLength = mul(shape) / currentDim;
 
     for (let i = 0; i < currentDim; i++) {
-      const innerArray = createMultidimensionArray(flatArray, remainingShape, offset + i*innerArrayLength);
+      const innerArray = createMultidimensionArray(flatArray, remainingShape,
+        offset + i*innerArrayLength);
+
       currentArray.push(innerArray);
     }
   }
@@ -214,7 +241,8 @@ function matrixMultiplication(matrix1, matrix2) {
   const cols2 = matrix2[0].length;
 
   if (cols1 !== rows2)
-    throw new Error('Number of columns in the first matrix must match the number of rows in the second matrix.');
+    throw new Error('Number of columns in the first matrix must match the '
+      + 'number of rows in the second matrix.');
 
   const result = [];
 
@@ -249,7 +277,6 @@ function findMax(arr) {
 function argMax(arr) {
   return findMax(arr).index;
 }
-
 
 function triu(matrix, k = 0) {
   const numRows = matrix.length;
@@ -298,14 +325,3 @@ function arange(count) {
 
   return arr;
 }
-
-exports.exp = exp;
-exports.sum = sum;
-exports.sumRows = sumRows;
-exports.reshape = reshape;
-exports.getShape = getShape;
-exports.argMax = argMax;
-exports.triu = triu;
-exports.tril = tril;
-exports.arange = arange;
-exports.matrixMultiplication = matrixMultiplication;
