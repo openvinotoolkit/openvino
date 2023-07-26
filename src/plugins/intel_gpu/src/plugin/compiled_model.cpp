@@ -45,7 +45,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::InputsDataMap* inputs,
                              InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
@@ -74,7 +74,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              InferenceEngine::InputsDataMap* inputs,
                              InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {

@@ -159,13 +159,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             } else {
                 THROW_GNA_EXCEPTION << "GNA compact mode should be true/false (YES/NO), but not " << value;
             }
-        } else if (key == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
+        } else if (key == ov::internal::exclusive_async_requests) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.exclusive_async_requests = true;
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.exclusive_async_requests = false;
             } else {
-                THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
+                THROW_GNA_EXCEPTION << "ov::internal::exclusive_async_requests should be YES/NO, but not" << value;
             }
         } else if (key == ov::hint::performance_mode) {
             performance_mode = ov::util::from_string(value, ov::hint::performance_mode);
@@ -316,7 +316,7 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[GNA_CONFIG_KEY(COMPILE_TARGET)] = DeviceToString(target->get_user_set_compile_target());
     keyConfigMap[ov::intel_gna::memory_reuse.name()] =
         gnaFlags.compact_mode ? PluginConfigParams::YES : PluginConfigParams::NO;
-    keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
+    keyConfigMap[ov::internal::exclusive_async_requests.name()] =
         gnaFlags.exclusive_async_requests ? PluginConfigParams::YES : PluginConfigParams::NO;
     keyConfigMap[ov::hint::performance_mode.name()] = ov::util::to_string(performance_mode);
     if (inference_precision != ov::element::undefined) {
@@ -408,7 +408,8 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
 
 const Parameter Config::GetSupportedInternalProperties() {
     std::vector<ov::PropertyName> supported_internal_properties = {
-        {ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+        {ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        {ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     return supported_internal_properties;
 }
 

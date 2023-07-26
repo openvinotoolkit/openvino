@@ -32,7 +32,6 @@ struct Configuration {
     ov::AnyMap get_device_properties() const;
 
     bool dump_graph;
-    bool exclusive_async_requests;
     std::string device_priorities;
     ov::AnyMap device_properties;
 };

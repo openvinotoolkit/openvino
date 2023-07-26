@@ -3,6 +3,7 @@
 //
 #include "hetero_tests.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::hetero::tests;
@@ -54,7 +55,7 @@ TEST_F(HeteroTests, compile_with_device_properties) {
     auto mock0_properties = device_properties.at("MOCK0.0").as<ov::AnyMap>();
     ASSERT_TRUE(mock0_properties.count(ov::num_streams.name()));
     ASSERT_TRUE(mock0_properties.count(ov::enable_profiling.name()));
-    EXPECT_EQ(4, mock0_properties.at(ov::num_streams.name()).as<ov::streams::Num>());
+    EXPECT_EQ(1, mock0_properties.at(ov::num_streams.name()).as<ov::streams::Num>());
     EXPECT_EQ(false, mock0_properties.at(ov::enable_profiling.name()).as<bool>());
     ASSERT_TRUE(device_properties.count("MOCK1.0"));
     auto mock1_properties = device_properties.at("MOCK1.0").as<ov::AnyMap>();
@@ -62,6 +63,25 @@ TEST_F(HeteroTests, compile_with_device_properties) {
     ASSERT_TRUE(mock1_properties.count(ov::enable_profiling.name()));
     EXPECT_EQ(6, mock1_properties.at(ov::num_streams.name()).as<ov::streams::Num>());
     EXPECT_EQ(true, mock1_properties.at(ov::enable_profiling.name()).as<bool>());
+}
+
+TEST_F(HeteroTests, compile_with_device_properties_no_exclusive) {
+    ov::AnyMap config = {ov::device::priorities("MOCK0,MOCK1"),
+                         ov::internal::exclusive_async_requests(false),
+                         ov::device::properties("MOCK0", ov::num_streams(4)),
+                         ov::device::properties("MOCK1", ov::num_streams(6))};
+    auto model = create_model_with_subtract_reshape();
+    auto compiled_model = core.compile_model(model, "HETERO", config);
+    EXPECT_THROW(compiled_model.get_property(ov::num_streams), ov::Exception);
+    auto device_properties = compiled_model.get_property(ov::device::properties.name()).as<ov::AnyMap>();
+    ASSERT_TRUE(device_properties.count("MOCK0.0"));
+    auto mock0_properties = device_properties.at("MOCK0.0").as<ov::AnyMap>();
+    ASSERT_TRUE(mock0_properties.count(ov::num_streams.name()));
+    EXPECT_EQ(4, mock0_properties.at(ov::num_streams.name()).as<ov::streams::Num>());
+    ASSERT_TRUE(device_properties.count("MOCK1.0"));
+    auto mock1_properties = device_properties.at("MOCK1.0").as<ov::AnyMap>();
+    ASSERT_TRUE(mock1_properties.count(ov::num_streams.name()));
+    EXPECT_EQ(6, mock1_properties.at(ov::num_streams.name()).as<ov::streams::Num>());
 }
 
 TEST_F(HeteroTests, get_runtime_model) {

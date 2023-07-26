@@ -761,7 +761,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO}};
+            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     return supported_internal_properties;
 }
 
