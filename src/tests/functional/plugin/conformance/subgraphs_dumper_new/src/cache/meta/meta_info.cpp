@@ -20,7 +20,7 @@ MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, I
     if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
     if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
     if (_model_path != "") {
-        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt) });
+        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, model_priority) });
     }
     if (!_input_info.empty()) {
         input_info = _input_info;

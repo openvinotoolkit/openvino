@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "cache/meta/input_info.hpp"
+#include "functional_test_utils/node_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 
 #include "openvino/openvino.hpp"
@@ -51,6 +52,55 @@ inline std::string get_node_type(const std::shared_ptr<ov::Node>& node) {
         }
     }
     return "static";
+}
+
+static std::map<std::string, std::string> get_max_ops_versions() {
+    std::map<std::string, std::set<std::string>> unique_ops = FuncTestUtils::get_unique_ops();
+    std::map<std::string, std::string> max_ops_versions;
+
+    for (auto op_info : unique_ops) {
+        std::vector<size_t> available_opsets;
+        for (auto opset : op_info.second) {
+            available_opsets.push_back(std::atoi(opset.c_str()));
+        }
+        size_t max_opset = *std::max_element(available_opsets.begin(), available_opsets.end());
+
+        max_ops_versions.insert({op_info.first, std::to_string(max_opset)});
+    }
+    return max_ops_versions;
+}
+
+static std::map<std::string, std::string> get_last_opset_version_map() {
+    auto opset_map = ov::get_available_opsets();
+    std::map<std::string, std::string> res;
+    std::string opset_name = std::prev(opset_map.end())->first;
+    const ov::OpSet& opset = std::prev(opset_map.end())->second();
+    for (const auto& op : opset.get_type_info_set()) {
+        res[op.name] = FuncTestUtils::get_op_version(op.get_version());
+    }
+
+    return res;
+}
+
+inline size_t get_node_priority_by_version(const std::shared_ptr<ov::Node>& node) {
+    // { op_name, max_opset_version }
+    static std::map<std::string, std::string> max_ops_versions = ov::tools::subgraph_dumper::get_max_ops_versions();
+    // { op_name, op_version_in_last_opset }
+    static std::map<std::string, std::string> last_opset_versions_map = ov::tools::subgraph_dumper::get_last_opset_version_map();
+
+    size_t priority = 1;
+    auto type_info = node->get_type_info();
+    if (max_ops_versions.count(type_info.name)) {
+        std::string version_id = FuncTestUtils::get_op_version(type_info.version_id);
+        if (version_id == max_ops_versions[type_info.name]) {
+            priority = 2;
+            if (version_id == last_opset_versions_map[type_info.name]) {
+                priority = 3;
+            }
+        }
+    }
+
+    return priority;
 }
 
 }  // namespace subgraph_dumper
