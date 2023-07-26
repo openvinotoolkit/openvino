@@ -140,10 +140,9 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
-        } else if (is_binary_eltwise(outOp) ||
-                   is_convert_into_binary_eltwise(outOp) ||
-                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
-            consts[op].needsBatchInterpretation = is_all_inputs_1d(outOp) && constDims.size() == 1;
+        } else if (((is_binary_eltwise(outOp) || ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
+                     is_convert_into_binary_eltwise(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v7::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v8::Gather>(outOp) ||
