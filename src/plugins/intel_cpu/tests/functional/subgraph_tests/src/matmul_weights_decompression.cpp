@@ -35,7 +35,8 @@ static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& in
                                                const ov::element::Type data_precision,
                                                const ov::element::Type weights_precision,
                                                const bool transpose_weights,
-                                               const bool add_subtract) {
+                                               const bool add_subtract,
+                                               const bool reshape_on_decompression) {
     auto params = builder::makeDynamicParams(data_precision, {inputShapes[0]});
 
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
@@ -53,18 +54,25 @@ static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& in
         std::shared_ptr<ov::Node> mul_parent = weights_convert;
         auto output_channels = transpose_weights ? *(weights_shape.rbegin() + 1) : *weights_shape.rbegin();
         auto scaleshift_target_shape = transpose_if_necessary(ov::Shape{1, output_channels});
+        auto scaleshift_const_shape = reshape_on_decompression ? ov::Shape{output_channels} : scaleshift_target_shape;
         if (add_subtract) {
-            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, ov::Shape{output_channels}, {}, true);
-            auto shift_convert = std::make_shared<ngraph::opset1::Convert>(shift_const, data_precision);
-            auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
-            auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
-            mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_reshape);
+            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, scaleshift_const_shape, {}, true);
+            std::shared_ptr<ov::Node> shift_convert = std::make_shared<ngraph::opset1::Convert>(shift_const, data_precision);
+            if (reshape_on_decompression) {
+                auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
+                auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
+                shift_convert = shift_reshape;
+            }
+            mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
         }
 
-        auto scale_const = ngraph::builder::makeConstant<float>(data_precision, ov::Shape{output_channels}, {}, true);
-        auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
-        auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);
-        auto multiply = std::make_shared<ov::opset10::Multiply>(mul_parent, scale_reshape);
+        std::shared_ptr<ov::Node> scale_const = ngraph::builder::makeConstant<float>(data_precision, scaleshift_const_shape, {}, true);
+        if (reshape_on_decompression) {
+            auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
+            auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);
+            scale_const = scale_reshape;
+        }
+        auto multiply = std::make_shared<ov::opset10::Multiply>(mul_parent, scale_const);
 
         std::shared_ptr<ov::Node> matmul_weights = multiply;
         if (transpose_weights) {
@@ -72,8 +80,8 @@ static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& in
             std::vector<int> order(rank);
             std::iota(order.begin(), order.end(), 0);
             std::swap(*order.rbegin(), *(order.rbegin() + 1));
-            const auto transpose_constant = ov::opset10::Constant::create(ov::element::i32, {rank}, order);
-            const auto transpose = std::make_shared<ov::opset10::Transpose>(matmul_weights, transpose_constant);
+            auto transpose_constant = ov::opset10::Constant::create(ov::element::i32, {rank}, order);
+            auto transpose = std::make_shared<ov::opset10::Transpose>(matmul_weights, transpose_constant);
             matmul_weights = transpose;
         }
         auto matMul = builder::makeMatMul(params[0], matmul_weights);
@@ -87,6 +95,7 @@ static std::shared_ptr<ov::Model> initSubgraph(std::vector<ov::PartialShape>& in
 using MatmulWeightsDecompressionParams = std::tuple<std::vector<InputShape>,            // input shapes
                                                     bool,                               // transpose on weights
                                                     bool,                               // decompression subtract
+                                                    bool,                               // reshape on decompression constants
                                                     std::map<std::string, std::string>  // additional config
                                                     >;
 
@@ -98,9 +107,10 @@ public:
         std::vector<InputShape> inputShapes;
         bool transpose;
         bool decompression_sub;
+        bool reshape_on_decompression;
         std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, transpose, decompression_sub, additional_config) = obj.param;
+        std::tie(inputShapes, transpose, decompression_sub, reshape_on_decompression, additional_config) = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
@@ -119,6 +129,7 @@ public:
         }
         result << "transpose_weights=" << transpose << "_";
         result << "decompression_subtract=" << decompression_sub << "_";
+        result << "reshape_on_decompression=" << reshape_on_decompression << "_";
 
         result << "config=(";
         for (const auto& configEntry : additional_config) {
@@ -136,9 +147,10 @@ protected:
         std::vector<InputShape> inputShapes;
         bool transpose_weights;
         bool decompression_sub;
+        bool reshape_on_decompression;
         std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, transpose_weights, decompression_sub, additional_config) = this->GetParam();
+        std::tie(inputShapes, transpose_weights, decompression_sub, reshape_on_decompression, additional_config) = this->GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
@@ -148,13 +160,13 @@ protected:
             netType = ElementType::bf16;
         inType = outType = netType;
 
-        function = initSubgraph(inputDynamicShapes, netType, ov::element::u8, transpose_weights, decompression_sub);
+        function = initSubgraph(inputDynamicShapes, netType, ov::element::u8, transpose_weights, decompression_sub, reshape_on_decompression);
     }
 };
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
     run();
-    std::map<std::string, std::string> additional_config = std::get<3>(GetParam());
+    std::map<std::string, std::string> additional_config = std::get<4>(GetParam());
     const size_t expected_count = additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES ? 1 : 0;
     CheckNumberOfNodesWithType(compiledModel, "Convert", expected_count);
     CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_count);
@@ -183,6 +195,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedU8Weights_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
+                                            ::testing::Values(true),
                                             ::testing::ValuesIn(filterAdditionalConfig())),
                          MatmulWeightsDecompression::getTestCaseName);
 
@@ -192,12 +205,14 @@ const std::vector<std::vector<InputShape>> input_shapes_corner_cases = {
 };
 const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> add_decompression_sub = {true, false};
+const std::vector<bool> reshape_on_decompression = {true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedU8Weights_corner_cases,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
+                                            ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MatmulWeightsDecompression::getTestCaseName);
 } // namespace
