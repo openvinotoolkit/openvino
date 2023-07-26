@@ -63,7 +63,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
 
         std::vector<size_t> nativeArray;
 
-        for (size_t i = 0; i < arrayLength; i++) {
+        for (size_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsNumber()) {
                 throw std::invalid_argument(std::string("Passed array must contain only numbers."));
@@ -102,7 +102,7 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
 
         std::unordered_set<std::string> nativeArray;
 
-        for (size_t i = 0; i < arrayLength; i++) {
+        for (size_t i = 0; i < arrayLength; ++i) {
             Napi::Value arrayItem = array[i];
             if (!arrayItem.IsString()) {
                 throw std::invalid_argument(std::string("Passed array must contain only strings."));
