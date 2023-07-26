@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "gtest/gtest.h"
 #include "functional_test_utils/skip_tests_config.hpp"
 
