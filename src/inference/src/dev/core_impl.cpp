@@ -1026,6 +1026,16 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     } catch (ov::Exception&) {
     }
 
+    // try to search against internal supported_properties
+    try {
+        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
+            if (property.is_mutable()) {
+                supported_config_keys.emplace_back(std::move(property));
+            }
+        }
+    } catch (ov::Exception&) {
+    }
+
     // collect supported properties for HW device
     AnyMap supported_config;
     for (auto&& kvp : flattened_config) {
