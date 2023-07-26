@@ -122,7 +122,7 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
 }
 
 TEST_P(ov_compiled_model_test, get_property) {
-    const char* device_name = "BATCH:GPU(16)";
+    const char* device_name = "BATCH:GPU(4)";
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -135,18 +135,15 @@ TEST_P(ov_compiled_model_test, get_property) {
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    const char* key = ov_property_key_supported_properties;
+    const char* key = ov_property_key_auto_batch_timeout;
     char* result = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    std::string target = "2000";
 
-    key = ov_property_key_auto_batch_timeout;
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, "1000"));
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
 
-    key = ov_property_key_supported_properties;
-    result = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    EXPECT_EQ(*target.c_str(), *result);
     ov_free(result);
-
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
