@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 #include <thread>
 
@@ -52,9 +53,9 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
+        std::make_tuple(ov::internal::exclusive_async_requests, false),
 
         // Legacy API properties
-        std::make_tuple(ov::intel_gpu::exclusive_async_requests, false),
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
         std::make_tuple(ov::intel_gpu::enable_lp_transformations, false));
@@ -153,6 +154,10 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (get_property(ov::num_streams) == ov::streams::AUTO) {
         int32_t n_streams = std::max<int32_t>(info.num_ccs, 2);
         set_property(ov::num_streams(n_streams));
+    }
+
+    if (get_property(ov::internal::exclusive_async_requests)) {
+        set_property(ov::num_streams(1));
     }
 }
 
