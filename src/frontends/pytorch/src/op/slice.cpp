@@ -18,7 +18,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_slice(const NodeContext& context) {
+OutputVector translate_slice_common(const NodeContext& context, const size_t num_inputs) {
     // aten::slice.t(t[] l, int? start=None, int? end=None, int step=1) -> (t[])
     // aten::slice.Tensor(Tensor(a) self, int dim=0, int? start=None, int? end=None, int step=1) -> (Tensor(a))
     ov::Output<ov::Node> dim;
@@ -26,7 +26,7 @@ OutputVector translate_slice(const NodeContext& context) {
     int end_idx;
     int step_idx;
     auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    if (context.get_input_size() == 5) {
+    if (num_inputs == 5) {
         dim = context.get_input(1);
         if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
             dim = context.mark_node(std::make_shared<v0::Unsqueeze>(dim, axis_0));
@@ -34,7 +34,7 @@ OutputVector translate_slice(const NodeContext& context) {
         start_idx = 2;
         end_idx = 3;
         step_idx = 4;
-    } else if (context.get_input_size() == 4) {
+    } else if (num_inputs == 4) {
         start_idx = 1;
         end_idx = 2;
         step_idx = 3;
@@ -72,6 +72,16 @@ OutputVector translate_slice(const NodeContext& context) {
         step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     }
     return {context.mark_node(std::make_shared<v8::Slice>(context.get_input(0), start, end, step, dim))};
+};
+
+OutputVector translate_slice(const NodeContext& context) {
+    return translate_slice_common(context, context.get_input_size());
+};
+
+OutputVector translate_slice_fx(const NodeContext& context) {
+    // slice.Tensor(Tensor(a) self, int dim=0, SymInt? start=None, SymInt? end=None, SymInt step=1) -> Tensor(a)
+    // FX version of slice have the inputs in the same order as it has 5 inputs, even if it has less than 5 inputs
+    return translate_slice_common(context, 5);
 };
 
 }  // namespace op

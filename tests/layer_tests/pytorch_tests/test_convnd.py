@@ -3,7 +3,7 @@
 
 import pytest
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -165,7 +165,7 @@ class TestConv2DInSubgraph(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(2, 3, 25, 25).astype(np.float32), np.array([1], dtype=np.int32))
-    
+
     def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
         # Overload function to allow reproduction of issue caused by additional freeze.
         import torch

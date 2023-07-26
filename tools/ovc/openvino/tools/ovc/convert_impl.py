@@ -162,7 +162,7 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"

@@ -156,7 +156,7 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     // dtype=None) -> Tensor
     // aten::linalg_vector_norm.out(Tensor self, Scalar ord=2, int[1]? dim=None, bool
     // keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) -> Tensor(a!):
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed.
     auto ord = context.const_input<float>(1);

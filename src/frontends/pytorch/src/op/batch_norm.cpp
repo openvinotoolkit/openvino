@@ -16,6 +16,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -96,6 +97,11 @@ OutputVector translate_batch_norm(const NodeContext& context) {
     return {context.mark_node(
         std::make_shared<v5::BatchNormInference>(input, weight, bias, running_mean, running_var, epsilon))};
 };
+
+OutputVector translate_batch_norm_fx(const NodeContext& context) {
+    auto output = translate_batch_norm(context);
+    return {context.mark_node(make_list_construct(output))};
+}
 
 }  // namespace op
 }  // namespace pytorch

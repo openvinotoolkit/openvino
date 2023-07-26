@@ -80,6 +80,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     std::shared_ptr<TorchDecoder> pytorch_model,
     const TensorMap& external_tensor_map,
     const std::unordered_map<size_t, PlaceDesc>& external_descriptors) {
+    // FIXME: don't use global variable to count inlined inputs, no we should use global counter because ID should be
+    // unique for all new inlined inputs
+    static size_t inlined_nodes_counter = 100000000;  // Suppose there are not graph with more than 10M nodes
+
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -137,6 +141,18 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // But this value can be found in the outer scope, for this purpose we create new input for the model to
             // link with external scope on a higher level.
 
+            auto inlined_inputs = node->inlined_inputs(inlined_nodes_counter);
+            for (size_t i = 0; i < inlined_inputs.size(); ++i) {
+                size_t fw_tensor_id = inlined_nodes_counter;
+                ++inlined_nodes_counter;  // TODO: Make sure that Decoder side use the same increment for producing ids
+                if (tensor_map->find(fw_tensor_id) != tensor_map->end()) {
+                    throw std::runtime_error("Duplicated producer for PT value with unique ID: " +
+                                             std::to_string(fw_tensor_id) + " produced by inlined_inputs");
+                }
+
+                (*tensor_map)[fw_tensor_id] = inlined_inputs[i];
+            }
+
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = raw_inputs.at(i);
@@ -147,7 +163,13 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
                     // TODO: Use special API to set custom type specification
-                    auto parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
+                    std::shared_ptr<v0::Parameter> parameter;
+                    // TODO: Use decoder type or explore adding the missing cast types to Torchscript path
+                    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
+                    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0)
+                        parameter = std::make_shared<v0::Parameter>(type.as<element::Type>(), ps);
+                    else
+                        parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model

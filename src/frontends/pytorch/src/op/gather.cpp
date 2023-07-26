@@ -15,7 +15,7 @@ namespace op {
 OutputVector translate_gather(const NodeContext& context) {
     // aten::gather(Tensor self, int dim, Tensor index, *, bool sparse_grad=False) -> Tensor
     // aten::gather.out(Tensor self, int dim, Tensor index, *, bool sparse_grad=False, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 4, 5);
+    num_inputs_check(context, 3, 5);
     auto x = context.get_input(0);
     auto axis = context.const_input<int64_t>(1);
     auto index = context.get_input(2);

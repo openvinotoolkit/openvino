@@ -109,6 +109,12 @@ public:
 
     /// \brief Returns if output may contain alias of input in AliasDB
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const = 0;
+
+    /// Returns new nodes for inputs inlined in the op itself
+    // Used in Torch.FX decoder
+    virtual OutputVector inlined_inputs(size_t start_index) const {
+        return {};
+    }
 };
 
 }  // namespace pytorch
