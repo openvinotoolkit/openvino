@@ -61,6 +61,7 @@ public:
     std::shared_ptr<ov::Model>                      model;
     std::shared_ptr<NiceMock<MockPluginBase>> mock_plugin_cpu;
     std::shared_ptr<NiceMock<MockPluginBase>> mock_plugin_gpu;
+    std::shared_ptr<NiceMock<MockAutoPlugin>>       plugin;
     //mock exeNetwork helper
     ov::SoPtr<ov::MockCompiledModel>  mockExeNetwork;
     std::shared_ptr<ov::MockCompiledModel>   mockIExeNet;
@@ -84,7 +85,6 @@ protected:
 class AutoTest : public BaseTest {
 public:
     std::shared_ptr<NiceMock<MockICore >>           core;
-    std::shared_ptr<NiceMock<MockAutoPlugin>>       plugin;
     AutoTest();
     ~AutoTest();
 };
@@ -102,10 +102,9 @@ public:
 protected:
     void register_plugin_simple(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
     void register_plugin_support_batch_and_context(ov::Core& core, const std::string& device_name, const ov::AnyMap& properties);
-
-private:
     std::vector<std::shared_ptr<ov::IRemoteContext>> m_mock_contexts;
     std::shared_ptr<void> m_so;
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
     void reg_plugin(ov::Core& core,
                     std::shared_ptr<ov::IPlugin> plugin,
                     const std::string& device_name,

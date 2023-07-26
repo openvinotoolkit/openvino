@@ -26,6 +26,9 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_model()
 ov::mock_auto_plugin::tests::BaseTest::BaseTest() {
     set_log_level("LOG_NONE");
     model = create_model();
+    // construct mock auto plugin
+    NiceMock<MockAutoPlugin>* mock_auto = new NiceMock<MockAutoPlugin>();
+    plugin.reset(mock_auto);
     // construct  mock plugin
     mock_plugin_cpu = std::make_shared<NiceMock<ov::MockPluginBase>>();
     mock_plugin_gpu = std::make_shared<NiceMock<ov::MockPluginBase>>();
@@ -60,6 +63,27 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest() {
         .WillByDefault(Return(ov::Any(num)));
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::hint::num_requests.name())))
         .WillByDefault(Return(ov::Any(num)));
+    ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
+        return plugin->Plugin::get_device_list(config);
+    });
+    ON_CALL(*plugin, parse_meta_devices)
+    .WillByDefault(
+        [this](const std::string& priorityDevices, const ov::AnyMap& config) {
+            return plugin->Plugin::parse_meta_devices(priorityDevices, config);
+        });
+
+    ON_CALL(*plugin, select_device)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
+                                const std::string& netPrecision,
+                                unsigned int priority) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+        });
+
+    ON_CALL(*plugin, get_valid_device)
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
 }
 
 ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
@@ -67,6 +91,7 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     testing::Mock::AllowLeak(mockIExeNetActual.get());
     testing::Mock::AllowLeak(mock_plugin_cpu.get());
     testing::Mock::AllowLeak(mock_plugin_gpu.get());
+    testing::Mock::AllowLeak(plugin.get());
     mockExeNetwork = {};
     mockExeNetworkActual = {};
     config.clear();
@@ -75,14 +100,12 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     inferReqInternalActual.reset();
     mock_plugin_cpu.reset();
     mock_plugin_gpu.reset();
+    plugin.reset();
 }
 
 ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     // prepare mockicore and cnnNetwork for loading
     core = std::make_shared<NiceMock<MockICore>>();
-    // construct mock auto plugin
-    NiceMock<MockAutoPlugin>* mock_auto = new NiceMock<MockAutoPlugin>();
-    plugin.reset(mock_auto);
     // replace core with mock Icore
     plugin->set_core(core);
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
@@ -157,32 +180,9 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         }
         return deviceConfigs;
     });
-    ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
-        return plugin->Plugin::get_device_list(config);
-    });
-    ON_CALL(*plugin, parse_meta_devices)
-    .WillByDefault(
-        [this](const std::string& priorityDevices, const ov::AnyMap& config) {
-            return plugin->Plugin::parse_meta_devices(priorityDevices, config);
-        });
-
-    ON_CALL(*plugin, select_device)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                                const std::string& netPrecision,
-                                unsigned int priority) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
-        });
-
-    ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
-            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
-            return devices;
-        });
 }
 
 ov::mock_auto_plugin::tests::AutoTest::~AutoTest() {
-    testing::Mock::AllowLeak(plugin.get());
-    plugin.reset();
     core.reset();
 }
 
@@ -258,6 +258,7 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_support_
                 RO_property(ov::optimal_number_of_infer_requests.name()),
                 RO_property(ov::device::capabilities.name()),
                 RO_property(ov::device::type.name()),
+                RO_property(ov::device::uuid.name()),
             };
             // the whole config is RW before network is loaded.
             const std::vector<ov::PropertyName> rwProperties{
@@ -302,6 +303,8 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_support_
                     configs.emplace_back(property);
                 }
                 return configs;
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type({});
             }
             OPENVINO_NOT_IMPLEMENTED;
     });
@@ -318,6 +321,7 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_simple(o
     ON_CALL(*mock_plugin_cpu, get_property).WillByDefault([](const std::string& name, const ov::AnyMap& property) -> ov::Any {
             const std::vector<ov::PropertyName> roProperties{
                 RO_property(ov::supported_properties.name()),
+                RO_property(ov::device::uuid.name()),
             };
             // the whole config is RW before network is loaded.
             const std::vector<ov::PropertyName> rwProperties{
@@ -350,6 +354,8 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_simple(o
                     configs.emplace_back(property);
                 }
                 return configs;
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type({});
             }
             OPENVINO_NOT_IMPLEMENTED;
     });

@@ -128,7 +128,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-
     auto set_default_hint = [&](const std::string& target_device,
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
@@ -288,13 +287,13 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                                         default_device_id,
                                         unique_name,
                                         device_priority});
-            } catch (const ov::Exception&) {
+            } catch (const ov::Exception& err) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
                               unique_name.c_str());
             OPENVINO_SUPPRESS_DEPRECATED_START
-            } catch (const InferenceEngine::Exception&) {
+            } catch (const InferenceEngine::Exception& err) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),

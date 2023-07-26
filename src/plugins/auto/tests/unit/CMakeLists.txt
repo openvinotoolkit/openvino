@@ -14,13 +14,13 @@ ov_add_test_target(
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR} ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
+            ngraphFunctions
             unit_test_utils
-            openvino::runtime::dev
         ADD_CPPLINT
         DEPENDENCIES
-            openvino::runtime
+            template_extension
             mock_engine
-            openvino_auto_plugin
+            ngraphFunctions
         LABELS
             Multi
             Auto
