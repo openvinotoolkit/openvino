@@ -237,9 +237,35 @@ class TestComplexParams(CommonMOConvertTest):
         self._test(temp_dir, test_params, ref_params)
 
     test_data = [
+        # When use_convert_model_from_mo=True legacy openvino.tools.mo.convert_model is used
+        # By default compress_to_fp16 in Python API is False but for mo cli tool (used for params_ref) it's True.
+        # compress_to_fp16 should be specified explicitly either in 'param_test' or  'params_ref' (or in both)
+        # Check all args combinations.
         {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'use_convert_model_from_mo': True,
                          'compress_to_fp16': True},
          'params_ref': {'input_shape': "[2,3,4]"}},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'use_convert_model_from_mo': True},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': False}},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'use_convert_model_from_mo': True,
+                         'compress_to_fp16': True},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': True}},
+        {'params_test': {'input_shape': PartialShape([2, 3, 4]), 'use_convert_model_from_mo': True,
+                         'compress_to_fp16': False},
+         'params_ref': {'input_shape': "[2,3,4]", 'compress_to_fp16': False}},
+
+        # ovc.convert_model with save_model are used, by default save_model compresses to fp16 same as cli tool.
+        # Check all args combinations.
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': False},
+         'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': False}},
+
         {'params_test': {'input_shape': [Dimension(), Dimension(1, 3), 4, Dimension(-1, 5)], 'use_convert_model_from_mo': True,
                          'compress_to_fp16': True},
          'params_ref': {'input_shape': "[?,1..3,4,..5]"}},
