@@ -2,11 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #include "matchers/single_op.hpp"
-// #include "ngraph/ops.hpp"
-// #include "ngraph/validation_util.hpp"
-// #include <cstdlib>
-
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -21,7 +16,7 @@ iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node> 
         }
     }
     for (const auto &cfg : default_configs) {
-        if (cfg->is_fallback_config) {\
+        if (cfg->is_fallback_config) {
             return cfg;
         }
     }

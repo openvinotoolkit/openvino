@@ -61,10 +61,6 @@ TEST_F(ModelUtilsTest, generate_1) {
         auto func_ops = get_functional_ops(test_model);
         auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
         recovered_model = model_with_in_info.first;
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::Serialize>("model_1.xml", "model_1.bin");
-            manager.run_passes(recovered_model);
-            recovered_model->validate_nodes_and_infer_types();
         for (const auto& op : recovered_model->get_ordered_ops()) {
             if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
                 ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));

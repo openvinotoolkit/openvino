@@ -39,14 +39,12 @@ protected:
                 }
             }
             for (const auto& cnt : op_cnt) {
-                std::cout << "DDD: " << cnt << std::endl;
                 if (cnt > 1) {
                     ++graph_cnt;
                 }
             }
         }
         auto models = this->extract(model);
-        std::cout << "DEBUG " << models.size() << " " << graph_cnt << std::endl;
         return models.size() == graph_cnt;
     }
 };

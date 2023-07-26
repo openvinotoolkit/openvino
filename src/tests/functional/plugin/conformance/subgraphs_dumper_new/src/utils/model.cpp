@@ -33,10 +33,8 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
         cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
         ov::OutputVector in_out_vector(inputs_size);
-        // bool is_input_filled = false;
         size_t filled_input_cnt = 0;
         for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
-            // bool is_this_input_filled = false;
             auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
             for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
                 for (const auto& target_input : in_node->output(in_out_idx).get_target_inputs()) {
@@ -46,14 +44,12 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
                         in_out_vector[in_idx] = model_map.count(in_node_name) ?
                                                 model_map.at(in_node_name)->output(in_out_idx) :
                                                 cloned_op->get_input_node_ptr(in_idx)->output(0);
-                        // is_this_input_filled = true;
                         filled_input_cnt++;
                         break;
                     }
                 }
                 if (filled_input_cnt == inputs_size) {
                     break;
-                    // is_input_filled = true;
                 }
             }
         }
