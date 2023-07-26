@@ -56,6 +56,9 @@ using param_callback_map = std::map<ov::DiscreteTypeInfo, param_callback>;
 /// \ingroup ov_pass_cpp_api
 class OPENVINO_API PassConfig {
 public:
+    /// \brief Default constructor
+    PassConfig();
+
     /// \brief Disable transformation by its type_info
     /// \param type_info Transformation type_info
     void disable(const DiscreteTypeInfo& type_info);
@@ -157,9 +160,7 @@ public:
     void add_disabled_passes(const PassConfig& rhs);
 
 private:
-    param_callback m_callback = [](const std::shared_ptr<const ::ov::Node>&) {
-        return false;
-    };
+    param_callback m_callback;
     param_callback_map m_callback_map;
     std::unordered_set<DiscreteTypeInfo> m_disabled;
     std::unordered_set<DiscreteTypeInfo> m_enabled;
