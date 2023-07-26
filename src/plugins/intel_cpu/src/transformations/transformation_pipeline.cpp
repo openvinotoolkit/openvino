@@ -211,7 +211,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     } else {
         // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
         // in order to keep compressed u8 MatMul weights with decompression operations as is
-        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8});
+        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8}, true);
         CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
             auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
                 const auto consumers = node->get_output_target_inputs(0);
