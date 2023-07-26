@@ -92,7 +92,7 @@ TEST_F(NodeUtilsTest, generate_model_by_node) {
     ASSERT_EQ(res_0->get_element_type(), ov::element::Type_t::f32);
 }
 
-TEST(NodeUtilsTest, get_max_ops_versions) {
+TEST_F(NodeUtilsTest, get_max_ops_versions) {
     std::map<std::string, std::string> max_ops_versions;
     ASSERT_NO_THROW(max_ops_versions = get_max_ops_versions());
 
@@ -108,7 +108,7 @@ TEST(NodeUtilsTest, get_max_ops_versions) {
     ASSERT_EQ(max_ops_versions[shapeOf_0->get_type_info().name], "3");
 }
 
-TEST(NodeUtilsTest, get_node_priority_by_version) {
+TEST_F(NodeUtilsTest, get_node_priority_by_version) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{1, 3, 16, 16});
 
     auto one_opset_node = std::make_shared<ov::op::v0::Convert>(param, ov::element::u16);

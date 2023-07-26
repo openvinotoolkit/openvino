@@ -13,8 +13,6 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
              const std::shared_ptr<ov::Node>& start_node) {
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> model_map;
     std::shared_ptr<ov::Node> cloned_op = nullptr;
-    // auto cloned_op = clone_node(start_node, true, false, "Op_" + std::to_string(model_map.size()));
-    // model_map.insert({ start_node->get_friendly_name(), cloned_op });
 
     for (const auto& op : nodes) {
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
@@ -28,7 +26,6 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
     for (const auto& op : nodes) {
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
             ov::op::util::is_output(op)) {
-            // ov::op::util::is_output(op) || op == start_node) {
             continue;
         }
         auto op_name = op->get_friendly_name();
