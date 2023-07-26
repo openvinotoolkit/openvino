@@ -180,6 +180,11 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         set_property(ov::compilation_num_threads(1));
     }
 
+    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+        GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
+        set_property(ov::enable_profiling(true));
+    }
+
     GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }

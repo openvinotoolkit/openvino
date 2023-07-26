@@ -53,10 +53,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _attrs(attrs),
         _pd(pd) {
             _enable_profiling = config.get_property(ov::enable_profiling);
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-                _enable_profiling = true;
-            }
             build_primitive(config);
         }
 
