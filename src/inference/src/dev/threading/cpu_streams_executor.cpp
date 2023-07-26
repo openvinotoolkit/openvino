@@ -312,12 +312,34 @@ struct CPUStreamsExecutor::Impl {
         std::vector<int> _cpu_ids;
 #endif
     };
+    class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
+        public:
+        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl):
+            ThreadLocal<std::shared_ptr<Stream>>(callback_construct), _impl(impl) {
+            }
+        std::shared_ptr<Stream> local() {
+            auto search = _thread_ids.find(std::this_thread::get_id());
+            if (search != _thread_ids.end()) {
+                return ThreadLocal<std::shared_ptr<Stream>>::local();
+            } else {
+                return std::make_shared<Impl::Stream>(_impl);
+            }
+        }
+        void set_thread_id_map(std::vector<std::thread>& threads) {
+            for (auto& thread: threads) {
+                _thread_ids.insert(thread.get_id());
+            }
+        }
 
+        private:
+            std::set<std::thread::id> _thread_ids;
+            Impl* _impl;
+    };
     explicit Impl(const Config& config)
         : _config{config},
           _streams([this] {
               return std::make_shared<Impl::Stream>(this);
-          }) {
+          }, this) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         if (_config._streams != 0) {
@@ -378,6 +400,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             });
         }
+        _streams.set_thread_id_map(_threads);
     }
 
     void Enqueue(Task task) {
@@ -427,7 +450,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
-    ThreadLocal<std::shared_ptr<Stream>> _streams;
+    CustomThreadLocal _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
