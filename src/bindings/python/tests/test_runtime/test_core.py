@@ -8,15 +8,18 @@ import numpy as np
 import os
 from pathlib import Path
 
-from openvino.runtime import (
+from openvino import (
     Model,
     Core,
-    CompiledModel,
     Tensor,
     PartialShape,
-    Extension,
     tensor_from_file,
     compile_model,
+)
+
+from openvino.runtime import (
+    CompiledModel,
+    Extension,
 )
 
 from tests.conftest import (

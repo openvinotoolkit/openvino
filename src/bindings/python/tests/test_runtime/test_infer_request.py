@@ -11,8 +11,21 @@ import datetime
 import time
 
 import openvino.runtime.opset12 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
-from openvino.runtime import Type, PartialShape, Shape, Layout
+from openvino.runtime import (
+    Core,
+    AsyncInferQueue,
+    Model,
+    Layout,
+    PartialShape,
+    Shape,
+    Type,
+    Tensor,
+)   
+from openvino.runtime import (
+    CompiledModel,
+    InferRequest,
+    ProfilingInfo,
+)
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
