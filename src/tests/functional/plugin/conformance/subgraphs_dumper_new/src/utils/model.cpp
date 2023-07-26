@@ -12,12 +12,13 @@ inline std::unordered_map<std::string, std::shared_ptr<ov::Node>>
 update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
              const std::shared_ptr<ov::Node>& start_node) {
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> model_map;
-    auto cloned_op = clone_node(start_node, true, false, "Op_" + std::to_string(model_map.size()));
-    model_map.insert({ start_node->get_friendly_name(), cloned_op });
+    std::shared_ptr<ov::Node> cloned_op = nullptr;
+    // auto cloned_op = clone_node(start_node, true, false, "Op_" + std::to_string(model_map.size()));
+    // model_map.insert({ start_node->get_friendly_name(), cloned_op });
 
     for (const auto& op : nodes) {
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
-            ov::op::util::is_output(op) || op == start_node) {
+            ov::op::util::is_output(op)) {
             continue;
         }
         cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));
@@ -26,14 +27,15 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
 
     for (const auto& op : nodes) {
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
-            ov::op::util::is_output(op) || op == start_node) {
+            ov::op::util::is_output(op)) {
+            // ov::op::util::is_output(op) || op == start_node) {
             continue;
         }
         auto op_name = op->get_friendly_name();
         cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
         ov::OutputVector in_out_vector(inputs_size);
-        size_t filled_input_cnt = 0;
+        int filled_input_idx = -1;
         for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
             auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
             for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
@@ -44,19 +46,24 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
                         in_out_vector[in_idx] = model_map.count(in_node_name) ?
                                                 model_map.at(in_node_name)->output(in_out_idx) :
                                                 cloned_op->get_input_node_ptr(in_idx)->output(0);
-                        filled_input_cnt++;
+                        if (model_map.count(in_node_name)) {
+                            filled_input_idx++;
+                        }
                         break;
                     }
                 }
-                if (filled_input_cnt == inputs_size) {
+                if (filled_input_idx == in_idx) {
                     break;
                 }
             }
         }
-        if (filled_input_cnt == 0 && op_name != start_node->get_friendly_name()) {
+        // todo: iefode: check this code
+        if (filled_input_idx < 0 && op_name != start_node->get_friendly_name()) {
             model_map.erase(op_name);
-        } else {
+        } else if (filled_input_idx >= 0) {
+            auto name = cloned_op->get_friendly_name();
             model_map[op_name] = cloned_op->clone_with_new_inputs(in_out_vector);
+            model_map[op_name]->set_friendly_name(name);
         }
     }
     return model_map;
@@ -122,7 +129,7 @@ std::vector<std::string> find_models(const std::vector<std::string> &dirs, const
             try {
                 models.emplace_back(file);
             } catch (std::exception& e) {
-                std::cout << "Impossible to read model: " << file << std::endl << "Exception: " << e.what();
+                std::cout << "[ ERROR ] Impossible to read model: " << file << std::endl << "Exception: " << e.what();
             }
         }
     }
@@ -143,7 +150,6 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     for (auto& cache : caches) {
         for (const auto& model : models) {
             if (ov::util::file_exists(model)) {
-                std::cout << "Processing model: " << model << std::endl;
                 ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
                 try {
                     std::shared_ptr<ov::Model> function = core->read_model(model);
@@ -152,12 +158,12 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                             cache->update_cache(function, model, extract_body);
                         }
                     } catch (std::exception &e) {
-                        std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                        std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                         model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                     }
                 } catch (std::exception &e) {
                     model_status = ModelCacheStatus::NOT_READ;
-                    std::cout << "Model reading failed with exception:" << std::endl << e.what() << std::endl;
+                    std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
                 }
                 cache_status[model_status].push_back(model);
             }

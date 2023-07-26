@@ -20,6 +20,7 @@ std::shared_ptr<OpCache> OpCache::m_cache_instance = nullptr;
 void OpCache::update_cache(const std::shared_ptr<ov::Model>& model,
                            const std::string& model_path,
                            bool extract_body) {
+    std::cout << "[ INFO ][ OP CACHE ] Processing model: " << model_path << std::endl;
     size_t model_op_cnt = model->get_ops().size() - model->get_output_size() - model->inputs().size();
     for (const auto& op : model->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
@@ -63,8 +64,8 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
     cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
         if (m_manager.match(it.first, cloned_node)) {
-            std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
-                    " with " << it.first->get_friendly_name() << std::endl;
+            // std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
+            //        " with " << it.first->get_friendly_name() << std::endl;
             find_op_in_cache = it.first;
             break;
         }
@@ -83,16 +84,18 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
 
     auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
     if (find_op_in_cache != nullptr) {
+        std::cout << "[ INFO ][ OP CACHE ] Update cache node: " << cloned_node->get_type_info().name <<
+            " " << find_op_in_cache->get_friendly_name() << std::endl;
         m_ops_cache[find_op_in_cache].update(model_path, get_input_info_by_node(cloned_node), model_op_cnt, ignored_input_names);
     }
     if (find_op_in_cache > cloned_node) {
-        std::cout << "Update cache node: " << cloned_node->get_type_info().name <<  " " << find_op_in_cache->get_friendly_name() << std::endl;
         meta = m_ops_cache[find_op_in_cache];
         m_ops_cache.erase(find_op_in_cache);
         find_op_in_cache = nullptr;
     }
     if (find_op_in_cache == nullptr) {
-        std::cout << "Insert node: " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() << " to Cache" << std::endl;
+        std::cout << "[ INFO ][ OP CACHE ] Insert node: " << cloned_node->get_type_info().name <<
+            " " << cloned_node->get_friendly_name() << " to Cache" << std::endl;
         m_ops_cache.insert({ cloned_node, meta });
     }
 }

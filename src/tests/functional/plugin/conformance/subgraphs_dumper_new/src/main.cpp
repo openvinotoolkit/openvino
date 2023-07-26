@@ -29,14 +29,17 @@ int main(int argc, char *argv[]) {
     try {
         models = find_models(dirs, FLAGS_path_regex);
     } catch (std::runtime_error& e) {
-        std::cout << "Try 'subgraphdumper -h' for more information. \nException: " << e.what() << std::endl;
+        std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
 
     std::vector<std::shared_ptr<ICache>> caches;
     if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
+        std::cout << "[ INFO ] OpCache is enabled!" << std::endl;
         caches.push_back(OpCache::get());
-    } else if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+    }
+    if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+        std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
         caches.push_back(GraphCache::get());
     }
 
