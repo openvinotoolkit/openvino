@@ -13,16 +13,19 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 namespace Transpose {
-std::map<std::string, std::string> additional_config;
+std::map<std::string, std::string> additional_config = {
+        {ov::hint::inference_precision.name(), "f32"},
+// x86 doesn't support FP16 for now
+#if defined(OV_CPU_WITH_ACL_FP16)
+        {ov::hint::inference_precision.name(), "f16"}
+#endif
+};
 
 const auto cpuParams_nhwc = CPUSpecificParams {{nhwc}, {}, {}, {}};
 const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {}, {}, {}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::I8,
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-        Precision::FP16,
-#endif
         Precision::FP32
 };
 

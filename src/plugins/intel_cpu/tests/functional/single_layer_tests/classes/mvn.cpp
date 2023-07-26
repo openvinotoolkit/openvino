@@ -18,7 +18,8 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
     ElementType inputPrecision, outputPrecision;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig) = obj.param;
 
     InputShape inputShapes;
     ElementType netPrecision;
@@ -46,6 +47,13 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     result << "_"
            << "CNNOutPrc=" << outputPrecision;
 
+    if (!additionalConfig.empty()) {
+        result << "PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.get_type_name();
+        }
+    }
+
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -72,7 +80,8 @@ void MvnLayerCPUTest::SetUp() {
     fusingSpecificParams fusingParams;
     ElementType inPrc;
     ElementType outPrc;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc, additionalConfig) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
@@ -102,12 +111,13 @@ void MvnLayerCPUTest::SetUp() {
     selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
     rel_threshold = 0.015f;
-    if (netPrecision == ElementType::f16) {
-        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
+        inPrc = outPrc = netPrecision = ElementType::f16;
         //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
         abs_threshold = .05f;
         rel_threshold = 250.f;
     }
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
     function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
 }
 
@@ -117,6 +127,17 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 }
 
 namespace MVN {
+const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
+// x86 doesn't support FP16 for now
+#if defined(OV_CPU_WITH_ACL_FP16)
+        {{ov::hint::inference_precision.name(), ov::element::f16}},
+#endif
+    };
+    return additionalConfig;
+}
+
 const std::vector<InputShape>& inputShapes_1D() {
     static const std::vector<InputShape> inputShapes_1D = {
         { {}, {{5}}},

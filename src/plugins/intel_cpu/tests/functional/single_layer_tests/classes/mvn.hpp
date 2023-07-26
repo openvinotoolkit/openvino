@@ -61,5 +61,6 @@ namespace MVN {
    const std::vector<bool>& acrossChannels();
    const std::vector<double>& epsilon();
 
+   const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig();
 } // namespace MVN
 } // namespace CPULayerTestsDefinitions
