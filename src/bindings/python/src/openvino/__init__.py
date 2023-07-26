@@ -42,6 +42,7 @@ try:
     from openvino.runtime import Layout
     from openvino.runtime import Type
     from openvino.runtime import Tensor
+    from openvino.runtime import OVAny
 
     from openvino.runtime import compile_model
     from openvino.runtime import get_batch
