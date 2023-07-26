@@ -36,7 +36,7 @@ public:
         uint32_t input_range;
         std::tie(prc, shape, orientation, sf, is_gna_device, is_low_precision, test_avx2, input_range) = GetParam();
         input_vals.resize(ov::shape_size(shape));
-        CommonTestUtils::fill_data_random(&input_vals[0], ov::shape_size(shape), input_range);
+        ov::test::utils::fill_data_random(&input_vals[0], ov::shape_size(shape), input_range);
 
         std::transform(begin(input_vals), end(input_vals), std::back_inserter(refer_vals), [this](U i) {
             return round(i * sf);

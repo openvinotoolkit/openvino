@@ -23,7 +23,7 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = poolParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     switch (poolType) {
         case ngraph::helpers::PoolingTypes::MAX:
             result << "MaxPool_";
@@ -33,10 +33,10 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
             result << "ExcludePad=" << excludePad << "_";
             break;
     }
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     result << "Rounding=" << roundingType << "_";
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -67,7 +67,7 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
     std::vector<size_t> inputShapes = {1, channels, kernel[0], kernel[1]};
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     switch (poolType) {
         case ngraph::helpers::PoolingTypes::MAX:
             result << "MaxPool_";
@@ -77,10 +77,10 @@ std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo
             result << "ExcludePad=" << excludePad << "_";
             break;
     }
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     if (padType == ngraph::op::PadType::EXPLICIT) {
         result << "Rounding=" << roundingType << "_";
     }
@@ -111,12 +111,12 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) = poolParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "D" << CommonTestUtils::vec2str(dilation) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "D" << ov::test::utils::vec2str(dilation) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     result << "IET" << indexElementType << "_";
     result << "A" << axis << "_";
     result << "Rounding=" << roundingType << "_";
@@ -218,7 +218,7 @@ void MaxPoolingV8LayerTest::SetUp() {
                                                                               kernel, roundingType, padType,
                                                                               indexElementType, axis);
 
-    const auto maxPoolV8_second_output_is_supported = targetDevice == CommonTestUtils::DEVICE_GPU;
+    const auto maxPoolV8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
     ngraph::ResultVector results;
     if (maxPoolV8_second_output_is_supported) {
         results = {std::make_shared<ngraph::opset3::Result>(maxPool->output(0)),

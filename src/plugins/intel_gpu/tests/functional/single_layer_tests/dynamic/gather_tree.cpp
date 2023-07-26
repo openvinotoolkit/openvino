@@ -34,10 +34,10 @@ public:
         std::tie(inputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "netPRC=" << netPrecision << "_";
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_gathertree_parameter_compareWithRefs_dynamic, Gat
                             ::testing::ValuesIn(inputDynamicShapesParameter),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GatherTreeLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_gathertree_constant_compareWithRefs_dynamic, GatherTreeLayerGPUTest,
@@ -174,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_gathertree_constant_compareWithRefs_dynamic, Gath
                             ::testing::ValuesIn(inputDynamicShapesConstant),
                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GatherTreeLayerGPUTest::getTestCaseName);
 
 } // namespace
