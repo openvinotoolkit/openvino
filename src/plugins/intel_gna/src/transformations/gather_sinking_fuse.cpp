@@ -43,23 +43,11 @@ struct TransformationInfo {
     std::shared_ptr<Gather> output_gather;
 };
 
-std::vector<int64_t> combine_gather_permutations(const std::vector<int64_t>& input_gather_indices,
-                                                 const std::vector<int64_t>& output_gather_indices) {
-    if (input_gather_indices.size() != output_gather_indices.size())
-        return {};
-    std::vector<int64_t> result(input_gather_indices.size());
-    for (size_t i = 0; i < result.size(); ++i) {
-        result[i] = input_gather_indices[output_gather_indices[i]];
-    }
-
-    return result;
-}
-
 std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
     const std::vector<int64_t> input_gather_indices = get_normalized_gather_indices(info.input_indices_const);
     const std::vector<int64_t> output_gather_indices = get_normalized_gather_indices(info.output_indices_const);
     const std::vector<int64_t> result_gather_indices =
-        combine_gather_permutations(input_gather_indices, output_gather_indices);
+        combine_gather_indexes(input_gather_indices, output_gather_indices);
     if (is_pointless_permutation(result_gather_indices)) {
         ov::replace_output_update_name(info.output_gather->output(0), info.input_gather->input_value(0));
         return {};
@@ -77,33 +65,48 @@ std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
 
     return new_gather;
 }
+
+inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
+    return node->output(0).get_target_inputs().size() == 1;
+}
+
+inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
+    return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
+            std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr) &&
+           has_one_consumer(node);
+}
+
 }  // namespace
 
 GatherSinkingFuse::GatherSinkingFuse() {
     MATCHER_SCOPE(GatherSinkingFuse);
 
-    auto input_indices_const_label = wrap_type<Constant>(is_constant_1d);
-    auto input_axis_const_label = wrap_type<Constant>(is_constant_1d);
-    auto input_gather_label = wrap_type<Gather>({any_input(), input_indices_const_label, input_axis_const_label});
-    auto output_indices_const_label = wrap_type<Constant>(is_constant_1d);
-    auto output_axis_const_label = wrap_type<Constant>(is_constant_1d);
-    auto output_gather_label =
-        wrap_type<Gather>({input_gather_label, output_indices_const_label, output_axis_const_label},
-                          is_gather_with_parent_gather_same_axis);
+    auto indices_in_const_label = wrap_type<Constant>(is_constant_1d);
+    auto axis_in_const_label = wrap_type<Constant>(is_constant_1d);
+    auto gather_in_label = wrap_type<Gather>({any_input(), indices_in_const_label, axis_in_const_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+        auto gather_in = as_type_ptr<Gather>(pattern_to_output.at(gather_in_label).get_node_shared_ptr());
+
         TransformationInfo info;
-        info.input_indices_const =
-            as_type_ptr<Constant>(pattern_to_output.at(input_indices_const_label).get_node_shared_ptr());
-        info.input_axis_const =
-            as_type_ptr<Constant>(pattern_to_output.at(input_axis_const_label).get_node_shared_ptr());
-        info.input_gather = as_type_ptr<Gather>(pattern_to_output.at(input_gather_label).get_node_shared_ptr());
         info.output_indices_const =
-            as_type_ptr<Constant>(pattern_to_output.at(output_indices_const_label).get_node_shared_ptr());
-        info.output_axis_const =
-            as_type_ptr<Constant>(pattern_to_output.at(output_axis_const_label).get_node_shared_ptr());
-        info.output_gather = as_type_ptr<Gather>(pattern_to_output.at(output_gather_label).get_node_shared_ptr());
+            as_type_ptr<Constant>(pattern_to_output.at(indices_in_const_label).get_node_shared_ptr());
+        info.output_axis_const = as_type_ptr<Constant>(pattern_to_output.at(axis_in_const_label).get_node_shared_ptr());
+        info.output_gather = gather_in;
+
+        // skip all the non-functional layers
+        std::shared_ptr<ov::Node> non_reshape_node =
+            graph_utils::get_prev_node_skipping_certain(gather_in->get_input_node_shared_ptr(0), is_skip_operation);
+        auto gather_out = std::dynamic_pointer_cast<Gather>(non_reshape_node);
+        if (!gather_out) {
+            return false;
+        }
+
+        info.input_indices_const = as_type_ptr<Constant>(gather_out->get_input_node_shared_ptr(1));
+        info.input_axis_const = as_type_ptr<Constant>(gather_out->get_input_node_shared_ptr(2));
+        info.input_gather = gather_out;
 
         auto new_node = fuse_gather_nodes(info);
         if (new_node)
@@ -112,6 +115,6 @@ GatherSinkingFuse::GatherSinkingFuse() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(output_gather_label, matcher_name);
+    auto m = std::make_shared<Matcher>(gather_in_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

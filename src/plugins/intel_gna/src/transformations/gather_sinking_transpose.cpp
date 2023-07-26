@@ -76,7 +76,10 @@ inline std::vector<std::shared_ptr<ov::Node>> merge_nodes_backward(std::shared_p
 }
 
 inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<Reshape>(node) != nullptr && node->output(0).get_target_inputs().size() == 1;
+    return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
+            std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr) &&
+           has_one_consumer(node);
 }
 
 }  // namespace

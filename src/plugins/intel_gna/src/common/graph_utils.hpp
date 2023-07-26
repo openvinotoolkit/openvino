@@ -425,7 +425,24 @@ inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& 
     return gather_order;
 }
 
-inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
+/**
+ * @brief Merge gather indexes.
+ * @param ids_in vector with indexes to 1st gather
+ * @param ids_out vector with indexes to 2nd gather
+ * @return vector with indexes to merged gather
+ */
+template <typename T>
+inline std::vector<T> combine_gather_indexes(const std::vector<T>& ids_in, const std::vector<T>& ids_out) {
+    if (ids_in.size() != ids_out.size())
+        return {};
+    std::vector<T> result(ids_in.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = ids_in[ids_out[i]];
+    }
+    return result;
+}
+
+inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
     for (size_t i = 0; i < shape.size(); ++i) {
         if (shape[i] != 1) {
             return i;

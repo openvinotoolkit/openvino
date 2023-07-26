@@ -2375,8 +2375,9 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Pooling"}, CREATE(PoolingPrimitive)},
         {{"Power"}, CREATE(PowerPrimitive)},
         {{"Concat"}, CREATE(ConcatPrimitive)},
-        {{"Reshape"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
-        {{"Squeeze"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
+        {{"Reshape"}, SKIP},    // TODO: handled not in GNA but rather in GNA plugin
+        {{"Squeeze"}, SKIP},    // TODO: handled not in GNA but rather in GNA plugin
+        {{"Unsqueeze"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Crop"}, CREATE(CropPrimitive)},
         {{CopyLayerName}, CREATE(CopyPrimitive)},
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
