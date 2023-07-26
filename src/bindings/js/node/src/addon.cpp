@@ -22,7 +22,7 @@ Napi::String Method(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), str.assign(version.buildNumber));
 }
 
-/// @brief Initialize native add-on
+/** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     ModelWrap::Init(env, exports);
     CoreWrap::Init(env, exports);
@@ -45,5 +45,5 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-/// @brief Register and initialize native add-on
+/** @brief Register and initialize native add-on */
 NODE_API_MODULE(addon_openvino, InitAll)

@@ -21,8 +21,9 @@ public:
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Input class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Input class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_input(const std::shared_ptr<ov::Input<ov::Node>>& input);
@@ -49,8 +50,9 @@ public:
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Input class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Input class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_input(const std::shared_ptr<ov::Input<const ov::Node>>& input);

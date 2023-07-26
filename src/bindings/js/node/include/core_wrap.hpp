@@ -28,8 +28,9 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript Core class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Core class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Core class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     /**

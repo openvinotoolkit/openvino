@@ -30,8 +30,9 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript PrePostProcessor class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript PrePostProcessor class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript PrePostProcessor class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     Napi::Value set_input_tensor_shape(const Napi::CallbackInfo& info);
