@@ -26,6 +26,8 @@ public:
           m_domain{domain},
           m_converter(converter) {}
 
+    ~ConversionExtension() override;
+
     const std::string& get_domain() const {
         return m_domain;
     }
