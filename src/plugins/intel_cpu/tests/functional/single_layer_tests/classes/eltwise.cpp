@@ -161,16 +161,19 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
 
 namespace Eltwise {
 
-const ov::AnyMap& additional_config() {
-        static const ov::AnyMap additional_config;
-        return additional_config;
+const std::vector<std::map<std::string, ov::element::Type>>& additional_config() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
+// x86 doesn't support FP16 for now
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        {{ov::hint::inference_precision.name(), ov::element::f16}},
+#endif
+    };
+    return additionalConfig;
 }
 
 const std::vector<ElementType>& netType() {
         static const std::vector<ElementType> netType = {
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                ElementType::f16,
-#endif
                 ElementType::f32};
         return netType;
 }

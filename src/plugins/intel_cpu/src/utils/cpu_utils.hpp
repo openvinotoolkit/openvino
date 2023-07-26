@@ -122,9 +122,7 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
             break;
         }
         case InferenceEngine::Precision::FP16: {
-#if !defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
             precision = InferenceEngine::Precision::FP32;
-#endif
             break;
         }
         default: {
