@@ -90,6 +90,8 @@ struct Config {
 
     bool isLegacyApi = false;
 
+    int modelPreferThreads = -1;
+
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
     void applyDebugCapsProperties();

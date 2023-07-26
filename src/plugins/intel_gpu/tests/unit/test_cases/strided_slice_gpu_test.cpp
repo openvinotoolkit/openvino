@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include "strided_slice_inst.h"
 
@@ -14,6 +15,64 @@ using namespace ::tests;
 
 class strided_slice_gpu: public ::testing::Test {
 public:
+    void test_2x2x2x2_full_legacy_activation(bool is_caching_test) {
+        // Input (BFYX): 2x2x2x2
+        // Begin (BFYX): 0x0x0x0
+        // End (BFYX): 2x2x2x2
+        // Stride (BFYX): 1x1x1x1
+        // Output (BFYX): 2x2x2x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+
+        set_values(input, {
+                -0.2f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+                9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.8f
+        });
+
+        set_values<int64_t>(begin, {0, 0, 0, 0});
+        set_values<int64_t>(end, {2, 2, 2, 2});
+        set_values<int64_t>(strides, {1, 1, 1, 1});
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+        topology.add(activation("out", input_info("strided_slice"), activation_func::clamp, {0.f, 15.0f}));
+        topology.add(reorder("out_reorder", input_info("out"), format::bfyx, data_types::f32));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out_reorder");
+
+        auto output = outputs.at("out_reorder").get_memory();
+
+        std::vector<float> answers = {
+                0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
     void test_2x2x2x2_full(bool is_caching_test) {
         // Input (BFYX): 2x2x2x2
         // Begin (BFYX): 0x0x0x0
@@ -2136,4 +2195,9 @@ TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_cached) {
 #endif
 TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
     this->test_2x2x2x1x1_2_negative_all(true);
+}
+
+// test_2x2x2x2_full_activation
+TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
+    this->test_2x2x2x2_full_legacy_activation(true);
 }

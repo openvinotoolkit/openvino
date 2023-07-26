@@ -26,7 +26,7 @@ static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 // ############################################################################ CORE TESTS
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
     ov::onnx_editor::ONNXModelEditor editor{
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_0.onnx")};
 
@@ -43,7 +43,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
     ov::onnx_editor::ONNXModelEditor editor{
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_1.onnx")};
 
@@ -60,7 +60,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
     ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                  SERIALIZED_ZOO,
                                                                  "onnx/compress_default_axis.onnx")};
@@ -78,7 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
     ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                  SERIALIZED_ZOO,
                                                                  "onnx/compress_negative_axis.onnx")};
