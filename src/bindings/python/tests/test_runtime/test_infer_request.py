@@ -11,7 +11,7 @@ import datetime
 import time
 
 import openvino.runtime.opset12 as ops
-from openvino.runtime import (
+from openvino import (
     Core,
     AsyncInferQueue,
     Model,
@@ -20,7 +20,7 @@ from openvino.runtime import (
     Shape,
     Type,
     Tensor,
-)   
+)
 from openvino.runtime import (
     CompiledModel,
     InferRequest,
