@@ -1077,30 +1077,23 @@ bool FullyConnected::useSparseWeightsDecompression() {
 }
 
 void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
-    auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
-    if (!constInputNode) {
-        IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
-    }
-    auto constBlob = constInputNode->getMemoryPtr();
-    const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-    decompressionMultiply.resize(elementsCount);
-    cpu_convert(constBlob->getData(),
-                &decompressionMultiply[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
-                Precision::FP32,
-                elementsCount);
+    fuseDecompressionConstant(constData, decompressionMultiply);
 }
 
 void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionSubtract);
+}
+
+void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues) {
     auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
     if (!constInputNode) {
         IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
     }
     auto constBlob = constInputNode->getMemoryPtr();
     const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-    decompressionSubtract.resize(elementsCount);
+    decompressionValues.resize(elementsCount);
     cpu_convert(constBlob->getData(),
-                &decompressionSubtract[0],
+                &decompressionValues[0],
                 DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                 Precision::FP32,
                 elementsCount);

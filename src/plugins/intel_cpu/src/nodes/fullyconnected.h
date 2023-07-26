@@ -58,10 +58,10 @@ public:
     bool canBeExecutedInInt8() const override;
 
     void fuseDecompressionMultiply(const NodePtr& constData);
-    const std::vector<float>& fuseDecompressionMultiply() const { return decompressionMultiply; }
+    const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
 
     void fuseDecompressionSubtract(const NodePtr& constData);
-    const std::vector<float>& fuseDecompressionSubtract() const { return decompressionSubtract; }
+    const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -99,6 +99,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
+    void fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues);
 
     // sparse weights
     bool useSparseWeights = false;
