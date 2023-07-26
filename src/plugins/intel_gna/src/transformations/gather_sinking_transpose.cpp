@@ -79,7 +79,7 @@ inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
     return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
             std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
             std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr) &&
-           has_one_consumer(node);
+           graph_utils::has_n_consumers(node, 1);
 }
 
 }  // namespace

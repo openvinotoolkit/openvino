@@ -66,15 +66,11 @@ std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
     return new_gather;
 }
 
-inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
-    return node->output(0).get_target_inputs().size() == 1;
-}
-
 inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
     return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
             std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
             std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr) &&
-           has_one_consumer(node);
+           has_n_consumers(node, 1);
 }
 
 }  // namespace
