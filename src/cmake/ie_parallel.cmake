@@ -282,7 +282,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                     foreach(include_directory IN LISTS include_directories)
                         # cannot include /usr/include headers as SYSTEM
                         if(NOT "${include_directory}" MATCHES "^/usr.*$")
-                            target_include_directories(${TARGET_NAME} SYSTEM BEFORE
+                            target_include_directories(${TARGET_NAME} SYSTEM
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                         else()
                             set(_system_library ON)
