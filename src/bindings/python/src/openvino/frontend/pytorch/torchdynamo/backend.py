@@ -6,14 +6,20 @@
 
 import logging
 import os
+from functools import partial
+from hashlib import sha256
+
 import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
 from torch._inductor.compile_fx import compile_fx
+from torch.fx.experimental.proxy_tensor import make_fx
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
+from openvino.frontend.pytorch.torchdynamo.execute import execute
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +42,9 @@ log = logging.getLogger(__name__)
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
+    if (os.getenv("PYTORCH_TRACING_MODE") is not None):
+        if (os.getenv("PYTORCH_TRACING_MODE") == "TORCHFX"):
+            return fx_openvino(subgraph, example_inputs)
     return ts_openvino(subgraph, example_inputs)
 
 
@@ -95,4 +104,26 @@ def ts_openvino(subgraph, example_inputs):
         return _call
     except Exception as e:
         log.debug(f"Failed in compilation: {e}")
+        return compile_fx(subgraph, example_inputs)
+
+
+def fx_openvino(subgraph, example_inputs):
+    try:
+        executor_parameters = None
+        if os.getenv("OPENVINO_TORCH_MODEL_CACHING") is not None:
+            model_hash_str = sha256(subgraph.code.encode('utf-8')).hexdigest()
+            executor_parameters = {"model_hash_str": model_hash_str}
+        model = make_fx(subgraph)(*example_inputs)
+        with torch.no_grad():
+            model.eval()
+        partitioner = Partitioner()
+        compiled_model = partitioner.make_partitions(model)
+
+        def _call(*args):
+            res = execute(compiled_model, *args, executor="openvino",
+                          executor_parameters=executor_parameters)
+            return res
+        return _call
+    except Exception as e:
+        log.debug(f"Failed in OpenVINO execution: {e}")
         return compile_fx(subgraph, example_inputs)
