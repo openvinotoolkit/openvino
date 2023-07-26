@@ -306,7 +306,7 @@ void FullyConnected::getSupportedDescriptors() {
 #ifdef CPU_DEBUG_CAPS
     // Select Sgemm type by ENV MLAS/ONEDNN, MLAS is used by default
     if (getenv("OV_CPU_FC_EXEC_TYPE")) {
-        if (std::string(getenv("OV_CPU_GEMM")) != "MLAS") {
+        if (std::string(getenv("OV_CPU_FC_EXEC_TYPE")) != "MLAS") {
             useMlas = false;
         }
     }
