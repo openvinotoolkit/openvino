@@ -56,18 +56,9 @@ macro(ov_override_component_names)
     # merge C++ and C runtimes
     set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
     set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
-    # merge all pythons into a single component
-    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
-    set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
-    set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # set(OV_CPACK_COMP_PYTHON_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # move requirements.txt to core-dev
-    # set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
-    # move core_tools to core-dev
-    # set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()
@@ -103,12 +94,11 @@ macro(ov_define_component_include_rules)
     endif()
     # we don't pack python components itself, we pack artifacts of setup.py install
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     # we don't need wheels in RPM packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
-    set(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts

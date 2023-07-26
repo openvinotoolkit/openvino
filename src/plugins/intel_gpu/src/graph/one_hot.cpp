@@ -58,7 +58,6 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
         op.set_axis(desc->one_hot_axis);
     } catch (...) {}
 
-    std::vector<ShapeType> output_shapes = { ShapeType{} };
     std::vector<ShapeType> input_shapes = {
         input_layout.get_partial_shape(),
         ShapeType{},
@@ -72,7 +71,8 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
         {1, depth_tensor}
     };
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    std::vector<ShapeType> output_shapes =
+        ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
