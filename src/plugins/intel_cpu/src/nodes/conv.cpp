@@ -347,9 +347,6 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,
-        //Lower down brgemm avx2 primitive priority than jit avx2 for perf issue. CVS-105756
-        impl_desc_type::brgconv_avx2_1x1,
-        impl_desc_type::brgconv_avx2,
         impl_desc_type::jit_avx_dw,
         impl_desc_type::jit_avx_1x1,
         impl_desc_type::jit_avx,
