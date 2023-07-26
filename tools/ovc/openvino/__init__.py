@@ -52,6 +52,6 @@ except ImportError:
 try:
     from openvino import tools as tools
     # Model Conversion API - ovc should reside in the main namespace
-    from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
+    from openvino.tools.ovc import convert_model, InputCutInfo
 except ImportError:
     pass
