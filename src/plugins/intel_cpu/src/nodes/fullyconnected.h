@@ -100,6 +100,13 @@ private:
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
     VectorDims expectedBiasDims {};
+    bool useMlas = false;
+#ifdef OV_CPU_WITH_MLAS
+    int64_t M, N, K;
+    MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
+#endif
 };
 
 }   // namespace node

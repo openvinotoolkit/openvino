@@ -24,6 +24,13 @@ else()
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
+if (NOT ENABLE_MLAS_FOR_CPU)
+    set(MLAS_LIBRARY "")
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+else()
+    set(MLAS_LIBRARY "mlas")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -53,6 +60,7 @@ addIeTargetTest(
             ngraphFunctions
             snippetsNgraphFunctions
             snippets_test_utils
+            ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU
