@@ -70,7 +70,7 @@ Start with :doc:`interactive Python tutorials <tutorials>` that show the basics 
 
 * `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
 * `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-to-openvino-with-output.html>`__
+* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-classification-to-openvino-with-output.html>`__
 * `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
 
 .. _code-samples:
@@ -102,7 +102,7 @@ Use OpenVINO’s model compression tools to reduce your model’s latency and me
 * Tutorial - `OpenVINO Post-Training Model Quantization <notebooks/111-yolov5-quantization-migration-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
-* `Model Optimization Guide <notebooks/openvino_docs_model_optimization_guide.html>`__
+* :doc:`Model Optimization Guide <openvino_docs_model_optimization_guide>`
 
 Automated Device Configuration
 ------------------------------
