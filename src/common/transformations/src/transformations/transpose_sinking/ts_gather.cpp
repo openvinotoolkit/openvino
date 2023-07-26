@@ -262,31 +262,42 @@ TSGatherBackward::TSGatherBackward() {
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
+        std::shared_ptr<ov::op::v0::Constant> new_axis;
         const auto& indices_rank_val = static_cast<size_t>(main_node->get_input_partial_shape(1).rank().get_length());
-        std::vector<size_t> new_transpose_order(order_val.size() - indices_rank_val + 1);
-        for (size_t i = 0, j = 0; i < order_val.size(); ++j) {
-            if (order_val[i] < axis) {
-                new_transpose_order[j] = order_val[i];
-                ++i;
-            } else if (order_val[i] > axis) {
-                new_transpose_order[j] = order_val[i] - indices_rank_val + 1;
-                ++i;
-            } else {
-                // the next `indices_rank_val` values have to be in ascending order
-                // these values will be replaced with a single axis
-                new_transpose_order[j] = order_val[i];
-                size_t prev_idx = i;
-                for (size_t k = 0; i < order_val.size() && k < indices_rank_val; ++i, ++k) {
-                    if (order_val[i] != order_val[prev_idx]) {
-                        if (success && squeeze) {
-                            main_node->input(1).replace_source_output(squeeze->input_value(0));
+
+        std::vector<size_t> new_transpose_order;
+        if (indices_rank_val > 0) {
+            new_transpose_order.resize(order_val.size() - indices_rank_val + 1);
+
+            for (size_t i = 0, j = 0; i < order_val.size(); ++j) {
+                if (order_val[i] < axis) {
+                    new_transpose_order[j] = order_val[i];
+                    ++i;
+                } else if (order_val[i] > axis) {
+                    new_transpose_order[j] = order_val[i] - indices_rank_val + 1;
+                    ++i;
+                } else {
+                    // the next `indices_rank_val` values have to be in ascending order
+                    // these values will be replaced with a single axis
+                    new_transpose_order[j] = order_val[i];
+                    size_t prev_idx = i;
+                    for (size_t k = 0; i < order_val.size() && k < indices_rank_val; ++i, ++k) {
+                        if (order_val[i] != order_val[prev_idx]) {
+                            if (success && squeeze) {
+                                main_node->input(1).replace_source_output(squeeze->input_value(0));
+                            }
+                            return false;
                         }
-                        return false;
+                        prev_idx = i;
                     }
-                    prev_idx = i;
                 }
             }
+        } else {
+            const std::vector<size_t> axes_values = {axis};
+            new_transpose_order = GetOrderBeforeReduction(axes_values, order_val);
+            new_axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, axis);
         }
+
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
@@ -310,7 +321,9 @@ TSGatherBackward::TSGatherBackward() {
                                                                        /* input_indexes= */ {0})) {
             register_new_node(new_node);
         }
-        auto new_axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, reversed_transpose_order[axis]);
+        if (!new_axis) {
+            new_axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, reversed_transpose_order[axis]);
+        }
         copy_runtime_info(gather_axis, new_axis);
         main_node->input(2).replace_source_output(new_axis);
         main_node->validate_and_infer_types();

@@ -283,7 +283,6 @@ void scale(TDim& d, float scale) {
         }
     }
 }
-
 }  // namespace dim
 }  // namespace util
 }  // namespace ov
