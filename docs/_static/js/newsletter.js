@@ -1,4 +1,5 @@
 const eloquaUrl = 'https://s334284386.t.eloqua.com/e/f2'
+newsletterFieldPrefix = 'newsletter-'
 
 // debug url
 // const eloquaUrl = 'https://httpbingo.org/post'
@@ -41,7 +42,22 @@ $(document).ready(function () {
                 const formHeight = $(this).outerHeight()
                 $(this).removeClass('animated fade-up')
                 $(this).animate({opacity: 0}, 200, 'linear', () => {
-                    $.post(eloquaUrl, $(this).serialize())
+
+                    $(this).hide()
+                    const loader = $('#loader');
+                    loader.css({'height': formHeight + 16, 'display': 'flex'});
+                    
+                    const currentUrl = window.location.protocol + '//' + window.location.hostname + window.location.pathname
+                    $(this).append(`<input type="hidden" name="newsletter-pageSource" value="${currentUrl}">`);
+                    const rawFormData = $(this).serializeArray();
+                    const filteredFormData = [];
+                    for (var entry of rawFormData) {
+                        if (entry['name'].startsWith(newsletterFieldPrefix)) {
+                            entry['name'] = entry['name'].replace(newsletterFieldPrefix, '');
+                            filteredFormData.push(entry)
+                        }
+                    }
+                    $.post(eloquaUrl, $.param(filteredFormData))
                     .done(function(data) {
                         // ---------- debug request data
 
@@ -84,9 +100,9 @@ $(document).ready(function () {
     }
 
     function displayMessage(boxHeight, status, errorCode) {
-        $('#newsletterForm').hide();
+        $('#loader').hide();
         let message = '';
-        const messageBox = $('.message-box');
+        const messageBox = $('#message');
         const icon = $('<div class="fa-stack fa-2x newsletter-icon">');
         const iconBackground = $('<i class="fas fa-square fa-stack-2x newsletter-icon-background">');
         const iconMain = $('<i class="fas fa-stack-1x">');

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -38,7 +38,8 @@ class TestQuantizedConv2D(PytorchLayerTest):
                 self.conv.zero_point = int(zero_point)
 
             def forward(self, x):
-                x_quantized = torch.quantize_per_tensor(x, 1.0, 0, torch.quint8)
+                x_quantized = torch.quantize_per_tensor(
+                    x, 1.0, 0, torch.quint8)
                 conv = self.conv(x_quantized)
                 return torch.dequantize(conv).contiguous()
 
@@ -54,18 +55,26 @@ class TestQuantizedConv2D(PytorchLayerTest):
         "params",
         [
             pytest.param(
-                {"weights_shape": [1, 3, 3, 3], "strides": 1, "pads": 0, "dilations": 1, "groups": 1},
+                {"weights_shape": [1, 3, 3, 3], "strides": 1,
+                    "pads": 0, "dilations": 1, "groups": 1},
                 marks=pytest.mark.xfail(
                     reason="Output channels equal to 1 creates output that fails to cast to contiguous."
                 ),
             ),
-            {"weights_shape": [2, 3, 3, 3], "strides": 1, "pads": 0, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 2, "pads": 0, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1, "pads": 1, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1, "pads": 0, "dilations": 2, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1, "pads": [0, 1], "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1, "pads": [1, 0], "dilations": 1, "groups": 1},
-            {"weights_shape": [3, 1, 3, 3], "strides": 1, "pads": 0, "dilations": 1, "groups": 3},
+            {"weights_shape": [2, 3, 3, 3], "strides": 1,
+                "pads": 0, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3, 3], "strides": 2,
+                "pads": 0, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3, 3], "strides": 1,
+                "pads": 1, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3, 3], "strides": 1,
+                "pads": 0, "dilations": 2, "groups": 1},
+            {"weights_shape": [2, 3, 3, 3], "strides": 1,
+                "pads": [0, 1], "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3, 3], "strides": 1,
+                "pads": [1, 0], "dilations": 1, "groups": 1},
+            {"weights_shape": [3, 1, 3, 3], "strides": 1,
+                "pads": 0, "dilations": 1, "groups": 3},
         ],
     )
     @pytest.mark.parametrize("bias", [True, False])
@@ -73,13 +82,10 @@ class TestQuantizedConv2D(PytorchLayerTest):
     @pytest.mark.parametrize("scale", [1, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
-    # @pytest.mark.precommit Test disabled due to sporadic issues
+    @pytest.mark.precommit
     def test_quantized_conv2d(self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version):
         self._test(
-            *self.create_model(**params, bias=bias, relu=relu, scale=scale, zero_point=zero_point),
-            ie_device,
-            precision,
-            ir_version,
-            trace_model=True,
-            freeze_model=False
+            *self.create_model(**params, bias=bias, relu=relu,
+                               scale=scale, zero_point=zero_point),
+            ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale
         )
