@@ -156,8 +156,8 @@ const std::vector<get_property_param> compile_model_get_property_param_test = {
     get_property_param{METRIC_KEY(SUPPORTED_CONFIG_KEYS), false},
     get_property_param{ov::execution_devices.name(), false},
     get_property_param{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), false},
-    get_property_param{CONFIG_KEY(AUTO_BATCH_TIMEOUT), false},
-    get_property_param{CONFIG_KEY(CACHE_DIR), false},
+    get_property_param{ov::auto_batch_timeout.name(), false},
+    get_property_param{ov::cache_dir.name(), false},
     // Config in dependent m_plugin
     get_property_param{"OPTIMAL_BATCH_SIZE", false},
     // Incorrect Property
