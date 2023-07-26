@@ -22,7 +22,6 @@ Native compilation of the OpenVINO Runtime is the most straightforward solution.
 2. Clone the repositories:
 ```
 git clone --recurse-submodules --single-branch --branch=master https://github.com/openvinotoolkit/openvino.git 
-git clone --recurse-submodules --single-branch --branch=master https://github.com/openvinotoolkit/openvino_contrib.git 
 ```
 3. Go to the cloned `openvino` repository:
 
@@ -35,10 +34,8 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
   mkdir build && cd build/
   ```
 5. Build the OpenVINO Runtime:
-* for MYRIAD support only:
   ```bash
   cmake -DCMAKE_BUILD_TYPE=Release \
-        -DOPENVINO_EXTRA_MODULES=<OPENVINO_CONTRIB_PATH>/openvino_contrib/modules/arm_plugin \
         -DARM_COMPUTE_SCONS_JOBS=$(nproc --all) \
   .. && cmake --build . --parallel 
   ```
