@@ -217,6 +217,36 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
 }
 
 /**
+ * @brief Check if dimension is empty.
+ *
+ * For static dimension the empty dimension is equal to zero dimension.
+ *
+ * @tparam TDim  Dimension type.
+ * @param d      Dimension for check.
+ * @return true if dimension is empty otherwise false.
+ */
+template <class TDim,
+          typename std::enable_if<!std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_empty(TDim&& d) {
+    return d == typename std::decay<TDim>::type{};
+}
+
+/**
+ * @brief Check if dimension is empty.
+ *
+ * For iv::Dimension the empty means that has no dimension at all.
+ *
+ * @tparam TDim  Dimension type.
+ * @param d      Dimension for check.
+ * @return true if dimension is empty otherwise false.
+ */
+template <class TDim,
+          typename std::enable_if<std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_empty(TDim&& d) {
+    return d.get_interval().empty();
+}
+
+/**
  * @brief Check if dimension is evenly divisible.
  *
  * @tparam TDim     Dimension type.
@@ -226,12 +256,7 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
  */
 template <class TDim>
 bool is_divisible(const TDim& quotient, const typename TDim::value_type dividend) {
-    return quotient / dividend != TDim{};
-}
-
-template <>
-inline bool is_divisible<Dimension>(const Dimension& quotient, const typename Dimension::value_type dividend) {
-    return !(quotient / dividend).get_interval().empty();
+    return !is_empty(quotient / dividend);
 }
 
 /**
@@ -258,7 +283,6 @@ void scale(TDim& d, float scale) {
         }
     }
 }
-
 }  // namespace dim
 }  // namespace util
 }  // namespace ov

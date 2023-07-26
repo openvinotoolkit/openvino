@@ -11,6 +11,7 @@
 #include "openvino/opsets/opset.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/node_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -60,27 +61,6 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
     return config;
 }
 
-static std::map<std::string, std::set<std::string>> get_unique_ops() {
-    std::map<std::string, std::set<std::string>> res;
-    for (const auto& opset_pair : get_available_opsets()) {
-        std::string opset_name = opset_pair.first;
-        const OpSet& opset = opset_pair.second();
-        for (const auto& op : opset.get_type_info_set()) {
-            std::string op_version = op.get_version(), opset_name = "opset";
-            auto pos = op_version.find(opset_name);
-            if (pos != std::string::npos) {
-                op_version = op_version.substr(pos + opset_name.size());
-            }
-            if (res.find(op.name) == res.end()) {
-                // W/A for existing directories (without op version)
-                res.insert({op.name, {""}});
-            }
-            res[op.name].insert(op_version);
-        }
-    }
-    return res;
-}
-
 static std::set<std::string> get_element_type_names() {
     std::vector<ov::element::Type> element_types = { ov::element::Type_t::f64,
                                                      ov::element::Type_t::f32,
@@ -110,7 +90,7 @@ static std::set<std::string> get_element_type_names() {
     return result;
 }
 
-static auto unique_ops = get_unique_ops();
+static auto unique_ops = FuncTestUtils::get_unique_ops();
 static auto element_type_names = get_element_type_names();
 
 inline std::string get_ref_path(const std::string& model_path) {
