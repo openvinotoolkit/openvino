@@ -15,6 +15,7 @@ ov_add_test_target(
             openvino::runtime::dev
             gtest
             gtest_main
+            common_test_utils
         ADD_CLANG_FORMAT
         LABELS
             HETERO

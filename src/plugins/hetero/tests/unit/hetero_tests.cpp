@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -27,8 +28,8 @@ namespace {
 
 std::string get_mock_engine_path() {
     std::string mock_engine_name("mock_engine");
-    auto file_path = ov::util::get_compiled_plugin_path(mock_engine_name);
-    return ov::util::from_file_path(file_path);
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              mock_engine_name + IE_BUILD_POSTFIX);
 }
 
 template <class T>
