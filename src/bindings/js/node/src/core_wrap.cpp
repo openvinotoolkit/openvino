@@ -60,7 +60,7 @@ Napi::Value CoreWrap::compile_model(const Napi::CallbackInfo& info) {
         return Napi::Value();
     } else if (info[1].IsString()) {
         Napi::Object obj = info[0].ToObject();
-        auto* m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
+        auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
         std::string device = info[1].ToString();
 
         ov::CompiledModel compiled_model = _core.compile_model(m->get_model(), device);

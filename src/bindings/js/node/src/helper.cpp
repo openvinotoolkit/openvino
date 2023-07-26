@@ -166,6 +166,6 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
 
 ov::Tensor value_to_tensor(Napi::Object obj){
     // Check of object type
-    auto* tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj); // here add check if this is a TensorWrap{}. Cannot be added in header because Napi::ObjectWrap<TensorWrap> requires the full definition of TensorWrap object
+    auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();
 }

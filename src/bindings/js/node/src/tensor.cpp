@@ -70,7 +70,7 @@ Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto arr = Napi::Float32Array::New(info.Env(), _tensor.get_size());
-    auto* buffer = arr.Data();
+    auto buffer = arr.Data();
     std::memcpy(buffer, _tensor.data(), _tensor.get_byte_size());
     return arr;
 }

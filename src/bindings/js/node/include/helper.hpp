@@ -127,9 +127,7 @@ ov::Tensor value_to_tensor(Napi::Object value);
 template <typename KeyType>
 ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key) {
     if (value.IsTypedArray()) {
-        // TO_DO
         auto arr = value.As<Napi::Float32Array>();
-
         auto input = get_request_tensor(infer_request, key);
         auto shape = input.get_shape();
         auto type = input.get_element_type();
