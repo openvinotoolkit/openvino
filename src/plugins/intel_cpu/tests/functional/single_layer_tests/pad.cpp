@@ -22,7 +22,9 @@ using PadLayerCPUTestParamSet = std::tuple<
         std::vector<int64_t>,                           // padsEnd
         float,                                          // argPadValue
         ov::op::PadMode,                                // padMode
-        CPUSpecificParams
+        ngraph::helpers::PadMode,                       // padMode
+        CPUSpecificParams,
+        std::map<std::string, std::string>              //  cpu device config
 >;
 
 class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamSet>,
@@ -36,7 +38,8 @@ public:
         ov::op::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams, additionalConfig) = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -53,6 +56,12 @@ public:
         }
         results << "PadMode=" << padMode << "_";
         results << CPUTestsBase::getTestCaseName(cpuParams);
+        if (!additionalConfig.empty()) {
+            results << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                results << "_" << item.first << "=" << item.second;
+            }
+        }
 
         return results.str();
     }
@@ -83,8 +92,9 @@ protected:
         ov::op::PadMode padMode;
         ElementType dataType;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams) = this->GetParam();
-
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams, additionalConfig) = this->GetParam();
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr("ref", dataType);
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -206,7 +216,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -221,7 +232,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_nhwc)),
+                ::testing::Values(cpuParams_nhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -236,7 +248,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -251,7 +264,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_nhwc)),
+                ::testing::Values(cpuParams_nhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -266,7 +280,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -281,7 +296,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_nhwc)),
+                ::testing::Values(cpuParams_nhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -296,7 +312,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -311,7 +328,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_nhwc)),
+                ::testing::Values(cpuParams_nhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -346,7 +364,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DDynamic)),
+                ::testing::ValuesIn(CPUParams4DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -361,7 +380,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -376,7 +396,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DDynamic)),
+                ::testing::ValuesIn(CPUParams4DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -391,7 +412,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -406,7 +428,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DDynamic)),
+                ::testing::ValuesIn(CPUParams4DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -421,7 +444,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -436,7 +460,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4D_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DDynamic)),
+                ::testing::ValuesIn(CPUParams4DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -451,7 +476,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams4DBlocked)),
+                ::testing::ValuesIn(CPUParams4DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -493,7 +519,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -508,7 +535,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_ndhwc)),
+                ::testing::Values(cpuParams_ndhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -523,7 +551,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DBlocked_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -538,7 +567,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_ndhwc)),
+                ::testing::Values(cpuParams_ndhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -553,7 +583,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -568,7 +599,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_ndhwc)),
+                ::testing::Values(cpuParams_ndhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -583,7 +615,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DBlocked_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -598,7 +631,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_ndhwc)),
+                ::testing::Values(cpuParams_ndhwc),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -633,7 +667,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DDynamic)),
+                ::testing::ValuesIn(CPUParams5DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -648,7 +683,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Smoke),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -663,7 +699,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DDynamic)),
+                ::testing::ValuesIn(CPUParams5DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -678,7 +715,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DBlocked_Smoke),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -693,7 +731,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DDynamic)),
+                ::testing::ValuesIn(CPUParams5DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -708,7 +747,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Full),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ov::op::PadMode::CONSTANT),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -723,7 +763,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5D_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DDynamic)),
+                ::testing::ValuesIn(CPUParams5DDynamic),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -738,7 +779,8 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DBlocked_Full),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::ValuesIn(CPUParams5DBlocked)),
+                ::testing::ValuesIn(CPUParams5DBlocked),
+                ::testing::Values(cpuEmptyPluginConfig)),
         PadLayerCPUTest::getTestCaseName
 );
 

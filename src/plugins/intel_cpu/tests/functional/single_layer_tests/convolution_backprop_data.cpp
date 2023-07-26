@@ -226,11 +226,10 @@ protected:
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
             inType = outType = prec = ElementType::bf16;
             rel_threshold = 1e-2f;
-        } else if (configuration.count(ov::hint::inference_precision.name())) {
-            if (configuration[ov::hint::inference_precision.name()] == "f16") {
-                inType = outType = prec = ElementType::f16;
-                rel_threshold = 0.00001f;
-            }
+        } else if (configuration.count(ov::hint::inference_precision.name()) &&
+                configuration[ov::hint::inference_precision.name()] == "f16") {
+            inType = outType = prec = ElementType::f16;
+            rel_threshold = 0.00001f;
         } else {
             inType = outType = prec;
         }
