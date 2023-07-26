@@ -19,8 +19,10 @@ def any_extensions_used(argv: argparse.Namespace):
     # or path to new extension .so file, or classes inherited from BaseExtension.
     if not hasattr(argv, 'extensions') or argv.extensions is None:
         return False
+    if not isinstance(argv.extensions, (list, tuple)):
+        argv.extensions = [argv.extensions]
 
-    if isinstance(argv.extensions, list) and len(argv.extensions) > 0:
+    if isinstance(argv.extensions, (list, tuple)) and len(argv.extensions) > 0:
         has_non_default_path = False
         has_non_str_objects = False
         for ext in argv.extensions:
@@ -59,7 +61,7 @@ def legacy_extensions_used(argv: argparse.Namespace):
 def new_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
         extensions = argv.extensions
-        if not isinstance(extensions, list):
+        if not isinstance(extensions, (list, tuple)):
             extensions = [extensions]
         new_ext_counter = 0
         for extension in extensions:
