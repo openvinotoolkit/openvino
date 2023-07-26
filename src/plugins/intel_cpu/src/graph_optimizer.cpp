@@ -95,6 +95,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseFCAndConvertOnWeights(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
+    FuseFCAndTransposeOnWeights(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
     FuseDeconvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
@@ -801,18 +805,33 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
-    // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
+    // This optimization fuses Convert (fp16/u8 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
     // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
 
     for (auto parent : graphNodes) {
         if (parent->getType() == Type::Convert && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
+                && one_of(parent->getOriginalInputPrecisionAtPort(0), Precision::FP16, Precision::U8)
                 && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)) {
             auto childNode = parent->getChildEdgeAt(0)->getChild();
             // set correct weight precision
             childNode->setOriginalInputPrecisionAtPort(1, parent->getOriginalInputPrecisionAtPort(0));
             graph.DropNode(parent);
+        }
+    }
+}
+
+void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
+    // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with reordering in FC node
+    auto& graphNodes = graph.GetNodes();
+
+    for (auto parent : graphNodes) {
+        if (parent->getType() == Type::Transpose && parent->isConstant() && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                && parent->getOutputShapeAtPort(0).getRank() == 2) {
+            auto fcNode = std::dynamic_pointer_cast<FullyConnected>(parent->getChildEdgeAt(0)->getChild());
+            fcNode->setTransposeWeights(true);
+            auto transposeNode = std::dynamic_pointer_cast<Transpose>(parent);
+            transposeNode->setFakeTranspose(true);
         }
     }
 }

@@ -294,12 +294,14 @@ void FullyConnected::prepackMLASWeight() {
         MemoryPtr ptr;
         auto create = [&]() {
             float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
-            size_t ldb = K;
+            // todo: leave comment about transposeWeights
+            size_t ldb = transposeWeights ? N : K;
             MemoryPtr _ptr =
                 std::make_shared<Memory>(getEngine(),
                                          intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
             float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
-            mlas_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
+            // todo: leave detailed comment (double transpose = do nothing)
+            mlas_sgemm_pack(transposeWeights ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
 
@@ -470,7 +472,11 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+            if (transposeWeights) {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareTransposedWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+            } else {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+            }
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
@@ -1073,6 +1079,50 @@ void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::ve
                 DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                 Precision::FP32,
                 elementsCount);
+}
+
+MemoryPtr FullyConnected::prepareTransposedWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = {weightSrcDesc.get_dims(), weightSrcDesc.get_data_type(), memory::format_tag::ba};
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->getData() };
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(edgeMem->getSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
 }
 }   // namespace node
 }   // namespace intel_cpu

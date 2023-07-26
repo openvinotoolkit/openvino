@@ -694,6 +694,14 @@ protected:
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
+    // we cannot rely on per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to constant weight
+    // copies of same content with different layouts.
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+
 private:
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
@@ -723,13 +731,6 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
     // Hold output scales
     std::vector<float> DQScales;
-    // we cannot rely on per-NUMA weightCache for caching weights because:
-    //   1.it may not exist(in single stream configuration)
-    //   2.it only holds weak references, the life-cycle of cached item
-    //     is still under control of strong references outside of cache.
-    // privateWeightCache is for holding strong references to constant weight
-    // copies of same content with different layouts.
-    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
     CPU_DEBUG_CAP_ENABLE(friend class Verbose);
 };

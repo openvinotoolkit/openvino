@@ -76,7 +76,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
     config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
             Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
-    config.outConfs[0].inPlace(-1);
+    config.outConfs[0].inPlace(fakeTranspose ? 0 : -1);
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
@@ -223,6 +223,8 @@ void Transpose::createPrimitive() {
 }
 
 void Transpose::execute(dnnl::stream strm) {
+    if (fakeTranspose)
+        return;
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {

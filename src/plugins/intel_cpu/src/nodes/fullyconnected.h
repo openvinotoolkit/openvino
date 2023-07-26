@@ -56,6 +56,9 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeExecutedInInt8() const override;
+    void setTransposeWeights(bool transpose) {
+        transposeWeights = transpose;
+    }
 
     void fuseDecompressionMultiply(const NodePtr& constData);
     const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
@@ -118,6 +121,11 @@ private:
     bool useWeightsDecompressionImpl = false;
     std::vector<float> decompressionSubtract;
     std::vector<float> decompressionMultiply;
+
+    // FC with transposed weights
+    bool transposeWeights = false;
+    // this method is using to prepare transposed memory
+    MemoryPtr prepareTransposedWeightMemory(DnnlMemoryDescPtr weightDesc);
 };
 
 }   // namespace node
