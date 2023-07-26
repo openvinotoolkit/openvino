@@ -74,7 +74,7 @@ public:
     }
 
     template<typename T, typename L>
-    static void for_each_implementation(dnnl::primitive_desc& desc, T&& comparator, L&& func) {
+    static void for_each_implementation(dnnl::primitive_desc& desc, bool first_match, T&& comparator, L&& func) {
         dnnl::primitive_desc_iterator& itpd = desc;
 
         while (itpd) {
@@ -82,6 +82,8 @@ public:
 
             if (comparator(descImplType)) {
                 func(itpd);
+                if (first_match)
+                    break;
             }
 
             if (!itpd.next_impl())
