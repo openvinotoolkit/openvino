@@ -218,8 +218,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto& input : inputNodesMap) {
         auto prec = InferenceEngine::details::convertPrecision(find_input_port_prec(input.first));
-        // const auto precToSet = normalizeToSupportedPrecision(prec);
-        const auto precToSet = prec;
+        const auto precToSet = normalizeToSupportedPrecision(prec);
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
@@ -488,6 +487,9 @@ void Graph::InitEdges() {
 
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
+        // std::cout << "InitEdges(): " << i << "/" << numberOfEdges << " edge_name = " << edge->name()
+        //           << ", input_precision = " << edge->getInputDesc().getPrecision()
+        //           << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
@@ -858,6 +860,15 @@ void Graph::Allocate() {
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
+
+#if 0
+    std::cout << std::endl;
+    for (auto& edge : graphEdges) {
+        std::cout << "Graph::Allocate(): edge_name = " << edge->name()
+                  << ", input_precision = " << edge->getInputDesc().getPrecision()
+                  << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
+    }
+#endif
 }
 
 bool Graph::ProcessDynNodes() {
@@ -1026,6 +1037,17 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
         DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
+
+        if (ext_blob_ptr == intr_blob_ptr) {
+            std::cout << "direct output data: " << std::endl;
+        } else {
+            std::cout << "output data: " << std::endl;
+        }
+        float* p = static_cast<float*>(intr_blob_ptr);
+        for (size_t i = 0; i < ext_blob->get_size() && i < 10; i++) {
+            std::cout << " " << p[i];
+        }
+        std::cout << std::endl;
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;

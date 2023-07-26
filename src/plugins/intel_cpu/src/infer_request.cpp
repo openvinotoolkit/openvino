@@ -352,7 +352,7 @@ void SyncInferRequest::change_default_ptr() {
 
                 outputMemMngr->setMemMngr(memMngr);
                 DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
-                DEBUG_LOG(name, ", blob ", controlBlock.blob(), ", tensor ", controlBlock.tensor());
+                DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
             } else {
                 outputMemMngr->reset(); // switch to the internal memory since memory sharing is no longer possible
             }
@@ -624,46 +624,45 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                                                         tensor_shape, InferenceEngine::TensorDesc::getLayoutByRank(tensor_shape.size()));
                         tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
                     }
-                }
-                ov::ISyncInferRequest::set_tensor(port, tensor);
-            } else {
-                const auto& blobDims = tensor->get_shape();
-                const bool isDynamic = port_shape.is_dynamic();
-                // Static shape case is enough information that shapes are incompatible to throw exception
-                // but in dynamic shape case we also need to handle following corner case:
-                // on tensor initialization stage we create empty tensor with dimensions equal 0
-                // so if we have tensor with all zero dimension we mustn't throw exception
-                if (!port_shape.compatible(ov::PartialShape(blobDims)) &&
-                    (!isDynamic || static_cast<int64_t>(blobDims.size()) != port_shape.rank().get_length() ||
-                     std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
-                         return dims != 0;
-                     }))) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
-                        << ", output shape: " << port_shape;
-                }
+                    ov::ISyncInferRequest::set_tensor(port, tensor);
+                } else {
+                    const auto& blobDims = tensor->get_shape();
+                    const bool isDynamic = port_shape.is_dynamic();
+                    // Static shape case is enough information that shapes are incompatible to throw exception
+                    // but in dynamic shape case we also need to handle following corner case:
+                    // on tensor initialization stage we create empty tensor with dimensions equal 0
+                    // so if we have tensor with all zero dimension we mustn't throw exception
+                    if (!port_shape.compatible(ov::PartialShape(blobDims)) &&
+                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != port_shape.rank().get_length() ||
+                         std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
+                             return dims != 0;
+                         }))) {
+                        IE_THROW(ParameterMismatch)
+                            << "Network input and output use the same name: " << name
+                            << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
+                            << ", output shape: " << port_shape;
+                    }
 
-                const auto netOutPrc = port.get_element_type();
-                if (netOutPrc != tensor->get_element_type()) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << " but expect blobs with different precision: " << tensor->get_element_type()
-                        << " for input and " << netOutPrc << " for output.";
+                    const auto netOutPrc = port.get_element_type();
+                    if (netOutPrc != tensor->get_element_type()) {
+                        IE_THROW(ParameterMismatch)
+                            << "Network input and output use the same name: " << name
+                            << " but expect blobs with different precision: " << tensor->get_element_type()
+                            << " for input and " << netOutPrc << " for output.";
+                    }
                 }
-            }
-            m_outputs[name] = tensor;
-            auto desc = create_tensor_desc(tensor);
-            if (!port_shape.is_dynamic() && !external_ptr.count(name) &&
-                desc == MemoryDescUtils::convertToTensorDesc(
+                m_outputs[name] = tensor;
+                auto desc = create_tensor_desc(tensor);
+                if (!port_shape.is_dynamic() && !external_ptr.count(name) &&
+                    desc == MemoryDescUtils::convertToTensorDesc(
                             output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                external_ptr[name] = tensor;
+                    external_ptr[name] = tensor;
+                }
+            } else {
+                OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
             }
-        } else {
-            OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
         }
     }
-
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with name: ", name);
     }
@@ -696,7 +695,6 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const InferenceEngine::
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
     m_tensor = std::make_shared<Tensor>(memory);
-    m_blob = tensor_to_blob({m_tensor, nullptr});
 }
 
 }   // namespace intel_cpu

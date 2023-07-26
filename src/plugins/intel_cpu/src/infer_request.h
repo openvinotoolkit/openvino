@@ -60,10 +60,6 @@ protected:
         OutputControlBlock(OutputControlBlock&&) = default;
         OutputControlBlock& operator=(OutputControlBlock&&) = default;
 
-        InferenceEngine::Blob::Ptr blob() const {
-            return m_blob;
-        }
-
         std::shared_ptr<Tensor> tensor() const {
             return m_tensor;
         }
@@ -90,7 +86,6 @@ protected:
 
     private:
         std::shared_ptr<Tensor> m_tensor = nullptr;
-        InferenceEngine::Blob::Ptr m_blob = nullptr;
         ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
         std::array<MemMngrPtr, 2> m_buffers;
         int m_buffIndx = 0;
