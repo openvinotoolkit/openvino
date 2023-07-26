@@ -210,7 +210,8 @@ reorder_inst::typed_primitive_inst(network& network) : parent(network) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false)
+    : parent(network, node, node.can_be_optimized() ? false : node.get_output_layout().is_static() ?
+                                                       true : node.get_output_layout().has_upper_bound() ? true : false)
     , _req_reinterpr(node.requires_reinterpret()) {
     if (node.can_be_optimized())
         reuse_input();
