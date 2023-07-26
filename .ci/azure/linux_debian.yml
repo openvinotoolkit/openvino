@@ -186,7 +186,7 @@ jobs:
     displayName: 'Clean ccache stats'
 
   - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
-    env: 
+    env:
       CCACHE_DIR: $(CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
