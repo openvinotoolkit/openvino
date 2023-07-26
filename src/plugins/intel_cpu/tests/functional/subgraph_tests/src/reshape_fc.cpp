@@ -108,17 +108,28 @@ const std::vector<ReshapeFcSpecParams> reshFcParams = {
     }
 };
 
+static std::vector<fusingSpecificParams> filterFusingParams(const std::vector<fusingSpecificParams>& orig) {
+#ifdef OV_CPU_WITH_MLAS
+    return {emptyFusingSpec, fusingBias};
+#else
+    return orig;
+#endif
+}
+
 std::vector<fusingSpecificParams> fusingParamsSet {
         emptyFusingSpec,
         fusingBias,
         fusingMultiplyPerChannel
 };
 
+#ifdef OV_CPU_WITH_MLAS
+const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
+#else
 const auto gemmParam = CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"};
-
+#endif
 const auto params = ::testing::Combine(
     ::testing::ValuesIn(reshFcParams),
-    ::testing::ValuesIn(fusingParamsSet),
+    ::testing::ValuesIn(filterFusingParams(fusingParamsSet)),
     ::testing::Values(gemmParam));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReshapeFc, ReshapeFcCPUTest, params, ReshapeFcCPUTest::getTestCaseName);
