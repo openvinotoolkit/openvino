@@ -248,6 +248,7 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_support_
                                                                    const ov::AnyMap& properties) {
     auto remote_context = std::make_shared<ov::MockRemoteContext>(mock_plugin_gpu->get_device_name());
     m_mock_contexts.push_back(remote_context);
+    ON_CALL(*mock_plugin_gpu, compile_model(_, _)).WillByDefault(Return(mockIExeNetActual));
     ON_CALL(*mock_plugin_gpu, create_context).WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>(remote_context, nullptr)));
     ON_CALL(*mock_plugin_gpu, get_default_context).WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>(remote_context, nullptr)));
     ON_CALL(*mock_plugin_gpu, get_property).WillByDefault([](const std::string& name, const ov::AnyMap& property) -> ov::Any {
@@ -311,6 +312,7 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_support_
 void ov::mock_auto_plugin::tests::AutoTestWithRealCore::register_plugin_simple(ov::Core& core,
                                                                                 const std::string& device_name,
                                                                                 const ov::AnyMap& properties) {
+    ON_CALL(*mock_plugin_cpu, compile_model(_, _)).WillByDefault(Return(mockIExeNet));
     ON_CALL(*mock_plugin_cpu, create_context).WillByDefault(Throw(ov::Exception{"NotImplemented"}));
     ON_CALL(*mock_plugin_cpu, get_default_context).WillByDefault(Throw(ov::Exception{"NotImplemented"}));
     ON_CALL(*mock_plugin_cpu, get_property).WillByDefault([](const std::string& name, const ov::AnyMap& property) -> ov::Any {
