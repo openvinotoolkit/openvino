@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "proxy_mem_mgr.h"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -91,14 +93,14 @@ public:
     NodePtr getInputNodeByName(const std::string &name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
         return input->second;
     }
 
     NodePtr getOutputNodeByName(const std::string &name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
@@ -191,6 +193,8 @@ public:
         return graphHasDynamicInput;
     }
 
+    Status getStatus() const {return status;}
+
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
@@ -245,6 +249,8 @@ private:
     // TODO: change std::map to std::unordered_map
     std::map<std::string, NodePtr> inputNodesMap;
     std::map<std::string, NodePtr> outputNodesMap;
+
+    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of

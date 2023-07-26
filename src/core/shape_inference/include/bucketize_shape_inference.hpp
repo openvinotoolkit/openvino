@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include <openvino/op/bucketize.hpp>
+#include "openvino/op/bucketize.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v3 {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const Bucketize* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Bucketize* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
     const auto& data_shape = input_shapes[0];
@@ -22,11 +23,6 @@ std::vector<TShape> shape_infer(const Bucketize* op, const std::vector<TShape>& 
                           "Buckets input must be a 1D tensor. Got: ",
                           buckets_shape);
     return {data_shape};
-}
-
-template <class TShape>
-void shape_infer(const Bucketize* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v3
 }  // namespace op

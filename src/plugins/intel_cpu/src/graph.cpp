@@ -490,9 +490,6 @@ void Graph::InitEdges() {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
-        std::cout << "InitEdges() edge " << i << "/" << numberOfEdges << ": name = " << edge->name()
-                  << ", input = " << edge->getInputDesc().getPrecision()
-                  << ", output = " << edge->getOutputDesc().getPrecision() << std::endl;
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
@@ -724,8 +721,34 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
+        // Use proxy memory manager for output edges
+        for (auto& box : undefinedBoxes) {
+            for (auto& edge : edge_clusters[box.id]) {
+                const auto child = edge->getChild();
+                if (child->getType() == Type::Output &&
+                    edge->getStatus() == Edge::Status::NeedAllocation) {
+                    auto proxyMemMngr =
+                        std::make_shared<ProxyMemoryMngr>();
+                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
+                    edge->allocate(proxyMemMngr);
+
+                    // Store the output memory managers.
+                    // So that, the infer requests can be able to access them.
+                    int count = 0;
+                    for (auto &output : outputNodesMap) {
+                        if (output.second == child) {
+                            outputNodesMemMngrMap[output.first] = proxyMemMngr;
+                            count++;
+                        }
+                    }
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                }
+            }
+        }
+
         if (!syncNodesInds.empty()) {
-            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
             std::vector<int> vecIntervals = {0};
             for (const auto& item : syncNodesInds) {
@@ -868,7 +891,7 @@ bool Graph::ProcessDynNodes() {
 }
 
 void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in) {
-    if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
+    if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
@@ -929,9 +952,10 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
     }
 }
 
+// suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out) {
     if (!IsReady())
-        IE_THROW() << "Wrong state. Topology not ready.";
+        OPENVINO_THROW("Wrong state. Topology not ready.");
 
     for (auto &outputMap : outputNodesMap) {
         auto name = outputMap.first;
@@ -949,6 +973,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
             ext_blob->get_shape(),
             InferenceEngine::TensorDesc::getLayoutByRank(ext_blob->get_shape().size()));
+        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
 
@@ -972,7 +997,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
+            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()),
+            " dims ", PartialShape(out[name]->get_shape()), " -> ", PartialShape(outDims),
+            ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
+            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(out[name]->data()),
+            " dims ", PartialShape(out[name]->get_shape()), ", intr ptr ", intr_blob.getData());
             expectedDesc =
                 InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(ext_blob->get_element_type()),
                                             ext_blob->get_shape(),
@@ -987,19 +1017,15 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
         if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize())
-            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->get_byte_size()
-                       << "!=" << intr_blob.getSize() << ").";
+            OPENVINO_THROW("Output blob byte size is not equal network output byte size (",
+                           ext_blob->get_byte_size(),
+                           "!=",
+                           intr_blob.getSize(),
+                           ").");
 
         void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
-
-        std::cout << "pull_output: " << srcPrec << " to " << dstPrec << ", same_ptr "<< (ext_blob_ptr == intr_blob_ptr) << std::endl;
-        std::cout << "output data: " << std::endl;
-        float* p = static_cast<float*>(intr_blob_ptr);
-        for (size_t i = 0; i < ext_blob->get_size() && i < 10; i++) {
-            std::cout << " " << p[i];
-        }
-        std::cout << std::endl;
+        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1267,18 +1293,17 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     DUMP(node, getConfig().debugCaps, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-
+    DEBUG_LOG(*node);
     if (node->isDynamicNode()) {
         node->executeDynamic(stream);
     } else {
         node->execute(stream);
     }
-    DEBUG_LOG(*node);
 }
 
 void Graph::Infer(SyncInferRequest* request) {
     if (!IsReady()) {
-        IE_THROW() << "Wrong state of the ov::intel_cpu::Graph. Topology is not ready.";
+        OPENVINO_THROW("Wrong state of the ov::intel_cpu::Graph. Topology is not ready.");
     }
 
     if (Status::ReadyDynamic == status) {
@@ -1286,7 +1311,7 @@ void Graph::Infer(SyncInferRequest* request) {
     } else if (Status::ReadyStatic == status) {
         InferStatic(request);
     } else {
-        IE_THROW() << "Unknown ov::intel_cpu::Graph state: " << static_cast<size_t>(status);
+        OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
     }
 
     if (infer_count != -1) infer_count++;
@@ -1539,7 +1564,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDe
     NodePtr newReorder(new node::Reorder(layerName, context));
     auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
     if (reorderPtr == nullptr) {
-        IE_THROW() << "Graph::InsertReorder: Cannot cast to Reorder";
+        OPENVINO_THROW("Graph::InsertReorder: Cannot cast to Reorder");
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->setOptimized(isOptimized);
@@ -1565,10 +1590,13 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
     if (iIndex < 0 || oIndex < 0)
-        IE_THROW() << "Cannot insert node '" << node->getName() << "' between nodes: "
-                           << edge->getParent()->getName() << " and "
-                           << edge->getChild()->getName() << ".";
-
+        OPENVINO_THROW("Cannot insert node '",
+                       node->getName(),
+                       "' between nodes: ",
+                       edge->getParent()->getName(),
+                       " and ",
+                       edge->getChild()->getName(),
+                       ".");
     edge->drop();
 
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
@@ -1719,7 +1747,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                 } else if (inPlaceOutPort < 0) {
                     return InplaceDirectionType::DOWN;
                 } else {
-                    IE_THROW() << "Non trivial inPlace memory dependency has been detected";
+                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the output
@@ -1738,7 +1766,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                 } else if (inPlaceInpPort < 0) {
                     return InplaceDirectionType::UP;
                 } else {
-                    IE_THROW() << "Non trivial inPlace memory dependency has been detected";
+                    OPENVINO_THROW("Non trivial inPlace memory dependency has been detected");
                 }
             }
             // the requested port has a negative inPlace tag, let's check whether it is referenced from the input
@@ -1817,7 +1845,7 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     config.outConfs[inPlaceInpPort].inPlace(-1);
                     node->initDescriptor(config);
                 } else {
-                    IE_THROW() << "A node without an inPlace memory cyclic dependency has not been found";
+                    OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
                 }
             }
         }

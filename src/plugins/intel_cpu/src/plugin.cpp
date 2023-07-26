@@ -315,7 +315,7 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
                 if (it != hints_config.end()) {
                     conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
                 } else {
-                    IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
+                    OPENVINO_THROW("Cache file doesn't contain precalculated number of streams for mode ", mode_name);
                 }
             }
         }
@@ -421,7 +421,7 @@ StreamCfg Engine::get_streams_num(InferenceEngine::IStreamsExecutor::ThreadBindi
             stream_cfg.num_streams = num_cores_phy / 2;
         }
     } else {
-        IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
+        OPENVINO_THROW("Wrong stream mode to get num of streams: ", stream_mode);
     }
     stream_cfg.num_streams = stream_cfg.num_streams > 0
                                  ? stream_cfg.num_streams
@@ -441,7 +441,7 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
     else if (val == InferenceEngine::PluginConfigParams::NO)
         return false;
     else
-        IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
+        OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
 }
 
 static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -461,7 +461,7 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
     else if (val == InferenceEngine::PluginConfigInternalParams::DISABLE)
         return Config::SnippetsMode::Disable;
     else
-        IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
 std::shared_ptr<ov::ICompiledModel>
@@ -526,7 +526,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     if (is_legacy_api()) {
         for (const auto& res : cloned_model->get_results()) {
             if (res->get_input_partial_shape(0).is_dynamic()) {
-                IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
+                OPENVINO_THROW("CPU plug-in can't load a model with dynamic output shapes via legacy API.");
             }
         }
     }

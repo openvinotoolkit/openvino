@@ -64,7 +64,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
+        OPENVINO_THROW("Unable to get API version. Core is unavailable");
     m_cfg.isLegacyApi = !core->is_new_api();
 
 #if 0
@@ -184,7 +184,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             if (node->getType() == Type::MemoryInput) {
                 auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
                 if (!memoryNode) {
-                    IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
+                    OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
                 }
                 auto state_store = memoryNode->getStore();
                 auto state_name = memoryNode->getId();
@@ -218,7 +218,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
                     auto weightsCache =
-                        m_cfg.streamExecutorConfig._streams != 1 ? numaNodesWeights[numaNodeId] : nullptr;
+                        m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[numaNodeId] : nullptr;
 
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);

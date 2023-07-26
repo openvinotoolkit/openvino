@@ -74,7 +74,7 @@ private:
     const bool m_loaded_from_cache;
     // WARNING: Do not use m_graphs directly.
     mutable std::deque<GraphGuard> m_graphs;
-    mutable NumaNodesWeights numaNodesWeights;
+    mutable SocketsWeights m_socketWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
