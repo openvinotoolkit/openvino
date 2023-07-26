@@ -24,15 +24,6 @@ using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 
 namespace {
-bool is_gather_with_parent_gather_same_axis(const Output<Node>& output) {
-    int64_t output_gather_axis = {};
-    if (!get_gather_axis(output.get_node_shared_ptr(), output_gather_axis))
-        return false;
-    int64_t input_gather_axis = {};
-    if (!get_gather_axis(output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), input_gather_axis))
-        return false;
-    return input_gather_axis == output_gather_axis;
-}
 
 struct TransformationInfo {
     std::shared_ptr<Constant> input_indices_const;
