@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_hetero_unit_tests)
+set(TARGET_NAME ov_hetero_func_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
@@ -15,7 +15,7 @@ ov_add_test_target(
             openvino::runtime::dev
             gtest
             gtest_main
-            unit_test_utils
+            common_test_utils
         ADD_CLANG_FORMAT
         LABELS
             HETERO
