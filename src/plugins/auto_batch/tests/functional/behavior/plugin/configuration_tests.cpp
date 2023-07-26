@@ -9,8 +9,6 @@ namespace {
 auto auto_batch_inconfigs = []() {
     return std::vector<std::map<std::string, std::string>>{
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
-         {ov::auto_batch_timeout.name(), "-1"}},
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
         {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), CommonTestUtils::DEVICE_TEMPLATE},
          {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},

@@ -5,12 +5,21 @@ const eloquaUrl = 'https://s334284386.t.eloqua.com/e/f2'
 
 
 $(document).ready(function () {
-    // trigger without iframe
-    // $('#newsletterTrigger').on('click', showForm);
+    const waitForElement = async selector => {
+        while (document.querySelector(selector) === null) {
+            await new Promise(resolve =>  requestAnimationFrame(resolve))
+        }
+        return document.querySelector(selector); 
+    };
 
-    $('iframe').on('load', function() {
-        $('iframe').contents().find('#newsletterTrigger').on('click', showForm);
-    });
+    waitForElement('#newsletterTrigger').then((trigger) => {
+        $(trigger).on('click', showForm);
+    })
+
+    // trigger with iframe
+    // $('iframe').on('load', function() {
+    //     $('iframe').contents().find('#newsletterTrigger').on('click', showForm);
+    // });
 
     function showForm() {
         fetch('_static/html/newsletter.html').then((response) => response.text()).then((text) => {
@@ -66,11 +75,11 @@ $(document).ready(function () {
         const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
         if (emailPattern.test(value)) {
             $('#newsletterEmail').removeClass('failed');
-            $('.newsletter-btn').prop('disabled', false);
+            $('.newsletter-submit-btn').prop('disabled', false);
         }
         else {
             $('#newsletterEmail').addClass('failed');
-            $('.newsletter-btn').prop('disabled', true);
+            $('.newsletter-submit-btn').prop('disabled', true);
         }
     }
 

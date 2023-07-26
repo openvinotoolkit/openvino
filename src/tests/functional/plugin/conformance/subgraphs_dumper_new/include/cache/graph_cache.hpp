@@ -6,13 +6,18 @@
 
 #include "cache/cache.hpp"
 
+#include "cache/meta/input_info.hpp"
+#include "matchers/subgraph/manager.hpp"
+#include "matchers/subgraph/subgraph.hpp"
+
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class GraphCache final : public virtual ICache {
+class GraphCache : public ICache {
 public:
-    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data,
+    void update_cache(const std::shared_ptr<ov::Model>& model,
+                      const std::string& model_meta_data,
                       bool extract_body = true) override;
     void serialize_cache() override;
 
@@ -28,10 +33,22 @@ public:
         m_cache_instance = nullptr;
     }
 
-private:
+    void reset_cache() override {
+        reset();
+    };
+
+protected:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
+    ExtractorsManager m_manager = ExtractorsManager();
     static std::shared_ptr<GraphCache> m_cache_instance;
-    GraphCache() = default;
+
+    GraphCache() {
+        ExtractorsManager::ExtractorsMap matchers = {};
+        m_manager.set_extractors(matchers);
+    }
+
+    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
+                      const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt);
 };
 
 }  // namespace subgraph_dumper

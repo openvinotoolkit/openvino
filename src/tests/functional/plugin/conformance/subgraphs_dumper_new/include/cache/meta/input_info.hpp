@@ -5,6 +5,7 @@
 #pragma once
 
 #include <map>
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace tools {
@@ -50,6 +51,8 @@ struct InputInfo {
         return this->is_const == input_info_ref.is_const && this->ranges == input_info_ref.ranges;
     }
 };
+
+using ExtractedPattern = std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>;
 
 }  // namespace subgraph_dumper
 }  // namespace tools

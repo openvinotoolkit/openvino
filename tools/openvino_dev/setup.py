@@ -37,13 +37,6 @@ PKG_INSTALL_CFG = {
         'extract_requirements': True,
         'extract_extras': True,
     },
-    'benchmark_tool': {
-        'src_dir': OPENVINO_DIR / 'tools' / 'benchmark_tool',
-        'black_list': [],
-        'prefix': 'benchmark_tool',
-        'extract_entry_points': True,
-        'extract_requirements': True,
-    },
     "accuracy_checker": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],

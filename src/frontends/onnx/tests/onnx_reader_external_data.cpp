@@ -190,6 +190,62 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_optional_fields) {
     test_case.run();
 }
 
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_size) {
+    const auto path = CommonTestUtils::getModelFromTestModelZoo(
+        std::string(ONNX_TEST_MODELS) + "external_data/external_data_optional_fields_offset_not_aligned.onnx");
+    ov::Core core;
+    core.set_property(ov::enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = ngraph::test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_less_than_page_size_with_length_provided) {
+    const auto path = CommonTestUtils::getModelFromTestModelZoo(
+        std::string(ONNX_TEST_MODELS) +
+        "external_data/external_data_offset_not_aligned_with_page_and_less_than_page_size_with_length_provided.onnx");
+    ov::Core core;
+    core.set_property(ov::enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = ngraph::test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_greater_than_page_size_with_length_provided) {
+    const auto path = CommonTestUtils::getModelFromTestModelZoo(
+        std::string(ONNX_TEST_MODELS) +
+        "external_data/"
+        "external_data_offset_not_aligned_with_page_and_greater_than_page_size_with_length_provided.onnx");
+    ov::Core core;
+    core.set_property(ov::enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = ngraph::test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_in_two_pages_scope) {
+    const auto path = CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
+                                                                "external_data/"
+                                                                "offset_not_aligned_with_page_in_two_pages_scope.onnx");
+    ov::Core core;
+    core.set_property(ov::enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = ngraph::test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
 TEST_P(OnnxFeMmapFixture, onnx_external_data_in_different_paths) {
     const auto path = CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
                                                                 "external_data/external_data_different_paths.onnx");

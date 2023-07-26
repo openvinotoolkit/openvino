@@ -53,7 +53,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
-        PCH PRIVATE "include/common_test_utils/precomp.hpp"
+        PCH PRIVATE "src/precomp.hpp"
     )
 
     # detecting regex support

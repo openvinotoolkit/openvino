@@ -13,6 +13,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -133,6 +134,55 @@ void ReadIRTest::query_model() {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
+    }
+}
+
+void ReadIRTest::import_export() {
+    // in case of crash jump will be made and work will be continued
+    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto &summary = ov::test::utils::OpSummary::getInstance();
+
+    // place to jump in case of a crash
+    int jmpRes = 0;
+#ifdef _WIN32
+    jmpRes = setjmp(CommonTestUtils::env);
+#else
+    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+#endif
+    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+        crashHandler->StartTimer();
+        summary.setDeviceName(targetDevice);
+        try {
+            ov::CompiledModel model = core->compile_model(function, targetDevice, configuration);
+
+            std::stringstream strm;
+            model.export_model(strm);
+
+            ov::CompiledModel importedModel = core->import_model(strm, targetDevice, configuration);
+
+            auto comparator = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::NAMES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+
+            auto importedFunction = importedModel.get_runtime_model()->clone();
+            auto res = comparator.compare(importedFunction, function);
+            EXPECT_TRUE(res.valid) << res.message;
+
+            summary.updateOPsImplStatus(function, true);
+        } catch (const std::exception &e) {
+            summary.updateOPsImplStatus(function, false);
+            GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
+        } catch (...) {
+            summary.updateOPsImplStatus(function, false);
+            GTEST_FAIL() << "Error in the Core::query_model() method call!";
+        }
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+        summary.updateOPsImplStatus(function, false);
+        GTEST_FAIL() << "Crash happens";
+    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+        summary.updateOPsImplStatus(function, false);
+        GTEST_FAIL() << "Hang happens";
     }
 }
 
@@ -397,5 +447,4 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 } // namespace subgraph
 } // namespace test
 } // namespace ov
-
 

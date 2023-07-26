@@ -528,7 +528,7 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         OPENVINO_ASSERT(node->is_current_iteration_used(), "[GPU] No backedge mapping for current_iteration for primitive ", node->id());
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);

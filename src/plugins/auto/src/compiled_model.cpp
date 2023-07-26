@@ -18,12 +18,12 @@
 
 ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                               const std::shared_ptr<const ov::IPlugin>& plugin,
-                                              ScheduleContext::Ptr context,
-                                              Schedule::Ptr        scheduler)
-    : ov::ICompiledModel(model, plugin),
-      m_context(context),
+                                              const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                                              ScheduleContext::Ptr& schedule_context,
+                                              Schedule::Ptr& scheduler)
+    : ov::ICompiledModel(model, plugin, remote_context),
+      m_context(schedule_context),
       m_scheduler(scheduler) {
-    scheduler->launch(context);
     m_inputs_outputs_from_hardware = (model == nullptr);
 }
 

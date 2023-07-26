@@ -13,6 +13,9 @@
 #include <memory>
 #include <algorithm>
 
+#include "prior_box_clustered_shape_inference.hpp"
+#include "prior_box_shape_inference.hpp"
+
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
 
@@ -436,6 +439,96 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_imp
 
     return {output_type, impl_param.get_input_layout().format, output_shape};
 }
+
+template<typename ShapeType>
+std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*node*/, kernel_impl_params const& impl_param) {
+    const auto primitive = impl_param.typed_desc<prior_box>();
+
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>()
+    };
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::map<size_t, ngraph::HostTensorPtr> const_data;
+
+    auto& memory_deps = impl_param.memory_deps;
+
+    if (memory_deps.count(0) && memory_deps.count(1)) {
+        auto output_size_mem = memory_deps.at(0);
+        auto img_size_mem = memory_deps.at(1);
+
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
+
+        const_data.emplace(0, make_host_tensor(output_size_mem->get_layout(), output_size_lock.data()));
+
+        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
+            auto output_height = reinterpret_cast<int64_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int64_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int64_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int64_t*>(img_size_lock.data())[1];
+
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
+            } else {
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
+            }
+        } else { //int32_t
+            auto output_height = reinterpret_cast<int32_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int32_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int32_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int32_t*>(img_size_lock.data())[1];
+
+            if (p_param->output_size.empty()) {
+                p_param->output_size.push_back(static_cast<size_t>(output_width));
+                p_param->output_size.push_back(static_cast<size_t>(output_height));
+            } else {
+                p_param->output_size[0] = static_cast<size_t>(output_width);
+                p_param->output_size[1] = static_cast<size_t>(output_height);
+            }
+
+            if (p_param->img_size.empty()) {
+                p_param->img_size.push_back(static_cast<size_t>(img_width));
+                p_param->img_size.push_back(static_cast<size_t>(img_height));
+            } else {
+                p_param->img_size[0] = static_cast<size_t>(img_width);
+                p_param->img_size[1] = static_cast<size_t>(img_height);
+            }
+        }
+    }
+
+    if (primitive->is_clustered()) {
+        ov::op::v0::PriorBoxClustered op;
+        op.set_attrs(primitive->get_attrs_clustered());
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+    } else {
+        if (primitive->is_v8_support()) {
+            ov::op::v8::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v8());
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, const_data);
+        } else {
+            ov::op::v0::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v0());
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+        }
+    }
+    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
+
+    return {layout{output_shapes[0], output_type, impl_param.get_input_layout().format}};
+}
+
+template std::vector<layout> prior_box_inst::calc_output_layouts<ov::PartialShape>(prior_box_node const& /*node*/, kernel_impl_params const& impl_param);
 
 std::string prior_box_inst::to_string(prior_box_node const& node) {
     auto desc = node.get_primitive();
