@@ -101,13 +101,12 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
     op.set_transpose_a(prim->transpose_input0);
     op.set_transpose_b(prim->transpose_input1);
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_paddings[0]} };
 }

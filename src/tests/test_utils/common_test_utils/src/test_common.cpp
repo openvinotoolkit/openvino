@@ -3,15 +3,11 @@
 //
 
 #include "common_test_utils/test_common.hpp"
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-
 #include "openvino/runtime/threading/executor_manager.hpp"
-
-#include <algorithm>
-#include <cctype>
-#include <chrono>
-#include <random>
+#include "precomp.hpp"
 
 #ifdef _WIN32
 #ifndef NOMINMAX
