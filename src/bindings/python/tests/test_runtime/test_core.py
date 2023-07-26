@@ -13,13 +13,10 @@ from openvino import (
     Core,
     Tensor,
     PartialShape,
-    tensor_from_file,
-    compile_model,
-)
-
-from openvino.runtime import (
     CompiledModel,
     Extension,
+    tensor_from_file,
+    compile_model,
 )
 
 from tests.conftest import (

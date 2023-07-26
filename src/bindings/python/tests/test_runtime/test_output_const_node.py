@@ -12,12 +12,12 @@ from openvino import (
     PartialShape,
     Type,
     Core,
+    OVAny,
 )
 from openvino.runtime import (
     ConstOutput,
     Output,
     RTMap,
-    OVAny,
 )
 
 import pytest
