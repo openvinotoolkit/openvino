@@ -50,7 +50,24 @@ ov::ICore::~ICore() = default;
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
-static constexpr const char* internal_plugin_suffix = "_ov_internal";
+std::string get_internal_plugin_name(std::unordered_map<std::string, std::string>& remapped_devices,
+                                     const std::string& device_name,
+                                     const ov::AnyMap& properties) {
+    static constexpr const char* internal_plugin_suffix = "_ov_internal";
+    {
+        auto it = remapped_devices.find(device_name);
+        if (it != remapped_devices.end())
+            return it->second;
+    }
+    auto plugin_name = device_name + internal_plugin_suffix;
+    {
+        auto it = properties.find(ov::proxy::configuration::internal_name.name());
+        if (it != properties.end())
+            plugin_name = it->second.as<std::string>();
+    }
+    remapped_devices[device_name] = plugin_name;
+    return plugin_name;
+}
 #endif
 
 template <typename F>
@@ -361,8 +378,6 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         if (it != config.end()) {
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
-            if (alias == fallback)
-                fallback += internal_plugin_suffix;
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
@@ -396,7 +411,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         // Create proxy plugin for alias
         auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
-            dev_name += internal_plugin_suffix;
+            dev_name = get_internal_plugin_name(remapped_devices, dev_name, config);
         // Alias can be registered by several plugins
         if (pluginRegistry.find(alias) == pluginRegistry.end()) {
             // Register new plugin
@@ -416,7 +431,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         }
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
         // Fallback without alias means that we need to replace original plugin to proxy
-        dev_name += internal_plugin_suffix;
+        dev_name = get_internal_plugin_name(remapped_devices, dev_name, config);
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
         fill_config(desc.defaultConfig, config, dev_name);
         pluginRegistry[device_name] = desc;
@@ -425,6 +440,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::proxy::configuration::alias,
                                                                         ov::proxy::configuration::fallback,
+                                                                        ov::proxy::configuration::internal_name,
                                                                         ov::proxy::configuration::priority};
 
     // Register real plugin
@@ -611,7 +627,18 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 }
                 it = desc.defaultConfig.find(ov::device::priorities.name());
                 if (it != desc.defaultConfig.end()) {
-                    initial_config[ov::device::priorities.name()] = it->second;
+                    // Fix fallback names in case if proxy plugin got a conflict in the process of plugins registration
+                    auto priorities = it->second.as<std::vector<std::string>>();
+                    for (auto&& priority : priorities) {
+                        if (priority == deviceName) {
+                            OPENVINO_ASSERT(remapped_devices.find(deviceName) != remapped_devices.end(),
+                                            "Cannot create proxy device ",
+                                            deviceName,
+                                            ". Device has incorrect configuration.");
+                            priority = remapped_devices.at(deviceName);
+                        }
+                    }
+                    initial_config[ov::device::priorities.name()] = priorities;
                 }
                 plugin.set_property(initial_config);
                 try {
@@ -883,9 +910,6 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());
-    if (device_name.find(internal_plugin_suffix) != std::string::npos)
-        return true;
-
     // Alias hides the device
     for (auto&& it : pluginRegistry) {
         auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
@@ -995,6 +1019,16 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     // try to search against OV API 2.0' mutable supported_properties
     try {
         for (auto&& property : ICore::get_property(device_name, ov::supported_properties, {})) {
+            if (property.is_mutable()) {
+                supported_config_keys.emplace_back(std::move(property));
+            }
+        }
+    } catch (ov::Exception&) {
+    }
+
+    // try to search against internal supported_properties
+    try {
+        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
             if (property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
@@ -1182,7 +1216,8 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(device_name);
-    if (it != pluginRegistry.end()) {
+    // Proxy plugins can be configured in the runtime
+    if (it != pluginRegistry.end() && !is_proxy_device(device_name)) {
         IE_THROW() << "Device with \"" << device_name << "\"  is already registered in the OpenVINO Runtime";
     }
 

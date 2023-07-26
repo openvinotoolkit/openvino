@@ -189,8 +189,8 @@ void apply_auto_pad(const TOp* op,
 
     for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
         using namespace ov::util;
-        if (kernel_dim->is_static()) {
-            std::tie(*pad_b, *pad_e) = dim::padding(*data_dim, kernel_dim->get_length(), dilations[i], strides[i]);
+        if (dim::is_static(*kernel_dim)) {
+            std::tie(*pad_b, *pad_e) = dim::padding(*data_dim, dim::get_length(*kernel_dim), dilations[i], strides[i]);
         } else {
             *pad_b = 0;
             *pad_e = 0;
@@ -241,6 +241,7 @@ void apply_padding(const TOp* op,
  */
 template <class TOp,
           class TShape,
+          class TRShape = result_shape_t<TShape>,
           typename std::enable_if<std::is_base_of<util::ConvolutionFwdPropBase, TOp>::value ||
                                   std::is_base_of<util::DeformableConvolutionBase, TOp>::value>::type* = nullptr>
 void append_spatial_shape(const TOp* op,
@@ -248,7 +249,7 @@ void append_spatial_shape(const TOp* op,
                           const TShape& filters_shape,
                           CoordinateDiff& pads_begin,
                           CoordinateDiff& pads_end,
-                          TShape& out_shape) {
+                          TRShape& out_shape) {
     using namespace ov::util;
     using TDim = typename TShape::value_type;
 
@@ -266,8 +267,8 @@ void append_spatial_shape(const TOp* op,
         const auto& dilations = op->get_dilations();
 
         for (size_t i = 0; i < spatial_num; ++i, ++data_dim, ++filters_dim) {
-            auto dim = *data_dim + (pads_begin[i] + pads_end[i]);
-            const auto filter_dilated = dim::dilated(*filters_dim, dilations[i]);
+            TDim dim = *data_dim + (pads_begin[i] + pads_end[i]);
+            const TDim filter_dilated = dim::dilated(*filters_dim, dilations[i]);
 
             if (dim.is_static() && filter_dilated.is_static()) {
                 // Use check from pooling op as it is same.

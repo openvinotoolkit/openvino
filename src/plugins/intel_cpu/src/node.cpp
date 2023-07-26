@@ -471,6 +471,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
+    SEARCH_TYPE(mlas);
     SEARCH_TYPE(any);
     SEARCH_TYPE(uni);
 

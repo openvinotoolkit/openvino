@@ -10,34 +10,33 @@
 
 #include "utils.hpp"
 
-template <class T>
-void shape_infer(const ov::opset1::Reshape* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    std::vector<int64_t> output_pattern;
-    bool status = get_data_as_int64<T>(1, op, output_pattern, constant_data);
-    NODE_VALIDATION_CHECK(op, status, "Shape inference lacks input data");
+template <class T, class TRShape = ov::result_shape_t<T>>
+std::vector<TRShape> shape_infer(const ov::op::v1::Reshape* op,
+                                 const std::vector<T>& input_shapes,
+                                 const ov::ITensorAccessor& ta = ov::make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
+    auto output_pattern = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
+    NODE_VALIDATION_CHECK(op, output_pattern, "Shape inference lacks input data");
 
     auto& input_shape = input_shapes[0];
     OPENVINO_ASSERT(input_shape.is_static());
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
-    output_shape.resize(output_pattern.size());
+    output_shape.resize(output_pattern->size());
 
     auto output_rank = input_shapes[1].size() == 0 ? 0 : input_shapes[1][0];
     if (output_rank == 0 && output_shape.size() != 0) {
-        output_pattern.clear();
-        OPENVINO_ASSERT(output_pattern.size() == 1);
-        NODE_VALIDATION_CHECK(op, output_pattern[0] == 1, "The value of scalar shape pattern should be equal to 1!");
+        output_pattern->clear();
+        OPENVINO_ASSERT(output_pattern->size() == 1);
+        NODE_VALIDATION_CHECK(op, (*output_pattern)[0] == 1, "The value of scalar shape pattern should be equal to 1!");
     }
 
     auto special_zero = op->get_special_zero();
 
     size_t output_product(1);
     int64_t minus_one_idx = -1;
-    for (size_t i = 0; i < output_pattern.size(); ++i) {
-        if (output_pattern[i] == -1) {  // resolving everything except -1
+    for (size_t i = 0; i < output_pattern->size(); ++i) {
+        if ((*output_pattern)[i] == -1) {  // resolving everything except -1
             NODE_VALIDATION_CHECK(op,
                                   minus_one_idx == -1,
                                   "More than one element of output shape pattern has value of -1");
@@ -45,7 +44,7 @@ void shape_infer(const ov::opset1::Reshape* op,
             continue;
         }
 
-        auto pattern_dim = output_pattern[i];
+        auto pattern_dim = (*output_pattern)[i];
         if (pattern_dim == 0 && special_zero) {
             NODE_VALIDATION_CHECK(op, i < input_shape.size(), "'0' dimension is out of range");
             output_shape[i] = input_shape[i];
@@ -59,7 +58,7 @@ void shape_infer(const ov::opset1::Reshape* op,
     }
     size_t input_product(1);
     for (size_t i = 0; i < input_shape.size(); ++i) {
-        if (i < output_pattern.size() && output_pattern[i] == 0 && special_zero)
+        if (i < output_pattern->size() && (*output_pattern)[i] == 0 && special_zero)
             continue;
         input_product = input_shape[i].get_length() * input_product;
     }
@@ -81,7 +80,7 @@ void shape_infer(const ov::opset1::Reshape* op,
         }
     }
 
-    size_t zero_dims = std::count_if(output_pattern.begin(), output_pattern.end(), [](const int64_t& dim) {
+    size_t zero_dims = std::count_if(output_pattern->begin(), output_pattern->end(), [](const int64_t& dim) {
         return dim == 0;
     });
 
@@ -94,41 +93,44 @@ void shape_infer(const ov::opset1::Reshape* op,
                           output_shape,
                           " is incompatible with input shape ",
                           input_shape);
+
+    return output_shapes;
 }
 
-template <class T>
-inline void dynamic_shape(T& output_shape) {
-    OPENVINO_THROW("This code should be executed only for PartialShape class");
-}
+namespace ov {
+namespace op {
+namespace shape_of {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Node* op, std::vector<TShape> input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
+    const auto& input_shape = input_shapes[0];
+    const auto& input_rank = input_shape.rank();
 
-template <>
-inline void dynamic_shape<ov::PartialShape>(ov::PartialShape& output_shape) {
-    output_shape = ov::PartialShape::dynamic();
-}
+    auto output_shapes = std::vector<TRShape>(1);
 
-template <class T>
-void shape_of_shape_infer(const T& input_shape, T& output_shape) {
-    if (input_shape.rank().is_static()) {
-        const auto& rank = input_shape.size();
-        if (rank) {
-            output_shape.resize(1);
-            output_shape[0] = rank;
-        } else {
-            output_shape.clear();
+    if (input_rank.is_static()) {
+        if (input_shape.size()) {
+            output_shapes[0].emplace_back(input_shape.size());
         }
     } else {
-        dynamic_shape(output_shape);
+        output_shapes[0] = PartialShape::dynamic();
     }
+    return output_shapes;
 }
+}  // namespace shape_of
 
-template <class T>
-void shape_infer(const ov::opset1::ShapeOf* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
-    shape_of_shape_infer(input_shapes[0], output_shapes[0]);
+namespace v0 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ShapeOf* op, const std::vector<TShape>& input_shapes) {
+    return shape_of::shape_infer(op, input_shapes);
 }
+}  // namespace v0
 
-template <class T>
-void shape_infer(const ov::opset3::ShapeOf* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
-    shape_of_shape_infer(input_shapes[0], output_shapes[0]);
+namespace v3 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ShapeOf* op, const std::vector<TShape>& input_shapes) {
+    return shape_of::shape_infer(op, input_shapes);
 }
+}  // namespace v3
+}  // namespace op
+}  // namespace ov
