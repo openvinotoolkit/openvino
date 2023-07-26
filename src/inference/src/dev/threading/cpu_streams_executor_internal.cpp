@@ -60,12 +60,19 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     std::vector<std::vector<std::string>> stream_conditions;
     std::vector<int> stream_pos;
     std::vector<int> stream_num;
+    std::vector<int> all_proc_threads_num;
     int num_streams = 0;
+    bool all_proc = false;
+
+    if (_streams_info_table[0][PROC_TYPE] == ALL_PROC && _streams_info_table[0][NUMBER_OF_STREAMS] == 1) {
+        all_proc = true;
+    }
 
     stream_pos.assign(_streams_info_table.size(), 0);
     stream_num.assign(_streams_info_table.size(), 0);
+    all_proc_threads_num.assign(_streams_info_table.size(), 0);
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        stream_pos[i] = num_streams;
+        stream_pos[i] = all_proc ? 0 : num_streams;
         num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
     }
     _stream_processors.assign(num_streams, std::vector<int>());
@@ -74,7 +81,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         std::vector<std::string> proc_types;
         std::vector<std::string> numa_nodes;
         std::vector<std::string> sockets;
-        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC) {
             proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
         }
         if (num_streams == 1 && _streams_info_table[0][PROC_TYPE] == MAIN_CORE_PROC &&
@@ -113,13 +120,20 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 stream_conditions[j].end()) {
                 _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
-                if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
-                    _streams_info_table[j][THREADS_PER_STREAM]) {
-                    stream_pos[j]++;
-                    stream_num[j]++;
-                }
-                if (stream_num[j] >= _streams_info_table[j][NUMBER_OF_STREAMS]) {
-                    stream_conditions[j].clear();
+                if (!all_proc) {
+                    if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
+                        _streams_info_table[j][THREADS_PER_STREAM]) {
+                        stream_pos[j]++;
+                        stream_num[j]++;
+                    }
+                    if (stream_num[j] >= _streams_info_table[j][NUMBER_OF_STREAMS]) {
+                        stream_conditions[j].clear();
+                    }
+                } else {
+                    all_proc_threads_num[j]++;
+                    if (all_proc_threads_num[j] == _streams_info_table[j][THREADS_PER_STREAM]) {
+                        stream_conditions[j].clear();
+                    }
                 }
                 break;
             }

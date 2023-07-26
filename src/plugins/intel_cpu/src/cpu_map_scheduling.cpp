@@ -84,7 +84,7 @@ bool get_cpu_pinning(bool& input_value,
         result_value =
             input_changed
                 ? input_value
-                : ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
+                : ((bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
     } else {
         result_value = input_changed
                            ? input_value

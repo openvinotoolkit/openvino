@@ -359,6 +359,14 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                        << streams_info_table[i][THREADS_PER_STREAM] << " " << streams_info_table[i][STREAM_NUMA_NODE_ID]
                        << " " << streams_info_table[i][STREAM_SOCKET_ID];
     }
+    std::cout << "[ threading ] streams_info_table:";
+    for (int i = 0; i < stream_processors.size(); i++) {
+        std::cout << "{";
+        for (int j = 0; j < stream_processors[i].size(); j++) {
+            std::cout << stream_processors[i][j] << ",";
+        }
+        std::cout << "},\n";
+    }
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
