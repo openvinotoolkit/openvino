@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "openvino/cc/ngraph/itt.hpp"
 #include "common/graph_utils.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
