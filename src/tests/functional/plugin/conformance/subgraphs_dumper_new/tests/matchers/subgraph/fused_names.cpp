@@ -4,14 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "matchers/subgraph/fused_names.hpp"
 #include "utils/model.hpp"
 
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
+#include "base_test.hpp"
 
 namespace {
 
@@ -20,7 +19,7 @@ using namespace ov::tools::subgraph_dumper;
 
 // ======================= ExtractorsManagerTest Unit tests =======================
 class FusedNamesExtractorTest : public FusedNamesExtractor,
-                                   public ::testing::Test {
+                                public SubgraphsDumperBaseTest {
 protected:
     bool is_match(const std::shared_ptr<ov::Model>& model) {
         size_t graph_cnt = 0;

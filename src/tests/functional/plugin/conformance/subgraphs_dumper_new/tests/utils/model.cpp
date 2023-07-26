@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/model.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
+#include "base_test.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
+
+using ModelUtilsTest = SubgraphsDumperBaseTest;
 
 std::pair<std::shared_ptr<ov::Node>, std::set<std::shared_ptr<ov::Node>>>
 get_functional_ops(const std::shared_ptr<ov::Model>& model) {
@@ -31,7 +33,7 @@ get_functional_ops(const std::shared_ptr<ov::Model>& model) {
     return { start_node, nodes };
 }
 
-TEST(ModelUtilsTest, DISABLED_generate_0) {
+TEST_F(ModelUtilsTest, generate_0) {
     Model_0 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
@@ -51,7 +53,7 @@ TEST(ModelUtilsTest, DISABLED_generate_0) {
     }
 }
 
-TEST(ModelUtilsTest, DISABLED_generate_1) {
+TEST_F(ModelUtilsTest, generate_1) {
     Model_1 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {
@@ -75,7 +77,7 @@ TEST(ModelUtilsTest, DISABLED_generate_1) {
     }
 }
 
-TEST(ModelUtilsTest, DISABLED_generate_2) {
+TEST_F(ModelUtilsTest, generate_2) {
     Model_2 test;
     std::shared_ptr<ov::Model> test_model = test.get(), recovered_model;
     {

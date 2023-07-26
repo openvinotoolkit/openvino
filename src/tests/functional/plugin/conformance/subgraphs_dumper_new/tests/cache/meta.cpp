@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
 #include "pugixml.hpp"
 
 #include "openvino/openvino.hpp"
@@ -14,13 +13,15 @@
 
 #include "cache/meta/meta_info.hpp"
 
+#include "base_test.hpp"
+
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
 // ======================== Input Info Unit tests =============================================
 
-class InputInfoUnitTest : public ::testing::Test {};
+class InputInfoUnitTest : public SubgraphsDumperBaseTest {};
 
 TEST_F(InputInfoUnitTest, constructor) {
     ASSERT_NO_THROW(auto in_info = InputInfo());
@@ -58,7 +59,7 @@ TEST_F(ModelInfoFuncTest, constructor) {
 
 // ======================== Meta Info Functional tests =============================================
 
-class MetaInfoFuncTest : public ::testing::Test {
+class MetaInfoFuncTest : public SubgraphsDumperBaseTest {
 protected:
     std::string test_model_path, test_model_name;
     std::map<std::string, InputInfo> test_in_info;
@@ -66,6 +67,7 @@ protected:
     std::string test_artifacts_dir;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         test_model_path = "test_model_path.xml";
         test_model_name = CommonTestUtils::replaceExt(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
