@@ -308,8 +308,8 @@ public:
         return msg.empty() ? Result::ok() : Result::error(msg);
     }
 
-    Comparator recreate() const {
-        return Comparator(m_comparison_flags);
+    CmpValues get_comparison_flags() const {
+        return m_comparison_flags;
     }
 
     void compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log);

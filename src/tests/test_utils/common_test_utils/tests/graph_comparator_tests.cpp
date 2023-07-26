@@ -3,15 +3,18 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <common_test_utils/graph_comparator.hpp>
+
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 TEST(GraphComparatorTests, AllEnablePositiveCheck) {
     FunctionsComparator comparator(FunctionsComparator::no_default());
@@ -412,50 +415,74 @@ TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
         function = function_ref->clone();
     }
     comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
     auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(GraphComparatorTests, CheckLoopPositive) {
-    FunctionsComparator comparator(FunctionsComparator::no_default());
-    std::shared_ptr<ov::Model> function, function_ref;
-    {
-        auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+namespace {
+std::shared_ptr<ov::Model> make_check_loop_model(bool different_body) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
 
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
-        // Body parameters
-        auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-        auto body_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+    auto body_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
-        // Body
-        auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ov::op::v1::Multiply>(sum, M_body);
-        auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo},
-                                                ov::ParameterVector{Xi, Yi, M_body});
-
-        auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
-        loop->set_function(body);
-
-        loop->set_invariant_input(Xi, X);
-        loop->set_invariant_input(Yi, Y);
-        loop->set_merged_input(M_body, M, Zo);
-
-        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
-
-        // Output is last Zo
-        auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(Zo, -1));
-        function_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
-        function = function_ref->clone();
+    auto trip_count = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
+    auto exec_condition = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
+    // Body
+    auto sum = std::make_shared<ov::op::v1::Add>(Xi, Yi);
+    std::shared_ptr<ov::Node> Zo;
+    if (different_body) {
+        auto neg = std::make_shared<ov::op::v0::Negative>(sum);
+        Zo = std::make_shared<ov::op::v1::Multiply>(neg, M_body);
+    } else {
+        Zo = std::make_shared<ov::op::v1::Multiply>(sum, M_body);
     }
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition, Zo}, ov::ParameterVector{Xi, Yi, M_body});
+
+    auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
+    loop->set_function(body);
+
+    loop->set_invariant_input(Xi, X);
+    loop->set_invariant_input(Yi, Y);
+    loop->set_merged_input(M_body, M, Zo);
+
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+
+    // Output is last Zo
+    auto result = std::make_shared<ov::op::v0::Result>(loop->get_iter_value(Zo, -1));
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{X, Y, M});
+}
+}  // namespace
+
+TEST(GraphComparatorTests, CheckLoopPositive) {
+    std::shared_ptr<ov::Model> function, function_ref;
+    function_ref = make_check_loop_model(false);
+    function = function_ref->clone();
+
+    auto comparator = FunctionsComparator::no_default();
     comparator.enable(FunctionsComparator::NODES);
-    auto res = comparator.compare(function, function_ref);
+    comparator.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
+    const auto res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, CheckLoopNegative) {
+    std::shared_ptr<ov::Model> function, function_ref;
+    function_ref = make_check_loop_model(false);
+    function = make_check_loop_model(true);
+
+    auto comparator = FunctionsComparator::no_default();
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
+    const auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid);
 }
 
 TEST(GraphComparatorTests, CheckSinksPositive) {
