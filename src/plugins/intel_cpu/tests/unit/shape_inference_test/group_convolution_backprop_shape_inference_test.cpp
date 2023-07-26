@@ -34,7 +34,8 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor_with_o
 
     input_shapes = ShapeVector{{1, 20, 224, 224}, {2, 10, 10, 3, 3}, {2}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 20, 500, 500}));
@@ -57,7 +58,8 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor) {
 
     input_shapes = ShapeVector{{1, 6, 10, 12, 2}, {3, 2, 2, 5, 5, 5}, {3}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, const_data).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_data));
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 5, 10, 15}));
@@ -81,7 +83,8 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor_more_i
     // More than three inputs can be provided, but not used
     input_shapes = ShapeVector{{1, 6, 10, 12, 2}, {3, 2, 2, 5, 5, 5}, {3}, {0}};
     auto shape_infer = make_shape_inference(op);
-    output_shapes = shape_infer->infer(input_shapes, const_data).shapes;
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_data));
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 6, 5, 10, 15}));

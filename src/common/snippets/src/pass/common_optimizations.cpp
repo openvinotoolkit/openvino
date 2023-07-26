@@ -105,7 +105,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     const auto needed_new_dim = m_dim / batch_dim_multiplier;  // m / (LCM(b, nthrs) / b) - needed factors of dimension m
 
     auto is_optimized = [&](size_t batch_m_dim, size_t new_m_dim) {
-        return batch_m_dim != 1 && new_m_dim >= optimal_m_dim;
+        return batch_m_dim != 1 && new_m_dim >= static_cast<size_t>(optimal_m_dim);
     };
 
     if (batch_dim_multiplier * needed_new_dim == m_dim) {

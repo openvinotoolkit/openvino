@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <limits>
-#include <memory>
-#include <queue>
-
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"

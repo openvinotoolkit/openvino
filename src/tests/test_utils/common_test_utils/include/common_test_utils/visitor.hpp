@@ -4,16 +4,14 @@
 
 #pragma once
 
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "ngraph/attribute_visitor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
-#include "ngraph/op/util/framework_node.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/ops.hpp"
 
@@ -23,109 +21,109 @@ namespace test {
 class ValueHolder {
     template <typename T>
     T& invalid() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
 
 public:
     virtual ~ValueHolder() {}
     virtual operator bool&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator float&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator double&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::string&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator int8_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator int16_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator int32_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator int64_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator uint8_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator uint16_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator uint32_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator uint64_t&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<std::string>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<float>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<double>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<int8_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<int16_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<int32_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<int64_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<uint8_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<uint16_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<uint32_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::vector<uint64_t>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator HostTensorPtr&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::shared_ptr<ov::Model>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
-    virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+    virtual operator std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>&() {
+        OPENVINO_THROW("Invalid type access");
     }
-    virtual operator std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+    virtual operator std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>&() {
+        OPENVINO_THROW("Invalid type access");
     }
-    virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+    virtual operator std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>&() {
+        OPENVINO_THROW("Invalid type access");
     }
-    virtual operator std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+    virtual operator std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>&() {
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator ov::PartialShape&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator ov::Dimension&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator std::shared_ptr<Variable>&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     virtual operator ov::op::util::FrameworkNodeAttrs&() {
-        NGRAPH_CHECK(false, "Invalid type access");
+        OPENVINO_THROW("Invalid type access");
     }
     uint64_t get_index() {
         return m_index;
@@ -161,13 +159,13 @@ public:
     void insert(const std::string& name, const T& value) {
         std::pair<map_type::iterator, bool> result =
             m_values.insert(map_type::value_type(name, std::make_shared<ValueHolderImp<T>>(value, m_write_count++)));
-        NGRAPH_CHECK(result.second, name, " is already in use");
+        OPENVINO_ASSERT(result.second, name, " is already in use");
     }
     template <typename T>
     void insert_scalar(const std::string& name, const T& value) {
         std::pair<map_type::iterator, bool> result =
             m_values.insert(map_type::value_type(name, std::make_shared<ValueHolderImp<T>>(value, m_write_count++)));
-        NGRAPH_CHECK(result.second, name, " is already in use");
+        OPENVINO_ASSERT(result.second, name, " is already in use");
         if (m_print) {
             std::cerr << "SER: " << name << " = " << value << std::endl;
         }
@@ -176,7 +174,7 @@ public:
     void insert_vector(const std::string& name, const T& value) {
         std::pair<map_type::iterator, bool> result =
             m_values.insert(map_type::value_type(name, std::make_shared<ValueHolderImp<T>>(value, m_write_count++)));
-        NGRAPH_CHECK(result.second, name, " is already in use");
+        OPENVINO_ASSERT(result.second, name, " is already in use");
         if (m_print) {
             std::cerr << "SER: " << name << " = [";
             std::string comma = "";
@@ -195,7 +193,7 @@ public:
     template <typename T>
     T& get(const std::string& name) {
         auto& value_holder = *m_values.at(name);
-        NGRAPH_CHECK(m_read_count++ == value_holder.get_index());
+        OPENVINO_ASSERT(m_read_count++ == value_holder.get_index());
         return static_cast<T&>(*m_values.at(name));
     }
 
@@ -215,26 +213,26 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                 &adapter)) {
             auto& data = m_values.get<HostTensorPtr>(name);
             data->read(a->get()->get_ptr(), a->get()->size());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-            a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(name));
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-            a->set(m_values.get<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(name));
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<
+                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+            a->set(m_values.get<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>(name));
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<
+                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+            a->set(m_values.get<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>(name));
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             a->set(m_values.get<ov::PartialShape>(name));
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
             a->set(m_values.get<ov::Dimension>(name));
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             a->set(m_values.get<std::shared_ptr<Variable>>(name));
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             a->set(m_values.get<ov::op::util::FrameworkNodeAttrs>(name));
         } else {
-            NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+            OPENVINO_THROW("Attribute \"", name, "\" cannot be unmarshalled");
         }
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
@@ -302,27 +300,27 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                 &adapter)) {
             HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
             data->write(a->get()->get_ptr(), a->get()->size());
             m_values.insert(name, data);
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<
+                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
-                       std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<
+                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
             m_values.insert(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             m_values.insert(name, a->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             m_values.insert(name, a->get());
         } else {
-            NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+            OPENVINO_THROW("Attribute \"", name, "\" cannot be marshalled");
         }
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
