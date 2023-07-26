@@ -565,11 +565,6 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         std::unordered_set<std::string> unavailable_devices;
         for (const auto& device : m_device_order) {
             std::vector<std::string> supported_device_ids;
-            if (device == "NVIDIA") {
-                unavailable_devices.emplace(device);
-                continue;
-            }
-
             try {
                 supported_device_ids = core->get_property(device, ov::available_devices);
             } catch (const std::runtime_error&) {
