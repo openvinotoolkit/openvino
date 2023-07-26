@@ -192,12 +192,22 @@ namespace {
 std::map<std::string, std::string> emptyAdditionalConfig;
 
 std::vector<std::map<std::string, std::string>> additionalConfig {
+#ifndef OV_CPU_WITH_MLAS
+    // FP32 precision is covered by MLAS
+    std::map<std::string, std::string>{/* empty config */},
+#endif
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
 };
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() {
+#ifndef OV_CPU_WITH_MLAS
+    // FP32 precision is covered by MLAS
     std::vector<std::map<std::string, std::string>> additionalConfig = {
+        std::map<std::string, std::string>{/* empty config */}
     };
+#else
+    std::vector<std::map<std::string, std::string>> additionalConfig = {};
+#endif
     if (with_cpu_x86_bfloat16()) {
         additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
     }
