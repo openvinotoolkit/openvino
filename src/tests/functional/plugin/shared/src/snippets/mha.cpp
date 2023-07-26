@@ -25,7 +25,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i)
-        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({inputShapes[i]}) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "Mul=" << withMul << "_";

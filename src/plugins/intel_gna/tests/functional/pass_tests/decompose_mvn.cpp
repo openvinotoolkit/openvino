@@ -53,7 +53,7 @@ public:
         std::tie(normalizeVariance, eps, epsMode, acrossChannels, mvnVersion6) = mvnParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "NV=" << normalizeVariance << "_";
         result << "eps=" << eps << "_";
         result << "mode=" << static_cast<uint32_t>(epsMode) << "_";
@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v6,
                          DecomposeMVNTest,
                          ::testing::Combine(mvnParams_v6,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputs)),
                          DecomposeMVNTest::getTestCaseName);
@@ -137,7 +137,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DecomposeMVN_v1,
                          DecomposeMVNTest,
                          ::testing::Combine(mvnParams_v1,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputs)),
                          DecomposeMVNTest::getTestCaseName);

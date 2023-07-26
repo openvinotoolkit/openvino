@@ -45,16 +45,16 @@ public:
         result << "type=" << reductionType << "_";
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
-        result << ")_axes=" << CommonTestUtils::vec2str(axes) << "_";
+        result << ")_axes=" << ov::test::utils::vec2str(axes) << "_";
         return result.str();
     }
 
 protected:
     int numberOfExpectedReduce;
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<int> axes;
         bool keepDims = true;
         std::vector<InputShape> inputShapes;

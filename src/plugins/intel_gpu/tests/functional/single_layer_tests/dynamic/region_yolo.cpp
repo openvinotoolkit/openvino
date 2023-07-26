@@ -134,7 +134,7 @@ const auto testCase_yolov3_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 const regionYoloAttributes yoloV3mxnetAttr = {20, 4, 9, false, 1, 3};
@@ -146,7 +146,7 @@ const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 const regionYoloAttributes yoloV2caffeAttr = {20, 4, 5, true, 1, 3};
@@ -158,7 +158,7 @@ const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(emptyAdditionalConfig),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPURegionYolov3Dynamic, RegionYoloLayerGPUTest,

@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeNoneBroadcast, FakeQuantizeLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(singleShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTes
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapesPerChannel),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
@@ -120,7 +120,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTes
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapesPerChannel),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 
@@ -143,7 +143,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShapesPerChannel2D),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(config)),
     FakeQuantizeLayerTest::getTestCaseName);
 

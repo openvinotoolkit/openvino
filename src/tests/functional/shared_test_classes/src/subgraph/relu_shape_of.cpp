@@ -12,7 +12,7 @@ namespace SubgraphTestsDefinitions {
         std::string targetDevice;
         std::tie(inputPrecision, inputShapes, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         result << "Precision=" << inputPrecision.name() << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();

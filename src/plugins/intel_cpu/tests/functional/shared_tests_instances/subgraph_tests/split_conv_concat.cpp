@@ -20,7 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 6, 40, 40})),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SplitConvConcat::getTestCaseName);
 }  // namespace
 

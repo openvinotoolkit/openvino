@@ -17,7 +17,9 @@
 #include "ngraph/type/float16.hpp"
 
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -506,4 +508,15 @@ inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::ie_abs;
+using ov::test::utils::generate_float_numbers;
+using ov::test::utils::fill_data_roi;
+} // namespace CommonTestUtils

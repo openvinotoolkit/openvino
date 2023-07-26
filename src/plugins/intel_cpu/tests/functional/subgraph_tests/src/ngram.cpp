@@ -153,12 +153,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : input_shapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : input_shapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         results << ")_data_prc=" << data_et << "_idces_prc=" << idces_et << "_k=" << k;
@@ -194,7 +194,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> inputShapes;
         ElementType data_et;
         ElementType idces_et;

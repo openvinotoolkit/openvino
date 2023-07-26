@@ -11,6 +11,6 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check, TensorNamesTest,
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                             TensorNamesTest::getTestCaseName);
 }  // namespace

@@ -68,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_Scale,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(inputShape),
                                             ::testing::Values(imageShape),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PriorBoxLayerTest::getTestCaseName);
 
 const auto noScaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes),
@@ -95,5 +95,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_NoScale,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(inputShape),
                                             ::testing::Values(imageShape),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PriorBoxLayerTest::getTestCaseName);

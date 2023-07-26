@@ -36,13 +36,13 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({convShape.first, secondShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : {convShape, secondShape}) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")_";
@@ -122,7 +122,7 @@ public:
 
         function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 
 protected:

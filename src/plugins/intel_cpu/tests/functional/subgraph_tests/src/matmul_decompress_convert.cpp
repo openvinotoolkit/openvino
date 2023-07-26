@@ -66,7 +66,7 @@ public:
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -74,7 +74,7 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
@@ -117,7 +117,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
         std::pair<bool, bool> transpose;

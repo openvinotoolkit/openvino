@@ -174,7 +174,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          GnaConvolutionReluSequenceTest::getTestCaseName);
 
@@ -255,7 +255,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest_Above,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_allowing_pooling_stride_above_window)),
                          ConvolutionReluSequenceTest::getTestCaseName);
 
@@ -276,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest_Below,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionReluSequenceTest::getTestCaseName);
 }  // namespace

@@ -33,17 +33,17 @@ public:
         result << std::to_string(obj.index) << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         return result.str();
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         auto netPrecision = ElementType::undefined;
         InputShape inputShape;

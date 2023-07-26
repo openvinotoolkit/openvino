@@ -17,8 +17,8 @@ std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<Gath
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "BD=" << batchDims << "_";
     result << "DP=" << dPrecision.name() << "_";
     result << "IP=" << iPrecision.name() << "_";

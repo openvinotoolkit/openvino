@@ -6,14 +6,18 @@
 
 #include "openvino/core/type/element_type_traits.hpp"
 
-::testing::AssertionResult ov::test::all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
+namespace ov {
+namespace test {
+namespace utils {
+
+::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
     if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
 
 #define all_close_ov_type(type)\
     case ov::element::type:\
-         return ov::test::all_close<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
+         return all_close<ov::element_type_traits<ov::element::type>::value_type>(a, b, \
              static_cast<ov::element_type_traits<ov::element::type>::value_type>(rtol), \
              static_cast<ov::element_type_traits<ov::element::type>::value_type>(atol));\
 
@@ -36,3 +40,6 @@
                << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
     }
 }
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

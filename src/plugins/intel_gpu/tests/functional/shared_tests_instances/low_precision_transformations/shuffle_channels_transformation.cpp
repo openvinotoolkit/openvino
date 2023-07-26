@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ShuffleChannelsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ShuffleChannelsTransformation::getTestCaseName);

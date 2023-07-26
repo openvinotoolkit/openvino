@@ -39,10 +39,10 @@ public:
                  targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "netPRC=" << netPrecision.get_type_name() << "_";
         result << "inPRC=" << inPrc.name() << "_";
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic, GRNLayerCPUTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::ValuesIn(dataInputStaticShapes),
                             ::testing::ValuesIn(biases),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GRNLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic, GRNLayerCPUTest,
@@ -117,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic, GRNLayerCPUTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::ValuesIn(dataInputDynamicShapes),
                             ::testing::ValuesIn(biases),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GRNLayerCPUTest::getTestCaseName);
 
 } // namespace

@@ -23,13 +23,13 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
     std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+    result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
     result << "TS=(";
     for (const auto& shape : inputShapes.second) {
-        result << CommonTestUtils::vec2str(shape) << "_";
+        result << ov::test::utils::vec2str(shape) << "_";
     }
     result << ")_";
-    result << "inputOrder=" << CommonTestUtils::vec2str(inputOrder) << "_";
+    result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
     result << CPUTestsBase::getTestCaseName(cpuParams);

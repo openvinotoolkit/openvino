@@ -31,6 +31,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPU, SplitConcatMemory,
                                 ::testing::ValuesIn(shapes),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(1),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SplitConcatMemory::getTestCaseName);
 }  // namespace

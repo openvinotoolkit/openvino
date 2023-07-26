@@ -59,7 +59,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << ":" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_fqMinMax=(" << fqMinMax.first << ".." << fqMinMax.second << ")";
         result << "_levels=" << levels;
 
@@ -151,7 +151,7 @@ const vector<std::size_t> levels = {numeric_limits<uint8_t>::max(), numeric_limi
 INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_2_0),
                                             ::testing::Values(conv1D),
                                             ::testing::ValuesIn(fqMinMax),
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
 INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision3X,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_3_X),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(fqMinMax),

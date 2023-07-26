@@ -86,26 +86,26 @@ public:
         std::ostringstream results;
 
         for (size_t i = 0; i < shapes.size(); i++) {
-            results << "FQ" << i << "_IS=(" << CommonTestUtils::partialShape2str({shapes[i].first}) << ")_";
+            results << "FQ" << i << "_IS=(" << ov::test::utils::partialShape2str({shapes[i].first}) << ")_";
             results << "TS=";
             for (const auto& shape : shapes[i].second) {
-                results << "(" << CommonTestUtils::vec2str(shape) << ")_";
+                results << "(" << ov::test::utils::vec2str(shape) << ")_";
             }
             results << "RS=";
             for (const auto& range : ranges[i]) {
-                results << "(" << CommonTestUtils::vec2str(range) << ")_";
+                results << "(" << ov::test::utils::vec2str(range) << ")_";
             }
         }
         if (!reshapeShape.empty()) {
-            results << "ReshapeShape=(" << CommonTestUtils::vec2str(reshapeShape) << ")_";
+            results << "ReshapeShape=(" << ov::test::utils::vec2str(reshapeShape) << ")_";
         }
 
         results << "LOW_BOUNDS=" << inDataLowBounds << "_";
         results << "HIGH_BOUNDS=" << inDataHighBounds << "_";
-        results << "IL=" << CommonTestUtils::vec2str(inputLow) << "_";
-        results << "IH=" << CommonTestUtils::vec2str(inputHigh) << "_";
-        results << "OL=" << CommonTestUtils::vec2str(outputLow) << "_";
-        results << "OH=" << CommonTestUtils::vec2str(outputHigh) << "_";
+        results << "IL=" << ov::test::utils::vec2str(inputLow) << "_";
+        results << "IH=" << ov::test::utils::vec2str(inputHigh) << "_";
+        results << "OL=" << ov::test::utils::vec2str(outputLow) << "_";
+        results << "OH=" << ov::test::utils::vec2str(outputHigh) << "_";
         results << "LEVELS=" << levels;
 
         results << CPUTestsBase::getTestCaseName(cpuParams);
@@ -140,7 +140,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(shapesVec);
 

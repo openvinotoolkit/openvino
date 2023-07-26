@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420,
                                             ::testing::ValuesIn(inTypes),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorI420LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420_acc,
@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420_acc,
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorI420LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorI420_acc,
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorI420_acc,
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorI420LayerTest::getTestCaseName);
 
 }  // namespace

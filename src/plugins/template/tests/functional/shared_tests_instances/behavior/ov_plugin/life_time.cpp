@@ -9,11 +9,11 @@ using namespace ov::test::behavior;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
         OVHoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE, "HETERO:TEMPLATE"),
         OVHoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

@@ -18,7 +18,7 @@ public:
         InferenceEngine::Core ieCore;
         auto metrics = ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
 
-        if (deviceName == CommonTestUtils::DEVICE_GNA) {
+        if (deviceName == ov::test::utils::DEVICE_GNA) {
             if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {
                 auto gnaLibVerStr =
                     ieCore.GetMetric(deviceName, METRIC_KEY(GNA_LIBRARY_FULL_VERSION)).as<std::string>();

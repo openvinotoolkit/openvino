@@ -48,17 +48,17 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
-        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "K" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << convOutChannels << "_";
         result << "AP=" << padType << "_";
         result << "netPRC=" << netType << "_";
@@ -119,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTest::getTestCaseName);
 }  // namespace
 

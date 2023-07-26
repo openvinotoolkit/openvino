@@ -25,14 +25,14 @@ public:
     }
 
     void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
-        std::string libraryPath = CommonTestUtils::get_mock_engine_path();
+        std::string libraryPath = ov::test::utils::get_mock_engine_path();
         if (!m_so)
             m_so = ov::util::load_shared_object(libraryPath.c_str());
         std::function<void(ov::IPlugin*)> injectProxyEngine =
-            CommonTestUtils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
+            ov::test::utils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
         injectProxyEngine(plugin.get());
-        core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
                              m_plugin_name);
         m_mock_plugin = plugin;
@@ -68,7 +68,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj)
 }
 
 TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
-    auto plugin = std::make_shared<CommonTestUtils::MockPlugin>();
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);

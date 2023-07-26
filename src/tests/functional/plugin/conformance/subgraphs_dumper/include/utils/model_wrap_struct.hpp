@@ -17,8 +17,8 @@ struct Model {
 
     Model(std::string model) {
         path = model;
-        auto pos = model.rfind(CommonTestUtils::FileSeparator);
-        name = pos == std::string::npos ? model : CommonTestUtils::replaceExt(model.substr(pos + 1), "");
+        auto pos = model.rfind(ov::test::utils::FileSeparator);
+        name = pos == std::string::npos ? model : ov::test::utils::replaceExt(model.substr(pos + 1), "");
         try {
             auto ov_model = ov::test::utils::PluginCache::get().core()->read_model(path);
             size = ov_model->get_graph_size();

@@ -22,7 +22,7 @@ const auto params_average =
                      testing::Values(1),                                  // spatial_bins_y
                      testing::Values("average"),                          // mode
                      testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16),
-                     testing::Values(CommonTestUtils::DEVICE_GPU));
+                     testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PSROIPooling_average,
                          PSROIPoolingLayerTest,
@@ -39,7 +39,7 @@ const auto params_bilinear =
                      testing::Values(2),                                   // spatial_bins_y
                      testing::Values("bilinear"),                          // mode
                      testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16),
-                     testing::Values(CommonTestUtils::DEVICE_GPU));
+                     testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PSROIPooling_bilinear,
                          PSROIPoolingLayerTest,

@@ -29,7 +29,7 @@ inline InferenceEngine::CNNNetwork getTargetNetwork() {
 }
 
 std::vector<addOutputsParams> testCases = {
-        addOutputsParams(getTargetNetwork(), {"Memory"}, CommonTestUtils::DEVICE_CPU)
+        addOutputsParams(getTargetNetwork(), {"Memory"}, ov::test::utils::DEVICE_CPU)
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AddOutputBasic, AddOutputsTest,

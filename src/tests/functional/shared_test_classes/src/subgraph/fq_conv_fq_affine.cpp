@@ -27,8 +27,8 @@ std::string FqConvFqAffineTest::getTestCaseName(const testing::TestParamInfo<FqC
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
     for (auto const& configItem : config) {
@@ -37,8 +37,8 @@ std::string FqConvFqAffineTest::getTestCaseName(const testing::TestParamInfo<FqC
      if (inputArg.size() == 3) {
         result << "_inputArg=" << inputArg[0] << "_" << inputArg[1] << "_" << inputArg[2];
     }
-    result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
-    result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
+    result << "_KERNEL=" << ov::test::utils::vec2str(kernelShape) << "_";
+    result << "STRIDES=" << ov::test::utils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";
     result << "permute=" << permute << "\n";

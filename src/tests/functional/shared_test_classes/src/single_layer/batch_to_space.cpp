@@ -16,15 +16,15 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::string targetName;
     std::tie(blockShape, cropsBegin, cropsEnd, inShapes, netPrc, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inShapes) << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
-    result << "CB=" << CommonTestUtils::vec2str(cropsBegin) << "_";
-    result << "CE=" << CommonTestUtils::vec2str(cropsEnd) << "_";
+    result << "BS=" << ov::test::utils::vec2str(blockShape) << "_";
+    result << "CB=" << ov::test::utils::vec2str(cropsBegin) << "_";
+    result << "CE=" << ov::test::utils::vec2str(cropsEnd) << "_";
     result << "trgDev=" << targetName << "_";
     return result.str();
 }

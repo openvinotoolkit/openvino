@@ -23,9 +23,9 @@ std::string FakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamIn
     std::tie(levels, constShape, fqDirectArgs, inputArg) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-    result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+    result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";

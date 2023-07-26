@@ -18,7 +18,7 @@ protected:
     void SetUp() override {
         auto netPrecision = inPrc = Precision::FP32;
         outPrc = Precision::BF16;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::map<std::string, std::string> additional_config{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
         configuration.insert(additional_config.begin(), additional_config.end());
 

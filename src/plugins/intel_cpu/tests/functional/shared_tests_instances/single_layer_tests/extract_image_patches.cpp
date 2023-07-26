@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_layers_CPU, ExtractImagePatchesTest,
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

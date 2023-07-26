@@ -15,7 +15,9 @@
 
 using namespace InferenceEngine::details;
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -324,4 +326,6 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
     fill_data_with_broadcast(tensor, values_tensor);
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

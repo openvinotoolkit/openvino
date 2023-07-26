@@ -229,7 +229,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
@@ -285,7 +285,7 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);

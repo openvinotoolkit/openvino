@@ -207,7 +207,7 @@ TEST_P(TestFQScaleFactorsTest, CompareWithRefImpl) {
     for (size_t i = 0; i < size; ++i) {
         const auto& ref = expected[i];
         const auto& res = actualBuffer[i];
-        if (CommonTestUtils::ie_abs(res - ref) > abs_threshold) {
+        if (ov::test::utils::ie_abs(res - ref) > abs_threshold) {
             IE_THROW() << "Absolute comparison of values expected: " << ref << " and actual: " << res << " at index "
                        << i << " with absolute threshold " << abs_threshold << " failed";
         }
@@ -229,7 +229,7 @@ const std::vector<std::pair<float, float>> inputValues = {{-188.0, 188.0}, {-90.
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          TestFQScaleFactorsTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputValues),
                                             ::testing::ValuesIn(non_func_layers)),

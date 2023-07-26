@@ -44,13 +44,13 @@ const std::map<std::string, std::string> additional_config = {};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                          ComparisonLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::utils::combineParams(inputShapes)),
                                             ::testing::ValuesIn(inputsPrecisions),
                                             ::testing::ValuesIn(comparisonOpTypes),
                                             ::testing::ValuesIn(secondInputTypes),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
 
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IsOp,
                                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::BOOL),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
 

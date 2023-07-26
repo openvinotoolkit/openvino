@@ -15,11 +15,11 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
 };
 
 const std::vector<ov::AnyMap> AutoConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoConfigs)),
                         OVInferRequestDynamicTests::getTestCaseName);
 

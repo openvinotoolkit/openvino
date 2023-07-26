@@ -34,9 +34,9 @@ public:
 
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "IV=";
@@ -191,7 +191,7 @@ const std::vector<ElementType> netPrecisions = {
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                  ::testing::ValuesIn(inputValues),
                                                  ::testing::ValuesIn(netPrecisions),
-                                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                  ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_01, RangeDynamicGPUTest,
@@ -214,7 +214,7 @@ const std::vector<ElementType> netFloatPrecisions = {
 const auto testFloatParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputFloatValues),
                                                       ::testing::ValuesIn(netFloatPrecisions),
-                                                      ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                       ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_range_02, RangeDynamicGPUTest,
@@ -237,7 +237,7 @@ const std::vector<ElementType> netMixedPrecisions = {
 const auto testMixedParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                       ::testing::ValuesIn(inputMixedValues),
                                                       ::testing::ValuesIn(netMixedPrecisions),
-                                                      ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                      ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                       ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_diff_types, RangeDynamicGPUTest,

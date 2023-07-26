@@ -39,8 +39,8 @@ std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificP
     result << "nms_thresh=" << nms_thresh << "_";
     result << "feat_stride=" << feat_stride << "_";
     result << "min_size=" << min_size << "_";
-    result << "ratio = " << CommonTestUtils::vec2str(ratio) << "_";
-    result << "scale = " << CommonTestUtils::vec2str(scale) << "_";
+    result << "ratio = " << ov::test::utils::vec2str(ratio) << "_";
+    result << "scale = " << ov::test::utils::vec2str(scale) << "_";
     result << "clip_before_nms=" << clip_before_nms << "_";
     result << "clip_after_nms=" << clip_after_nms << "_";
     result << "normalize=" << normalize << "_";

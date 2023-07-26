@@ -22,18 +22,18 @@ std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : params.shapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : params.shapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << "start="   << CommonTestUtils::vec2str(params.start) << "_";
-    result << "stop="    << CommonTestUtils::vec2str(params.stop) << "_";
-    result << "step="    << CommonTestUtils::vec2str(params.step) << "_";
-    result << "axes="    << CommonTestUtils::vec2str(params.axes) << "_";
+    result << "start="   << ov::test::utils::vec2str(params.start) << "_";
+    result << "stop="    << ov::test::utils::vec2str(params.stop) << "_";
+    result << "step="    << ov::test::utils::vec2str(params.step) << "_";
+    result << "axes="    << ov::test::utils::vec2str(params.axes) << "_";
     result << "netPRC="  << netPrecision << "_";
     result << "trgDev="  << targetName;
     return result.str();

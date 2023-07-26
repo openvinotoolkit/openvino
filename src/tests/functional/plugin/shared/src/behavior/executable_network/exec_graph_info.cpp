@@ -328,7 +328,7 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
 
     m_out_xml_path = filePrefix + XML_EXT;
     m_out_bin_path = filePrefix + BIN_EXT;
@@ -336,7 +336,7 @@ void ExecGraphSerializationTest::SetUp() {
 
 void ExecGraphSerializationTest::TearDown() {
     APIBaseTest::TearDown();
-    CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+    ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
@@ -446,7 +446,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;

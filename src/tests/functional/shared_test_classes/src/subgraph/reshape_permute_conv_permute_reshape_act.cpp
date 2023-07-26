@@ -17,8 +17,8 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
-        results << "KS=" << CommonTestUtils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
+        results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
+        results << "KS=" << ov::test::utils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
         results << "OC=" << output_channels << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName;

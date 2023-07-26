@@ -31,14 +31,14 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first})
+            result << ov::test::utils::partialShape2str({inputShapes[i].first})
                    << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i])
+                result << ov::test::utils::vec2str(inputShapes[j].second[i])
                        << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
@@ -65,7 +65,7 @@ protected:
         ElementType dataPrecision;
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision) = this->GetParam();
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes(inputShapes);
         flattened = std::get<0>(flatOrAxis);
 

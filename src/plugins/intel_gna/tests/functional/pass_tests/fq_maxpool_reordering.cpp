@@ -56,7 +56,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_inputMinMax1=(" << inputMinMax1.first << ".." << inputMinMax1.second << ")";
         result << "_inputMinMax2=(" << inputMinMax2.first << ".." << inputMinMax2.second << ")";
         result << "_levels=" << levels;
@@ -180,7 +180,7 @@ const std::vector<size_t> levels = {65535};
 INSTANTIATE_TEST_SUITE_P(smoke_fq_maxpool_reordering,
                          FQMaxpoolReordering,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(inputMinMax),

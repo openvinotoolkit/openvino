@@ -70,7 +70,7 @@ protected:
 
 public:
     void SetUp() override {
-        deviceName = CommonTestUtils::DEVICE_GPU;
+        deviceName = ov::test::utils::DEVICE_GPU;
         RemoteTensorSharingType sharing_type;
         bool with_auto_batching;
         std::tie(sharing_type, with_auto_batching) = this->GetParam();
@@ -352,7 +352,7 @@ protected:
 public:
     void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
-        deviceName = CommonTestUtils::DEVICE_GPU;
+        deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) {
             config =
@@ -375,9 +375,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canInferOnUserContext") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
         }
 
@@ -421,9 +421,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 
@@ -434,9 +434,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canInferOnUserContextWithMultipleDevices") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
         }
 
@@ -485,9 +485,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 
@@ -498,9 +498,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canInferOnUserQueue_out_of_order") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
         }
 
@@ -580,9 +580,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 
@@ -593,9 +593,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canInferOnUserQueue_in_order") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
         }
 
@@ -671,9 +671,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 
@@ -684,9 +684,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canInferOnUserQueue_infer_call_many_times") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
         }
 
@@ -763,9 +763,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 
@@ -790,9 +790,9 @@ public:
         if (is_caching_test) {
             auto with_auto_batch = this->GetParam();
             cacheDirName = std::string("smoke_canCreateManyTensorsOnSameMem") + (with_auto_batch ? "_WITH_AUTO_BATCHING": "");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             ie.set_property(ov::cache_dir(cacheDirName));
 
             auto tmp_model = ie.compile_model(fn_ptr, remote_context, config);
@@ -811,9 +811,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 };
@@ -907,7 +907,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     auto param_input_y = fn_ptr_remote->get_parameters().at(0);
 
-    auto exec_net = core.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = core.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net.create_infer_request();
 
     auto cldnn_context = exec_net.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -952,7 +952,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     auto param_input_y_regular = function_regular->get_parameters().at(0);
 
-    auto exec_net_regular = core.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = core.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
     inf_req_regular.set_tensor(param_input_y_regular, fake_image_regular);
 
@@ -998,7 +998,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     auto param_input_y = fn_ptr_remote->get_parameters().at(0);
     auto param_input_uv = fn_ptr_remote->get_parameters().at(1);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1060,7 +1060,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
     inf_req_regular.set_tensor(param_input_y, fake_image_data_y);
     inf_req_regular.set_tensor(param_input_uv, fake_image_data_uv);
@@ -1105,7 +1105,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     auto param_input_yuv = fn_ptr_remote->get_parameters().at(0);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1151,7 +1151,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
     inf_req_regular.set_tensor(param_input_yuv, fake_image_data_yuv);
 
@@ -1197,7 +1197,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     auto param_input_y = fn_ptr_remote->get_parameters().at(0);
     auto param_input_uv = fn_ptr_remote->get_parameters().at(1);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1259,7 +1259,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     p_reg.input().model().set_layout("NCHW");
     auto function_regular = p_reg.build();
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
     inf_req_regular.set_tensor(param_input_y, fake_image_data_y);
     inf_req_regular.set_tensor(param_input_uv, fake_image_data_uv);
@@ -1345,7 +1345,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // regular inference
-    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
     inf_req_regular.set_tensor(param_input_y, fake_image_data_y);
     inf_req_regular.set_tensor(param_input_uv, fake_image_data_uv);
@@ -1407,7 +1407,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
 
     auto param_input_yuv = fn_ptr_remote->get_parameters().at(0);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1465,7 +1465,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
 
     auto param_input_yuv_reg = fn_ptr_regular->get_parameters().at(0);
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
 
     for (size_t i = 0; i < num_batch; ++i) {
@@ -1515,7 +1515,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     auto param_input_y = fn_ptr_remote->get_parameters().at(0);
     auto param_input_uv = fn_ptr_remote->get_parameters().at(1);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1589,7 +1589,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     auto param_input_y_reg = fn_ptr_regular->get_parameters().at(0);
     auto param_input_uv_reg = fn_ptr_regular->get_parameters().at(1);
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
 
     for (size_t i = 0; i < num_batch; ++i) {
@@ -1653,7 +1653,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     auto param_input_y = fn_ptr_remote->get_parameters().at(0);
 
-    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
 
     auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
@@ -1708,7 +1708,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
 
     auto param_input_y_reg = fn_ptr_regular->get_parameters().at(0);
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
 
     for (size_t i = 0; i < num_batch; ++i) {
@@ -1860,7 +1860,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     auto param_input_y_reg = fn_ptr_regular->get_parameters().at(0);
     auto param_input_uv_reg = fn_ptr_regular->get_parameters().at(1);
 
-    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_regular = ie.compile_model(function_regular, ov::test::utils::DEVICE_GPU);
     auto inf_req_regular = exec_net_regular.create_infer_request();
 
     for (size_t i = 0; i < num_batch; ++i) {
@@ -1903,7 +1903,7 @@ TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
     std::vector<std::string> availableDevices = core.get_available_devices();
 
     std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
-        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+        if (device.find(ov::test::utils::DEVICE_GPU) != std::string::npos)
             gpuDevices.push_back(device);
     });
 
@@ -1936,7 +1936,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
     std::vector<std::string> availableDevices = core.get_available_devices();
 
     std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
-        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+        if (device.find(ov::test::utils::DEVICE_GPU) != std::string::npos)
             gpuDevices.push_back(device);
     });
 
@@ -1963,7 +1963,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
     std::vector<std::string> availableDevices = core.get_available_devices();
 
     std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
-        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+        if (device.find(ov::test::utils::DEVICE_GPU) != std::string::npos)
             gpuDevices.push_back(device);
     });
 
@@ -2001,20 +2001,20 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
 #endif
     auto core = ov::Core();
 
-    auto default_ctx = core.get_default_context(CommonTestUtils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    auto default_ctx = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
 
     // Same context returned for multple calls
-    check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+    check_contexts_are_same(default_ctx, core.get_default_context(ov::test::utils::DEVICE_GPU));
 
     // Set some properties which could impact engine config and check context again
-    core.set_property(CommonTestUtils::DEVICE_GPU, ov::streams::num(2));
-    core.set_property(CommonTestUtils::DEVICE_GPU, ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW));
-    core.set_property(CommonTestUtils::DEVICE_GPU, ov::enable_profiling(true));
-    check_contexts_are_same(default_ctx,  core.get_default_context(CommonTestUtils::DEVICE_GPU));
+    core.set_property(ov::test::utils::DEVICE_GPU, ov::streams::num(2));
+    core.set_property(ov::test::utils::DEVICE_GPU, ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW));
+    core.set_property(ov::test::utils::DEVICE_GPU, ov::enable_profiling(true));
+    check_contexts_are_same(default_ctx,  core.get_default_context(ov::test::utils::DEVICE_GPU));
 
     // Ensure compiled model uses default context too
     auto model = ngraph::builder::subgraph::makeConvertTranspose();
-    auto compiled_model = core.compile_model(model, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
     check_contexts_are_same(default_ctx, compiled_model.get_context());
     ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));
 
@@ -2023,7 +2023,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
     auto default_devices = default_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
     ASSERT_EQ(default_devices.size(), 1);
     cl::Device default_device_handle(default_devices[0]);
-    // OCL instance looks for intel GPUs, so skip this part if CommonTestUtils::DEVICE_GPU points to GPU from other vendor
+    // OCL instance looks for intel GPUs, so skip this part if ov::test::utils::DEVICE_GPU points to GPU from other vendor
     if (default_device_handle.getInfo<CL_DEVICE_VENDOR_ID>() == 0x8086) {
         ov::intel_gpu::ocl::ClContext custom_ctx(core, ocl_instance->_queue.get());
         auto compiled_model_custom_ctx = core.compile_model(model, custom_ctx, ov::streams::num(1));
@@ -2037,7 +2037,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
         ASSERT_NE(default_ctx.get(), model_ctx.get());
 
         // Check that default ctx is untouched
-        check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+        check_contexts_are_same(default_ctx, core.get_default_context(ov::test::utils::DEVICE_GPU));
     }
 }
 
@@ -2046,7 +2046,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteTensorSetShape) {
     GTEST_SKIP();
 #endif
     auto core = ov::Core();
-    auto context = core.get_default_context(CommonTestUtils::DEVICE_GPU);
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
 
     auto remote_tensor = context.create_tensor(ov::element::f32, ov::Shape{1, 2, 3, 4});
 

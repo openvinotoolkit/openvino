@@ -16,7 +16,7 @@ std::string MultiCropsToConcatTest::getTestCaseName(const testing::TestParamInfo
     std::tie(netPrecision, targetDevice, inputShape, offsets, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     result << "offset=";

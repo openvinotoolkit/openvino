@@ -21,10 +21,10 @@ std::string CTCLossLayerTest::getTestCaseName(const testing::TestParamInfo<CTCLo
         ctcMergeRepeated, unique) = ctcLossArgsSubset;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(logitsShapes) << "_";
-    result << "LL=" << CommonTestUtils::vec2str(logitsLength) << "_";
-    result << "A=" << CommonTestUtils::vec2str(labels) << "_";
-    result << "AL=" << CommonTestUtils::vec2str(labelsLength) << "_";
+    result << "IS=" << ov::test::utils::vec2str(logitsShapes) << "_";
+    result << "LL=" << ov::test::utils::vec2str(logitsLength) << "_";
+    result << "A=" << ov::test::utils::vec2str(labels) << "_";
+    result << "AL=" << ov::test::utils::vec2str(labelsLength) << "_";
     result << "BI=" << blankIndex << "_";
     result << "PCR=" << preprocessCollapseRepeated << "_";
     result << "CMR=" << ctcMergeRepeated << "_";

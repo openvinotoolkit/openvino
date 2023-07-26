@@ -43,7 +43,7 @@ const auto numpyBroadcast1DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::NUMPY),
         ::testing::Values(std::vector<size_t>{1}),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D, BroadcastLayerTest, numpyBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
             ::testing::Values(ngraph::op::BroadcastType::NUMPY),
             ::testing::Values(std::vector<size_t>{1}),
             ::testing::ValuesIn(inputTPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
         BroadcastLayerTest::getTestCaseName);
 
 // 2D
@@ -72,7 +72,7 @@ const auto numpyBroadcast2DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::NUMPY),
         ::testing::Values(std::vector<size_t>{3, 1}),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D, BroadcastLayerTest, numpyBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
@@ -91,7 +91,7 @@ const auto numpyBroadcast3DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::NUMPY),
         ::testing::Values(std::vector<size_t>{1, 4, 1}),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D, BroadcastLayerTest, numpyBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);
@@ -103,7 +103,7 @@ const auto numpyBroadcastNgraphEvaluateParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::NUMPY),
         ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1, 6, 1, 8, 1, 10}),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcastNgraphEvaluate, BroadcastLayerTest, numpyBroadcastNgraphEvaluateParams, BroadcastLayerTest::getTestCaseName);
@@ -128,7 +128,7 @@ const auto bidirectionalBroadcastParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
         ::testing::ValuesIn(inShapesBidi),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast, BroadcastLayerTest, bidirectionalBroadcastParams, BroadcastLayerTest::getTestCaseName);
@@ -145,7 +145,7 @@ const auto explicitBroadcast1DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inShapesExplicit1D),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast1D, BroadcastLayerTest, explicitBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
@@ -156,7 +156,7 @@ const auto bidirectionalBroadcastParams3 = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
         ::testing::Values(inShapesBidi[2]),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -189,7 +189,7 @@ const auto explicitBroadcast2DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inShapesExplicit2D),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D, BroadcastLayerTest, explicitBroadcast2DInputParams, BroadcastLayerTest::getTestCaseName);
@@ -205,7 +205,7 @@ const auto explicitBroadcast3DInputParams = ::testing::Combine(
         ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
         ::testing::ValuesIn(inShapesExplicit3D),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast3D, BroadcastLayerTest, explicitBroadcast3DInputParams, BroadcastLayerTest::getTestCaseName);

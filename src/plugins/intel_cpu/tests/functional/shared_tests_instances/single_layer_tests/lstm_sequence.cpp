@@ -46,7 +46,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonZeroClipNonconstantWRB, LSTMSequenceTest,
@@ -61,7 +61,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
@@ -76,7 +76,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
 }  // namespace

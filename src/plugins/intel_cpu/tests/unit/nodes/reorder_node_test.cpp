@@ -177,7 +177,7 @@ public:
         ReorderCustomImplTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        result << CommonTestUtils::vec2str(p.srcDims);
+        result << ov::test::utils::vec2str(p.srcDims);
         result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
         result << "_InputDataType:" << p.prec.name();
         result << "_OutputDataType:" << p.prec.name();
@@ -318,9 +318,9 @@ public:
         ReorderCPUTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        result << "InputPartialShape:" << CommonTestUtils::partialShape2str({p.inputPartialShape});
+        result << "InputPartialShape:" << ov::test::utils::partialShape2str({p.inputPartialShape});
         for (const auto& inputShape : p.inputShapes) {
-            result << CommonTestUtils::vec2str(inputShape);
+            result << ov::test::utils::vec2str(inputShape);
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << layoutName(p.dstLayout) << ".";

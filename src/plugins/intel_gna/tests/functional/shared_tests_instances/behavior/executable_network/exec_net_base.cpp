@@ -15,7 +15,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ExecutableNetworkBaseTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ExecutableNetworkBaseTest::getTestCaseName);
 
@@ -26,7 +26,7 @@ const std::vector<InferenceEngine::Precision> setPRC = {InferenceEngine::Precisi
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ExecNetSetPrecision,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ExecNetSetPrecision::getTestCaseName);
 

@@ -44,7 +44,7 @@ const std::vector<interpAttributes> interpAttrs = {
 const auto combineValues = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(shapes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::Values(ov::test::utils::DEVICE_CPU),
     ::testing::ValuesIn(interpAttrs));
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);

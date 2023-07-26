@@ -16,8 +16,8 @@ std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLaye
     std::tie(tileParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "Repeats=" << CommonTestUtils::vec2str(tileParams) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "Repeats=" << ov::test::utils::vec2str(tileParams) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";

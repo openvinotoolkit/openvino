@@ -18,9 +18,9 @@ std::string MulConvFusion::getTestCaseName(const testing::TestParamInfo<MulConvF
     std::ostringstream results;
 
     results << conv_type.name << "_";
-    results << "input" << CommonTestUtils::vec2str(input_shape) << "_";
-    results << "weights" << CommonTestUtils::vec2str(weights_shape) << "_";
-    results << "const" << CommonTestUtils::vec2str(const_shape) << "_";
+    results << "input" << ov::test::utils::vec2str(input_shape) << "_";
+    results << "weights" << ov::test::utils::vec2str(weights_shape) << "_";
+    results << "const" << ov::test::utils::vec2str(const_shape) << "_";
     results << "precision=" << precision << "_";
     results << "device=" << device;
     return results.str();

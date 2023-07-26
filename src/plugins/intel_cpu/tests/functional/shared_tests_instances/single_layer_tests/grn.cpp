@@ -29,7 +29,7 @@ const auto basicCases = ::testing::Combine(
                       std::vector<size_t>{2, 16, 15, 20}),
     // bias
     ::testing::Values(1e-6f, 0.33f, 1.1f, 2.25f, 100.25f),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRN_Basic, GrnLayerTest,
                         basicCases,

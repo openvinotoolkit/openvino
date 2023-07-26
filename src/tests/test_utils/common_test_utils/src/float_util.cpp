@@ -7,7 +7,11 @@
 #include "openvino/runtime/exception.hpp"
 #include "precomp.hpp"
 
-std::string ngraph::test::bfloat16_to_bits(ov::bfloat16 f) {
+namespace ov {
+namespace test {
+namespace utils {
+
+std::string bfloat16_to_bits(bfloat16 f) {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
     std::string unformatted = ss.str();
@@ -28,7 +32,7 @@ std::string ngraph::test::bfloat16_to_bits(ov::bfloat16 f) {
     return formatted;
 }
 
-std::string ngraph::test::float16_to_bits(ov::float16 f) {
+std::string float16_to_bits(float16 f) {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
     std::string unformatted = ss.str();
@@ -49,7 +53,7 @@ std::string ngraph::test::float16_to_bits(ov::float16 f) {
     return formatted;
 }
 
-std::string ngraph::test::float_to_bits(float f) {
+std::string float_to_bits(float f) {
     FloatUnion fu{f};
     std::stringstream ss;
     ss << std::bitset<32>(fu.i);
@@ -71,7 +75,7 @@ std::string ngraph::test::float_to_bits(float f) {
     return formatted;
 }
 
-std::string ngraph::test::double_to_bits(double d) {
+std::string double_to_bits(double d) {
     DoubleUnion du{d};
     std::stringstream ss;
     ss << std::bitset<64>(du.i);
@@ -92,7 +96,7 @@ std::string ngraph::test::double_to_bits(double d) {
     return formatted;
 }
 
-ov::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s) {
+ov::bfloat16 bits_to_bfloat16(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -103,7 +107,7 @@ ov::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s) {
     return ov::bfloat16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
-ov::float16 ngraph::test::bits_to_float16(const std::string& s) {
+ov::float16 bits_to_float16(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -114,7 +118,7 @@ ov::float16 ngraph::test::bits_to_float16(const std::string& s) {
     return ov::float16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
-float ngraph::test::bits_to_float(const std::string& s) {
+float bits_to_float(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -127,7 +131,7 @@ float ngraph::test::bits_to_float(const std::string& s) {
     return fu.f;
 }
 
-double ngraph::test::bits_to_double(const std::string& s) {
+double bits_to_double(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -139,3 +143,6 @@ double ngraph::test::bits_to_double(const std::string& s) {
     du.i = static_cast<uint64_t>(bs.to_ullong());
     return du.d;
 }
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

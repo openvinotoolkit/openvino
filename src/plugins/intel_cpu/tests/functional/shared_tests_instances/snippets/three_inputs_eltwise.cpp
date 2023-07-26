@@ -17,7 +17,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, ThreeInputsEltwise,
                              ::testing::Values(ov::Shape {1, 1, 1,  10}),
                              ::testing::Values(1), // eltwises fuse only for non-broadcasted shapes
                              ::testing::Values(1),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ThreeInputsEltwise::getTestCaseName);
 
 }  // namespace

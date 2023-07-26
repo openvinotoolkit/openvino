@@ -21,8 +21,8 @@ std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "out_dim=" << outputDim << "_";
     result << "group_size=" << groupSize << "_";
     result << "scale=" << spatialScale << "_";

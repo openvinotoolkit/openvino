@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse1D,
                                             ::testing::ValuesIn(indices1D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes2D = {{3, 4}, {1, 3}};
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse2D,
                                             ::testing::ValuesIn(indices2D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes3D = {{1, 3, 4}, {2, 5, 6}};
@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse3D,
                                             ::testing::ValuesIn(indices3D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes4D = {{1, 2, 3, 4}, {1, 2, 5, 6}};
@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse4D,
                                             ::testing::ValuesIn(indices4D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes5D = {{1, 1, 4, 3, 3}};
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse5D,
                                             ::testing::ValuesIn(indices5D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes6D = {{1, 1, 4, 3, 3, 3}};
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reverse6D,
                                             ::testing::ValuesIn(indices6D),
                                             ::testing::ValuesIn(modes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReverseLayerTest::getTestCaseName);
 
 }  // namespace

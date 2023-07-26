@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_2D, LrnLayerTest,
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({10, 16})),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         LrnLayerTest::getTestCaseName);
 
 } // namespace LRN2D
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_3D, LrnLayerTest,
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({6, 10, 16})),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         LrnLayerTest::getTestCaseName);
 
 } // namespace LRN3D
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_4D, LrnLayerTest,
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({10, 10, 3, 8})),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         LrnLayerTest::getTestCaseName);
 
 } // namespace LRN4D
@@ -89,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck_5D, LrnLayerTest,
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({1, 10, 10, 7, 4})),
-                                           ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         LrnLayerTest::getTestCaseName);
 
 } // namespace LRN5D

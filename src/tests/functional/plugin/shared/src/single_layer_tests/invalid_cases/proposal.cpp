@@ -16,7 +16,7 @@ std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehT
 
     std::ostringstream result;
     result << "targetDevice=" << targetDevice;
-    result << "img_info = " << CommonTestUtils::vec2str(img_info) << "_";
+    result << "img_info = " << ov::test::utils::vec2str(img_info) << "_";
 
     return proposalPramString + result.str();
 }

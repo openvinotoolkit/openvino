@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv2D, QuantGroupConvLayerTest,
                                 quantGroupConv2DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantGroupConvLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConv3D, QuantGroupConvLayerTest,
                                 quantGroupConv3DParams,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantGroupConvLayerTest::getTestCaseName);
 
 }  // namespace

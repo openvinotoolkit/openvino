@@ -19,7 +19,7 @@ namespace {
             ::testing::Values(ov::element::f32),
             ::testing::Values(ov::Shape {1, 42, 16, 64}),
             ::testing::Values(ov::Shape {1, 42, 64, 64}),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
             CodegenBert::getTestCaseName);
 }  // namespace
 } // namespace snippets

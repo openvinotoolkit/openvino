@@ -50,7 +50,7 @@ public:
 
     // Sets up the test fixture.
     void SetUp() override {
-        auto testName = CommonTestUtils::generateTestFilePrefix();
+        auto testName = ov::test::utils::generateTestFilePrefix();
         m_fileName = testName + m_fileName;
         createFile(m_fileName);
     }
@@ -84,7 +84,7 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
-    std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
+    std::string file2 = std::string(".") + ov::test::utils::FileSeparator + m_fileName;
     ASSERT_EQ(ModelCache::calculate_file_info(file1), ModelCache::calculate_file_info(file2))
         << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
@@ -342,8 +342,8 @@ TEST(NetworkContext_ModelName, HashOfSame) {
 }
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
-    auto file1 = CommonTestUtils::generateTestFilePrefix() + ".xml";
-    auto file2 = std::string(".") + CommonTestUtils::FileSeparator + file1;
+    auto file1 = ov::test::utils::generateTestFilePrefix() + ".xml";
+    auto file2 = std::string(".") + ov::test::utils::FileSeparator + file1;
 
     FileGuard guard(file1);
     {

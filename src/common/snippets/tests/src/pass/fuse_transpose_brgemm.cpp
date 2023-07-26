@@ -18,9 +18,9 @@ std::string FuseTransposeBrgemmTests::getTestCaseName(testing::TestParamInfo<fus
     size_t transpose_position;
     std::tie(input_shapes, master_shape, transpose_position) = obj.param;
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::partialShape2str({input_shapes[0]}) << "_";
-    result << "IS[1]=" << CommonTestUtils::partialShape2str({input_shapes[1]}) << "_";
-    result << "MS=" << CommonTestUtils::partialShape2str({master_shape}) << "_";
+    result << "IS[0]=" << ov::test::utils::partialShape2str({input_shapes[0]}) << "_";
+    result << "IS[1]=" << ov::test::utils::partialShape2str({input_shapes[1]}) << "_";
+    result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
     result << "Pos=" << transpose_position << "_";
     return result.str();
 }

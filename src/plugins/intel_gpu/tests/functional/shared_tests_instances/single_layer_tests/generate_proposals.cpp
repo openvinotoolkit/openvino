@@ -175,7 +175,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(getInputTensors<ov::float16>()),
                 ::testing::ValuesIn({ov::element::Type_t::f16}),
                 ::testing::ValuesIn({ov::element::Type_t::i32, ov::element::Type_t::i64}),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GenerateProposalsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -191,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(getInputTensors<float>()),
                 ::testing::ValuesIn({ov::element::Type_t::f32}),
                 ::testing::ValuesIn({ov::element::Type_t::i32, ov::element::Type_t::i64}),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GenerateProposalsLayerTest::getTestCaseName);
 
 } // namespace

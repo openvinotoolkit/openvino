@@ -18,7 +18,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
         obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversionOpType] << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inputPRC=" << inputPrecision.name() << "_";
     result << "targetPRC=" << targetPrecision.name() << "_";
     result << "inL=" << inLayout << "_";

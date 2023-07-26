@@ -20,7 +20,7 @@ namespace {
     ss << "post_nms_count=" << attributes.post_nms_count << "_";
     ss << "max_detections_per_image=" << attributes.max_detections_per_image << "_";
     ss << "class_agnostic_box_regression=" << (attributes.class_agnostic_box_regression ? "true" : "false") << "_";
-    ss << "deltas_weights=" << CommonTestUtils::vec2str(attributes.deltas_weights);
+    ss << "deltas_weights=" << ov::test::utils::vec2str(attributes.deltas_weights);
     return ss;
 }
 } // namespace

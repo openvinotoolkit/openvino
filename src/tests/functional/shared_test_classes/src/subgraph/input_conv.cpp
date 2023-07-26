@@ -21,8 +21,8 @@ std::string InputConvTest::getTestCaseName(const testing::TestParamInfo<inputCon
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "OC=" << outputChannels << "_";
     result << "addReshape=" << addReshape << "_";

@@ -35,7 +35,7 @@ std::list<std::pair<std::string, int>> dirListInfo;
 namespace subgraph {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
-    using namespace CommonTestUtils;
+    using namespace ov::test::utils;
     std::pair<std::string, std::string> model_pair;
     std::string path_to_model, path_to_cache, deviceName;
     ov::AnyMap config;
@@ -43,7 +43,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     std::tie(path_to_model, path_to_cache) = model_pair;
 
     std::ostringstream result;
-    auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+    auto splittedFilename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
     std::reverse(splittedFilename.begin(), splittedFilename.end());
     bool is_valid_path_format = true;
 
@@ -78,7 +78,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
             is_valid_path_format = false;
         }
     }
-    result << "IR=" << (is_valid_path_format ? CommonTestUtils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
+    result << "IR=" << (is_valid_path_format ? ov::test::utils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
     result << "Device=" << deviceName << "_";
     result << "Config=(";
     auto configItem = config.begin();
@@ -95,17 +95,17 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
     auto &s = ov::test::utils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         if (functionRefs == nullptr) {
             functionRefs = ngraph::clone_function(*function);
@@ -129,27 +129,27 @@ void ReadIRTest::query_model() {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
             GTEST_FAIL() << "Something is wrong in Query model! Please check";
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     }
 }
 
 void ReadIRTest::import_export() {
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
     auto &summary = ov::test::utils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         summary.setDeviceName(targetDevice);
         try {
@@ -177,10 +177,10 @@ void ReadIRTest::import_export() {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Error in the Core::query_model() method call!";
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Hang happens";
     }
@@ -195,8 +195,8 @@ void ReadIRTest::SetUp() {
     std::tie(model_pair, targetDevice, configuration) = this->GetParam();
     std::tie(path_to_model, path_to_cache) = model_pair;
     function = core->read_model(path_to_model);
-    const auto metaFile = CommonTestUtils::replaceExt(path_to_model, "meta");
-    if (CommonTestUtils::fileExists(metaFile)) {
+    const auto metaFile = ov::test::utils::replaceExt(path_to_model, "meta");
+    if (ov::test::utils::fileExists(metaFile)) {
         pugi::xml_document doc;
         doc.load_file(metaFile.c_str());
         auto models = doc.child("meta_info").child("models");
@@ -309,7 +309,7 @@ void ReadIRTest::SetUp() {
             pgLink->set_refuse_result();
         }
 
-        auto splittedFilename = CommonTestUtils::splitStringByDelimiter(path_to_model, CommonTestUtils::FileSeparator);
+        auto splittedFilename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
         std::reverse(splittedFilename.begin(), splittedFilename.end());
 
         // Try to resolve missing info
@@ -367,9 +367,9 @@ void ReadIRTest::SetUp() {
                 if (s.is_dynamic()) {
                     size_t range = s.get_max_length() - s.get_min_length();
                     if (range > std::numeric_limits<char>::max()) {
-                        CommonTestUtils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
                     }
-                    CommonTestUtils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
+                    ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
                 } else {
                     dimValue = s.get_length();
                 }
@@ -405,7 +405,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
     }
     ov::TensorVector output_tensors;
-    if (!CommonTestUtils::fileExists(path_to_cache)) {
+    if (!ov::test::utils::fileExists(path_to_cache)) {
         std::cout << "[ REFERENCE   ] Calculate reference in runtime" << std::endl;
         output_tensors = SubgraphBaseTest::calculate_refs();
         if (path_to_cache != "") {

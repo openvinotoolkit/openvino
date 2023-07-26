@@ -104,7 +104,7 @@ public:
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            const auto absoluteDifference = ov::test::utils::ie_abs(res - ref);
             if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
                 IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with absolute threshold " << abs_threshold
@@ -115,9 +115,9 @@ public:
             }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = static_cast<double>(std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref)));
+                max = static_cast<double>(std::max(ov::test::utils::ie_abs(T_NGRAPH(res)), ov::test::utils::ie_abs(ref)));
             } else {
-                max = static_cast<double>(std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref))));
+                max = static_cast<double>(std::max(ov::test::utils::ie_abs(res), ov::test::utils::ie_abs(T_IE(ref))));
             }
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||

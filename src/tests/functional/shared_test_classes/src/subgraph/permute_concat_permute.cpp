@@ -20,7 +20,7 @@ std::string PermuteConcatPermute::getTestCaseName(const testing::TestParamInfo<P
     std::tie(input, netPrecision, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input[0]) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();

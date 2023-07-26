@@ -19,7 +19,7 @@ std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<re
     std::string targetName;
     std::tie(inputShape, classes, coords, num_regions, do_softmax , mask, start_axis, end_axis, netPrecision, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "classes=" << classes << "_";
     result << "coords=" << coords << "_";
     result << "num=" << num_regions << "_";

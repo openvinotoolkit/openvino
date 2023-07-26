@@ -14,7 +14,7 @@ std::string ReluSplitReshape::getTestCaseName(const testing::TestParamInfo<ReluS
     std::tie(inputShape, splitAxis, splitNum, netPrecision, targetName, config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "axis=" << splitAxis << "_";
     results << "num=" << splitNum << "_";
     results << "netPRC=" << netPrecision.name() << "_";

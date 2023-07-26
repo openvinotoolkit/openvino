@@ -169,9 +169,9 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         std::string cacheDirName;
         if (is_caching_test) {
             cacheDirName = std::string("make_shared_nv12_tensor_cached_inference");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
             core.set_property(ov::cache_dir(cacheDirName));
 
             auto tmp_model = core.compile_model(model, context);
@@ -191,9 +191,9 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheDirName, "cl_cache");
-            CommonTestUtils::removeDir(cacheDirName);
+            ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+            ov::test::utils::removeDir(cacheDirName);
         }
     }
 };
@@ -212,7 +212,7 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
     ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
         create_device_with_ctx(intel_adapters[0]));
     auto remote_context = make_shared_context(ie,
-        CommonTestUtils::DEVICE_GPU,
+        ov::test::utils::DEVICE_GPU,
         device_ptr);
     ASSERT_TRUE(remote_context);
 
@@ -222,7 +222,7 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
 
         ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
                         create_device_with_ctx(adapter));
-        ASSERT_THROW(make_shared_context(ie, CommonTestUtils::DEVICE_GPU,
+        ASSERT_THROW(make_shared_context(ie, ov::test::utils::DEVICE_GPU,
                                          device_ptr),
                      std::runtime_error);
     }

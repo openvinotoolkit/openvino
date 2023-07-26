@@ -21,9 +21,9 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
     std::ostringstream result;
     result << "IS=";
     for (const auto& sh : inputShape)
-        result << CommonTestUtils::vec2str(sh.get_shape()) << "_";
-    result << "IT=" << CommonTestUtils::vec2str(types.first) << "_";
-    result << "OT=" << CommonTestUtils::vec2str(types.second) << "_";
+        result << ov::test::utils::vec2str(sh.get_shape()) << "_";
+    result << "IT=" << ov::test::utils::vec2str(types.first) << "_";
+    result << "OT=" << ov::test::utils::vec2str(types.second) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;

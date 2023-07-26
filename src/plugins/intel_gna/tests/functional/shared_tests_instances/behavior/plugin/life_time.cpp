@@ -22,19 +22,19 @@ const std::vector<std::vector<int>> orders = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          HoldersTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(orders)),
                          HoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          HoldersTestImportNetwork,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(orders)),
                          HoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          HoldersTestOnImportedNetwork,
-                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Values(ov::test::utils::DEVICE_GNA),
                          HoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

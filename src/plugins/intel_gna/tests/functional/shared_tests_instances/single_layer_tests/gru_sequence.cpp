@@ -63,11 +63,11 @@ protected:
 
         auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
         std::vector<float> weights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[0]), -0.0001f, 0.0001f);
         std::vector<float> reccurrenceWeights_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[1]), -0.0001f, 0.0001f);
         std::vector<float> bias_vals =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
         auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
         auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
@@ -115,7 +115,7 @@ protected:
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.002f, 0.002f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(direction),
                        ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -185,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(direction),
                        ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
 
 }  // namespace

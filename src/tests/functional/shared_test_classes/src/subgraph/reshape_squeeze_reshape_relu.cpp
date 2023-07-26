@@ -14,8 +14,8 @@ namespace SubgraphTestsDefinitions {
         std::tie(squeezeShape, netPrecision, targetName, opType) = obj.param;
         std::ostringstream results;
         results << "OpType=" << opType;
-        results << "IS=" << CommonTestUtils::vec2str(squeezeShape.first) << "_";
-        results << "indices=" << CommonTestUtils::vec2str(squeezeShape.second) << "_";
+        results << "IS=" << ov::test::utils::vec2str(squeezeShape.first) << "_";
+        results << "indices=" << ov::test::utils::vec2str(squeezeShape.second) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName << "_";
         return results.str();

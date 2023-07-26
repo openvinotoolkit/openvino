@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CTCLoss_Set1,
                          testing::Combine(ctcLossArgsSubset1,
                                           testing::ValuesIn(fPrecisions),
                                           testing::ValuesIn(iPrecisions),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          CTCLossLayerTest::getTestCaseName);
 
 const auto ctcLossArgsSubset2 =
@@ -60,6 +60,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CTCLoss_Set2,
                          testing::Combine(ctcLossArgsSubset2,
                                           testing::ValuesIn(fPrecisions),
                                           testing::ValuesIn(iPrecisions),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          CTCLossLayerTest::getTestCaseName);
 }  // namespace

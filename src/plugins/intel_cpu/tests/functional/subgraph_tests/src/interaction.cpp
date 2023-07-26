@@ -163,7 +163,7 @@ protected:
         } else {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::f32);
         }
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         inputDynamicShapes.push_back(inputShape.first);
         const auto& targetInput = inputShape.second;
         for (size_t i = 0; i  < targetInput.size(); i++) {

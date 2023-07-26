@@ -42,9 +42,9 @@ public:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
             for (const auto& actual_shape : shape.second) {
-                result << CommonTestUtils::partialShape2str({actual_shape}) << "_";
+                result << ov::test::utils::partialShape2str({actual_shape}) << "_";
             }
         }
         result << "NetType=" << netType << "_";
@@ -124,7 +124,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
                                                    ::testing::ValuesIn(netPrecisions), // netprec
-                                                   ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
                                                    ::testing::Values(emptyAdditionalConfig));
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_model_static_split, DynamicModelStaticSplitLayerGPUTest,

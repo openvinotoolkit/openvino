@@ -33,7 +33,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         Precision netPrecision;
         size_t rank;
         std::tie(netPrecision, rank) = this->GetParam();

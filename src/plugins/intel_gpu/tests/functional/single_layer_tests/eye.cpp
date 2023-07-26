@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye2D_WithNonScalar_Test,
                                             ::testing::ValuesIn(emptyBatchShape),
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test,
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_1DBatch_Test,
                                             ::testing::ValuesIn(batchShapes1D),
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test,
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_2DBatch_Test,
                                             ::testing::ValuesIn(batchShapes2D),
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test,
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eye_3DBatch_Test,
                                             ::testing::ValuesIn(batchShapes3D),
                                             ::testing::ValuesIn(eyePars),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EyeLayerTest::getTestCaseName);
 
 }  // namespace

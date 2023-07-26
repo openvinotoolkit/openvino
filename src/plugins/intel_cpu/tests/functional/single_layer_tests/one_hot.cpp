@@ -38,11 +38,11 @@ public:
 
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
-            result << "IS=(" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+            result << "IS=(" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShape.second) {
-                result << CommonTestUtils::vec2str(shape) << "_";
+                result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
         if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT && !inputType.second) {
@@ -78,7 +78,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShape;
         std::pair<ngraph::helpers::InputLayerType, bool> inputType;

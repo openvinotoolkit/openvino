@@ -40,14 +40,14 @@ public:
     }
 
     void SetUp() override {
-        m_model_path = CommonTestUtils::getModelFromTestModelZoo(
+        m_model_path = ov::test::utils::getModelFromTestModelZoo(
             ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
         if (!std::get<1>(GetParam()).empty()) {
-            m_binary_path = CommonTestUtils::getModelFromTestModelZoo(
+            m_binary_path = ov::test::utils::getModelFromTestModelZoo(
                 ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
         }
 
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -288,7 +288,7 @@ public:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }

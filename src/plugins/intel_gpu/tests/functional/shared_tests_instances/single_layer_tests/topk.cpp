@@ -48,7 +48,7 @@ std::string TopKLayerTestGPU::getTestCaseName(const testing::TestParamInfo<TopKG
     std::tie(keepK, axis, mode, sort, stable, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) =
         obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "k=" << keepK << "_";
     result << "axis=" << axis << "_";
     result << "mode=" << mode << "_";
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          TopKLayerTestGPU::getTestCaseName);
 }  // namespace
 }  // namespace GPULayerTestsDefinitions

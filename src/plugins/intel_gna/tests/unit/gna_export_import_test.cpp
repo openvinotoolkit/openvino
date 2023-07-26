@@ -110,7 +110,7 @@ protected:
         auto mul_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {shape, shape},
-                                                 CommonTestUtils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
+                                                 ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
                                                  false);
 
         auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);

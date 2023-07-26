@@ -22,13 +22,13 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
              with_bilinear_interpolation_pad, with_modulation) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "DV" << CommonTestUtils::vec2str(offsets) << "_";
-    result << "K" << CommonTestUtils::vec2str(filter) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "DV" << ov::test::utils::vec2str(offsets) << "_";
+    result << "K" << ov::test::utils::vec2str(filter) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "G=" << groups << "_";
     result << "DG=" << deformable_groups << "_";
     result << "O=" << convOutChannels << "_";

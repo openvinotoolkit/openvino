@@ -17,7 +17,7 @@ std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test
     std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;

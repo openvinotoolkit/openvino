@@ -19,8 +19,8 @@ std::string GridSampleLayerTest::getTestCaseName(const testing::TestParamInfo<Gr
     std::tie(dataShape, gridShape, alignCorners, mode, paddingMode, inDataPrc, inGridPrc, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-    result << "GS=" << CommonTestUtils::vec2str(gridShape) << "_";
+    result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+    result << "GS=" << ov::test::utils::vec2str(gridShape) << "_";
     result << "AlignCorners=" << alignCorners << "_";
     result << "Mode=" << ov::as_string(mode) << "_";
     result << "PaddingMode=" << ov::as_string(paddingMode) << "_";

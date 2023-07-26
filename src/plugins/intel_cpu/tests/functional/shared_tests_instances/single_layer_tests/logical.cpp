@@ -59,7 +59,7 @@ const auto LogicalTestParams = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto LogicalTestParamsNot = ::testing::Combine(
@@ -71,7 +71,7 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, LogicalLayerTest, LogicalTestParams, LogicalLayerTest::getTestCaseName);

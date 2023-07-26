@@ -45,12 +45,12 @@ public:
         std::tie(data_prec, data_shape, ranges_prec, il_shape, ih_shape, ol_shape, oh_shape, levels) = basic_params;
 
         std::ostringstream result;
-        result << "DATA=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "DATA=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "DATA_PRC=" << ngraph::element::Type(data_prec) << "_";
-        result << "IL=" << CommonTestUtils::vec2str(il_shape) << "_" << input_ranges_values.first << "_";
-        result << "IH=" << CommonTestUtils::vec2str(ih_shape) << "_" << input_ranges_values.second << "_";
-        result << "OL=" << CommonTestUtils::vec2str(ol_shape) << "_";
-        result << "OH=" << CommonTestUtils::vec2str(oh_shape) << "_";
+        result << "IL=" << ov::test::utils::vec2str(il_shape) << "_" << input_ranges_values.first << "_";
+        result << "IH=" << ov::test::utils::vec2str(ih_shape) << "_" << input_ranges_values.second << "_";
+        result << "OL=" << ov::test::utils::vec2str(ol_shape) << "_";
+        result << "OH=" << ov::test::utils::vec2str(oh_shape) << "_";
         result << "RANGES_PRC=" << ngraph::element::Type(ranges_prec) << "_";
         result << "LEVELS=" << levels;
         return result.str();

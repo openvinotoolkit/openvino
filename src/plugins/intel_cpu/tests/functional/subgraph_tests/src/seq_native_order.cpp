@@ -74,7 +74,7 @@ public:
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";
@@ -104,7 +104,7 @@ protected:
         std::vector<TargetShapeParams> targetShapes;
         std::tie(bounds, targetShapes) = inShapeParams;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         seqLengthInIdx = (seqType == SEQ_TYPE::LSTM ? 3 : 2);
 

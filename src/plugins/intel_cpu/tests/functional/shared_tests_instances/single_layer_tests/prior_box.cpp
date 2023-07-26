@@ -81,5 +81,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShape),
                                 ::testing::Values(imageShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             PriorBoxLayerTest::getTestCaseName);

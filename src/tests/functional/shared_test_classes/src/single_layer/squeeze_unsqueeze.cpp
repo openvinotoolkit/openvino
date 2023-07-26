@@ -17,8 +17,8 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamI
     std::ostringstream result;
     const char separator = '_';
     result << "OpType=" << opType << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapeItem.first) << separator;
-    result << "Axes=" << (shapeItem.second.empty() ? "default" : CommonTestUtils::vec2str(shapeItem.second)) << separator;
+    result << "IS=" << ov::test::utils::vec2str(shapeItem.first) << separator;
+    result << "Axes=" << (shapeItem.second.empty() ? "default" : ov::test::utils::vec2str(shapeItem.second)) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;

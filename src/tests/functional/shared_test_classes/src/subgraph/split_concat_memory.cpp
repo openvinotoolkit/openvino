@@ -16,7 +16,7 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
     std::tie(inputShapes, netPrecision, axis, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "PRC=" << netPrecision.get_type_name() << "_";
     result << "axis=" << axis << "_";
     result << "dev=" << targetDevice;

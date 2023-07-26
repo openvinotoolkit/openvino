@@ -20,7 +20,7 @@ public:
         std::replace(target_device.begin(), target_device.end(), ':', '.');
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
-            using namespace CommonTestUtils;
+            using namespace ov::test::utils;
             result << "config=" << configuration;
         }
         return result.str();
@@ -188,7 +188,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
-            auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+            auto origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &op) {
                 auto origLayer = originalLayersMap.find(op);
                 ASSERT_NE(originalLayersMap.end(), origLayer) << op;
@@ -243,7 +243,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
         auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-        std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+        std::vector<std::string> origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
@@ -268,7 +268,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string out_xml_path = filePrefix + ".xml";
     std::string out_bin_path = filePrefix + ".bin";
 
@@ -277,16 +277,16 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     ASSERT_NO_THROW(execGraph.serialize(out_xml_path, out_bin_path));
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 TEST_P(ExecutableNetworkBaseTest, canExport) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string modelName = filePrefix;
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execNet.Export(modelName));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName));
-    CommonTestUtils::removeFile(modelName);
+    ASSERT_TRUE(ov::test::utils::fileExists(modelName));
+    ov::test::utils::removeFile(modelName);
 }
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {

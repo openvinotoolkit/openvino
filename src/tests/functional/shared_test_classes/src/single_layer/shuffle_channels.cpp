@@ -19,7 +19,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(axis, group) = shuffleChannelsParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Axis=" << std::to_string(axis) << "_";
     result << "Group=" << std::to_string(group) << "_";
     result << "netPRC=" << netPrecision.name() << "_";

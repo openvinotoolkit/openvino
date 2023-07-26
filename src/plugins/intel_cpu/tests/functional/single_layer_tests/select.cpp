@@ -38,7 +38,7 @@ public:
        result << ")_TS=(";
        for (const auto& shape : shapes) {
            for (const auto& item : shape.second) {
-               result << CommonTestUtils::vec2str(item) << "_";
+               result << ov::test::utils::vec2str(item) << "_";
            }
        }
        result << "Broadcast=" << broadcast.m_type;
@@ -50,7 +50,7 @@ public:
 protected:
    void SetUp() override {
         abs_threshold = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> shapes;
         ElementType precision;
         ngraph::op::AutoBroadcastSpec broadcast;

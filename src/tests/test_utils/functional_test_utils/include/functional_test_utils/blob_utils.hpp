@@ -433,7 +433,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobFloatNormalDistribution(const
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_normal_random_float<X>(blob, mean, stddev, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_data_normal_random_float<X>(blob, mean, stddev, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -460,7 +460,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobFloat(const InferenceEngine::
 
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random_float<X>(blob, range, start_from, resolution, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_data_random_float<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -485,7 +485,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobWithFloatArray(const Inferenc
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X, T>(blob, values, size); break;
+#define CASE(X) case X: ov::test::utils::fill_data_float_array<X, T>(blob, values, size); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -511,7 +511,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP64)
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
@@ -548,7 +548,7 @@ inline ov::Tensor create_and_fill_tensor(
          {shape.begin(), shape.end()},
          ov::ie::TensorDesc::getLayoutByRank(shape.size())}, tensor.data());
     switch (ov::ie::details::convertPrecision(element_type)) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP64)
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
@@ -579,8 +579,8 @@ void inline fill_tensor(ov::Tensor& tensor,
                         const int seed = 1) {
     auto element_type = tensor.get_element_type();
     switch (element_type) {
-#define CASE(X) case X: CommonTestUtils::fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
-#define CASE_FLOAT(X) case X: CommonTestUtils::fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
+#define CASE_FLOAT(X) case X: ov::test::utils::fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
     CASE_FLOAT(ov::element::f64)
     CASE_FLOAT(ov::element::f32)
     CASE_FLOAT(ov::element::f16)
@@ -611,7 +611,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_consistently<X>(blob, range, start_from, resolution); break;
+#define CASE(X) case X: ov::test::utils::fill_data_consistently<X>(blob, range, start_from, resolution); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)
@@ -639,7 +639,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
     auto shape = td.getDims();
     auto range = std::accumulate(begin(shape), end(shape), uint64_t(1), std::multiplies<uint64_t>()) * 2;
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_random_unique_sequence<X>(blob, range, start_from, resolution, seed); break;
+#define CASE(X) case X: ov::test::utils::fill_random_unique_sequence<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)

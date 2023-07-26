@@ -35,7 +35,7 @@ protected:
         auto mul_const_1 = ngraph::builder::makeConstant<float>(
             ngPrc,
             {inputShape[1], 2048},
-            CommonTestUtils::generate_float_numbers(2048 * inputShape[1], -0.1f, 0.1f),
+            ov::test::utils::generate_float_numbers(2048 * inputShape[1], -0.1f, 0.1f),
             false);
 
         auto matmul_1 = std::make_shared<ngraph::op::MatMul>(params[0], mul_const_1);
@@ -44,7 +44,7 @@ protected:
         auto mul_const_2 =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {2048, 3425},
-                                                 CommonTestUtils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f),
+                                                 ov::test::utils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f),
                                                  false);
 
         auto matmul_2 = std::make_shared<ngraph::op::MatMul>(sigmoid_1, mul_const_2);
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkBatchCase,
                          ImportBatchTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs),
                                             ::testing::ValuesIn(appHeader)),

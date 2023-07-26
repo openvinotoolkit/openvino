@@ -19,7 +19,7 @@ class ConvAndFQWithSharedConstants : virtual public SubgraphBaseTest,
                                      public CpuTestWithFusing {
 public:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         fusedOps = std::vector<std::string>{"FakeQuantize"};
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         const auto precision = element::f32;

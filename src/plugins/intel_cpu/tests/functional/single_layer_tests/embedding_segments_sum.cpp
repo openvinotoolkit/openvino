@@ -53,8 +53,8 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I"  << CommonTestUtils::vec2str(indices) << "_";
-        result << "SI" << CommonTestUtils::vec2str(segmentIds) << "_";
+        result << "I"  << ov::test::utils::vec2str(indices) << "_";
+        result << "SI" << ov::test::utils::vec2str(segmentIds) << "_";
         result << "NS" << numSegments << "_";
         result << "DI" << defaultIndex << "_";
         result << "WW" << withWeights << "_";
@@ -78,7 +78,7 @@ protected:
         std::tie(inputShapes, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = embParams;
 
         selectedType = makeSelectedTypeStr("ref", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingSegmentsSumLayerCPUTest,
          embSegmentsSumArgSet,
          ::testing::ValuesIn(netPrecisions),
          ::testing::ValuesIn(indPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+         ::testing::Values(ov::test::utils::DEVICE_CPU)),
          EmbeddingSegmentsSumLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace CPULayerTestsDefinitions

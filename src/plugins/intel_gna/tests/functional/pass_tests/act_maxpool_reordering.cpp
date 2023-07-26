@@ -56,7 +56,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_bias=" << addBiases;
         result << "_actType=" << activationNames[actType];
 
@@ -140,7 +140,7 @@ const std::vector<ngraph::helpers::ActivationTypes> gnaPwlUniformDesignActivatio
 INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering,
                          ActMaxpoolReordering,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(addBiases),
@@ -150,7 +150,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_act_maxpool_reordering,
 INSTANTIATE_TEST_SUITE_P(gna_pwl_uniform_design_smoke_act_maxpool_reordering,
                          ActMaxpoolReordering,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(gnaPwlUniformDesignConfigs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(addBiases),

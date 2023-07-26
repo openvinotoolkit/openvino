@@ -46,7 +46,7 @@ public:
         for (auto const& configItem : importConfiguration) {
             result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
         }
-        result << CommonTestUtils::vec2str(inputShape);
+        result << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -124,7 +124,7 @@ protected:
         size_t num_out_channels = 8;
         size_t kernel_size = 8;
         std::vector<float> filter_weights =
-            CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[1] * kernel_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * inputShape[1] * kernel_size, -0.2f, 0.2f);
         auto conv = ngraph::builder::makeConvolution(relu1,
                                                      ngPrc,
                                                      {1, kernel_size},
@@ -164,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ImportActConvAct,
                          ImportActConvActTest,
                          ::testing::Combine(::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs)),
                          ImportActConvActTest::getTestCaseName);

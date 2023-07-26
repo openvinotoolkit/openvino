@@ -38,7 +38,7 @@ public:
 
         result << "IS=";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : shapes) {
@@ -46,12 +46,12 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
         }
-        result << "DATA=" << "[" << CommonTestUtils::vec2str(data) << "]_";
+        result << "DATA=" << "[" << ov::test::utils::vec2str(data) << "]_";
         result << "PRC=" << prc << "_";
 
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -62,7 +62,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> shapes;
         std::vector<int> data;

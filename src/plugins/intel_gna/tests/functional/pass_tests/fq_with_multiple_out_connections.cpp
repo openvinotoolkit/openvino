@@ -100,7 +100,7 @@ const std::vector<std::map<std::string, std::string>> configs = {{
 INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion,
                          FQWithMultipleOutConnections,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          FQWithMultipleOutConnections::getTestCaseName);
 }  // namespace LayerTestsDefinitions

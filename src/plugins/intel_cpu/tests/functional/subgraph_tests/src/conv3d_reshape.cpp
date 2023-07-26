@@ -34,7 +34,7 @@ protected:
      std::string cpuNodeType;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         nodeType convType;
         size_t numOut;
         std::tie(convType, numOut) = this->GetParam();

@@ -14,9 +14,9 @@ std::vector<memoryStateParams> memoryStateTestCases = {
 #ifdef ENABLE_INTEL_CPU
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
-                      CommonTestUtils::DEVICE_MULTI,
+                      ov::test::utils::DEVICE_MULTI,
                       {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES),
-                        CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}})
+                        ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU}})
 #endif
 };
 

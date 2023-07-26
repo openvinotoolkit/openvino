@@ -60,7 +60,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
 

@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(
                      ::testing::Values(ov::element::undefined),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes2D)),
                      testing::ValuesIn(axis2D),
-                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 
@@ -56,7 +56,7 @@ const auto params3D = testing::Combine(
     ::testing::Values(ov::element::undefined),
     testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
     testing::ValuesIn(axis3D),
-    testing::Values(CommonTestUtils::DEVICE_GPU),
+    testing::Values(ov::test::utils::DEVICE_GPU),
     testing::Values(ov::AnyMap())
 );
 
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(
                      ::testing::Values(ov::element::undefined),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes4D)),
                      testing::ValuesIn(axis4D),
-                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
                      ::testing::Values(ov::element::undefined),
                      ::testing::ValuesIn(ov::test::static_shapes_to_test_representation({{16, 4096, 4096}})),
                      testing::Values(-1),
-                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(
                      ::testing::Values(ov::element::undefined),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes5D)),
                      testing::ValuesIn(axis5D),
-                     testing::Values(CommonTestUtils::DEVICE_GPU),
+                     testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 

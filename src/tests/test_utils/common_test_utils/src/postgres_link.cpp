@@ -819,16 +819,16 @@ std::map<std::string, std::string>* get_ext_test_names(void) {
 }
 
 void set_manual_start(bool value) {
-    if (::CommonTestUtils::pgEventListener) {
-        ::CommonTestUtils::pgEventListener->set_manual_start(value);
+    if (::ov::test::utils::pgEventListener) {
+        ::ov::test::utils::pgEventListener->set_manual_start(value);
     } else {
-        ::CommonTestUtils::pgEventListenerInitialManualStart = value;
+        ::ov::test::utils::pgEventListenerInitialManualStart = value;
     }
 }
 
 void manual_start(void) {
-    if (::CommonTestUtils::pgEventListener) {
-        ::CommonTestUtils::pgEventListener->manual_start();
+    if (::ov::test::utils::pgEventListener) {
+        ::ov::test::utils::pgEventListener->manual_start();
     }
 }
 }  // namespace PostgreSQLLink

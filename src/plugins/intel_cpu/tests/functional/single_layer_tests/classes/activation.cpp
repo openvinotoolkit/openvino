@@ -26,7 +26,7 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
         result << ")_";
@@ -34,11 +34,11 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     result << "TS=";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << "AS=" << CommonTestUtils::vec2str(activationShapes) << "_";
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationTypeAndConstValue.second) << "_";
+    result << "AS=" << ov::test::utils::vec2str(activationShapes) << "_";
+    result << "ConstantsValue=" << ov::test::utils::vec2str(activationTypeAndConstValue.second) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrecision.name() << "_";
     result << "outPRC=" << outPrecision.name() << "_";
@@ -88,7 +88,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
 }
 
 void ActivationLayerCPUTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;

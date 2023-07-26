@@ -16,7 +16,7 @@ std::string SplitConcatMultiInputsTest::getTestCaseName(testing::TestParamInfo<S
     bool withFC;
     std::tie(netPrecision, targetName, config, inputShape, splitsNum, withFC) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "SplitsN=" << splitsNum << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetName << "_";
@@ -47,7 +47,7 @@ void SplitConcatMultiInputsTest::SetUp() {
 
     if (withFC) {
         auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
-            CommonTestUtils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
+            ov::test::utils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
         auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");
     } else {

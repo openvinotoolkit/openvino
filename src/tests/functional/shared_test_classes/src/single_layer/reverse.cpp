@@ -23,8 +23,8 @@ std::string ReverseLayerTest::getTestCaseName(const testing::TestParamInfo<rever
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "mode=" << mode << "_";
     result << "prec=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;

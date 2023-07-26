@@ -54,7 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ActivationFQSubgraph,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(gnaQuantModes)),
                          ActivationFakeQuantizeSubgraphTest::getTestCaseName);
 }  // namespace

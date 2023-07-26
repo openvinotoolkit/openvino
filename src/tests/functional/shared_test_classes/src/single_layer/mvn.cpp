@@ -16,10 +16,10 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
     std::string targetDevice;
     std::tie(inputShapes, inputPrecision, axes, acrossChannels, normalizeVariance, eps, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Precision=" << inputPrecision.name() << "_";
     if (!axes.empty()) {
-        result << "ReductionAxes=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+        result << "ReductionAxes=" << ov::test::utils::vec2str(axes.to_vector()) << "_";
     } else {
         result << "AcrossChannels=" << (acrossChannels ? "TRUE" : "FALSE") << "_";
     }
@@ -58,10 +58,10 @@ std::string Mvn6LayerTest::getTestCaseName(const testing::TestParamInfo<mvn6Para
     std::string targetDevice;
     std::tie(inputShapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "DataPrc=" << dataPrecision.name() << "_";
     result << "AxPrc=" << axesPrecision.name() << "_";
-    result << "Ax=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "Ax=" << ov::test::utils::vec2str(axes) << "_";
     result << "NormVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
     result << "Eps=" << eps << "_";
     result << "EM=" << epsMode << "_";

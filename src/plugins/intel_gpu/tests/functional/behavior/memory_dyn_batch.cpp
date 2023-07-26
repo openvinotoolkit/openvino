@@ -38,9 +38,9 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({ inputPartialShape }) << "_";
+        result << ov::test::utils::partialShape2str({ inputPartialShape }) << "_";
         result << "TS=";
-        result << CommonTestUtils::partialShape2str({inputShape});
+        result << ov::test::utils::partialShape2str({inputShape});
         result << ")_";
         result << "iterationsCount=" << iterationsNum << "_";
         result << "targetDevice=" << targetDevice;
@@ -96,7 +96,7 @@ protected:
 };
 
 TEST_P(MemoryDynamicBatch, MultipleInferencesOnTheSameInferRequest) {
-    auto compiledModel = core_->compile_model(model_, CommonTestUtils::DEVICE_GPU, { });
+    auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
     ov::Tensor inputTensor = ov::Tensor(precision_, inputShape_, input_.data());
@@ -112,7 +112,7 @@ TEST_P(MemoryDynamicBatch, MultipleInferencesOnTheSameInferRequest) {
 }
 
 TEST_P(MemoryDynamicBatch, ResetVariableState) {
-    auto compiledModel = core_->compile_model(model_, CommonTestUtils::DEVICE_GPU, { });
+    auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
     ov::Tensor inputTensor = ov::Tensor(precision_, inputShape_, input_.data());
@@ -129,7 +129,7 @@ TEST_P(MemoryDynamicBatch, ResetVariableState) {
 }
 
 TEST_P(MemoryDynamicBatch, GetVariableState) {
-    auto compiledModel = core_->compile_model(model_, CommonTestUtils::DEVICE_GPU, { });
+    auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
     ov::Tensor inputTensor = ov::Tensor(precision_, inputShape_, input_.data());
@@ -145,7 +145,7 @@ TEST_P(MemoryDynamicBatch, GetVariableState) {
 }
 
 TEST_P(MemoryDynamicBatch, SetVariableState) {
-    auto compiledModel = core_->compile_model(model_, CommonTestUtils::DEVICE_GPU, { });
+    auto compiledModel = core_->compile_model(model_, ov::test::utils::DEVICE_GPU, { });
     auto inferRequest = compiledModel.create_infer_request();
     input_ = generateInput(inputShape_);
     ov::Tensor inputTensor = ov::Tensor(precision_, inputShape_, input_.data());
@@ -171,5 +171,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryDynamicBatch, MemoryDynamicBatch,
                              ::testing::Values(networkPartialShape),
                              ::testing::ValuesIn(inputShapes),
                              ::testing::ValuesIn(iterationsNum),
-                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MemoryDynamicBatch::getTestCaseName);

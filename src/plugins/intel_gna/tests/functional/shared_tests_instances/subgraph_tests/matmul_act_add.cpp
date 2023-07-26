@@ -23,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulActAdd,
                          MatMulActAddTest,
                          ::testing::Combine(::testing::ValuesIn(input_sizes),
                                             ::testing::ValuesIn(net_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config)),
                          MatMulActAddTest::getTestCaseName);
 

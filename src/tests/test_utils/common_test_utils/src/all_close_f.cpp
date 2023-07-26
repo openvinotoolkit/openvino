@@ -8,10 +8,11 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "precomp.hpp"
 
-using namespace std;
+#include "common_test_utils/float_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
 
 constexpr uint32_t FLOAT_BELOW_MIN_SIGNAL = UINT_MAX;
 constexpr uint32_t FLOAT_MAX_DIFF = UINT_MAX - 1;
@@ -152,11 +153,11 @@ bool close_f(double a, double b, int tolerance_bits, double min_signal) {
     return (distance <= tolerance) || (distance == DOUBLE_BELOW_MIN_SIGNAL);
 }
 
-vector<uint32_t> float_distances(const float* const a,
+std::vector<uint32_t> float_distances(const float* const a,
                                  const float* const b,
                                  size_t size,
                                  float min_signal) {
-    vector<uint32_t> distances(size);
+    std::vector<uint32_t> distances(size);
     for (size_t i = 0; i < size; ++i) {
         distances[i] = float_distance(a[i], b[i], min_signal);
     }
@@ -164,11 +165,11 @@ vector<uint32_t> float_distances(const float* const a,
     return distances;
 }
 
-vector<uint64_t> float_distances(const double* const a,
+std::vector<uint64_t> float_distances(const double* const a,
                                  const double* const b,
                                  size_t size,
                                  double min_signal) {
-    vector<uint64_t> distances(size);
+    std::vector<uint64_t> distances(size);
     for (size_t i = 0; i < size; ++i) {
         distances[i] = float_distance(a[i], b[i], min_signal);
     }
@@ -257,8 +258,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool rc = true;
-    stringstream msg;
-    vector<uint32_t> distances = float_distances(a, b, size, min_signal);
+    std::stringstream msg;
+    std::vector<uint32_t> distances = float_distances(a, b, size, min_signal);
 
     // e.g. for float with 24 bit mantissa, 2 bit accuracy, and hard-coded 8 bit exponent_bits
     // tolerance_bit_shift = 32 -           (1 +  8 + (24 -     1         ) - 2             )
@@ -361,8 +362,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     }
 
     bool rc = true;
-    stringstream msg;
-    vector<uint64_t> distances = float_distances(a, b, size, min_signal);
+    std::stringstream msg;
+    std::vector<uint64_t> distances = float_distances(a, b, size, min_signal);
 
     // e.g. for double with 52 bit mantissa, 2 bit accuracy, and hard-coded 11 bit exponent_bits
     // tolerance_bit_shift = 64 -           (1 +  11 + (53 -     1         ) - 2             )
@@ -451,8 +452,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return res;
 }
 
-::testing::AssertionResult all_close_f(const vector<float>& a,
-                                       const vector<float>& b,
+::testing::AssertionResult all_close_f(const std::vector<float>& a,
+                                       const std::vector<float>& b,
                                        int tolerance_bits,
                                        float min_signal) {
     if (a.size() != b.size()) {
@@ -465,8 +466,8 @@ uint32_t matching_mantissa_bits(uint64_t distance) {
     return all_close_f(a.data(), b.data(), a.size(), tolerance_bits, min_signal);
 }
 
-::testing::AssertionResult all_close_f(const vector<double>& a,
-                                       const vector<double>& b,
+::testing::AssertionResult all_close_f(const std::vector<double>& a,
+                                       const std::vector<double>& b,
                                        int tolerance_bits,
                                        double min_signal) {
     if (a.size() != b.size()) {
@@ -542,5 +543,7 @@ template<typename T>
     }
     return ::testing::AssertionSuccess();
 }
+
+}  // namespace utils
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

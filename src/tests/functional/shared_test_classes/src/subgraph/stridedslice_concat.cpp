@@ -22,12 +22,12 @@ std::string SliceConcatTest::getTestCaseName(const testing::TestParamInfo<SliceC
     for (auto const& configItem : configuration) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
     }
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "B=" << CommonTestUtils::vec2str(begin) << "_";
-    result << "E=" << CommonTestUtils::vec2str(end) << "_";
-    result << "S=" << CommonTestUtils::vec2str(strides) << "_";
-    result << "BM=" << CommonTestUtils::vec2str(beginMask) << "_";
-    result << "EM=" << CommonTestUtils::vec2str(endMask) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "B=" << ov::test::utils::vec2str(begin) << "_";
+    result << "E=" << ov::test::utils::vec2str(end) << "_";
+    result << "S=" << ov::test::utils::vec2str(strides) << "_";
+    result << "BM=" << ov::test::utils::vec2str(beginMask) << "_";
+    result << "EM=" << ov::test::utils::vec2str(endMask) << "_";
     return result.str();
 }
 

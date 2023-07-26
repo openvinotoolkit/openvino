@@ -240,7 +240,7 @@ public:
         std::ostringstream result;
         result << "TS=";
         for (auto& input : param.inputs) {
-            result << CommonTestUtils::vec2str(input.shape) << "_";
+            result << ov::test::utils::vec2str(input.shape) << "_";
         }
         result << "_tripCount=" << param.trip_count;
         result << "_loopInType=";

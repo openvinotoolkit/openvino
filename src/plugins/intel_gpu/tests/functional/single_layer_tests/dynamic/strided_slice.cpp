@@ -45,20 +45,20 @@ public:
         std::tie(shapes, params, elementType, restInputType, additionalConfig) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "netPRC=" << elementType << "_";
-        results << "begin=" << CommonTestUtils::vec2str(params.begin) << "_";
-        results << "end=" << CommonTestUtils::vec2str(params.end) << "_";
-        results << "stride=" << CommonTestUtils::vec2str(params.stride) << "_";
-        results << "begin_m=" << CommonTestUtils::vec2str(params.beginMask) << "_";
-        results << "end_m=" << CommonTestUtils::vec2str(params.endMask) << "_";
-        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.newAxisMask)) << "_";
-        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.shrinkAxisMask)) << "_";
-        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
+        results << "begin=" << ov::test::utils::vec2str(params.begin) << "_";
+        results << "end=" << ov::test::utils::vec2str(params.end) << "_";
+        results << "stride=" << ov::test::utils::vec2str(params.stride) << "_";
+        results << "begin_m=" << ov::test::utils::vec2str(params.beginMask) << "_";
+        results << "end_m=" << ov::test::utils::vec2str(params.endMask) << "_";
+        results << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.newAxisMask)) << "_";
+        results << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.shrinkAxisMask)) << "_";
+        results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : ov::test::utils::vec2str(params.ellipsisAxisMask)) << "_";
         results << "restInputType=" << restInputType << "_";
         results << "config=(";
         for (const auto& configEntry : additionalConfig) {
@@ -118,7 +118,7 @@ protected:
         end = ssParams.end;
         stride = ssParams.stride;
 
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);

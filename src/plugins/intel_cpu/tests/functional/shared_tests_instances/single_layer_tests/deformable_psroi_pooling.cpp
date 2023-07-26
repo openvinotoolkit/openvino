@@ -25,7 +25,7 @@ namespace {
     const auto deformablePSROICases_test_params = ::testing::Combine(
         deformablePSROIParams,
         ::testing::Values(InferenceEngine::Precision::FP32), // Net precision
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));     // Device name
+        ::testing::Values(ov::test::utils::DEVICE_CPU));     // Device name
 
     INSTANTIATE_TEST_SUITE_P(smoke_TestsDeformablePSROIPooling, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params,
                             DeformablePSROIPoolingLayerTest::getTestCaseName);
@@ -45,7 +45,7 @@ namespace {
     const auto deformablePSROICases_test_params_advanced = ::testing::Combine(
         deformablePSROIParams_advanced,
         ::testing::Values(InferenceEngine::Precision::FP32), // Net precision
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));     // Device name
+        ::testing::Values(ov::test::utils::DEVICE_CPU));     // Device name
 
     INSTANTIATE_TEST_SUITE_P(smoke_TestsDeformablePSROIPooling_advanced, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params_advanced,
                             DeformablePSROIPoolingLayerTest::getTestCaseName);

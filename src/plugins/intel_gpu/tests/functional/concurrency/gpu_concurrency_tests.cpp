@@ -48,9 +48,9 @@ public:
             std::stringstream ss;
             ss << "OVConcurrencyTest_nstreams_" << num_streams << "_nireq_" << num_requests;
             cacheFolderName = ss.str();
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-            CommonTestUtils::removeDir(cacheFolderName);
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            ov::test::utils::removeDir(cacheFolderName);
             ie.set_property(ov::cache_dir(cacheFolderName));
             ie.set_property(ov::intel_gpu::enable_loop_unrolling(false));
         }
@@ -67,15 +67,15 @@ public:
 
             if (is_caching_test) {
                 {
-                    auto _dummy_exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                    auto _dummy_exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                     ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
                 }
                 {
-                    exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                    exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                     ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
                 }
             } else {
-                exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
+                exec_net = ie.compile_model(fn_ptrs[i], ov::test::utils::DEVICE_GPU,
                                                 ov::num_streams(ov::streams::Num(num_streams)), ov::hint::inference_precision(ov::element::f32));
             }
 
@@ -128,9 +128,9 @@ public:
         }
 
         if (is_caching_test) {
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "blob");
-            CommonTestUtils::removeFilesWithExt(cacheFolderName, "cl_cache");
-            CommonTestUtils::removeDir(cacheFolderName);
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "blob");
+            ov::test::utils::removeFilesWithExt(cacheFolderName, "cl_cache");
+            ov::test::utils::removeDir(cacheFolderName);
         }
     }
 
@@ -162,7 +162,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -240,7 +240,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -279,7 +279,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -305,7 +305,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
+    auto compiled_model = ie.compile_model(fn, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();

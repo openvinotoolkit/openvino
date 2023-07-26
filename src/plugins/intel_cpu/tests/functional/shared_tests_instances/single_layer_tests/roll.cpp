@@ -25,7 +25,7 @@ const auto testCase2DZeroShifts = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{0, 0}), // Shift
     ::testing::Values(std::vector<int64_t>{0, 1}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase1D = ::testing::Combine(
@@ -33,7 +33,7 @@ const auto testCase1D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{5}), // Shift
     ::testing::Values(std::vector<int64_t>{0}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase2D = ::testing::Combine(
@@ -41,7 +41,7 @@ const auto testCase2D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{300, 250}), // Shift
     ::testing::Values(std::vector<int64_t>{0, 1}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase3D = ::testing::Combine(
@@ -49,7 +49,7 @@ const auto testCase3D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{160, 160}), // Shift
     ::testing::Values(std::vector<int64_t>{1, 2}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCaseNegativeUnorderedAxes4D = ::testing::Combine(
@@ -57,7 +57,7 @@ const auto testCaseNegativeUnorderedAxes4D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{7, 3}), // Shift
     ::testing::Values(std::vector<int64_t>{-3, -2}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCaseRepeatingAxes5D = ::testing::Combine(
@@ -65,7 +65,7 @@ const auto testCaseRepeatingAxes5D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{16, 15, 10, 2, 1, 7, 2, 8, 1, 1}), // Shift
     ::testing::Values(std::vector<int64_t>{-1, -2, -3, 1, 0, 3, 3, 2, -2, -3}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCaseNegativeShifts6D = ::testing::Combine(
@@ -73,7 +73,7 @@ const auto testCaseNegativeShifts6D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{-2, -15, -2, -1, -4, -1}), // Shift
     ::testing::Values(std::vector<int64_t>{0, 1, 2, 3, 4, 5}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCaseUnordNegAxesAndShifts10D = ::testing::Combine(
@@ -81,7 +81,7 @@ const auto testCaseUnordNegAxesAndShifts10D = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision), // Precision
     ::testing::Values(std::vector<int64_t>{-2, -1, 1, 1, 1, -2}), // Shift
     ::testing::Values(std::vector<int64_t>{-6, -4, -3, 1, -10, -2}), // Axes
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRoll_2d_zero_shifts, RollLayerTest,

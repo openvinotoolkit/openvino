@@ -53,9 +53,9 @@ const std::vector<std::vector<int>> axes = {
         {1, -1}
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
 const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
@@ -83,7 +83,7 @@ const auto paramsOneAxis = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapesOneAxis),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto paramsOneAxisLogical = testing::Combine(
@@ -96,7 +96,7 @@ const auto paramsOneAxisLogical = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapesOneAxis),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_Precisions = testing::Combine(
@@ -113,7 +113,7 @@ const auto params_Precisions = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_Precisions_ReduceL1 = testing::Combine(
@@ -129,7 +129,7 @@ const auto params_Precisions_ReduceL1 = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_Precisions_ReduceL2 = testing::Combine(
@@ -143,7 +143,7 @@ const auto params_Precisions_ReduceL2 = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_InputShapes = testing::Combine(
@@ -161,7 +161,7 @@ const auto params_InputShapes = testing::Combine(
                         std::vector<size_t>{2, 4, 6, 8},
                         std::vector<size_t>{2, 2, 2, 2, 2},
                         std::vector<size_t>{2, 2, 2, 2, 2, 2}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_Axes = testing::Combine(
@@ -174,7 +174,7 @@ const auto params_Axes = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_ReductionTypes = testing::Combine(
@@ -187,7 +187,7 @@ const auto params_ReductionTypes = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_ReductionTypesLogical = testing::Combine(
@@ -200,7 +200,7 @@ const auto params_ReductionTypesLogical = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_ReduceSum_accuracy = testing::Combine(
@@ -213,7 +213,7 @@ const auto params_ReduceSum_accuracy = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{1000000}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_SUITE_P(
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t> {2, 10}),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                testing::Values(ov::test::utils::DEVICE_CPU)),
         ReduceOpsLayerWithSpecificInputTest::getTestCaseName
 );
 

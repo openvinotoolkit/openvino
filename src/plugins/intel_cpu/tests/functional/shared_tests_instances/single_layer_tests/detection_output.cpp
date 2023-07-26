@@ -53,7 +53,7 @@ const auto params3Inputs = ::testing::Combine(
         ::testing::ValuesIn(specificParams3In),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In, DetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
@@ -77,7 +77,7 @@ const auto params5Inputs = ::testing::Combine(
         ::testing::ValuesIn(specificParams5In),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In, DetectionOutputLayerTest, params5Inputs, DetectionOutputLayerTest::getTestCaseName);

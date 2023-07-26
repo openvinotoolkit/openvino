@@ -31,7 +31,7 @@ std::vector<size_t> concat_axes = {1};  // only channels concat is currently sup
 INSTANTIATE_TEST_SUITE_P(smoke_split_trivial_permute_concat,
                          SplitTrivialPermuteConcatTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(inputSizes),
                                             ::testing::ValuesIn(split_axes),   // split axis
                                             ::testing::ValuesIn(concat_axes),  // concat axis

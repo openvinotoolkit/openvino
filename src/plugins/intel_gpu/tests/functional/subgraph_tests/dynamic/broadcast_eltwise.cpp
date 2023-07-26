@@ -31,11 +31,11 @@ public:
         std::tie(input_precision, input_shape, target_shape) = obj.param;
 
         std::ostringstream result;
-        result << "precision=" << input_precision << "IS=(" << CommonTestUtils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "precision=" << input_precision << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
-        result << ")_target_shape=" << CommonTestUtils::vec2str(target_shape);
+        result << ")_target_shape=" << ov::test::utils::vec2str(target_shape);
         return result.str();
     }
 
@@ -44,7 +44,7 @@ protected:
         ElementType input_precision;
         InputShape input_shape;
         std::tie(input_precision, input_shape, target_shape) = GetParam();
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};
         init_input_shapes(input_shapes);

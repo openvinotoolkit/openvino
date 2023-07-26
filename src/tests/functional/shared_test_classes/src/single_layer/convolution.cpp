@@ -22,12 +22,12 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -55,9 +55,9 @@ void ConvolutionLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
-    if (targetDevice == CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice == ov::test::utils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
+        filter_weights = ov::test::utils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
                                                                  -0.1f, 0.1f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(

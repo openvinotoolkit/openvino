@@ -75,7 +75,7 @@ protected:
     std::string deviceName;
     const char* reportFilename;
     bool isReported = false;
-    std::string ts = CommonTestUtils::GetTimestamp();
+    std::string ts = ov::test::utils::GetTimestamp();
 
     static size_t saveReportTimeout;
     static bool isCrashReported;

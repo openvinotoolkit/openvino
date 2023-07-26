@@ -262,7 +262,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionQDqTransformation::getTestCaseName);

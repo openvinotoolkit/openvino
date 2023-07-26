@@ -57,7 +57,7 @@ public:
         APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
         if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
-            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+            pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
 };
@@ -141,7 +141,7 @@ public:
     std::vector<std::string> target_devices;
 
     void SetUp() override {
-        target_device = CommonTestUtils::DEVICE_MULTI;
+        target_device = ov::test::utils::DEVICE_MULTI;
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();
@@ -182,28 +182,28 @@ TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
 
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
-    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
+    std::string filename = ov::test::utils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
-    stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    stream << ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
         std::string("mock_engine") + IE_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
-    CommonTestUtils::createFile(filename, stream.str());
+    ov::test::utils::createFile(filename, stream.str());
     return filename;
 }
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
-    CommonTestUtils::removeFile(filename.c_str());
+    ov::test::utils::removeFile(filename.c_str());
 }
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
+    std::string filename = ov::test::utils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
-    CommonTestUtils::createFile(filename, content);
+    ov::test::utils::createFile(filename, content);
     ASSERT_THROW(ov::Core ie(filename), ov::Exception);
-    CommonTestUtils::removeFile(filename.c_str());
+    ov::test::utils::removeFile(filename.c_str());
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -218,21 +218,21 @@ TEST(OVClassBasicTest, compile_model_no_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
-        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = ov::test::utils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = ov::test::utils::addUnicodePostfixToPath(model_bin_name, postfix);
         GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_xml_name, modelXmlPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
                        << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
             }
 
-            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_bin_name, modelBinPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
@@ -241,40 +241,40 @@ TEST(OVClassBasicTest, compile_model_no_property_unicode) {
             ov::Core core = createCoreWithTemplate();
 
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW));
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
         } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
-            CommonTestUtils::removeFile(model_xml_name);
-            CommonTestUtils::removeFile(model_bin_name);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(model_xml_name);
+            ov::test::utils::removeFile(model_bin_name);
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(model_xml_name);
-    CommonTestUtils::removeFile(model_bin_name);
+    ov::test::utils::removeFile(model_xml_name);
+    ov::test::utils::removeFile(model_bin_name);
 }
 
 TEST(OVClassBasicTest, compile_model_with_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
-        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = ov::test::utils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = ov::test::utils::addUnicodePostfixToPath(model_bin_name, postfix);
         GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_xml_name, modelXmlPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
                        << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
             }
 
-            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_bin_name, modelBinPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
@@ -284,39 +284,39 @@ TEST(OVClassBasicTest, compile_model_with_property_unicode) {
 
             OV_ASSERT_NO_THROW(
                 core.compile_model(modelXmlPathW, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
         } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
-            CommonTestUtils::removeFile(model_xml_name);
-            CommonTestUtils::removeFile(model_bin_name);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(model_xml_name);
+            ov::test::utils::removeFile(model_bin_name);
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(model_xml_name);
-    CommonTestUtils::removeFile(model_bin_name);
+    ov::test::utils::removeFile(model_xml_name);
+    ov::test::utils::removeFile(model_bin_name);
 }
 
 TEST_P(OVClassBasicTestP, compile_model_with_device_no_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
-        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = ov::test::utils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = ov::test::utils::addUnicodePostfixToPath(model_bin_name, postfix);
         GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_xml_name, modelXmlPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
                        << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
             }
 
-            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_bin_name, modelBinPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
@@ -325,40 +325,40 @@ TEST_P(OVClassBasicTestP, compile_model_with_device_no_property_unicode) {
             ov::Core core = createCoreWithTemplate();
 
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, target_device));
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
         } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
-            CommonTestUtils::removeFile(model_xml_name);
-            CommonTestUtils::removeFile(model_bin_name);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(model_xml_name);
+            ov::test::utils::removeFile(model_bin_name);
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(model_xml_name);
-    CommonTestUtils::removeFile(model_bin_name);
+    ov::test::utils::removeFile(model_xml_name);
+    ov::test::utils::removeFile(model_bin_name);
 }
 
 TEST_P(OVClassBasicTestP, compile_model_with_device_with_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
-        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = ov::test::utils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = ov::test::utils::addUnicodePostfixToPath(model_bin_name, postfix);
         GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_xml_name, modelXmlPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
                        << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
             }
 
-            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            is_copy_successfully = ov::test::utils::copyFile(model_bin_name, modelBinPathW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
@@ -369,19 +369,19 @@ TEST_P(OVClassBasicTestP, compile_model_with_device_with_property_unicode) {
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW,
                                                   target_device,
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
         } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(modelXmlPathW);
-            CommonTestUtils::removeFile(modelBinPathW);
-            CommonTestUtils::removeFile(model_xml_name);
-            CommonTestUtils::removeFile(model_bin_name);
+            ov::test::utils::removeFile(modelXmlPathW);
+            ov::test::utils::removeFile(modelBinPathW);
+            ov::test::utils::removeFile(model_xml_name);
+            ov::test::utils::removeFile(model_bin_name);
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(model_xml_name);
-    CommonTestUtils::removeFile(model_bin_name);
+    ov::test::utils::removeFile(model_xml_name);
+    ov::test::utils::removeFile(model_bin_name);
 }
 #endif
 
@@ -389,14 +389,14 @@ TEST_P(OVClassBasicTestP, compile_model_with_device_with_property_unicode) {
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring pluginsXmlW = CommonTestUtils::addUnicodePostfixToPath(pluginXML, postfix);
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring pluginsXmlW = ov::test::utils::addUnicodePostfixToPath(pluginXML, postfix);
 
         try {
             bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
+            is_copy_successfully = ov::test::utils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << pluginXML << "' to '"
                        << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
@@ -407,7 +407,7 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             ov::Core ie = createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
             OV_ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
-            CommonTestUtils::removeFile(pluginsXmlW);
+            ov::test::utils::removeFile(pluginsXmlW);
             OV_ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
             OV_ASSERT_NO_THROW(ie.get_versions(target_device));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
@@ -418,12 +418,12 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
             GTEST_COUT << "OK" << std::endl;
         } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(pluginsXmlW);
+            ov::test::utils::removeFile(pluginsXmlW);
             std::remove(pluginXML.c_str());
             FAIL() << e_next.what();
         }
     }
-    CommonTestUtils::removeFile(pluginXML);
+    ov::test::utils::removeFile(pluginXML);
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -445,7 +445,7 @@ TEST_P(OVClassBasicTestP, getVersionsByDeviceClassNoThrow) {
 
 TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_EQ(2, ie.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device).size());
+    ASSERT_EQ(2, ie.get_versions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 
 //
@@ -506,39 +506,39 @@ TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::enable_profiling(true)));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_HETERO, ov::enable_profiling(true)));
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigDevicePropertiesThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.set_property("", ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(ie.set_property("", ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(ie.set_property(ov::test::utils::DEVICE_CPU,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::enable_profiling(true))),
+    ASSERT_THROW(ie.set_property(ov::test::utils::DEVICE_AUTO,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
-                                 ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(4))),
+    ASSERT_THROW(ie.set_property(ov::test::utils::DEVICE_AUTO,
+                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::num_streams(4))),
                  ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassBasicTestP, smoke_SetConfigHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     std::string value;
 
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities));
     ASSERT_EQ(target_device, value);
 
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_HETERO, ov::device::priorities));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::test::utils::DEVICE_HETERO, ov::device::priorities));
     ASSERT_EQ(target_device, value);
 }
 
@@ -547,14 +547,14 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
 
     // priority config test
     ov::hint::Priority value;
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::LOW);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
+    OV_ASSERT_NO_THROW(ie.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
@@ -744,7 +744,7 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualThrows) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
@@ -781,7 +781,7 @@ TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
     ASSERT_LT(deviceIDs.size(), target_devices.size());
 
-    std::string multi_target_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    std::string multi_target_device = ov::test::utils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
         multi_target_device += dev_name;
         if (&dev_name != &(target_devices.back())) {
@@ -853,18 +853,18 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     ov::SupportedOpsMap res;
     OV_ASSERT_NO_THROW(
-        res = ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
+        res = ie.query_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
     ASSERT_LT(0, res.size());
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiNoThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI));
+    ASSERT_NO_THROW(ie.query_model(actualNetwork, ov::test::utils::DEVICE_MULTI));
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    std::string target_device = CommonTestUtils::DEVICE_HETERO;
+    std::string target_device = ov::test::utils::DEVICE_HETERO;
 
     std::vector<ov::PropertyName> t;
     OV_ASSERT_NO_THROW(t = ie.get_property(target_device, ov::supported_properties));
@@ -880,7 +880,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 TEST_P(OVClassBasicTestP, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();
     // TODO: check
-    std::string real_target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
+    std::string real_target_device = ov::test::utils::DEVICE_HETERO + std::string(":") + target_device;
     ASSERT_THROW(ie.get_property(real_target_device, ov::supported_properties), ov::Exception);
 }
 
@@ -1063,13 +1063,13 @@ TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.get_property(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
+    ASSERT_THROW(ie.get_property(ov::test::utils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    ASSERT_THROW(ie.get_property(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device,
+    ASSERT_THROW(ie.get_property(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device,
                                    ov::device::priorities),
                  ov::Exception);
 }
@@ -1142,7 +1142,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
         if (deviceIDs.empty())
             GTEST_FAIL();
         ie.query_model(actualNetwork,
-                       CommonTestUtils::DEVICE_HETERO,
+                       ov::test::utils::DEVICE_HETERO,
                        ov::device::priorities(target_device + "." + deviceIDs[0], target_device));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -1187,7 +1187,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.query_model(actualNetwork,
-                                    CommonTestUtils::DEVICE_HETERO,
+                                    ov::test::utils::DEVICE_HETERO,
                                     ov::device::priorities(target_device + ".100", target_device)),
                      ov::Exception);
     } else {
@@ -1209,7 +1209,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
 TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows) {
     ov::Core ie = createCoreWithTemplate();
     try {
-        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+        ie.compile_model(actualNetwork, ov::test::utils::DEVICE_MULTI);
     } catch (ov::Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
                             std::string("KEY_MULTI_DEVICE_PRIORITIES key is not set for"),
@@ -1221,18 +1221,18 @@ TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
-        CommonTestUtils::DEVICE_HETERO,
+        ov::test::utils::DEVICE_HETERO,
         ov::device::priorities(target_device),
         ov::device::properties(target_device,
             ov::enable_profiling(true))));
@@ -1282,7 +1282,7 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
     if (deviceIDs.size() < target_devices.size())
         GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
 
-    std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
+    std::string multitarget_device = ov::test::utils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
         multitarget_device += dev_name;
         if (&dev_name != &(target_devices.back())) {
@@ -1303,7 +1303,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
         if (deviceIDs.empty())
             GTEST_FAIL();
         std::string heteroDevice =
-                CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
+                ov::test::utils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
         OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, heteroDevice));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -1419,7 +1419,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
                                       "HETERO",
-                                       ov::device::priorities(target_device + ".100", CommonTestUtils::DEVICE_CPU)),
+                                       ov::device::priorities(target_device + ".100", ov::test::utils::DEVICE_CPU)),
                      ov::Exception);
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -1431,8 +1431,8 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
-                                      CommonTestUtils::DEVICE_HETERO,
-                                      ov::device::priorities(target_device, CommonTestUtils::DEVICE_CPU),
+                                      ov::test::utils::DEVICE_HETERO,
+                                      ov::device::priorities(target_device, ov::test::utils::DEVICE_CPU),
                                       ov::device::id("110")),
                      ov::Exception);
     } else {
@@ -1456,11 +1456,11 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
             }
         }
         ie.compile_model(actualNetwork,
-                            CommonTestUtils::DEVICE_HETERO,
-                            ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                            ov::test::utils::DEVICE_HETERO,
+                            ov::device::properties(ov::test::utils::DEVICE_MULTI,
                                             ov::device::priorities(devices)),
-                            ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                            ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device)));
+                            ov::device::properties(ov::test::utils::DEVICE_HETERO,
+                                            ov::device::priorities(ov::test::utils::DEVICE_MULTI, target_device)));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
@@ -1479,9 +1479,9 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
         }
         OV_ASSERT_NO_THROW(ie.compile_model(
             actualNetwork,
-            CommonTestUtils::DEVICE_MULTI,
-            ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(CommonTestUtils::DEVICE_HETERO)),
-            ov::device::properties(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(hetero_devices))));
+            ov::test::utils::DEVICE_MULTI,
+            ov::device::properties(ov::test::utils::DEVICE_MULTI, ov::device::priorities(ov::test::utils::DEVICE_HETERO)),
+            ov::device::properties(ov::test::utils::DEVICE_HETERO, ov::device::priorities(hetero_devices))));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
@@ -1510,14 +1510,14 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
             expectedLayers.emplace(node->get_friendly_name());
         }
         ov::SupportedOpsMap result;
-        std::string hetero_device_priorities(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
+        std::string hetero_device_priorities(ov::test::utils::DEVICE_MULTI + std::string(",") + target_device);
         OV_ASSERT_NO_THROW(result = ie.query_model(
                             multinputNetwork,
-                            CommonTestUtils::DEVICE_HETERO,
-                            ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                            ov::test::utils::DEVICE_HETERO,
+                            ov::device::properties(ov::test::utils::DEVICE_MULTI,
                                                    ov::device::priorities(devices)),
-                            ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                                   ov::device::priorities(CommonTestUtils::DEVICE_MULTI,
+                            ov::device::properties(ov::test::utils::DEVICE_HETERO,
+                                                   ov::device::priorities(ov::test::utils::DEVICE_MULTI,
                                                                           target_device))));
 
         std::unordered_set<std::string> actualLayers;
@@ -1555,10 +1555,10 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     }
     ov::SupportedOpsMap result;
     OV_ASSERT_NO_THROW(result = ie.query_model(multinputNetwork,
-                                                CommonTestUtils::DEVICE_MULTI,
-                                                ov::device::properties(CommonTestUtils::DEVICE_MULTI,
-                                                                ov::device::priorities(CommonTestUtils::DEVICE_HETERO)),
-                                                ov::device::properties(CommonTestUtils::DEVICE_HETERO,
+                                                ov::test::utils::DEVICE_MULTI,
+                                                ov::device::properties(ov::test::utils::DEVICE_MULTI,
+                                                                ov::device::priorities(ov::test::utils::DEVICE_HETERO)),
+                                                ov::device::properties(ov::test::utils::DEVICE_HETERO,
                                                                 ov::device::priorities(devices))));
 
     std::unordered_set<std::string> actualLayers;

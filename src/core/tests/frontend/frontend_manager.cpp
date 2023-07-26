@@ -17,7 +17,7 @@ using namespace ov::frontend;
 
 static std::string mock_fe_path() {
     static auto lib_name = std::string(FRONTEND_LIB_PREFIX) + "mock1" + std::string(FRONTEND_LIB_SUFFIX);
-    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), lib_name});
+    return ov::util::path_join({ov::test::utils::getExecutableDirectory(), lib_name});
 }
 
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {

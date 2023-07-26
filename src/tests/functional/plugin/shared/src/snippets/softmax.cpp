@@ -21,7 +21,7 @@ std::string Softmax::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
     std::tie(inputShapes, axis, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Axis=" << axis << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -52,8 +52,8 @@ std::string AddSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::snippet
     std::tie(inputShapes, axis, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes.first) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes.first) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes.second) << "_";
     result << "Axis=" << axis << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";

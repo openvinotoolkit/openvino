@@ -60,13 +60,13 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypesDynamic = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
-std::vector<CommonTestUtils::OpType> opTypesDynamic = {
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypesDynamic = {
+        ov::test::utils::OpType::VECTOR,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
@@ -96,7 +96,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto collapsing_params = ::testing::Combine(
@@ -107,7 +107,7 @@ const auto collapsing_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto multiply_params_dynamic = ::testing::Combine(
@@ -118,7 +118,7 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto multiply_params_dynamic_large_upper_bound = ::testing::Combine(
@@ -129,7 +129,7 @@ const auto multiply_params_dynamic_large_upper_bound = ::testing::Combine(
         ::testing::Values(ov::element::f32),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
@@ -164,7 +164,7 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);

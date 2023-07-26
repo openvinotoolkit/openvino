@@ -30,8 +30,8 @@ std::string LSTMCellBasicTest::getTestCaseName(const testing::TestParamInfo<LSTM
     result << "batch=" << batch << "_";
     result << "hidden_size=" << hidden_size << "_";
     result << "input_size=" << input_size << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "activations=" << CommonTestUtils::vec2str(activations) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "activations=" << ov::test::utils::vec2str(activations) << "_";
     result << "clip=" << clip << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";

@@ -56,7 +56,7 @@ const auto MvnAcrossChannels = ::testing::Combine(
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto MvnReductionAxes = ::testing::Combine(
@@ -66,7 +66,7 @@ const auto MvnReductionAxes = ::testing::Combine(
     ::testing::ValuesIn(emptyAcrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_5D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerTest,
@@ -109,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_4D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerTest,
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_3D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerTest,
@@ -133,7 +133,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_2D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVN_1D, Mvn6LayerTest,
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVN_1D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerTest,
@@ -157,7 +157,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_3D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerTest,
@@ -169,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_4D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_10D, Mvn6LayerTest,
@@ -181,5 +181,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decomposition_10D, Mvn6LayerTest,
                             ::testing::ValuesIn(normalizeVariance),
                             ::testing::ValuesIn(epsilonF),
                             ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);

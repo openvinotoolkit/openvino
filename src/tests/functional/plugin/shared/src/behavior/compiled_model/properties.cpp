@@ -78,7 +78,7 @@ TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
     core->set_property(ov::cache_dir(cache_dir));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
-    CommonTestUtils::removeDir(cache_dir);
+    ov::test::utils::removeDir(cache_dir);
 }
 
 TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetProperty) {

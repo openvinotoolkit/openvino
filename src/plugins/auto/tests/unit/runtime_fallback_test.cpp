@@ -100,7 +100,7 @@ public:
                         return mockExeNetworkOTHER; }));
 
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                     (_))).WillByDefault(Return(mockExeNetwork));
 
         mockExecutor = std::make_shared<ov::threading::ImmediateExecutor>();

@@ -46,7 +46,7 @@ const std::vector<EliminateFakeQuantizeTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          EliminateFakeQuantizeTransformation,
                          ::testing::Combine(
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::ValuesIn(testValues)),
                          EliminateFakeQuantizeTransformation::getTestCaseName);
 

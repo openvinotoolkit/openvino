@@ -80,7 +80,7 @@ public:
 class CustomOpCPUTest : public SubgraphBaseTest {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShapes{{-1, -1, -1}, {{10, 5, 3}, {16, 24, 16}, {4, 8, 12}}};
 

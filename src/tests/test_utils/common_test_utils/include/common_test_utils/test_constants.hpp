@@ -4,7 +4,9 @@
 
 #pragma once
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 extern const char* DEVICE_AUTO;
 extern const char* DEVICE_CPU;
@@ -44,4 +46,23 @@ const unsigned int maxFileNameLength = 140;
     const char FileSeparator[] = "/";
 #endif
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::DEVICE_AUTO;
+using ov::test::utils::DEVICE_CPU;
+using ov::test::utils::DEVICE_GNA;
+using ov::test::utils::DEVICE_GPU;
+using ov::test::utils::DEVICE_BATCH;
+using ov::test::utils::DEVICE_KEEMBAY;
+using ov::test::utils::DEVICE_MULTI;
+using ov::test::utils::DEVICE_TEMPLATE;
+using ov::test::utils::DEVICE_HETERO;
+
+using ov::test::utils::maxFileNameLength;
+using ov::test::utils::DEVICE_SUFFIX_SEPARATOR;
+} // namespace CommonTestUtils

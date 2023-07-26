@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check,
                          ::testing::Combine(::testing::ValuesIn(types),
                                             ::testing::ValuesIn(shapes),
                                             ::testing::ValuesIn(precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          ConstantResultSubgraphTest::getTestCaseName);
 
 }  // namespace

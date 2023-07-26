@@ -39,15 +39,15 @@ public:
         std::tie(shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "secondaryInputType=" << secondaryInputType << "_";
         results << "Prc=" << elementType << "_";
-        results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-        results << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+        results << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+        results << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
         if (padMode == ov::op::PadMode::CONSTANT) {
             results << "Value=" << argPadValue << "_";
         }
@@ -87,7 +87,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr("ref", dataType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
         for (auto& targetShapes : targetStaticShapes) {
             targetShapes.push_back({padsBegin.size()});

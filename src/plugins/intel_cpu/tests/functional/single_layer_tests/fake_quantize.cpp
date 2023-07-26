@@ -54,23 +54,23 @@ public:
 
         std::ostringstream result;
 
-        result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : shapes.second) {
-            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+            result << "(" << ov::test::utils::vec2str(shape) << ")_";
         }
         result << "RS=";
         for (const auto& data : ranges) {
-            result << "(" << CommonTestUtils::vec2str(data) << ")_";
+            result << "(" << ov::test::utils::vec2str(data) << ")_";
         }
         result << "inPrec=" << inPrec.name() << "_";
 
         result << "LOW_BOUNDS=" << inDataLowBounds << "_";
         result << "HIGH_BOUNDS=" << inDataHighBounds << "_";
-        result << "IL=" << CommonTestUtils::vec2str(inputLow) << "_";
-        result << "IH=" << CommonTestUtils::vec2str(inputHigh) << "_";
-        result << "OL=" << CommonTestUtils::vec2str(outputLow) << "_";
-        result << "OH=" << CommonTestUtils::vec2str(outputHigh) << "_";
+        result << "IL=" << ov::test::utils::vec2str(inputLow) << "_";
+        result << "IH=" << ov::test::utils::vec2str(inputHigh) << "_";
+        result << "OL=" << ov::test::utils::vec2str(outputLow) << "_";
+        result << "OH=" << ov::test::utils::vec2str(outputHigh) << "_";
         result << "LEVELS=" << levels;
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -84,7 +84,7 @@ protected:
     std::string layerName;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         fqSpecificParams fqParams;
         inputShapes testShapes;
         Precision inPrec;

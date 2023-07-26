@@ -42,7 +42,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::ValuesIn(opTypes)),
                             ReshapeSqueezeReshapeRelu::getTestCaseName);
 }  // namespace

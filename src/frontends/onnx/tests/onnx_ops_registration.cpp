@@ -23,7 +23,7 @@ static std::string s_manifest = "${MANIFEST}";
 
 OPENVINO_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     ONNXModelEditor editor{
-        ov::util::path_join({CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx"})};
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};
@@ -38,7 +38,7 @@ OPENVINO_TEST(ops_registration, check_importing_add_in_different_opsets) {
                }) != std::end(ops);
     };
     ONNXModelEditor editor{ov::util::path_join(
-        {CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_v6_broadcast_dynamic.onnx"})};
+        {ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_v6_broadcast_dynamic.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};

@@ -9,8 +9,9 @@
 #include "gtest/gtest.h"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
 
 /// \brief Same as numpy.allclose
 /// \param a First tensor to compare
@@ -107,12 +108,6 @@ typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>:
     return all_close(a.data(), b.data(), a.size(), rtol, atol);
 }
 
-}  // namespace test
-}  // namespace ngraph
-
-namespace ov {
-namespace test {
-
 /// \brief Same as numpy.allclose
 /// \param a First tensor to compare
 /// \param b Second tensor to compare
@@ -125,7 +120,7 @@ template <typename T>
         throw std::invalid_argument("all_close: Argument vectors' sizes do not match");
     }
 
-    return ngraph::test::all_close(static_cast<const T*>(a.data()), static_cast<const T*>(b.data()), a.get_size(), rtol, atol);
+    return all_close(static_cast<const T*>(a.data()), static_cast<const T*>(b.data()), a.get_size(), rtol, atol);
 }
 
 /// \brief Same as numpy.allclose
@@ -135,5 +130,7 @@ template <typename T>
 /// \param atol Absolute tolerance
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 ::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol = 1e-5f, float atol = 1e-8f);
+
+}  // namespace utils
 }  // namespace test
 }  // namespace ov

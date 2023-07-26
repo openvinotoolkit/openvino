@@ -29,17 +29,17 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
     for (size_t i = 0; i < inputs.size(); i++) {
         const auto& blockedshape = std::get<1>(inputs[i]);
         // input shape
-        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
-        result << "IBS[" << i << "]=" << CommonTestUtils::partialShape2str({std::get<0>(blockedshape)}) << "_";
+        result << "IBS[" << i << "]=" << ov::test::utils::partialShape2str({std::get<0>(blockedshape)}) << "_";
         // input blocked order
-        result << "IBO[" << i << "]=" << CommonTestUtils::vec2str(std::get<1>(blockedshape)) << "_";
+        result << "IBO[" << i << "]=" << ov::test::utils::vec2str(std::get<1>(blockedshape)) << "_";
     }
     // output blocked shape
-    result << "OBS[0]=" << CommonTestUtils::partialShape2str({std::get<0>(output)}) << "_";
+    result << "OBS[0]=" << ov::test::utils::partialShape2str({std::get<0>(output)}) << "_";
     // output blocked order
-    result << "OBO[0]=" << CommonTestUtils::vec2str(std::get<1>(output)) << "_";
-    result << "ExpOS[0]=" << CommonTestUtils::vec2str(expectedOutput) << "_";
+    result << "OBO[0]=" << ov::test::utils::vec2str(std::get<1>(output)) << "_";
+    result << "ExpOS[0]=" << ov::test::utils::vec2str(expectedOutput) << "_";
     return result.str();
 }
 

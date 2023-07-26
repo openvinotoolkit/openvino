@@ -22,7 +22,7 @@ const std::vector<std::vector<size_t>> inputShapes = {{1, 128}, {1, 512}, {1, 32
 INSTANTIATE_TEST_SUITE_P(smoke_InputSplitConcat,
                          InputSplitConcatTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          InputSplitConcatTest::getTestCaseName);

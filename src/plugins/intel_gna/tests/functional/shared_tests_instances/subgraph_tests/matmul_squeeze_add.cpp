@@ -25,7 +25,7 @@ std::vector<size_t> output_sizes = {1000, 512, 128, 42, 16, 8};
 INSTANTIATE_TEST_SUITE_P(smoke_MatmulSqueezeAdd,
                          MatmulSqueezeAddTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(output_sizes)),

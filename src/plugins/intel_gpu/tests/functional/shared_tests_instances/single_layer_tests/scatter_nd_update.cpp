@@ -48,6 +48,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(idxPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterNDUpdateLayerTest::getTestCaseName);
 }  // namespace

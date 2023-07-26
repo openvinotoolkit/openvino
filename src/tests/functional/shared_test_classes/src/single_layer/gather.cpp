@@ -34,10 +34,10 @@ std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gather
     std::string targetName;
     std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "axis=" << axis << "_";
-    result << "indices=" << CommonTestUtils::vec2str(indices) << "_";
-    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "indices=" << ov::test::utils::vec2str(indices) << "_";
+    result << "indicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -61,10 +61,10 @@ std::string Gather7LayerTest::getTestCaseName(const testing::TestParamInfo<gathe
     std::string targetName;
     std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "axis=" << std::get<0>(axis_batchIdx) << "_";
     result << "batchIdx=" << std::get<1>(axis_batchIdx) << "_";
-    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "indicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
@@ -103,8 +103,8 @@ std::string Gather8LayerTest::getTestCaseName(const testing::TestParamInfo<gathe
     std::string targetName;
     std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "indicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "axis=" << std::get<0>(axis_batchIdx) << "_";
     result << "batchIdx=" << std::get<1>(axis_batchIdx) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
@@ -146,8 +146,8 @@ std::string Gather8IndiceScalarLayerTest::getTestCaseName(const testing::TestPar
     std::string targetName;
     std::tie(inputShape, indicesShape, axis_batchIdx, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "indicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "axis=" << std::get<0>(axis_batchIdx) << "_";
     result << "batchIdx=" << std::get<1>(axis_batchIdx) << "_";
     result << "netPRC=" << netPrecision.name() << "_";

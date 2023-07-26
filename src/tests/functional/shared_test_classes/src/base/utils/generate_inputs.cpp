@@ -335,7 +335,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
     if (port == 1) {
         const auto &inputShape = node->get_input_shape(0);
         ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-#define CASE(X) case X: ::CommonTestUtils::fill_roi_raw_ptr(                   \
+#define CASE(X) case X: ::ov::test::utils::fill_roi_raw_ptr(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     tensor.get_size(),                                                         \
     node->get_input_shape(0).front() - 1,                                      \

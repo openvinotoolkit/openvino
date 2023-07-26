@@ -42,9 +42,9 @@ public:
         std::tie(input_shape, layer_type, extra_multiply) = obj.param;
 
         std::ostringstream result;
-        result << "IS=(" << CommonTestUtils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << ")_layer_type=" << layer_type;
         result << ")_extra_multiply=" << extra_multiply;
@@ -58,7 +58,7 @@ protected:
         bool extra_multiply;
         std::tie(input_shape, layer_type, extra_multiply) = GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         static const std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{
             {"Convolution", "Convolution"},

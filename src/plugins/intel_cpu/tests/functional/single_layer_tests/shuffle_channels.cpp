@@ -34,10 +34,10 @@ public:
         std::tie(axis, group) = shuffleChannelsParams;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "Prc=" << inType << "_";
         results << "Axis=" << std::to_string(axis) << "_";
@@ -62,7 +62,7 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType = makeSelectedTypeStr(selectedType, inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);

@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_first_input,
                          ConcatFirstInputTest,
                          ::testing::Combine(::testing::ValuesIn(inShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config)),
                          ConcatFirstInputTest::getTestCaseName);
 

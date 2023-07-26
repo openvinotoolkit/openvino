@@ -47,7 +47,7 @@ std::shared_ptr<op::v0::Parameter> find_input(const ParameterVector& inputs, con
 
 OPENVINO_TEST(onnx_editor, types__single_input_type_substitution) {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_abc.onnx")};
 
@@ -70,7 +70,7 @@ OPENVINO_TEST(onnx_editor, types__single_input_type_substitution) {
 
 OPENVINO_TEST(onnx_editor, types__all_inputs_type_substitution) {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_abc.onnx")};
 
@@ -91,7 +91,7 @@ OPENVINO_TEST(onnx_editor, types__all_inputs_type_substitution) {
 }
 
 OPENVINO_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/invalid_input_no_type.onnx")};
 
@@ -100,7 +100,7 @@ OPENVINO_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
 }
 
 OPENVINO_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/invalid_input_no_tensor_type.onnx")};
 
@@ -109,7 +109,7 @@ OPENVINO_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
 }
 
 OPENVINO_TEST(onnx_editor, types__unsupported_data_type_passed) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_abc.onnx")};
 
@@ -117,7 +117,7 @@ OPENVINO_TEST(onnx_editor, types__unsupported_data_type_passed) {
 }
 
 OPENVINO_TEST(onnx_editor, types__incorrect_input_name_passed) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_abc.onnx")};
 
@@ -126,7 +126,7 @@ OPENVINO_TEST(onnx_editor, types__incorrect_input_name_passed) {
 
 OPENVINO_TEST(onnx_editor, types__elem_type_missing_in_input) {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/elem_type_missing_in_input.onnx")};
 
@@ -147,7 +147,7 @@ OPENVINO_TEST(onnx_editor, types__elem_type_missing_in_input) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__modify_single_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -162,7 +162,7 @@ OPENVINO_TEST(onnx_editor, shapes__modify_single_input) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__modify_all_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -179,7 +179,7 @@ OPENVINO_TEST(onnx_editor, shapes__modify_all_inputs) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__dynamic_rank_in_model) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__dynamic_rank_in_model.onnx")};
 
@@ -195,7 +195,7 @@ OPENVINO_TEST(onnx_editor, shapes__dynamic_rank_in_model) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__set_dynamic_dimension) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -210,7 +210,7 @@ OPENVINO_TEST(onnx_editor, shapes__set_dynamic_dimension) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__set_mixed_dimensions) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -230,7 +230,7 @@ OPENVINO_TEST(onnx_editor, shapes__set_mixed_dimensions) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__set_scalar_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -249,7 +249,7 @@ OPENVINO_TEST(onnx_editor, shapes__set_scalar_inputs) {
 }
 
 OPENVINO_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
@@ -266,14 +266,14 @@ OPENVINO_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.extract_subgraph({{InputEdge(1, 0)}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
@@ -283,7 +283,7 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -291,7 +291,7 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
 
     // expected to behave the same way as subgraph__linear_model_head_cut
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
@@ -301,14 +301,14 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.extract_subgraph({{InputEdge(2, 0)}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_deeper_head_cut.onnx");
 
@@ -318,14 +318,14 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.extract_subgraph({}, {{OutputEdge{1, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
 
@@ -335,7 +335,7 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -343,7 +343,7 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
 
     // expected to behave the same way as subgraph__linear_model_tail_cut
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
 
@@ -354,14 +354,14 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
 
     editor.extract_subgraph({}, {{OutputEdge{1, 0}}});
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__linear_model_with_initializer_tail_cut.onnx");
 
@@ -372,13 +372,13 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
 
     editor.extract_subgraph({}, {{OutputEdge{1, 0}}});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__initializer_without_matching_input_tail_cut.onnx");
@@ -389,14 +389,14 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.extract_subgraph({}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_deeper_tail_cut.onnx");
 
@@ -406,7 +406,7 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__no_input_params) {
-    const auto model_path = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto model_path = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                          SERIALIZED_ZOO,
                                                          "onnx/model_editor/subgraph__inception_head.onnx");
 
@@ -421,14 +421,14 @@ OPENVINO_TEST(onnx_editor, subgraph__no_input_params) {
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
 
     editor.extract_subgraph({{InputEdge{0, 2}}}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
 
@@ -439,14 +439,14 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
 
     editor.extract_subgraph({{InputEdge{0, 2}}}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
 
@@ -456,14 +456,14 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({}, {{OutputEdge{5, 1}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__multiout_op_output_edge.onnx");
 
@@ -473,13 +473,13 @@ OPENVINO_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{1, 1}, InputEdge{2, 0}}}, {{OutputEdge{4, 0}}});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
@@ -490,14 +490,14 @@ OPENVINO_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extractio
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_consumer) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab.onnx")};
 
     editor.extract_subgraph({InputEdge{1, 1}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
@@ -508,14 +508,14 @@ OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_co
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{1, 0}, InputEdge{6, 0}}}, {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers.onnx");
@@ -526,14 +526,14 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{3, 0}, InputEdge{3, 1}}}, {{OutputEdge{3, 0}, OutputEdge{4, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_2.onnx");
@@ -544,14 +544,14 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_3) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{3, 0}, InputEdge{6, 0}}}, {{OutputEdge{6, 0}, OutputEdge{5, 1}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_3.onnx");
@@ -562,14 +562,14 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_4) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.extract_subgraph({{InputEdge{1, 0}, InputEdge{3, 0}}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_4.onnx");
@@ -580,7 +580,7 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_5) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -588,7 +588,7 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 
     // expected to behave the same way as the test above
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_5.onnx");
@@ -599,7 +599,7 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -607,7 +607,7 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
                             {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names.onnx");
@@ -618,13 +618,13 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.extract_subgraph({{InputEdge{4, 0}}}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__multiple_consumers_of_graph_input_relu2.onnx");
@@ -635,13 +635,13 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.extract_subgraph({{InputEdge{2, 0}}}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__multiple_consumers_of_graph_initializer.onnx");
@@ -652,14 +652,14 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.extract_subgraph({{InputEdge{2, 0}, InputEdge{3, 0}}}, {});
 
     // same as above
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__multiple_consumers_of_graph_initializer.onnx");
@@ -670,14 +670,14 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) 
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2_and_init) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.extract_subgraph({{InputEdge{5, 0}, InputEdge{3, 0}}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__multiple_consumers_of_graph_initializer_relu2_and_init.onnx");
@@ -688,7 +688,7 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_rel
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__invalid_edge_idx) {
-    const auto model_path = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto model_path = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                          SERIALIZED_ZOO,
                                                          "onnx/model_editor/subgraph__inception_head.onnx");
 
@@ -703,7 +703,7 @@ OPENVINO_TEST(onnx_editor, subgraph__invalid_edge_idx) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__invalid_port_idx) {
-    const auto model_path = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto model_path = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                          SERIALIZED_ZOO,
                                                          "onnx/model_editor/subgraph__inception_head.onnx");
 
@@ -717,7 +717,7 @@ OPENVINO_TEST(onnx_editor, subgraph__invalid_port_idx) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__inputs_getter) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -729,7 +729,7 @@ OPENVINO_TEST(onnx_editor, subgraph__inputs_getter) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
-    const auto model_path = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto model_path = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                          SERIALIZED_ZOO,
                                                          "onnx/model_editor/subgraph__inception_head.onnx");
 
@@ -746,7 +746,7 @@ OPENVINO_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
 // HIGHT LEVEL API TESTS
 // INPUT EDGES TEST
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -761,7 +761,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -779,7 +779,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -793,7 +793,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_n
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -807,7 +807,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_i
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index_custom_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -823,7 +823,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_i
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -845,7 +845,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_node_index) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -860,7 +860,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name) {
 
 // OUTPUT EDGES TEST
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -883,7 +883,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_output_name) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -901,7 +901,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_outp
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -915,7 +915,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -929,7 +929,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -946,7 +946,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_node_index) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_edge_const_network) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
@@ -964,7 +964,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_edge_const_network) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_edge_error_handling) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
@@ -1021,7 +1021,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_edge_error_handling) {
 
 // Nodes with ambiguous node names tests
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but_matched_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1035,7 +1035,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_b
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_not_matched_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1059,7 +1059,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_a
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1074,7 +1074,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_a
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_but_matched_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1088,7 +1088,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_the_same_node_name_and_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
@@ -1102,7 +1102,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_the_same_node_name_a
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_not_matched_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1116,7 +1116,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1132,7 +1132,7 @@ OPENVINO_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1145,7 +1145,7 @@ OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
     // OutputEdge{4, "mul2"}
     editor.extract_subgraph({input_edge_1, input_edge_2}, {output_edge});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/"
                                                         "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
@@ -1169,7 +1169,7 @@ OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_names) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1180,7 +1180,7 @@ OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_n
     editor.extract_subgraph({input_edge_1, input_edge_2}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__use_edge_mapper_with_graph_cutter_custom_names.onnx");
@@ -1191,7 +1191,7 @@ OPENVINO_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_n
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1218,7 +1218,7 @@ OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers_empty_result) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1227,7 +1227,7 @@ OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers_empty_result) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_inputs_with_the_same_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab.onnx")};
 
@@ -1239,7 +1239,7 @@ OPENVINO_TEST(onnx_editor, editor_api_inputs_with_the_same_name) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests_3.onnx")};
     const std::string output_name{"2891"};
@@ -1254,7 +1254,7 @@ OPENVINO_TEST(onnx_editor, editor_api_find_output_consumers_name) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1287,7 +1287,7 @@ OPENVINO_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_get_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1315,7 +1315,7 @@ OPENVINO_TEST(onnx_editor, editor_api_get_node_index) {
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consumer) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab.onnx")};
 
@@ -1323,7 +1323,7 @@ OPENVINO_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consume
     editor.extract_subgraph({edge}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/"
                                      "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
@@ -1334,7 +1334,7 @@ OPENVINO_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consume
 }
 
 OPENVINO_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consumer_ambiguous) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab.onnx")};
 
@@ -1347,7 +1347,7 @@ OPENVINO_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consume
 }
 
 OPENVINO_TEST(onnx_editor, values__append_one_initializer) {
-    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/model_editor/add_1D.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1363,7 +1363,7 @@ OPENVINO_TEST(onnx_editor, values__append_one_initializer) {
 }
 
 OPENVINO_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
-    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/model_editor/add_1D_invalid.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1380,7 +1380,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
 
 OPENVINO_TEST(onnx_editor, values__modify_one_initializer) {
     onnx_editor::ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/add_1D_with_initializers.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1396,7 +1396,7 @@ OPENVINO_TEST(onnx_editor, values__modify_one_initializer) {
 
 OPENVINO_TEST(onnx_editor, values__modify_two_initializers) {
     onnx_editor::ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/add_1D_with_initializers.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1413,7 +1413,7 @@ OPENVINO_TEST(onnx_editor, values__modify_two_initializers) {
 
 OPENVINO_TEST(onnx_editor, values__no_inputs_modify_two_initializers) {
     onnx_editor::ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/add_1D_with_initializers_only.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1429,7 +1429,7 @@ OPENVINO_TEST(onnx_editor, values__no_inputs_modify_two_initializers) {
 }
 
 OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
-    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/model_editor/add_1D.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1445,7 +1445,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
 }
 
 OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
-    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/gather_elements_float_3D_axis_2.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
@@ -1461,7 +1461,7 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
 }
 
 OPENVINO_TEST(onnx_editor, read_model_from_stream) {
-    std::string path = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    std::string path = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                     SERIALIZED_ZOO,
                                                     "onnx/external_data/external_data.onnx");
     std::ifstream stream{path, std::ios::in | std::ios::binary};
@@ -1478,7 +1478,7 @@ OPENVINO_TEST(onnx_editor, read_model_from_stream) {
 }
 
 OPENVINO_TEST(onnx_editor, combined__cut_and_replace_shape) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph__inception_head.onnx")};
 
@@ -1487,7 +1487,7 @@ OPENVINO_TEST(onnx_editor, combined__cut_and_replace_shape) {
     editor.set_input_shapes({{"conv1/7x7_s2_1", new_shape}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                      SERIALIZED_ZOO,
                                      "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
@@ -1500,13 +1500,13 @@ OPENVINO_TEST(onnx_editor, combined__cut_and_replace_shape) {
 }
 
 OPENVINO_TEST(onnx_editor, cut_operator_with_no_schema) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/unknown_input_value_info.onnx")};
 
     editor.extract_subgraph({{InputEdge{1, 0}}}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/reference/unknown_input_value_info.onnx");
 
@@ -1516,7 +1516,7 @@ OPENVINO_TEST(onnx_editor, cut_operator_with_no_schema) {
 }
 
 OPENVINO_TEST(onnx_editor, get_source_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1531,7 +1531,7 @@ OPENVINO_TEST(onnx_editor, get_source_tensor_name) {
 }
 
 OPENVINO_TEST(onnx_editor, is_model_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1550,7 +1550,7 @@ OPENVINO_TEST(onnx_editor, is_model_input) {
 }
 
 OPENVINO_TEST(onnx_editor, get_target_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1563,7 +1563,7 @@ OPENVINO_TEST(onnx_editor, get_target_tensor_name) {
 }
 
 OPENVINO_TEST(onnx_editor, is_model_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1580,7 +1580,7 @@ OPENVINO_TEST(onnx_editor, is_model_output) {
 }
 
 OPENVINO_TEST(onnx_editor, model_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1589,7 +1589,7 @@ OPENVINO_TEST(onnx_editor, model_inputs) {
 }
 
 OPENVINO_TEST(onnx_editor, model_inputs_with_non_input_initializers) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/instance_norm_dynamic.onnx")};
 
@@ -1598,7 +1598,7 @@ OPENVINO_TEST(onnx_editor, model_inputs_with_non_input_initializers) {
 }
 
 OPENVINO_TEST(onnx_editor, model_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1607,7 +1607,7 @@ OPENVINO_TEST(onnx_editor, model_output) {
 }
 
 OPENVINO_TEST(onnx_editor, get_tensor_shape) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1626,7 +1626,7 @@ OPENVINO_TEST(onnx_editor, get_tensor_shape) {
 }
 
 OPENVINO_TEST(onnx_editor, get_tensor_shape_after_modification) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1639,7 +1639,7 @@ OPENVINO_TEST(onnx_editor, get_tensor_shape_after_modification) {
 }
 
 OPENVINO_TEST(onnx_editor, is_correct_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1655,7 +1655,7 @@ OPENVINO_TEST(onnx_editor, is_correct_tensor_name) {
 }
 
 OPENVINO_TEST(onnx_editor, get_input_ports) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1688,7 +1688,7 @@ OPENVINO_TEST(onnx_editor, get_input_ports) {
     }
 }
 OPENVINO_TEST(onnx_editor, get_output_ports) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1722,7 +1722,7 @@ OPENVINO_TEST(onnx_editor, get_output_ports) {
 }
 
 OPENVINO_TEST(onnx_editor, add_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_abc.onnx")};
 
@@ -1733,7 +1733,7 @@ OPENVINO_TEST(onnx_editor, add_output) {
 }
 
 OPENVINO_TEST(onnx_editor, get_tensor_element_type) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1744,7 +1744,7 @@ OPENVINO_TEST(onnx_editor, get_tensor_element_type) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1754,7 +1754,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
     editor.extract_subgraph({{input_edge_1}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_one_edge_and_merge_all_new_inputs.onnx");
 
@@ -1766,7 +1766,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
     editor.extract_subgraph({{input_edge_2}}, {}, true);
 
     const auto ref_model1 = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_one_another_edge_and_merge_all_new_inputs.onnx");
 
@@ -1776,7 +1776,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_one_edge_and_merge_all_new_inputs) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_one_source_and_merge_all_new_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1788,7 +1788,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_one_source_and_merge_all
     editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_two_edges_from_one_source_and_merge_all_new_inputs.onnx");
 
@@ -1798,7 +1798,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_one_source_and_merge_all
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_different_sources_and_merge_all_new_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1810,7 +1810,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_different_sources_and_me
     editor.extract_subgraph({{input_edge_1, input_edge_2}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_two_edges_from_different_sources_and_merge_all_new_inputs.onnx");
 
@@ -1820,7 +1820,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_two_edges_from_different_sources_and_me
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__cut_all_edges_from_one_source_and_merge_all_new_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1834,7 +1834,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_all_edges_from_one_source_and_merge_all
     editor.extract_subgraph({{input_edge_1, input_edge_2, input_edge_3}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_all_edges_from_one_source_and_merge_all_new_inputs.onnx");
 
@@ -1844,7 +1844,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_all_edges_from_one_source_and_merge_all
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and_merge_all_new_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -1858,7 +1858,7 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and
     editor.extract_subgraph({{input_edge_2, input_edge_1, input_edge_3}}, {}, true);
 
     const auto ref_model = ngraph::file_util::path_join(
-        CommonTestUtils::getExecutableDirectory(),
+        ov::test::utils::getExecutableDirectory(),
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__cut_custom_edges_from_different_sources_and_merge_all_new_inputs.onnx");
 
@@ -1868,14 +1868,14 @@ OPENVINO_TEST(onnx_editor, subgraph__cut_custom_edges_from_different_sources_and
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__duplicated_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab_duplicated_output.onnx")};
 
     const auto y_out_edge = editor.find_output_edge("Y");
     editor.extract_subgraph({}, {{y_out_edge}});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab.onnx");
 
@@ -1885,7 +1885,7 @@ OPENVINO_TEST(onnx_editor, subgraph__duplicated_output) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__duplicated_output_2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab_duplicated_output.onnx")};
 
@@ -1893,7 +1893,7 @@ OPENVINO_TEST(onnx_editor, subgraph__duplicated_output_2) {
     const auto y_out_edge_2 = editor.find_output_edge("Y");
     editor.extract_subgraph({}, {{y_out_edge_1, y_out_edge_2}});
 
-    const auto ref_model = ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/add_ab_duplicated_output.onnx");
 
@@ -1904,7 +1904,7 @@ OPENVINO_TEST(onnx_editor, subgraph__duplicated_output_2) {
 }
 
 OPENVINO_TEST(onnx_editor, onnx_shape_infer_exception) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ONNXModelEditor editor{ngraph::file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                         SERIALIZED_ZOO,
                                                         "onnx/model_editor/onnx_shape_infer_exception.onnx")};
 

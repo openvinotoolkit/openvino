@@ -17,12 +17,12 @@ std::string VariadicSplitPad::getTestCaseName(const testing::TestParamInfo<Split
     std::tie(inputShape, axis, numSplits, connectIndexes, padsBegin, padsEnd, padMode, netPrecision, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "Axis=" << axis << "_";
-    results << "NumSplits=" << CommonTestUtils::vec2str(numSplits) << "_";
-    results << "ConnectIndexes=" << CommonTestUtils::vec2str(connectIndexes) << "_";
-    results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-    results << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+    results << "NumSplits=" << ov::test::utils::vec2str(numSplits) << "_";
+    results << "ConnectIndexes=" << ov::test::utils::vec2str(connectIndexes) << "_";
+    results << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+    results << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
     results << "PadMode=" << padMode << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";

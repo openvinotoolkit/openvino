@@ -106,6 +106,6 @@ protected:
     std::vector<std::string> device_lists;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
-#define MULTI  CommonTestUtils::DEVICE_MULTI
-#define CPU    CommonTestUtils::DEVICE_CPU
-#define GPU    CommonTestUtils::DEVICE_GPU
+#define MULTI  ov::test::utils::DEVICE_MULTI
+#define CPU    ov::test::utils::DEVICE_CPU
+#define GPU    ov::test::utils::DEVICE_GPU

@@ -22,12 +22,12 @@ std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(const testing::
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "G=" << numGroups << "_";
     result << "AP=" << padType << "_";

@@ -32,7 +32,7 @@ namespace SubgraphTestsDefinitions {
 class StridedSliceZeroDimsTest : public SubgraphBaseTest {
 public:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         InputShape inpShape0 = {{}, {{56}}};
         InputShape inpShape1 = {{-1, -1, 768}, {{1, 544, 768}}};
         init_input_shapes({inpShape0, inpShape1});

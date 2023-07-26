@@ -4,7 +4,9 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 const char *DEVICE_AUTO = "AUTO";
 const char *DEVICE_CPU = "CPU";
@@ -16,4 +18,6 @@ const char *DEVICE_MULTI = "MULTI";
 const char *DEVICE_TEMPLATE = "TEMPLATE";
 const char *DEVICE_HETERO = "HETERO";
 
-} // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

@@ -11,7 +11,9 @@
 #include <signal.h>
 #include <setjmp.h>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 extern jmp_buf env;
 
@@ -30,4 +32,14 @@ public:
     void StartTimer();
 };
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::env;
+using ov::test::utils::JMP_STATUS;
+using ov::test::utils::CrashHandler;
+} // namespace CommonTestUtils

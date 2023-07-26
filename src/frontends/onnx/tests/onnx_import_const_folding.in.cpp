@@ -37,7 +37,7 @@ void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
             const auto folded_node = ov::as_type_ptr<default_opset::Constant>(ng_node);
             const auto output_values = folded_node->cast_vector<T>();
 
-            EXPECT_TRUE(ngraph::test::all_close(expected_output, output_values));
+            EXPECT_TRUE(ov::test::utils::all_close(expected_output, output_values));
 
             if (expected_shape.is_static()) {
                 EXPECT_EQ(folded_node->get_output_shape(0), expected_shape.to_shape());
@@ -52,7 +52,7 @@ void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
 }  // namespace
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
-    const auto fn = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto fn = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/scatter_elements_opset11.onnx"));
 
@@ -61,28 +61,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_scalar) {
     const auto fn = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_scalar.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_scalar.onnx"));
 
     test_constant_folding<int64_t>(fn, {0}, Shape{1, 1});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d) {
     const auto fn = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d.onnx"));
 
     test_constant_folding<int64_t>(fn, {1, 2, 4}, Shape{1, 3});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_1d_float) {
     const auto fn = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d_float.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_1d_float.onnx"));
 
     test_constant_folding<int64_t>(fn, {0, 1, 3, 4, 5, 6, 7, 8, 9});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
     const auto fn = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_3d.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_3d.onnx"));
 
     // Vertical slices are 3D indices of non-zero elements in the input tensor
     // {0, 0, 0, 1, 1, 2, 2}
@@ -93,7 +93,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_3d) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_const_folding_model_non_zero_2d_bool) {
     const auto fn = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_2d_bool.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/non_zero_2d_bool.onnx"));
 
     test_constant_folding<int64_t>(fn, {0, 1, 1, 0});
 }

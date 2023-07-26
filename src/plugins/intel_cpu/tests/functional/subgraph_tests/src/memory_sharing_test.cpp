@@ -16,7 +16,7 @@ class EdgeWithSameNameInTwoModels : public ::testing::Test, public CPUTestsBase 
 TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    const std::string targetDevice = CommonTestUtils::DEVICE_CPU;
+    const std::string targetDevice = ov::test::utils::DEVICE_CPU;
     const ov::element::Type type(ov::element::Type_t::f32);
     const std::string convName("conv_name"), weightName("weight_name");
     const std::vector<size_t> kernel{3, 3};
