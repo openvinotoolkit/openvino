@@ -81,7 +81,7 @@ void EltwiseLayerCPUTest::SetUp() {
         ElementType netType;
         ngraph::helpers::InputLayerType secondaryInputType;
         CommonTestUtils::OpType opType;
-        Config additional_config;
+        std::map<std::string, ov::element::Type> additional_config;
         std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) = basicParamsSet;
 
         if (ElementType::bf16 == netType) {
