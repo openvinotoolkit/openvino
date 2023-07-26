@@ -396,7 +396,8 @@ def prepare_ir(argv: argparse.Namespace):
                 argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                             argv.placeholder_shapes,
                                                             argv.placeholder_data_types,
-                                                            getattr(argv, "example_input", None))
+                                                            getattr(argv, "example_input", None),
+                                                            argv.share_weights)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -529,8 +530,8 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-            
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"
         except Exception as e:
@@ -801,7 +802,7 @@ def update_args_for_saved_model_dir(args: dict):
             'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    
+
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
         args['saved_model_dir'] = args['input_model']
         args['input_model'] = None

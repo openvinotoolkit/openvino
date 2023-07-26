@@ -42,11 +42,8 @@ void op::v1::Transpose::validate_and_infer_types() {
     set_input_is_relevant_to_shape(ORDER);
 
     std::vector<ov::PartialShape> input_shapes{arg_shape, input_order_shape};
-    std::vector<ov::PartialShape> output_shapes(OUT_COUNT, ov::PartialShape{});
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
 
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(output_shapes.size());
     set_output_type(ARG, get_input_element_type(ARG), output_shapes[ARG_T]);
 }
 

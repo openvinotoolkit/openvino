@@ -4,7 +4,10 @@
 
 #include "common_test_utils/float_util.hpp"
 
-std::string ngraph::test::bfloat16_to_bits(bfloat16 f) {
+#include "openvino/runtime/exception.hpp"
+#include "precomp.hpp"
+
+std::string ngraph::test::bfloat16_to_bits(ov::bfloat16 f) {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
     std::string unformatted = ss.str();
@@ -25,7 +28,7 @@ std::string ngraph::test::bfloat16_to_bits(bfloat16 f) {
     return formatted;
 }
 
-std::string ngraph::test::float16_to_bits(float16 f) {
+std::string ngraph::test::float16_to_bits(ov::float16 f) {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
     std::string unformatted = ss.str();
@@ -89,7 +92,7 @@ std::string ngraph::test::double_to_bits(double d) {
     return formatted;
 }
 
-ngraph::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s) {
+ov::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -97,10 +100,10 @@ ngraph::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s) {
         OPENVINO_THROW("Input length must be 16");
     }
     std::bitset<16> bs(unformatted);
-    return bfloat16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
+    return ov::bfloat16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
-ngraph::float16 ngraph::test::bits_to_float16(const std::string& s) {
+ov::float16 ngraph::test::bits_to_float16(const std::string& s) {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace), unformatted.end());
 
@@ -108,7 +111,7 @@ ngraph::float16 ngraph::test::bits_to_float16(const std::string& s) {
         OPENVINO_THROW("Input length must be 16");
     }
     std::bitset<16> bs(unformatted);
-    return float16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
+    return ov::float16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
 float ngraph::test::bits_to_float(const std::string& s) {
