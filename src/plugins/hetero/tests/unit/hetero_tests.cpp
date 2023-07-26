@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/file_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -27,9 +26,9 @@
 namespace {
 
 std::string get_mock_engine_path() {
-    std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
+    std::string mock_engine_name("mock_engine");
+    auto file_path = ov::util::get_compiled_plugin_path(mock_engine_name);
+    return ov::util::from_file_path(file_path);
 }
 
 template <class T>
@@ -714,17 +713,15 @@ public:
 };
 
 void ov::hetero::tests::HeteroTests::reg_plugin(std::shared_ptr<ov::IPlugin>& plugin) {
-    std::string libraryPath = get_mock_engine_path();
+    std::string library_path = get_mock_engine_path();
     if (!m_so)
-        m_so = ov::util::load_shared_object(libraryPath.c_str());
+        m_so = ov::util::load_shared_object(library_path.c_str());
     if (auto mock_plugin = std::dynamic_pointer_cast<MockPluginBase>(plugin))
         mock_plugin->set_version(mock_plugin->get_const_version());
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
     injectProxyEngine(plugin.get());
-    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
-                         plugin->get_device_name());
+    core.register_plugin(library_path, plugin->get_device_name());
     m_mock_plugins.emplace_back(plugin);
 }
 
