@@ -443,7 +443,7 @@ class Formatter(argparse.HelpFormatter):
     def _format_usage(self, usage, actions, groups, prefix):
         usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
         usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
-        insert_idx = usage.find('ovc.py') + len('ovc.py')
+        insert_idx = usage.find(self._prog) + len(self._prog)
         usage = usage[0: insert_idx] + ' INPUT_MODEL ' + usage[insert_idx + 1:]
         return usage
 
