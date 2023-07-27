@@ -18,6 +18,7 @@
    notebooks/notebooks
    001_hello_world_with_output
    md_openvino_docs_001_hello_world_with_output
+   openvino_docs_001_hello_world_with_output
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
 The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to
