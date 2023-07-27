@@ -57,7 +57,6 @@ Output<Node> quantize(const NodeContext& context,
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
 
         return context.mark_node(std::make_shared<QuantizedPtNode>(quantization_type,
-                                                                   context,
                                                                    quantized_input,
                                                                    scale_convert,
                                                                    zero_point_convert,
@@ -109,7 +108,6 @@ Output<Node> quantize(const NodeContext& context,
             std::make_shared<v0::FakeQuantize>(input_convert, bound_low, bound_high, bound_low, bound_high, levels));
 
         return context.mark_node(std::make_shared<QuantizedPtNode>(quantization_type,
-                                                                   context,
                                                                    quantized_input,
                                                                    scale_bc,
                                                                    zero_point_bc,
