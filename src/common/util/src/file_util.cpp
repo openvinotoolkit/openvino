@@ -87,7 +87,7 @@ std::string ov::util::get_directory(const std::string& s) {
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
+        rc = s.substr(0, pos ? pos : 1);
         return rc;
     }
     // Windows-style separator
