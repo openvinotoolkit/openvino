@@ -333,8 +333,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
         'use_convert_model_from_mo': True}
 
 
-def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
-    # by default compression is disabled (same as setting 'compress_to_fp16': False)
+def create_pytorch_nn_module_mean_list_compression_disabled(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
 
@@ -352,7 +351,32 @@ def create_pytorch_nn_module_mean_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'use_convert_model_from_mo': True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'compress_to_fp16': False, 'use_convert_model_from_mo': True}
+
+
+def create_pytorch_nn_module_mean_list_compression_default(tmp_dir):
+    # when 'use_convert_model_from_mo': True by default compression in convert_model is disabled
+    # therefore decompression Converts will not be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float32)
+    add1 = ov.opset8.add(param1, const1)
+    add2 = ov.opset8.add(param2, const2)
+    mul = ov.opset8.multiply(add1, add2)
+    relu = ov.opset8.relu(mul)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'use_convert_model_from_mo': True}
 
 
 def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
@@ -362,10 +386,15 @@ def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape)
     param2 = ov.opset8.parameter(shape)
-    const1 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float32)
-    const2 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float32)
-    add1 = ov.opset8.add(param1, const1)
-    add2 = ov.opset8.add(param2, const2)
+    const1 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float16)
+    const2 = ov.opset8.constant([[[[-0.0, -0.0, -0.0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(
+        const1, destination_type=np.float32)
+    const2_decompressed = ov.opset8.convert(
+        const2, destination_type=np.float32)
+
+    add1 = ov.opset8.add(param1, const1_decompressed)
+    add2 = ov.opset8.add(param2, const2_decompressed)
     mul = ov.opset8.multiply(add1, add2)
     relu = ov.opset8.relu(mul)
     sigm = ov.opset8.sigmoid(relu)
@@ -375,7 +404,7 @@ def create_pytorch_nn_module_mean_list_compression_enabled(tmp_dir):
 
     return pt_model, ref_model, {
         'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-        'compress_to_fp16': False, 'use_convert_model_from_mo': True}
+        'compress_to_fp16': True, 'use_convert_model_from_mo': True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -400,8 +429,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
                                  'use_convert_model_from_mo': True}
 
 
-def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
-    # by default compression is disabled (same as setting 'compress_to_fp16': False)
+def create_pytorch_nn_module_scale_list_compression_disabled(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
 
@@ -419,7 +447,32 @@ def create_pytorch_nn_module_scale_list_default_no_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'use_convert_model_from_mo': True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'compress_to_fp16': False, 'use_convert_model_from_mo': True}
+
+
+def create_pytorch_nn_module_scale_list_compression_default(tmp_dir):
+    # when 'use_convert_model_from_mo': True by default compression in convert_model is disabled
+    # therefore decompression Converts will not be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1)
+    sub2 = ov.opset8.multiply(param2, const2)
+    mul = ov.opset8.multiply(sub1, sub2)
+    relu = ov.opset8.relu(mul)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'use_convert_model_from_mo': True}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
@@ -646,8 +699,9 @@ def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
     net = ConvModel()
     shape = PartialShape([-1, 3, -1, -1])
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    weights = ov.opset10.constant(net.weights.numpy(force=True))
-    conv = ov.opset10.convolution(param1, weights, strides=[1, 1],
+    weights = ov.opset10.constant(net.weights.numpy(force=True), dtype=np.float16)
+    decompress_weights = ov.opset10.convert(weights, np.float32)
+    conv = ov.opset10.convolution(param1, decompress_weights, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
     parameter_list = [param1]
@@ -695,6 +749,43 @@ def create_pytorch_module_with_optional_inputs_case5(tmp_dir):
     return net, ref_model, {"input": [("x",[1, 3, -1, -1]), ("z", [1, 3, -1, -1])]}
 
 
+def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default(tmp_dir):
+    import torch
+    import torch.nn.functional as F
+
+    class Int8Model(torch.nn.Module):
+        def __init__(self):
+            super(Int8Model, self).__init__()
+            self.weights = torch.randint(-127, 128,
+                                         [1, 3, 3, 3], dtype=torch.int8)
+
+        def forward(self, x):
+            cast = self.weights.to(torch.float32)
+            sub = cast - 0.5
+            mul = sub * 0.02
+            return F.conv2d(x, mul)
+
+    net = Int8Model()
+    example_input = (torch.rand((1, 3, 10, 10)),)
+    traced_model = torch.jit.trace(net, example_input)
+    shape = [-1, -1, -1, -1]
+    shape = PartialShape(shape)
+    param1 = ov.opset10.parameter(shape, dtype=np.float32)
+    weights = ov.opset10.constant(net.weights.numpy(force=True))
+    cast1 = ov.opset10.convert(weights, np.float32)
+    sub1_const = np.float16(0.5).reshape(1, 1, 1, 1)
+    mul1_const = np.float16(0.02).reshape(1, 1, 1, 1)
+    sub1_const_decompress = ov.opset10.convert(sub1_const, np.float32)
+    mul1_const_decompress = ov.opset10.convert(mul1_const, np.float32)
+    sub1 = ov.opset10.subtract(cast1, sub1_const_decompress)
+    mul1 = ov.opset10.multiply(sub1, mul1_const_decompress)
+    conv = ov.opset10.convolution(param1, mul1, strides=[1, 1],
+                                  pads_begin=[0, 0], pads_end=[0, 0],
+                                  dilations=[1, 1])
+    ref_model = Model([conv], [param1], "test")
+    return traced_model, ref_model,  {"example_input": example_input}
+
+
 def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
     import torch
     import torch.nn.functional as F
@@ -725,7 +816,8 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
     ref_model = Model([conv], [param1], "test")
-    return traced_model, ref_model,  {"example_input": example_input}
+    return traced_model, ref_model,  {"example_input": example_input, "compress_to_fp16": False}
+
 
 def create_pytorch_module_with_nested_inputs(tmp_dir):
     class PTModel(torch.nn.Module):
@@ -745,6 +837,31 @@ def create_pytorch_module_with_nested_inputs(tmp_dir):
     param2 = ov.opset10.parameter(shape2, dtype=np.float32)
     concat1 = ov.opset10.concat([param1, constant_zeros1], 1)
     concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
+    ref_model = Model([concat2, concat1], [param1, param2], "test")
+    return net, ref_model, {"example_input": {"z": (torch.zeros((1, 10)), torch.ones((1, 5, 2)))},
+                            "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_nested_inputs_compress_to_fp16_default(tmp_dir):
+    class PTModel(torch.nn.Module):
+
+        def forward(self, z:Tuple[torch.Tensor, torch.Tensor]):
+            z1, z2 = z
+            zeros1 = torch.zeros((1, 1))
+            zeros2 = torch.zeros((1, 5, 1))
+            return torch.cat([z1, zeros1], 1), torch.cat([z2, zeros2], 2)
+
+    net = PTModel()
+    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float16)
+    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float16)
+    const1_decompress = ov.opset10.convert(constant_zeros1, np.float32)
+    const2_decompress = ov.opset10.convert(constant_zeros2, np.float32)
+    shape1 = PartialShape([1, -1])
+    shape2 = PartialShape([1, 5, -1])
+    param1 = ov.opset10.parameter(shape1, dtype=np.float32)
+    param2 = ov.opset10.parameter(shape2, dtype=np.float32)
+    concat1 = ov.opset10.concat([param1, const1_decompress], 1)
+    concat2 = ov.opset10.concat([param2, const2_decompress], 2)
     ref_model = Model([concat2, concat1], [param1, param2], "test")
     return net, ref_model, {"example_input": {"z": (torch.zeros((1, 10)), torch.ones((1, 5, 2)))}}
 
@@ -770,7 +887,9 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
     concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param0)
     ref_model = Model([concat2, add], [param0, param1, param2], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 5)))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 5)))},
+                            "compress_to_fp16": False}
+
 
 def create_pytorch_module_with_nested_inputs3(tmp_dir):
     class PTModel(torch.nn.Module):
@@ -793,7 +912,8 @@ def create_pytorch_module_with_nested_inputs3(tmp_dir):
     concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add = ov.opset10.add(concat1, param3)
     ref_model = Model([concat2, add], [param1, param2, param3], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 3)))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 3)))},
+                            "compress_to_fp16": False}
 
 
 def create_pytorch_module_with_nested_inputs4(tmp_dir):
@@ -819,7 +939,9 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
     add = ov.opset10.add(concat1, param3)
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param3, param1, param2, param4], "test")
-    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10))), "y": torch.ones((1,))}}
+    return net, ref_model, {"example_input": {"x":  torch.ones((1, 10)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10))), "y": torch.ones((1,))},
+                            "compress_to_fp16": False}
+
 
 def create_pytorch_module_with_nested_inputs5(tmp_dir):
     class PTModel(torch.nn.Module):
@@ -844,7 +966,9 @@ def create_pytorch_module_with_nested_inputs5(tmp_dir):
     add = ov.opset10.add(concat1, param0)
     mul = ov.opset10.multiply(concat2, param4)
     ref_model = Model([mul, add], [param0, param1, param2, param4], "test")
-    return net, ref_model, {"example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 5, 10))), torch.ones((1,))]}
+    return net, ref_model, {"example_input": [torch.ones((1, 10)), (torch.zeros((1, 10)), torch.ones((1, 5, 10))), torch.ones((1,))],
+                            "compress_to_fp16": False}
+
 
 def create_pytorch_module_with_nested_inputs6(tmp_dir):
     class PTModel(torch.nn.Module):
@@ -869,7 +993,8 @@ def create_pytorch_module_with_nested_inputs6(tmp_dir):
     concat2 = ov.opset10.concat([param2, constant_zeros2], 2)
     add1 = ov.opset10.add(concat1, param0)
     ref_model = Model([concat2, add1], [param0, param1, param2], "test")
-    return net, ref_model, {"example_input": {"x": torch.ones((1, 11)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10)))}}
+    return net, ref_model, {"example_input": {"x": torch.ones((1, 11)), "z": (torch.zeros((1, 10)), torch.ones((1, 5, 10)))},
+                            "compress_to_fp16": False}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
@@ -889,10 +1014,12 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
-        create_pytorch_nn_module_mean_list_default_no_compression,
+        create_pytorch_nn_module_mean_list_compression_default,
+        create_pytorch_nn_module_mean_list_compression_disabled,
         create_pytorch_nn_module_mean_list_compression_enabled,
         create_pytorch_nn_module_scale_list,
-        create_pytorch_nn_module_scale_list_default_no_compression,
+        create_pytorch_nn_module_scale_list_compression_default,
+        create_pytorch_nn_module_scale_list_compression_disabled,
         create_pytorch_nn_module_scale_list_compression_enabled,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_static_via_input,
@@ -916,6 +1043,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_optional_inputs_case5,
         create_pytorch_nn_module_with_scalar_input,
         create_pytorch_module_with_compressed_int8_constant,
+        create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default,
         create_pytorch_module_with_nested_inputs,
         create_pytorch_module_with_nested_inputs2,
         create_pytorch_module_with_nested_inputs3,

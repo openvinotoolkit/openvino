@@ -646,7 +646,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     # Command line tool specific params
     common_group.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
-    common_group.add_argument('--compress_to_fp16', action='store_true',
+    common_group.add_argument('--compress_to_fp16', type=check_bool, default=True,
                               help='Compress weights in output IR .xml/bin files to FP16.')
     common_group.add_argument('--version', action='version',
                               help='Print ovc version and exit.',

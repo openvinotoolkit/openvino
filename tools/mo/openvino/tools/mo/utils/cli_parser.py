@@ -805,13 +805,18 @@ def add_args_by_description(args_group, params_description):
 
             # Bool params common setting
             if signature.parameters[param_name].annotation == bool and param_name != 'version':
+                default_flag = signature.parameters[param_name].default
+                # tools.mo.convert_model by default does not compress,
+                # but if we convert from cli we need to compress_to_fp16 if user did not specify otherwise
+                if param_name == 'compress_to_fp16':
+                    default_flag = True
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     type=check_bool if param_type is None else param_type,
                     nargs="?",
                     const=True,
                     help=help_text,
-                    default=signature.parameters[param_name].default)
+                    default=default_flag)
             # File paths common setting
             elif param_name in filepath_args:
                 action = action if action is not None else CanonicalizePathCheckExistenceAction
