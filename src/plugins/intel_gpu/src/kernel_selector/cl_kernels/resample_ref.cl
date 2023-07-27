@@ -492,7 +492,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else
     const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
 #endif
-    ACCUMULATOR_TYPE sum[fp_max] = {0};
+    volatile ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
     unroll_for(int b = b_init; b < b_max; b++) {
