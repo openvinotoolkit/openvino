@@ -21,9 +21,9 @@ using namespace ngraph::test;
 
 static std::string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
+OPENVINO_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     ONNXModelEditor editor{
-        ov::util::path_join({CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx"})};
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};
@@ -31,14 +31,14 @@ NGRAPH_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     }
 }
 
-NGRAPH_TEST(ops_registration, check_importing_add_in_different_opsets) {
+OPENVINO_TEST(ops_registration, check_importing_add_in_different_opsets) {
     const auto legacy_broadcast_detected = [](const std::vector<std::shared_ptr<ov::Node>>& ops) {
         return std::find_if(std::begin(ops), std::end(ops), [](const std::shared_ptr<ov::Node>& op) {
                    return std::string{op->get_type_name()} == "Reshape";
                }) != std::end(ops);
     };
     ONNXModelEditor editor{ov::util::path_join(
-        {CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_v6_broadcast_dynamic.onnx"})};
+        {ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_v6_broadcast_dynamic.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};

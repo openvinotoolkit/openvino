@@ -4,6 +4,12 @@
 
 #include "openvino/pass/pass_config.hpp"
 
+ov::pass::PassConfig::PassConfig() {
+    m_callback = [](const std::shared_ptr<const ::ov::Node>&) {
+        return false;
+    };
+}
+
 ov::pass::param_callback ov::pass::PassConfig::get_callback(const DiscreteTypeInfo& type_info) const {
     const auto& it = m_callback_map.find(type_info);
     if (it != m_callback_map.end()) {

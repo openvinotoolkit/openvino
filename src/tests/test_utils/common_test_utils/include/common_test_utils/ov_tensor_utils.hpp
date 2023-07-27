@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/runtime/tensor.hpp>
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace test {

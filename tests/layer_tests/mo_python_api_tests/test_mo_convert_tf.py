@@ -139,7 +139,7 @@ def create_tf_module(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
 
 
 def create_tf_module_layout_list(tmp_dir):
@@ -166,7 +166,8 @@ def create_tf_module_layout_list(tmp_dir):
     model_ref.inputs[1].node.layout = Layout('NHC')
 
     net = Net()
-    return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])], 'layout': ["NCH", "NHC"]}
+    return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])], 'layout': ["NCH", "NHC"],
+                            'use_convert_model_from_mo': True}
 
 
 def create_tf_module_dynamic(tmp_dir):
@@ -192,7 +193,7 @@ def create_tf_module_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input_shape': input_shapes}
+    return net, model_ref, {'input': input_shapes}
 
 
 def create_keras_layer(tmp_dir):
@@ -216,7 +217,7 @@ def create_keras_layer(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
 
 
 def create_keras_layer_dynamic(tmp_dir):
@@ -242,7 +243,7 @@ def create_keras_layer_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input_shape': input_shapes}
+    return net, model_ref, {'input': input_shapes}
 
 
 def create_tf_checkpoint(tmp_dir):
@@ -518,7 +519,7 @@ def create_keras_layer_with_example_input_2(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input_shape': [[1, 2, 3], [1, 2, 3]]}
+    return model, model_ref, {'input': [[1, 2, 3], [1, 2, 3]]}
 
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
@@ -528,7 +529,7 @@ def create_keras_layer_with_input_shapes_case2(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):
     model, model_ref = create_keras_layer_input_dict_one_inp()
-    return model, model_ref, {'input': ['args'], 'input_shape': [1, 2, 3]}
+    return model, model_ref, {'input': [('args', [1, 2, 3])]}
 
 
 def create_keras_layer_with_input_shapes_case4(tmp_dir):
@@ -669,7 +670,7 @@ class TestMoConvertTF(CommonMOConvertTest):
                                          temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
-        test_params = {'input_model': fw_model, 'use_new_frontend': True}
+        test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
@@ -679,15 +680,15 @@ class TestMoConvertTF(CommonMOConvertTest):
     def test_unnamed_saved_model_dir(self, ie_device, precision, ir_version, temp_dir):
         saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
 
-        test_params = {'input_model': saved_model_dir, 'use_new_frontend': True}
+        test_params = {'input_model': saved_model_dir}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
-        test_params = {'input_model': saved_model_dir, 'use_new_frontend': False}
+        test_params = {'input_model': saved_model_dir}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
     def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         class LayerModel(tf.Module):
             def __init__(self):
@@ -709,7 +710,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
-        ov_model = convert_model(keras_model, input_shape=[1])
+        ov_model = convert_model(keras_model, input=[1], share_weights=True)
         cmp_model = compile_model(ov_model)
 
         # Check model inference
@@ -733,7 +734,54 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
         assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
 
+    def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import compile_model
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
 
+
+            @tf.function
+            def sub_function(self, input):
+                return input * self.var1 + self.var2
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        # Create TF model with variables
+        keras_model = LayerModel()
+        test_input = np.array(7.).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(keras_model, input=[1], share_weights=False)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+        fw_infer1 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer1['Identity:0'], fw_infer1)
+        assert np.array_equal(ov_infer1['Identity:0'], [54., 42., 45.])
+
+        # Change value of variables in original model
+        for val in keras_model.variables:
+            arr = val.value().__array__()
+            arr[0] = 0
+            arr[1] = 1
+            arr[2] = 2
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input)
+        fw_infer2 = keras_model(test_input).numpy()
+
+        # Check model inference calculated with old constant values
+        assert not np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [54., 42., 45.])
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
@@ -741,7 +789,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         import gc
 
@@ -795,7 +843,7 @@ class TFConvertTest(unittest.TestCase):
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
         import tensorflow as tf
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
 
         @tf.function()
         def function(x1, x2):
@@ -822,7 +870,7 @@ class TestTFLoadByModel(unittest.TestCase):
             return tf_net
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
         from openvino.frontend import FrontEndManager
-        model = GraphIteratorTFGraph(simple_tf_model())
+        model = GraphIteratorTFGraph(simple_tf_model(), True)
         fem = FrontEndManager()
         fe = fem.load_by_model(model)
         assert fe is not None

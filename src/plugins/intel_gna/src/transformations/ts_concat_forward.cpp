@@ -23,6 +23,7 @@ using namespace ov::intel_gna::pass::helper;
 using namespace ov::intel_gna::limitations;
 
 namespace {
+
 bool is_concat_sinked(const Output<Node>& output) {
     auto concat_node = ov::as_type_ptr<Concat>(output.get_node_shared_ptr());
 
@@ -33,13 +34,18 @@ bool is_concat_sinked(const Output<Node>& output) {
 
     for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
         auto concat_input = concat_node->input_value(i);
-        auto transpose = ov::as_type_ptr<Transpose>(concat_input.get_node_shared_ptr());
+
+        auto target_node = graph_utils::get_prev_node_skipping_certain(concat_input.get_node_shared_ptr(),
+                                                                       graph_utils::is_gna_non_functional_node);
+        std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(target_node);
+
         if (transpose && !Limitations::is_transpose_supported(transpose))
             return true;
     }
 
     return false;
 }
+
 }  // namespace
 
 TSConcatForward::TSConcatForward() {
@@ -57,7 +63,10 @@ TSConcatForward::TSConcatForward() {
         OutputVector concat_inputs = {};
         for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
             ov::Output<ov::Node> concat_input = concat_node->input_value(i);
-            std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(concat_input.get_node_shared_ptr());
+
+            auto target_node = graph_utils::get_prev_node_skipping_certain(concat_input.get_node_shared_ptr(),
+                                                                           graph_utils::is_gna_non_functional_node);
+            std::shared_ptr<ov::Node> transpose = ov::as_type_ptr<Transpose>(target_node);
 
             ov::Shape transpose_shape = concat_input.get_shape();
             ov::AxisVector transpose_order(transpose_shape.size());
@@ -66,7 +75,7 @@ TSConcatForward::TSConcatForward() {
                     ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
                 transpose_order = transpose_const->get_axis_vector_val();
                 transpose_shape = transpose->get_input_shape(0);
-                concat_input = concat_input.get_node_shared_ptr()->input_value(0);
+                concat_input = transpose->input_value(0);
             } else {
                 std::iota(transpose_order.begin(), transpose_order.end(), 0);
             }
@@ -102,7 +111,13 @@ TSConcatForward::TSConcatForward() {
             std::make_shared<Constant>(ov::element::i64, ov::Shape{concat_shape_out.size()}, concat_shape_out);
         auto reshape_output = std::make_shared<Reshape>(gather_node, reshape_output_const, false);
 
-        ov::replace_node_update_name(concat_node, reshape_output);
+        // skip reshape if the input and output shapes are the same
+        if (graph_utils::are_shapes_equal(reshape_output->get_input_shape(0), reshape_output->get_output_shape(0))) {
+            ov::replace_node_update_name(concat_node, gather_node);
+        } else {
+            ov::replace_node_update_name(concat_node, reshape_output);
+        }
+
         return true;
     };
 

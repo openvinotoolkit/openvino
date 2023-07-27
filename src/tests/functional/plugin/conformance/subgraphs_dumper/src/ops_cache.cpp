@@ -100,8 +100,8 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const Mod
 }
 
 void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
-    if (!CommonTestUtils::directoryExists(serialization_dir)) {
-        CommonTestUtils::createDirectoryRecursive(serialization_dir);
+    if (!ov::test::utils::directoryExists(serialization_dir)) {
+        ov::test::utils::createDirectoryRecursive(serialization_dir);
     }
     for (const auto &op : m_ops_cache) {
         auto res = serialize_function(op, serialization_dir);
@@ -210,21 +210,21 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
             op_folder_name += "-" + opset_version.substr(pos + opset_name.size());
         }
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
-        auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
-                                 (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
-                                 op_folder_name + CommonTestUtils::FileSeparator + op_el_type;
+        auto current_op_folder = serialization_dir + ov::test::utils::FileSeparator +
+                                 (is_dynamic ? "dynamic" : "static") + ov::test::utils::FileSeparator +
+                                 op_folder_name + ov::test::utils::FileSeparator + op_el_type;
         auto op_name = op.first->get_name();
         op_name = op_name.substr(op_name.find("_") + 1);
 
         std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
-        if (!CommonTestUtils::directoryExists(current_op_folder)) {
-            CommonTestUtils::createDirectoryRecursive(current_op_folder);
+        if (!ov::test::utils::directoryExists(current_op_folder)) {
+            ov::test::utils::createDirectoryRecursive(current_op_folder);
         }
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
-        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
-        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";
+        auto xml_path = current_op_folder + ov::test::utils::FileSeparator + op_name + ".xml";
+        auto bin_path = current_op_folder + ov::test::utils::FileSeparator + op_name + ".bin";
+        auto meta_info = current_op_folder + ov::test::utils::FileSeparator + op_name + ".meta";
         auto cnn_net = InferenceEngine::CNNNetwork(function);
         cnn_net.serialize(xml_path, bin_path);
         serialize_meta_info(op.second, meta_info);

@@ -20,7 +20,7 @@ class FuseNon0OuputPort : public SubgraphBaseTest {
         const ov::Shape z_shape = {1};
         ngraph::ParameterVector params(3);
         targetStaticShapes = {{x_shape, y_shape, z_shape}};
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         params[0] = ngraph::builder::makeParams(ov::element::f32, {x_shape})[0];
         params[1] = ngraph::builder::makeParams(ov::element::i32, {y_shape})[0];
         params[2] = ngraph::builder::makeParams(ov::element::i32, {z_shape})[0];

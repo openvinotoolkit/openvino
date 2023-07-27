@@ -6,18 +6,20 @@
 
 #include <cmath>
 #include <utility>
-
-#include <gtest/gtest.h>
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/tensor.hpp"
-#include <ngraph/type/bfloat16.hpp>
-#include <ngraph/type/float16.hpp>
-#include <ngraph/type/element_type_traits.hpp>
-
-#include <ie_blob.h>
 #include <random>
 
-namespace CommonTestUtils {
+#include "common_test_utils/common_utils.hpp"
+#include "gtest/gtest.h"
+#include "ie_blob.h"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
+
+
+namespace ov {
+namespace test {
+namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -53,6 +55,7 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
  * @param values src tensor which should be broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine::Blob::Ptr &values);
+void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values);
 
 /**
  * Wrapper on top of fill_data_with_broadcast with simplified signature
@@ -62,31 +65,19 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine:
  * @param values data to broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, size_t axis, std::vector<float> values);
-
+void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values);
 /**
  * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
  *
  * NB! Limitation: the nwe one blob will no have ownership of data buffer. The original blob should be alive
  *     while view is in use.
  *
- * @param blob original source tensor
+ * @param tensor original source tensor
  * @param new_shape new one shape for view blob
  * @return new one blob view
  */
 InferenceEngine::Blob::Ptr
 make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
-
-/**
- * Fill blob with single value for all elements
- *
- * like:
- *     fill_data_with_broadcast(blob, 0, {val});
- *
- * @param blob tensor to fill in
- * @param val value to set into each element
- */
-void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
-
 
 /**
  * Calculate size of buffer required for provided tensor descriptor.
@@ -517,4 +508,15 @@ inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::ie_abs;
+using ov::test::utils::generate_float_numbers;
+using ov::test::utils::fill_data_roi;
+} // namespace CommonTestUtils

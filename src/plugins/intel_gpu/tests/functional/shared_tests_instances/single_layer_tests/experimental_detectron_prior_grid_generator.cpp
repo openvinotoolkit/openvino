@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator_f32,
                          testing::Combine(testing::ValuesIn(params),
                                           testing::ValuesIn(getInputTensors<float>()),
                                           testing::ValuesIn({ov::element::Type_t::f32}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator_f16,
@@ -69,6 +69,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator_f16,
                          testing::Combine(testing::ValuesIn(params),
                                           testing::ValuesIn(getInputTensors<ov::float16>()),
                                           testing::ValuesIn({ov::element::Type_t::f16}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName);
 }  // namespace

@@ -62,7 +62,7 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         return;
     cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
-        if (m_manager.match_any(it.first, cloned_node)) {
+        if (m_manager.match(it.first, cloned_node)) {
             std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
                     " with " << it.first->get_friendly_name() << std::endl;
             find_op_in_cache = it.first;
@@ -81,7 +81,8 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         }
     }
 
-    auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
+    size_t priority = get_node_priority_by_version(cloned_node);
+    auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt, priority);
     if (find_op_in_cache != nullptr) {
         m_ops_cache[find_op_in_cache].update(model_path, get_input_info_by_node(cloned_node), model_op_cnt, ignored_input_names);
     }

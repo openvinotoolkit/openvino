@@ -44,6 +44,7 @@ from openvino._pyopenvino import ProfilingInfo
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
+from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
@@ -66,13 +67,6 @@ from openvino.runtime import properties
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
-
-
-# Model Conversion API
-try:
-    from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
-except ImportError:
-    pass
 
 
 # Extend Node class to support binary operators

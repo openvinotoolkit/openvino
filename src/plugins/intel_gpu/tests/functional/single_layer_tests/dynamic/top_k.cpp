@@ -54,9 +54,9 @@ public:
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << "TS=(";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_" << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
         result << "inputType=" << inputType;
@@ -193,7 +193,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
     TopKLayerGPUTest::getTestCaseName);
 
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
     TopKLayerGPUTest::getTestCaseName);
 
