@@ -3,6 +3,7 @@
 //
 
 #include "ov_test.hpp"
+#include <string.h>
 
 namespace {
 
@@ -137,12 +138,23 @@ TEST_P(ov_compiled_model_test, get_property) {
 
     const char* key = ov_property_key_auto_batch_timeout;
     char* result = nullptr;
-    std::string target = "2000";
-
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
 
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    EXPECT_NE(nullptr, result);
+
+    std::string target;
+    for (size_t i = 0 ; i < strlen(result); i ++)
+    {
+        target.push_back(result[i]);
+    }
+    int tmp = std::stoi(target);
+    tmp += 1;
+    target = std::to_string(tmp);
+
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     EXPECT_EQ(*target.c_str(), *result);
+
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
