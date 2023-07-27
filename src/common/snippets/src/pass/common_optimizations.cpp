@@ -277,7 +277,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
                 const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
                 OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
                 const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), true);
-                broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_shape.size()}, new_shape));
+                broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(), ov::Shape{new_shape.size()}, new_shape));
             }
         }
         subgraph->validate_and_infer_types();

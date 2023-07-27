@@ -110,7 +110,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-114607 */, smoke_Snippets_MHASelect_SplitM) {
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1, 512, 64}, {1, 1, 64}, {8, 64, 512}},
                                             std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {1, 2, 256, 64}, {1, 1, 1, 64},
                                                                {8, 1, 64, 512}, {8, 512, 512}});
