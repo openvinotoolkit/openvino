@@ -292,7 +292,7 @@ void Input::cloneBlobIfRequired() {
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
-        blobAlignedOnSSE = !mayiuse(cpu_isa_t::avx2) && ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+        blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
         const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
         return blobAlignedWithPrec && blobAlignedOnSSE;
