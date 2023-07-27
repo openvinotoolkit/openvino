@@ -139,11 +139,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvolutionAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-#if !defined(OV_CPU_WITH_ACL)
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFullyConnectedAndSimpleOperation");
     FuseFullyConnectedAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
-#endif
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMatMulAndSimpleOperation");
     FuseMatMulAndSimpleOperation(graph);
