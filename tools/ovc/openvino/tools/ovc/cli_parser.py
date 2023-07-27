@@ -417,7 +417,6 @@ def add_args_by_description(args_group, params_description):
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     type=str if param_type is None else param_type,
-                    nargs=None if param_name == 'input_model' else '?',
                     action=action,
                     help=help_text,
                     default=None if param_name == 'input_model' else signature.parameters[param_name].default,
