@@ -12,7 +12,7 @@ import numpy as np
 import inspect
 import ctypes
 
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape, Tensor
+from openvino.runtime import op, Type as OVType, Shape, Tensor
 
 
 def maybe_convert_max_int(value : int):
