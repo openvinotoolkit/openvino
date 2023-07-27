@@ -1235,6 +1235,14 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
+    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
+    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
+    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const size_t flush_frequency = needs_flushing ? 16 : 0;
+    size_t executed_prims = 0;
+
     for (auto& inst : _exec_order) {
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
@@ -1337,6 +1345,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
+        executed_prims++;
+
+        if (needs_flushing && executed_prims % flush_frequency == 0)
+            get_stream().flush();
 
         // Dump output buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
@@ -1378,7 +1390,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling;
+    auto store_events = is_out_of_order_queue || _enable_profiling;
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {
