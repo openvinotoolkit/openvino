@@ -170,6 +170,17 @@ std::vector<TRShape> shape_infer_base(const DetectionOutputBase* op,
                                   ".");
             num_prior_boxes = box_logits_pshape_2nd_dim / (num_loc_classes * 4);
         }
+
+        if (num_prior_boxes > 0 && num_loc_classes > 0) {
+            NODE_SHAPE_INFER_CHECK(
+                op,
+                input_shapes,
+                box_logits_pshape[1].compatible(num_prior_boxes * num_loc_classes * 4),
+                "The second dimension of the first input (box logits) is not compatible. Current value: ",
+                box_logits_pshape[1],
+                ", expected value: ",
+                num_prior_boxes * num_loc_classes * 4);
+        }
     }
     if (class_preds_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,

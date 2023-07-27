@@ -48,17 +48,17 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
-        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "K" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << convOutChannels << "_";
         result << "AP=" << padType << "_";
         result << "netPRC=" << netType << "_";
@@ -127,7 +127,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes1D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ======== 2D convolutions
@@ -152,7 +152,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymPad, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes2D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ==== Symmetric auto pad
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, Conv
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes2D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ==== Asymmetric pad
@@ -188,7 +188,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_AsymPad, Convol
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes2D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ======== 3D convolutions
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymPad, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes3D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ==== Symmetric auto pad
@@ -232,7 +232,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymAutoPad, Conv
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes3D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 // ==== Asymmetric pad
@@ -250,7 +250,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DAsymPad, Convolu
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes3D),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 }  // namespace

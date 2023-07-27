@@ -42,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Convert, Convert,
                                  ::testing::ValuesIn(types_Convert),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertInput = {
@@ -69,7 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertInput, ConvertInput,
                                  ::testing::ValuesIn(types_ConvertInput),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertOutput, ConvertOutput,
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertOutput, ConvertOutput,
                                  ::testing::ValuesIn(types_ConvertInput),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertStub, ConvertStub,
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertStub, ConvertStub,
                                  ::testing::ValuesIn(types_ConvertInput),
                                  ::testing::Values(2),
                                  ::testing::Values(2),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertPartialInputsAndResults = {
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertPartialInputsAndResults, ConvertP
                                  ::testing::ValuesIn(types_ConvertPartialInputsAndResults),
                                  ::testing::Values(2), // subgraph & roll after subgraph
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertMany = {
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnOutputs, ConvertManyOnOutputs,
@@ -130,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnOutputs, ConvertManyOnOutpu
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>> types_ConvertManyIO = {
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputOutput, ConvertManyOnI
                                  ::testing::ValuesIn(types_ConvertManyIO),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Convert::getTestCaseName);
 
 }  // namespace

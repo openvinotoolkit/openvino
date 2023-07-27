@@ -43,7 +43,7 @@ public:
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
         result << "_range=(" << weightsValues.first << ", " << weightsValues.second << ")";
-        result << "_IS=(" << CommonTestUtils::vec2str(inputShape) << ")";
+        result << "_IS=(" << ov::test::utils::vec2str(inputShape) << ")";
 
         return result.str();
     }
@@ -66,7 +66,7 @@ protected:
             float mul = (i % 2 ? 1.0 : 0.001);
             float rowMin = weightsValues.first * mul;
             float rowMax = weightsValues.second * mul;
-            auto rowWeights = CommonTestUtils::generate_float_numbers(constShape.back(), rowMin, rowMax);
+            auto rowWeights = ov::test::utils::generate_float_numbers(constShape.back(), rowMin, rowMax);
             weights.insert(std::end(weights), std::begin(rowWeights), std::end(rowWeights));
             weightsMin.push_back(rowMin);
             weightsMax.push_back(rowMax);
@@ -119,7 +119,7 @@ const std::vector<std::vector<size_t>> inputShapes = {{1, 128}, {1, 38}, {1, 8}}
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          PerchannelQuantTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(weightsValues),
                                             ::testing::ValuesIn(inputShapes)),

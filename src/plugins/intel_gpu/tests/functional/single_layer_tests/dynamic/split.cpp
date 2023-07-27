@@ -35,15 +35,15 @@ public:
         std::tie(numSplits, axis, netPrecision, inputShape, outIndices) = obj.param;
 
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "numSplits=" << numSplits << "_";
         result << "axis=" << axis << "_";
         if (!outIndices.empty()) {
-            result << "outIndices" << CommonTestUtils::vec2str(outIndices) << "_";
+            result << "outIndices" << ov::test::utils::vec2str(outIndices) << "_";
         }
         result << "netPRC=" << netPrecision << "_";
         return result.str();
@@ -51,7 +51,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
         size_t numSplits;
         InputShape inputShape;
@@ -146,12 +146,12 @@ public:
         std::tie(axis, splitLength, netPrecision, inputShape) = obj.param;
 
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
-        result << "SplitLen=" << CommonTestUtils::vec2str(splitLength) << "_";
+        result << "SplitLen=" << ov::test::utils::vec2str(splitLength) << "_";
         result << "axis=" << axis << "_";
         result << "netPRC=" << netPrecision << "_";
         return result.str();
@@ -159,7 +159,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
         InputShape inputShape;
         std::vector<int32_t> splitLength;
