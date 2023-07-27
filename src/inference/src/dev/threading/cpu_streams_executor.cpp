@@ -22,11 +22,9 @@
 
 namespace ov {
 namespace threading {
-struct ImplBase{
-};
 // maybe there are two CPUStreamsExecutor in the same thread
-thread_local std::map<ImplBase*, std::shared_ptr<std::thread::id>> t_stream_count_map;
-struct CPUStreamsExecutor::Impl : public ImplBase {
+thread_local std::map<void*, std::shared_ptr<std::thread::id>> t_stream_count_map;
+struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         struct Observer : public custom::task_scheduler_observer {
@@ -319,8 +317,8 @@ struct CPUStreamsExecutor::Impl : public ImplBase {
     };
     // if the thread is created by CPUStreamsExecutor or the thread which created CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class enumerable_thread_specific, the alias is ThreadLocal,
     // the limit of ThreadLocal please refer to https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
-    // if the thread is created by customer(expect the thread create CPUStreamsExecutor), the Impl::Stream of the thread will be stored in variable _stream_map, and will be count by thread_local t_stream_count_map
-    // when the customer thread is destoried, the stream count will became 1 and local() will reuse one of them, and release others.
+    // if the thread is created by customer(except the thread create CPUStreamsExecutor), the Impl::Stream of the thread will be stored in variable _stream_map, and will be count by thread_local t_stream_count_map
+    // when the customer's thread is destoried, the stream's count will became 1 and local() will reuse one of them, and release others.
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl) :
@@ -335,6 +333,7 @@ struct CPUStreamsExecutor::Impl : public ImplBase {
             std::lock_guard<std::mutex> guard(_stream_map_mutex);
             for (auto& item : _stream_map) {
                 if (*(item.first.get()) == id) {
+                    t_stream_count_map[(void*)this] = item.first;
                     return item.second;
                 }
             }
@@ -344,19 +343,20 @@ struct CPUStreamsExecutor::Impl : public ImplBase {
                     if (stream == nullptr) {
                         stream = it->second;
                     }
-                    // std::cout << "release.id:" << *(it->first.get()) << std::endl;
+                    std::cout << "release.id:" << *(it->first.get()) << std::endl;
                     _stream_map.erase(it++);
                 } else {
                     it++;
                 }
             }
             if (stream == nullptr) {
+                std::cout << "create new" << std::endl;
                 stream = std::make_shared<Impl::Stream>(_impl);
             }
             auto id_ptr = std::make_shared<std::thread::id>(id);
-            t_stream_count_map[(ImplBase*)_impl] = id_ptr;
+            t_stream_count_map[(void*)this] = id_ptr;
             _stream_map[id_ptr] = stream;
-            // std::cout << "_stream_map.size() :" << _stream_map.size() << std::endl;
+            std::cout << "_stream_map.size() :" << _stream_map.size() << std::endl;
             return stream;
         }
 
