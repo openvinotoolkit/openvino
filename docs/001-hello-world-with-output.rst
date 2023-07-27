@@ -1,8 +1,10 @@
-# Hello Image Classification {#md_openvino_docs_001_hello_world_with_output}
+Hello Image Classification
+===========================
 
-@sphinxdirective
+.. _openvino_docs_001_hello_world_with_output:
 
-This basic introduction to OpenVINO™ shows how to do inference with an
+
+RST This basic introduction to OpenVINO™ shows how to do inference with an
 image classification model.
 
 A pre-trained `MobileNetV3
