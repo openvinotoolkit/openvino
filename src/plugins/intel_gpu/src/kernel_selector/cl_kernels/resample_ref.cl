@@ -495,12 +495,12 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
-    unroll_for(int b = b_init; b < b_max; b++) {
-        unroll_for(int f = f_init; f < f_max; f++) {
-            unroll_for(int z = z_init; z < z_max; z++) {
-                unroll_for(int y = y_init; y < y_max; y++) {
-                    unroll_for(int x = x_init; x < x_max; x++) {
-                        unroll_for(int fp = 0; fp < fp_max; fp++) {
+    for(int b = b_init; b < b_max; b++) {
+        for(int f = f_init; f < f_max; f++) {
+            for(int z = z_init; z < z_max; z++) {
+                for(int y = y_init; y < y_max; y++) {
+                    for(int x = x_init; x < x_max; x++) {
+                        for(int fp = 0; fp < fp_max; fp++) {
 #if PADDING_USED == 1
                             bool isOutOfBounds = b < 0 || f < 0 || z < 0 || y < 0 || x < 0 ||
                                                  b >= in_size[0] || f >= in_size[1] || z >= in_size[2] ||
