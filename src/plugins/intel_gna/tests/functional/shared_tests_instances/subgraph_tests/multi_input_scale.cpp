@@ -18,7 +18,7 @@ std::vector<std::map<std::string, std::string>> additional_config = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_multiple_input_scale,
                          MultipleInputScaleTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input),
                                             ::testing::ValuesIn(additional_config)),

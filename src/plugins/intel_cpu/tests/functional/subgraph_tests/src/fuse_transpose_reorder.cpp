@@ -17,7 +17,7 @@ std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<
     Precision inPrec;
     std::tie(inputShape, inPrec) = obj.param;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "Precision=" << inPrec.name();
 
     return result.str();
@@ -44,7 +44,7 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
 }
 
 void FuseTransposeAndReorderTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();

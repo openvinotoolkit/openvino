@@ -19,9 +19,9 @@ std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test:
              num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
-    result << "IS[2]=" << CommonTestUtils::vec2str(inputShapes2) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
+    result << "IS[2]=" << ov::test::utils::vec2str(inputShapes2) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
