@@ -210,8 +210,10 @@ clEnqueueMemFillINTEL_fn)(
 #define cl_khr_device_uuid 1
 
 #define CL_UUID_SIZE_KHR 16
+#define CL_LUID_SIZE_KHR 8
 
 #define CL_DEVICE_UUID_KHR          0x106A
+#define CL_DEVICE_LUID_KHR          0x106D
 
 #endif // cl_khr_device_uuid
 

@@ -29,6 +29,12 @@ struct device_uuid {
     std::array<uint8_t, max_uuid_size> val;
 };
 
+/// @brief Structure to represent gpu device LUID
+struct device_luid {
+    static const constexpr size_t max_luid_size = 8;
+    std::array<uint8_t, max_luid_size> val;
+};
+
 /// @brief Defines version of GFX IP
 struct gfx_version {
     uint16_t major;
@@ -88,6 +94,7 @@ struct device_info {
     uint32_t num_ccs;                           ///< Number of compute command streamers
 
     device_uuid uuid;                           ///< UUID of the gpu device
+    device_luid luid;                           ///< LUID of the gpu device
 };
 
 /// @}

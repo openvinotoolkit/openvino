@@ -159,6 +159,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
         (properties.device.uuid, "DEVICE_UUID"),
+        (properties.device.luid, "DEVICE_LUID"),
         (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (properties.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
         (properties.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),

@@ -219,8 +219,11 @@ device_info init_device_info(const cl::Device& device) {
     bool device_uuid_supported = extensions.find("cl_khr_device_uuid ") != std::string::npos;
     if (device_uuid_supported) {
         static_assert(CL_UUID_SIZE_KHR == device_uuid::max_uuid_size, "");
+        static_assert(CL_LUID_SIZE_KHR == device_luid::max_luid_size, "");
+        info.luid.val = device.getInfo<CL_DEVICE_LUID_KHR>();
         info.uuid.val = device.getInfo<CL_DEVICE_UUID_KHR>();
     } else {
+        std::fill_n(std::begin(info.luid.val), device_luid::max_luid_size, 0);
         std::fill_n(std::begin(info.uuid.val), device_uuid::max_uuid_size, 0);
     }
 
