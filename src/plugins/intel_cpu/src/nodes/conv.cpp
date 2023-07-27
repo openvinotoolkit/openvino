@@ -1287,7 +1287,8 @@ void Convolution::prepareParams() {
                                      const dnnl::primitive_attr attr) -> dnnl::primitive_desc {
             dnnl::memory::desc dnnlBiasDesc;
             if (biasDescPtr) {
-                dnnlBiasDesc = biasDescPtr->getDnnlDesc();
+                // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
+                dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.get_dims()[1]});
             }
 
             return createDescriptorInternal(
