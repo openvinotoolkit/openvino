@@ -26,7 +26,9 @@
 #include <unistd.h>
 #endif  // _WIN32
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 template<class T>
 inline std::string to_string_c_locale(T value) {
@@ -162,7 +164,7 @@ inline void directoryFileListRecursive(const std::string& name, std::vector<std:
             if (entire->d_name == parent_dir || entire->d_name == current_dir) {
                 continue;
             }
-            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
+            std::string path = name + FileSeparator + entire->d_name;
             if (directoryExists(path)) {
                 directoryFileListRecursive(path, file_list);
             }
@@ -185,7 +187,7 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
     std::string copyDirPath = dirPath;
     std::vector<std::string> nested_dir_names;
     while (!directoryExists(copyDirPath)) {
-        auto pos = copyDirPath.rfind(CommonTestUtils::FileSeparator);
+        auto pos = copyDirPath.rfind(FileSeparator);
         nested_dir_names.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
         copyDirPath = copyDirPath.substr(0, pos);
     }
@@ -203,11 +205,11 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
                                                               const std::vector<std::regex>& patterns) {
     auto getFileListByPattern = [&patterns](const std::string& folderPath) {
         std::vector<std::string> allFilePaths;
-        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
         for (auto& filePath : allFilePaths) {
             for (const auto& pattern : patterns) {
-                if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                if (fileExists(filePath) && std::regex_match(filePath, pattern)) {
                     result.insert(filePath);
                     break;
                 }
@@ -218,7 +220,7 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
 
     std::vector<std::string> result;
     for (auto &&folderPath : folderPaths) {
-        if (!CommonTestUtils::directoryExists(folderPath)) {
+        if (!directoryExists(folderPath)) {
             std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
@@ -285,7 +287,7 @@ std::string getRelativePath(const std::string& from, const std::string& to);
 namespace {
 inline std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               mockEngineName + IE_BUILD_POSTFIX);
 }
 
@@ -358,4 +360,16 @@ private:
     int32_t num_streams{0};
 };
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+
+// vpu repo uses CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::fileExists;
+using ov::test::utils::removeFilesWithExt;
+using ov::test::utils::removeFile;
+using ov::test::utils::removeDir;
+} // namespace CommonTestUtils
