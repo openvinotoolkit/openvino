@@ -48,7 +48,7 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
            << "CNNOutPrc=" << outputPrecision;
 
     if (!additionalConfig.empty()) {
-        result << "PluginConf";
+        result << "_PluginConf";
         for (auto& item : additionalConfig) {
             result << "_" << item.first << "=" << item.second.get_type_name();
         }

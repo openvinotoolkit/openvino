@@ -13,11 +13,11 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 namespace Transpose {
-std::map<std::string, std::string> additional_config = {
-        {ov::hint::inference_precision.name(), "f32"},
+std::vector<std::map<std::string, std::string>> additional_config = {
+        {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}},
 // x86 doesn't support FP16 for now
 #if defined(OV_CPU_WITH_ACL_FP16)
-        {ov::hint::inference_precision.name(), "f16"}
+        {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}}
 #endif
 };
 
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_Transpose, TransposeLayerCPUTes
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::ValuesIn(CPUParams4D)),
                          TransposeLayerCPUTest::getTestCaseName);
 
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_Transpose, TransposeLayerCPUTes
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::ValuesIn(CPUParams4D)),
                          TransposeLayerCPUTest::getTestCaseName);
 
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::Values(CPUSpecificParams{})),
                          TransposeLayerCPUTest::getTestCaseName);
 
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_PermutePerChannels, TransposeLa
                                  ::testing::ValuesIn(inputOrderPerChannels4D),
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::Values(cpuParams_nhwc)),
                          TransposeLayerCPUTest::getTestCaseName);
 
@@ -86,7 +86,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_PermutePerChannels, TransposeLa
                                  ::testing::ValuesIn(inputOrderPerChannels4D),
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::Values(cpuParams_nhwc)),
                          TransposeLayerCPUTest::getTestCaseName);
 
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_PermutePerChannels, TransposeLaye
                                  ::testing::ValuesIn(inputOrderPerChannels4D),
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                 ::testing::Values(additional_config),
+                                 ::testing::ValuesIn(additional_config),
                                  ::testing::Values(CPUSpecificParams{})),
                          TransposeLayerCPUTest::getTestCaseName);
 
