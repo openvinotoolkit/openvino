@@ -54,6 +54,7 @@ try:
     from openvino.runtime import shutdown
     from openvino.runtime import tensor_from_file
     from openvino.runtime import save_model
+    from openvino.runtime import layout_helpers
 
     # Set version for openvino package
     from openvino.runtime import get_version
@@ -63,8 +64,6 @@ except ImportError:
     warnings.warn("openvino package has problems with imports!", ImportWarning, stacklevel=2)
 
 # Import openvino.tools
-# Capture it in try-except with pass so circular imports are allowed.
-# TODO: restructure packages to remove WA
 try:
     from openvino import tools as tools
     # Model Conversion API - ovc should reside in the main namespace

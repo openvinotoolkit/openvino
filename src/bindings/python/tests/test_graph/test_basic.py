@@ -9,13 +9,19 @@ import pytest
 import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
 
-from openvino import Model, PartialShape, Shape, Tensor, Type
+from openvino import (
+    Model,
+    PartialShape,
+    Shape,
+    Tensor,
+    Type,
+    OVAny,
+    Parameter,
+    layout_helpers,
+)
 
-from openvino.runtime import layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
-from openvino.runtime import OVAny
 from openvino._pyopenvino import DescriptorTensor
-from openvino.runtime.op import Parameter
 
 from openvino.runtime.utils.types import get_element_type
 
