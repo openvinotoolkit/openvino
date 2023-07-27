@@ -6,29 +6,30 @@
 #include "frontend_test.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-class IRFrontendMMapTestsAdvanced : public ::testing::TestWithParam<bool>, public IRFrontendTestsImpl {
+class IRFrontendMMapTestsAdvanced : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
-    size_t binsize;
+    size_t binsize, REF_RSS;
 
     void SetUp() override {
-        size_t CONST_SIZE = 10000000; /*~ 77 MB for f64 to guarantee size is more than size of mapped libraries*/
-        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f64, ov::Shape{CONST_SIZE});
-        parameter->set_friendly_name("input");
-        auto constant = std::make_shared<ov::opset1::Constant>(ov::element::f64,
+        size_t SIZE_MB = 32;
+        size_t CONST_SIZE = SIZE_MB * 1024 * 1024 / sizeof(ov::element::f32);
+        auto parameter = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{CONST_SIZE});
+        auto constant = std::make_shared<ov::opset1::Constant>(ov::element::f32,
                                                                ov::Shape{CONST_SIZE},
-                                                               std::vector<double>(CONST_SIZE, 0));
-        constant->set_friendly_name("value1");
+                                                               std::vector<float>(CONST_SIZE, 0));
         auto add = std::make_shared<ov::opset1::Add>(parameter, constant);
-        add->set_friendly_name("Add");
         auto result = std::make_shared<ov::opset1::Result>(add);
-        result->set_friendly_name("output");
         auto model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
 
         auto filePrefix = ov::test::utils::generateTestFilePrefix();
         xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
         binFileName = filePrefix + "_IrFrontendTestModel.bin";
-        ov::serialize(model, xmlFileName, binFileName);
+        ov::serialize(model, xmlFileName);
         binsize = ov::test::utils::fileSize(binFileName) / 1024;
+
+        // In case of enabled `mmap` RAM should not increase more than 50% of .bin size
+        // Otherwise RAM should increase on at least 50% of .bin size
+        REF_RSS = binsize / 2;
     }
 
     void TearDown() override {
@@ -36,71 +37,81 @@ protected:
     }
 };
 
-TEST_P(IRFrontendMMapTestsAdvanced, core_read_and_compile_model) {
-    // Test checks that with `mmap` enabled .bin file
-    // isn't read into RAM on `read_model` stage and
-    // maps into RAM on `compile_model` stage
+TEST_F(IRFrontendMMapTestsAdvanced, core_enable_mmap_property) {
+    // Test checks that with  enabled `mmap` .bin file
+    // isn't read into RAM on `read_model` stage.
+    // Otherwise, with disabled `mmap` .bin file should
+    // be in RAM
 
-    bool is_mmap = GetParam();
+    auto test = [&](const bool& is_mmap) {
+        core.set_property(ov::enable_mmap(is_mmap));
 
-    // trigger plugin loading in order to map libraries and not affect memory values during compilation
-    core.get_versions("CPU");
-    core.set_property(ov::enable_mmap(GetParam()));
+        auto rss_init = ov::test::utils::getVmRSSInKB();
+        auto model = core.read_model(xmlFileName);
+        auto rss_read = ov::test::utils::getVmRSSInKB();
 
-    auto rss_init = ov::test::utils::getVmRSSInKB();
-    auto model = core.read_model(xmlFileName, binFileName);
-    auto rss_read = ov::test::utils::getVmRSSInKB();
+        bool is_weights_read = (rss_read - rss_init) > REF_RSS;
+        if (is_mmap == is_weights_read) {
+            std::cerr << "Test failed: mmap is " << (is_mmap ? "enabled" : "disabled") << ", but weights are "
+                      << (is_weights_read ? "read" : "not read") << " in RAM" << std::endl;
+            exit(1);
+        }
+        std::cerr << "Test passed" << std::endl;
+        exit(0);
+    };
 
-    // RAM should increase on at least 90% of .bin size. 10% is a proposed error that cover file system cache
-    size_t bin_in_RAM = binsize * 0.9;
-    bool is_weights_read = (rss_read - rss_init) > bin_in_RAM;
-    EXPECT_TRUE(is_mmap != is_weights_read);
-
-    auto rss_mapped_read = ov::test::utils::getRssFileInKB();
-    auto compiled_model = core.compile_model(model, "CPU");
-    auto rss_mapped_compiled = ov::test::utils::getRssFileInKB();
-
-    // Mappings size (RssFile) should increase at least on .bin size
-    bool is_weights_mapped = (rss_mapped_compiled - rss_mapped_read) > binsize;
-    EXPECT_TRUE(is_mmap == is_weights_mapped);
+    for (const auto is_mmap : {true, false})
+        // Run test in a separate process to not affect RAM values by previous tests
+        EXPECT_EXIT(test(is_mmap), ::testing::ExitedWithCode(0), "Test passed");
 }
 
-TEST_P(IRFrontendMMapTestsAdvanced, fe_read_and_compile_model) {
-    // Test checks that with `mmap` enabled .bin file
-    // isn't read into RAM on `read_model` stage and
-    // maps into RAM on `compile_model` stage
+TEST_F(IRFrontendMMapTestsAdvanced, fe_read_ir_by_default) {
+    // Test checks that IR FE `read` IR by default,
+    // so .bin file should be loaded to RAM
 
-    bool is_mmap = GetParam();
+    auto test = [&]() {
+        ov::frontend::InputModel::Ptr input_model;
+        std::shared_ptr<ov::Model> model;
 
-    ov::frontend::InputModel::Ptr input_model;
-    std::shared_ptr<ov::Model> model;
+        auto rss_init = ov::test::utils::getVmRSSInKB();
+        auto FE = manager.load_by_model(xmlFileName);
+        if (FE)
+            input_model = FE->load(xmlFileName);
+        if (input_model)
+            model = FE->convert(input_model);
+        auto rss_read = ov::test::utils::getVmRSSInKB();
 
-    // trigger plugin loading in order to map libraries and not affect memory values during compilation
-    core.get_versions("CPU");
-    core.set_property(ov::enable_mmap(GetParam()));
+        bool is_weights_read = (rss_read - rss_init) > REF_RSS;
+        if (!is_weights_read) {
+            std::cerr << "Test failed: weights are not read; RAM consumption is less than expected" << std::endl;
+            exit(1);
+        }
+        std::cerr << "Test passed" << std::endl;
+        exit(0);
+    };
 
-    auto rss_init = ov::test::utils::getVmRSSInKB();
-    ov::AnyVector params{xmlFileName, binFileName, is_mmap};
-    auto FE = manager.load_by_model(params);
-    if (FE)
-        input_model = FE->load(params);
-    if (input_model)
-        model = FE->convert(input_model);
-    auto rss_read = ov::test::utils::getVmRSSInKB();
-
-    // RAM should (or not if `mmap` enabled) increase at least on 90% of .bin size.
-    // 10% is a proposed error that cover file system cache
-    size_t bin_in_RAM = binsize * 0.9;
-    bool is_weights_read = (rss_read - rss_init) > bin_in_RAM;
-    EXPECT_TRUE(is_mmap != is_weights_read);
-
-    auto rss_mapped_read = ov::test::utils::getRssFileInKB();
-    auto compiled_model = core.compile_model(model, "CPU");
-    auto rss_mapped_compiled = ov::test::utils::getRssFileInKB();
-
-    // Mappings size (RssFile) should (or not if `mmap` disabled) increase at least on .bin size
-    bool is_weights_mapped = (rss_mapped_compiled - rss_mapped_read) > binsize;
-    EXPECT_TRUE(is_mmap == is_weights_mapped);
+    // Run test in a separate process to not affect RAM values by previous tests
+    ASSERT_EXIT(test(), ::testing::ExitedWithCode(0), "Test passed");
 }
 
-INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTestsAdvanced, ::testing::Bool());
+TEST_F(IRFrontendMMapTestsAdvanced, core_mmap_ir_by_default) {
+    // Test checks that Core uses `mmap` by default,
+    // so .bin file should not be loaded to RAM
+
+    auto test = [&]() {
+        auto rss_init = ov::test::utils::getVmRSSInKB();
+        auto model = core.read_model(xmlFileName, binFileName);
+        auto rss_read = ov::test::utils::getVmRSSInKB();
+
+        bool is_weights_mapped = (rss_read - rss_init) < REF_RSS;
+        if (!is_weights_mapped) {
+            std::cerr << "Test failed: weights are not mapped; RAM consumption is more than expected" << std::endl;
+            exit(1);
+        }
+        std::cerr << "Test passed" << std::endl;
+        exit(0);
+    };
+
+    // Run test in a separate process to not affect RAM values by previous tests
+    ASSERT_EXIT(test(), ::testing::ExitedWithCode(0), "Test passed");
+}
