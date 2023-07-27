@@ -184,7 +184,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }
-#elif defined(OPENVINO_ARCH_ARM_FP16)
+#elif defined(OV_CPU_WITH_ACL_FP16)
 // TODO: add runtime FP16 feature support check for ARM
                 inferencePrecision = ov::element::f16;
                 inferencePrecisionSetExplicitly = true;

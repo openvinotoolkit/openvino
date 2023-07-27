@@ -67,6 +67,3 @@
 #    define OPENVINO_ARCH_RISCV64
 #    define OPENVINO_ARCH_64_BIT
 #endif
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-#    define OPENVINO_ARCH_ARM_FP16
-#endif

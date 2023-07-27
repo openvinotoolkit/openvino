@@ -42,6 +42,9 @@ if(DNNL_USE_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
 
+if (OV_CPU_WITH_ACL AND APPLE)
+    add_definitions(-DOV_CPU_WITH_ACL_FP16)
+endif()
 
 if(OV_CPU_WITH_ACL)
     set(CMAKE_CXX_STANDARD 14)
