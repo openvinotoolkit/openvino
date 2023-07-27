@@ -122,7 +122,8 @@ TEST_P(ov_compiled_model_test, ov_compiled_model_input_by_name) {
 }
 
 TEST_P(ov_compiled_model_test, get_property) {
-    const char* device_name = "BATCH:GPU(4)";
+    auto device = GetParam();
+    std::string device_name = "BATCH:" + device + "(4)";
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -132,7 +133,7 @@ TEST_P(ov_compiled_model_test, get_property) {
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name, 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     const char* key = ov_property_key_auto_batch_timeout;
@@ -142,8 +143,7 @@ TEST_P(ov_compiled_model_test, get_property) {
     EXPECT_NE(nullptr, result);
 
     std::string target;
-    for (size_t i = 0 ; i < std::strlen(result); i ++)
-    {
+    for (size_t i = 0; i < std::strlen(result); i++) {
         target.push_back(result[i]);
     }
     int tmp = std::stoi(target);
@@ -154,8 +154,7 @@ TEST_P(ov_compiled_model_test, get_property) {
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
 
     std::string res;
-    for (size_t i= 0; i < std::strlen(result); i ++)
-    {
+    for (size_t i = 0; i < std::strlen(result); i++) {
         res.push_back(result[i]);
     }
 
