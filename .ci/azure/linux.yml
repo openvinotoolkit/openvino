@@ -456,7 +456,7 @@ jobs:
     displayName: 'Model Optimizer UT'
 
   - script: |
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/ovc/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-OpenVinoConversion.xml
+      python3 -m pytest -s $(REPO_DIR)/tools/ovc/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-OpenVinoConversion.xml
     displayName: 'OpenVino Conversion UT'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
