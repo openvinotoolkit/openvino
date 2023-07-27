@@ -22,14 +22,12 @@
 
 namespace ov {
 namespace threading {
-class StreamBase{
-};
-class ImplBase{
+struct ImplBase{
 };
 // maybe there are two CPUStreamsExecutor in the same thread
-thread_local std::map<ImplBase*, std::shared_ptr<StreamBase>> t_stream_map;
-class CPUStreamsExecutor::Impl : public ImplBase {
-    class Stream : public StreamBase {
+thread_local std::map<ImplBase*, std::shared_ptr<std::thread::id>> t_stream_count_map;
+struct CPUStreamsExecutor::Impl : public ImplBase {
+    struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         struct Observer : public custom::task_scheduler_observer {
             CpuSet _mask;
@@ -68,7 +66,6 @@ class CPUStreamsExecutor::Impl : public ImplBase {
             ~Observer() override = default;
         };
 #endif
-    public:
         explicit Stream(Impl* impl) : _impl(impl) {
             {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
@@ -121,13 +118,6 @@ class CPUStreamsExecutor::Impl : public ImplBase {
 #endif
         }
         ~Stream() {
-            // if (_isCustomer) {
-            //     set_cpu_used(_cpu_ids, NOT_USED);
-            //     if (nullptr != _observer) {
-            //         _observer->observe(false);
-            //     }
-            //     return;
-            // }
             {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
                 _impl->_streamIdQueue.push(_streamId);
@@ -321,7 +311,6 @@ class CPUStreamsExecutor::Impl : public ImplBase {
         int _socketId = 0;
         bool _execute = false;
         std::queue<Task> _taskQueue;
-        bool _isCustomer = false;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
@@ -336,32 +325,38 @@ class CPUStreamsExecutor::Impl : public ImplBase {
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl) :
             ThreadLocal<std::shared_ptr<Stream>>(callback_construct), _impl(impl) {
         }
-        ~CustomThreadLocal() {
-            // how to promise every stream is deleted?
-            for (auto it = t_stream_map.begin(); it != t_stream_map.end();) {
-                if (it->first == _impl) {
-                    t_stream_map.erase(it++);
-                } else {
-                    it++;
-                }
-            }
-        }
         std::shared_ptr<Stream> local() {
             auto id = std::this_thread::get_id();
             auto search = _thread_ids.find(id);
             if (search != _thread_ids.end()) {
                 return ThreadLocal<std::shared_ptr<Stream>>::local();
             }
-            auto find = t_stream_map.find(_impl);
-            if (find != t_stream_map.end()) {
-                return std::static_pointer_cast<Stream>(find->second);
+            std::lock_guard<std::mutex> guard(_stream_map_mutex);
+            for (auto& item : _stream_map) {
+                if (*(item.first.get()) == id) {
+                    return item.second;
+                }
             }
-            else {
-                auto stream = std::make_shared<Impl::Stream>(_impl);
-                stream->_isCustomer = true;
-                t_stream_map.insert({(ImplBase*)_impl, std::static_pointer_cast<StreamBase>(stream)});
-                return stream;
+            std::shared_ptr<Impl::Stream> stream = nullptr;
+            for (auto it = _stream_map.begin(); it != _stream_map.end();) {
+                if (it->first.use_count() == 1) {
+                    if (stream == nullptr) {
+                        stream = it->second;
+                    }
+                    // std::cout << "release.id:" << *(it->first.get()) << std::endl;
+                    _stream_map.erase(it++);
+                } else {
+                    it++;
+                }
             }
+            if (stream == nullptr) {
+                stream = std::make_shared<Impl::Stream>(_impl);
+            }
+            auto id_ptr = std::make_shared<std::thread::id>(id);
+            t_stream_count_map[(ImplBase*)_impl] = id_ptr;
+            _stream_map[id_ptr] = stream;
+            // std::cout << "_stream_map.size() :" << _stream_map.size() << std::endl;
+            return stream;
         }
 
         void set_thread_id_map(std::vector<std::thread>& threads) {
@@ -373,9 +368,10 @@ class CPUStreamsExecutor::Impl : public ImplBase {
         private:
             std::set<std::thread::id> _thread_ids;
             Impl* _impl;
+            std::map<std::shared_ptr<std::thread::id>, std::shared_ptr<Impl::Stream>> _stream_map;
+            std::mutex _stream_map_mutex;
     };
 
-public:
     explicit Impl(const Config& config)
         : _config{config},
           _streams([this] {

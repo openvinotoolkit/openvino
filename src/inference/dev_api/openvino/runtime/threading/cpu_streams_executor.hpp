@@ -49,7 +49,7 @@ public:
     int get_socket_id() override;
 
 private:
-    class Impl;
+    struct Impl;
     std::unique_ptr<Impl> _impl;
 };
 
