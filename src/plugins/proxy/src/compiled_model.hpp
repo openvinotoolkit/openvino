@@ -17,42 +17,33 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::SoPtr<ov::IRemoteContext>& context)
         : ov::ICompiledModel(nullptr, plugin, context),
-          m_compiled_model(model) {
-        std::cout << "Proxy CompiledModel created" << std::endl;
-    }
+          m_compiled_model(model) {}
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        std::cout << "Proxy create_infer_request" << std::endl;
         return std::make_shared<ov::proxy::InferRequest>(
             ov::SoPtr<ov::IAsyncInferRequest>{m_compiled_model->create_infer_request(), m_compiled_model._so},
             shared_from_this());
     }
 
     void export_model(std::ostream& model) const override {
-        std::cout << "Proxy export model" << std::endl;
         m_compiled_model->export_model(model);
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        std::cout << "Proxy get_runtime_model" << std::endl;
         return m_compiled_model->get_runtime_model();
     }
 
     void set_property(const ov::AnyMap& properties) override {
-        std::cout << "Proxy set_property " << ov::Any(properties).as<std::string>() << std::endl;
         m_compiled_model->set_property(properties);
     }
 
     ov::Any get_property(const std::string& name) const override {
-        std::cout << "Proxy get_property " << name << std::endl;
         return m_compiled_model->get_property(name);
     }
     const std::vector<ov::Output<const ov::Node>>& inputs() const override {
-        std::cout << "Proxy inputs" << std::endl;
         return m_compiled_model->inputs();
     }
     const std::vector<ov::Output<const ov::Node>>& outputs() const override {
-        std::cout << "Proxy outputs" << std::endl;
         return m_compiled_model->outputs();
     }
 
