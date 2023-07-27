@@ -6,6 +6,8 @@
 #include "frontend_test.hpp"
 #include "openvino/opsets/opset1.hpp"
 
+#ifndef __APPLE__  // TODO: add getVmRSSInKB() for Apple platform
+
 class IRFrontendMMapTestsAdvanced : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
     size_t binsize, REF_RSS;
@@ -115,3 +117,5 @@ TEST_F(IRFrontendMMapTestsAdvanced, core_mmap_ir_by_default) {
     // Run test in a separate process to not affect RAM values by previous tests
     ASSERT_EXIT(test(), ::testing::ExitedWithCode(0), "Test passed");
 }
+
+#endif
