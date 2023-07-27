@@ -19,7 +19,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_edge_replace, EdgeReplace,
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(3),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EdgeReplace::getTestCaseName);
 
 } // namespace

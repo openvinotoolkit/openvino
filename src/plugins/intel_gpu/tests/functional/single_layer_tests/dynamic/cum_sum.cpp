@@ -36,10 +36,10 @@ public:
         std::tie(inputPrecision, shapes, axis, exclusive, reverse) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "Prc=" << inputPrecision << "_";
         results << "Axis=" << axis << "_" << (exclusive ? "exclusive" : "") << "_" << (reverse ? "reverse" : "");
@@ -48,7 +48,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         ElementType inputPrecision;
         InputShape shapes;
