@@ -850,8 +850,8 @@ static constexpr Property<UUID, PropertyMutability::RO> uuid{"DEVICE_UUID"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 struct LUID {
-    static const uint64_t MAX_LUID_SIZE = 8;  //!< Max size of luid array (128 bits)
-    std::array<uint8_t, MAX_LUID_SIZE> luid;   //!< Array with luid for a device
+    static const uint64_t MAX_LUID_SIZE = 8;  //!< Max size of luid array (64 bits)
+    std::array<uint8_t, MAX_LUID_SIZE> luid;  //!< Array with luid for a device
 };
 
 /** @cond INTERNAL */

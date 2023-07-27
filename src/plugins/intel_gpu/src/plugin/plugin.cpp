@@ -672,13 +672,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
     } else if (name == ov::device::uuid) {
-        ov::device::UUID uuid = {};
-        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
-        return decltype(ov::device::uuid)::value_type {uuid};
+        return decltype(ov::device::uuid)::value_type {device_info.uuid};
     } else if (name == ov::device::luid) {
-        ov::device::LUID luid = {};
-        std::copy_n(std::begin(device_info.luid.val), cldnn::device_luid::max_luid_size, std::begin(luid.luid));
-        return decltype(ov::device::luid)::value_type {luid};
+        return decltype(ov::device::luid)::value_type {device_info.luid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
