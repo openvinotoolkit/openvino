@@ -220,6 +220,9 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
+    virtual OutputVector inlined_inputs(size_t start_index) const override {
+        FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
+    }
 };
 
 }  // namespace pytorch
