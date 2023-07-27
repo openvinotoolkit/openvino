@@ -122,6 +122,7 @@ public:
     int disable_async_compilation;                  // Disable async compilation
     int disable_dynamic_impl;                       // Disable dynamic implementation
     int disable_runtime_buffer_fusing;              // Disable runtime buffer fusing
+    int disable_memory_reuse;                   // Disable memmory reuse among layers
     std::set<int64_t> dump_iteration;               // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;  // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
