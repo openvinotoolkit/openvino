@@ -34,6 +34,7 @@ function addLegalNotice() {
 }
 
 $(document).ready(function () {
+    addFooter();
     createVersions();
     updateTitleTag();
     updateLanguageSelector();
@@ -326,3 +327,12 @@ function initBenchmarkPickers() {
       $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
     }
   }
+
+function addFooter() {
+    const footerAnchor = $('.footer');
+
+    fetch('../footer.html').then((response) => response.text()).then((text) => {
+        const footerContent = $(text);
+        footerAnchor.append(footerContent);
+    });
+}
