@@ -68,11 +68,6 @@ size_t getVmRSSInKB() {
     return getMemoryInfo().WorkingSetSize / 1024;
 }
 
-size_t getRssFileInKB() {
-    // TODO: implement
-    return -1;
-}
-
 #else
 
 /// Parses number from provided string
@@ -110,10 +105,6 @@ size_t getVmSizeInKB() {
 
 size_t getVmRSSInKB() {
     return getSystemDataByName(const_cast<char*>("VmRSS:"));
-}
-
-size_t getRssFileInKB() {
-    return getSystemDataByName(const_cast<char*>("RssFile:"));
 }
 
 #endif

@@ -192,8 +192,6 @@ std::string generateTestFilePrefix();
 size_t getVmSizeInKB();
 
 size_t getVmRSSInKB();
-
-size_t getRssFileInKB();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
