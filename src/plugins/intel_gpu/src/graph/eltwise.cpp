@@ -9,8 +9,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "eltwise_shape_inference.hpp"
 #include "openvino/op/add.hpp"
-#include "utils.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
@@ -128,7 +128,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         for (size_t i = 0; i < desc->input_size(); i++) {
             input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
         }
-        eltwise_shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
 
         if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             out_format = format::b_fs_zyx_fsv16;

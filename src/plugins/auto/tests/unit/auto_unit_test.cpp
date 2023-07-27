@@ -63,24 +63,23 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
         .WillByDefault(Return(ov::Any(supportConfigs)));
-    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _))
-        .WillByDefault(Return(12));
+    std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
+    ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(12));
     std::vector<std::string> cpuCability =  {"FP32", "FP16", "INT8", "BIN"};
     std::vector<std::string> gpuCability =  {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
-    std::vector<std::string> vpuCability =  {"INT8"};
-    std::vector<std::string> myriadCability =  {"FP16"};
+    std::vector<std::string> othersCability =  {"FP32", "FP16"};
     std::string igpuArchitecture = "GPU: vendor=0x8086 arch=0";
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
     auto iGpuType = ov::device::Type::INTEGRATED;
     auto dGpuType = ov::device::Type::DISCRETE;
-    ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_CPU),
+    ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_CPU),
                    StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
     ON_CALL(*core, get_property(HasSubstr("GPU"),
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
-    ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
-                StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(vpuCability));
-    ON_CALL(*core, get_property(StrEq("MYRIAD"),
-                   StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
+    ON_CALL(*core, get_property(StrEq("OTHERS"),
+                   StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(othersCability));
     ON_CALL(*core, get_property(StrEq("GPU"),
                 StrEq(ov::device::architecture.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuArchitecture));
     ON_CALL(*core, get_property(StrEq("GPU.0"),
@@ -98,6 +97,8 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
     ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(metrics));
+    ON_CALL(*core, get_property(_, ov::supported_properties.name(), _))
+           .WillByDefault(Return(ov::Any(supported_props)));
     ON_CALL(*core, get_property(StrEq("GPU"),
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
     ON_CALL(*core, get_property(StrEq("GPU"),
@@ -106,7 +107,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
     ON_CALL(*core, get_property(StrEq("GPU.1"),
                 StrEq(ov::device::full_name.name()), _)).WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
-    const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "VPU"};
+    const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
     ON_CALL(*plugin, parse_meta_devices)
     .WillByDefault(
@@ -127,16 +128,29 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
             return devices;
         });
 
-    ON_CALL(*core, get_supported_property)
-        .WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
-            auto item = fullConfigs.find(device);
-            ov::AnyMap deviceConfigs;
-            if (item != fullConfigs.end()) {
-                std::stringstream strConfigs(item->second.as<std::string>());
+    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
+        auto item = fullConfigs.find(ov::device::properties.name());
+        ov::AnyMap deviceConfigs;
+        if (item != fullConfigs.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(device);
+            if (it != devicesProperties.end()) {
+                std::stringstream strConfigs(it->second.as<std::string>());
                 ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
             }
-            return deviceConfigs;
-        });
+        }
+        for (auto&& item : fullConfigs) {
+            if (item.first != ov::device::properties.name()) {
+                // primary property
+                // override will not happen here if the property already present in the device config list.
+                deviceConfigs.insert(item);
+            }
+        }
+        return deviceConfigs;
+    });
 
     ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
         return plugin->Plugin::get_device_list(config);

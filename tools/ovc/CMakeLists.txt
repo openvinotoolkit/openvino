@@ -26,11 +26,19 @@ endif()
 #
 
 ov_get_pyversion(pyversion)
-ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OVC}
+ov_cpack_add_component(${OV_CPACK_COMP_OVC}
                         HIDDEN)
 
 install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_OVC}
-        ${OV_CPACK_COMP_PYTHON_OVC_EXCLUDE_ALL}
+        COMPONENT ${OV_CPACK_COMP_OVC}
+        ${OV_CPACK_COMP_OVC_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
+
+#
+# Cpack
+#
+
+if(CMAKE_SOURCE_DIR STREQUAL OpenVINOConverter_SOURCE_DIR)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()

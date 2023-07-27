@@ -9,15 +9,16 @@
 namespace ov {
 namespace op {
 namespace v6 {
-template <class T>
-void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
+    using DimType = typename T::value_type;
 
     const auto& data_pshape = input_shapes[0];
     const auto& indices_pshape = input_shapes[1];
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
     int64_t axis = op->get_axis();
@@ -36,16 +37,16 @@ void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, s
         // output has the same rank of data
         output_shape = data_pshape;
         output_shape[axis] = DimType();
-        return;
+        return output_shapes;
     }
 
     if (data_rank.is_dynamic()) {
         if (indices_rank.is_dynamic()) {
             output_shape = PartialShape::dynamic();
-            return;
+            return output_shapes;
         }
         output_shape = indices_pshape;
-        return;
+        return output_shapes;
     }
 
     // left only case when data_rank.is_static() && indices_rank.is_static()
@@ -70,6 +71,7 @@ void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, s
                           " are not consistent, `data` and `indices` must have equal or "
                           "intersecting dimensions, except for the dimension at axis index.",
                           axis);
+    return output_shapes;
 }
 }  // namespace v6
 }  // namespace op

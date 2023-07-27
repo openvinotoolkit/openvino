@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstring>
-#include <numeric>
-#include <openvino/util/file_util.hpp>
-#include <regex>
-#include <sstream>
+#include "common_test_utils/file_utils.hpp"
+
+#include "precomp.hpp"
 
 #ifdef __APPLE__
 # include <mach-o/dyld.h>
@@ -25,7 +23,9 @@
 # include <limits.h>
 #endif
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 std::string getExecutableDirectory() {
     std::string path;
@@ -72,7 +72,7 @@ std::string getCurrentWorkingDir() {
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath) {
-    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), relModelPath});
+    return ov::util::path_join({getExecutableDirectory(), relModelPath});
 }
 
 std::string getRelativePath(const std::string& from, const std::string& to) {
@@ -131,4 +131,6 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     return output;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

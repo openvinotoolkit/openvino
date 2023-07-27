@@ -16,8 +16,8 @@ std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<N
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "eps=" << eps << "_";
     result << "epsMode=" << epsMode << "_";
     result << "netPRC=" << netPrecision.name() << "_";

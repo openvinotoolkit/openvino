@@ -26,11 +26,19 @@ endif()
 #
 
 ov_get_pyversion(pyversion)
-ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_BENCHMARK_APP}
+ov_cpack_add_component(${OV_CPACK_COMP_BENCHMARK_APP}
                         HIDDEN)
 
 install(DIRECTORY ${OpenVINOBenchmarkTool_SOURCE_DIR}/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_BENCHMARK_APP}
-        ${OV_CPACK_COMP_PYTHON_BENCHMARK_APP_EXCLUDE_ALL}
+        COMPONENT ${OV_CPACK_COMP_BENCHMARK_APP}
+        ${OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
+
+#
+# Cpack
+#
+
+if(CMAKE_SOURCE_DIR STREQUAL OpenVINOBenchmarkTool_SOURCE_DIR)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
+endif()

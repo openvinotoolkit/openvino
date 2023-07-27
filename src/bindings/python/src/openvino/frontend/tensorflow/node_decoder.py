@@ -47,7 +47,7 @@ def tf_attr_to_ov(attr):
 
 
 class TFGraphNodeDecoder(DecoderBase):
-    def __init__(self, operation: tf.Operation, inner_graph: bool):
+    def __init__(self, operation: tf.Operation, share_weights: bool, inner_graph: bool):
         DecoderBase.__init__(self)
         assert isinstance(operation, tf.Operation), "Unknown operation type. " \
                                                     "Expected tf.Operation, got {}".format(type(operation))
@@ -57,9 +57,7 @@ class TFGraphNodeDecoder(DecoderBase):
 
         # Copies value from inner buffer of TF_Operation to NodeDef class.
         self.m_node_def = self.m_operation.node_def
-
-        # TODO: Create parameter in convert_model() for turning on/off shared memory, ticket: 114971
-        self.m_shared_memory = True
+        self.m_shared_memory = share_weights
 
         if self.m_operation.type == "Const":
             self.m_data_type = tf.dtypes.DType(self.m_node_def.attr["dtype"].type).name

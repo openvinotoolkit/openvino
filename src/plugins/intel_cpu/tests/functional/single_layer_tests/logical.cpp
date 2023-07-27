@@ -129,7 +129,7 @@ const auto LogicalTestParams = ::testing::Combine(
             ::testing::ValuesIn(bf16InpOutPrc),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 
@@ -143,7 +143,7 @@ const auto LogicalTestParamsNot = ::testing::Combine(
                 ::testing::ValuesIn(bf16InpOutPrc),
                 ::testing::Values(Layout::ANY),
                 ::testing::Values(Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 

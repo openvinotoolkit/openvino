@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(LSTMCellCommon, LSTMCellTest,
                                 ::testing::ValuesIn(layer_types),
                                 ::testing::ValuesIn(layer_types),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMCellTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
@@ -54,6 +54,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
                                 ::testing::ValuesIn(layer_types),
                                 ::testing::ValuesIn(layer_types),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMCellTest::getTestCaseName);
 }  // namespace
