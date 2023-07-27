@@ -39,6 +39,8 @@ enum impl_desc_type {
     winograd = 1<<24,
     // sparse
     sparse = 1<<25,
+    //mlas backend
+    mlas = 1<<26,
     // llmdnn
     llmdnn = 1<<27,
 
@@ -101,7 +103,8 @@ enum impl_desc_type {
     gemm_acl           = gemm | acl,
     winograd_acl       = winograd | acl,
 
-    gemm_llmdnn        = gemm | llmdnn,
+    gemm_mlas          = gemm | mlas,
+    gemm_llmdnn        = gemm | llmdnn
 };
 
 const char * impl_type_to_string(impl_desc_type type);

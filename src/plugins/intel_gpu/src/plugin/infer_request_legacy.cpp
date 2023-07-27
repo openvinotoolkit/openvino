@@ -258,9 +258,6 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
         if (is_remote) {
             _deviceInputs[name] = data;
             _inputs[name] = data;
-        } else {
-            if (is_remote)
-                _inputs[name] = data;
         }
 
         if (!is_remote) {

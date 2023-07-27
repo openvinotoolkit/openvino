@@ -105,6 +105,14 @@ private:
     bool useSparseWeightsDecompression();
     VectorDims expectedBiasDims {};
 
+    bool useMlas = false;
+#ifdef OV_CPU_WITH_MLAS
+    int64_t M, N, K;
+    MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
+#endif
+
 #ifdef OV_CPU_WITH_LLMDNN
     bool tryExtractParamForLLMFc(llmdnn::fc_create_param& param, MemoryPtr weightPtr);
     bool tryUseLLMFc();

@@ -359,7 +359,7 @@ const auto params3InputsDynamic = ::testing::Combine(
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
         ::testing::Values(false, true),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPUDetectionOutputDynamic3In, DetectionOutputLayerGPUTest,
