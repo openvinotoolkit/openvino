@@ -82,7 +82,7 @@ void EltwiseLayerCPUTest::SetUp() {
         ngraph::helpers::InputLayerType secondaryInputType;
         ov::test::utils::OpType opType;
         std::map<std::string, ov::element::Type> additional_config;
-        std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) = basicParamsSet;
+        std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additional_config) = basicParamsSet;
 
         if (ElementType::bf16 == netType) {
             rel_threshold = 2e-2f;
@@ -161,12 +161,12 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
 
 namespace Eltwise {
 
-const std::vector<std::map<std::string, ov::element::Type>>& additional_config() {
-    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
-        {{ov::hint::inference_precision.name(), ov::element::f32}},
+const std::map<std::string, ov::element::Type>& additional_config() {
+    static const std::map<std::string, ov::element::Type> additionalConfig = {
+        {ov::hint::inference_precision.name(), ov::element::f32},
 // x86 doesn't support FP16 for now
 #if defined(OV_CPU_WITH_ACL_FP16)
-        {{ov::hint::inference_precision.name(), ov::element::f16}},
+        {ov::hint::inference_precision.name(), ov::element::f16},
 #endif
     };
     return additionalConfig;
