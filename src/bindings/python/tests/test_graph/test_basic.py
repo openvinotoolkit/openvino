@@ -16,10 +16,10 @@ from openvino import (
     Tensor,
     Type,
     OVAny,
-    Parameter,
     layout_helpers,
 )
 
+from openvino.runtime.op import Parameter
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 

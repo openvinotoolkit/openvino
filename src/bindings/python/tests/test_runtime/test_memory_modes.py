@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 import openvino.runtime as ov
-from openvino import Tensor, Constant
+from openvino import Tensor
+from openvino.runtime.op import Constant
 
 from tests.test_utils.test_utils import generate_image
 
