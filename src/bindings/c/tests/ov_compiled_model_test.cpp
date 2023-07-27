@@ -3,7 +3,6 @@
 //
 
 #include "ov_test.hpp"
-#include <string.h>
 
 namespace {
 
@@ -143,7 +142,7 @@ TEST_P(ov_compiled_model_test, get_property) {
     EXPECT_NE(nullptr, result);
 
     std::string target;
-    for (size_t i = 0 ; i < strlen(result); i ++)
+    for (size_t i = 0 ; i < std::strlen(result); i ++)
     {
         target.push_back(result[i]);
     }
@@ -153,8 +152,14 @@ TEST_P(ov_compiled_model_test, get_property) {
 
     OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    EXPECT_EQ(*target.c_str(), *result);
 
+    std::string res;
+    for (size_t i= 0; i < std::strlen(result); i ++)
+    {
+        res.push_back(result[i]);
+    }
+
+    EXPECT_EQ(target, res);
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
