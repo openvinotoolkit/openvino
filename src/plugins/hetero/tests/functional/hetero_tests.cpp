@@ -27,9 +27,9 @@
 namespace {
 
 std::string get_mock_engine_path() {
-    std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
+    std::string mock_engine_name("mock_engine");
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              mock_engine_name + IE_BUILD_POSTFIX);
 }
 
 template <class T>
@@ -206,6 +206,11 @@ public:
                                                                         ov::enable_profiling.name()};
             return decltype(ov::supported_properties)::value_type(supported_properties);
         } else if (name == ov::num_streams) {
+            if (m_config.count(ov::internal::exclusive_async_requests.name())) {
+                auto exclusive_async_requests = m_config.at(ov::internal::exclusive_async_requests.name()).as<bool>();
+                if (exclusive_async_requests)
+                    return ov::streams::Num(1);
+            }
             return m_config.count(ov::num_streams.name()) ? m_config.at(ov::num_streams.name()) : ov::streams::Num(1);
         } else if (name == ov::enable_profiling) {
             return m_config.count(ov::enable_profiling.name()) ? m_config.at(ov::enable_profiling.name()) : false;
@@ -526,6 +531,8 @@ public:
                 num_streams = it.second.as<int32_t>();
             else if (it.first == ov::enable_profiling.name())
                 m_profiling = it.second.as<bool>();
+            else if (it.first == ov::internal::exclusive_async_requests.name())
+                exclusive_async_requests = it.second.as<bool>();
             else if (it.first == ov::device::id.name())
                 continue;
             else
@@ -561,7 +568,10 @@ public:
             return decltype(ov::supported_properties)::value_type(supportedProperties);
         } else if (name == ov::internal::supported_properties) {
             return decltype(ov::internal::supported_properties)::value_type(
-                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
+                {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+                 ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}});
+        } else if (name == ov::internal::exclusive_async_requests) {
+            return decltype(ov::internal::exclusive_async_requests)::value_type{exclusive_async_requests};
         } else if (name == ov::device::uuid) {
             ov::device::UUID uuid;
             for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -608,6 +618,7 @@ public:
 
 private:
     int32_t num_streams{0};
+    bool exclusive_async_requests = false;
 };
 
 class MockPluginSubtract : public MockPluginBase {
@@ -703,17 +714,15 @@ public:
 };
 
 void ov::hetero::tests::HeteroTests::reg_plugin(std::shared_ptr<ov::IPlugin>& plugin) {
-    std::string libraryPath = get_mock_engine_path();
+    std::string library_path = get_mock_engine_path();
     if (!m_so)
-        m_so = ov::util::load_shared_object(libraryPath.c_str());
+        m_so = ov::util::load_shared_object(library_path.c_str());
     if (auto mock_plugin = std::dynamic_pointer_cast<MockPluginBase>(plugin))
         mock_plugin->set_version(mock_plugin->get_const_version());
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
     injectProxyEngine(plugin.get());
-    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                            std::string("mock_engine") + IE_BUILD_POSTFIX),
-                         plugin->get_device_name());
+    core.register_plugin(library_path, plugin->get_device_name());
     m_mock_plugins.emplace_back(plugin);
 }
 

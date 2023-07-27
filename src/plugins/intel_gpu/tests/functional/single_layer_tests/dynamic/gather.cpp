@@ -42,17 +42,17 @@ public:
 
         std::ostringstream result;
         result << "IS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.inputShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.inputShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.inputShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.inputShapes.second[i]) << "_";
             result << "}_";
         }
         result << "TS=(";
-        result << CommonTestUtils::partialShape2str({Shapes.targetShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({Shapes.targetShapes.first}) << "_";
         for (size_t i = 0lu; i < Shapes.targetShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(Shapes.targetShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(Shapes.targetShapes.second[i]) << "_";
             result << "}_";
         }
         result << "axis=" << Shapes.axis << "_";
@@ -75,7 +75,7 @@ protected:
         std::tie(Shapes, netPrecision, isIndicesConstant, isAxisConstant) = this->GetParam();
         const int axis = Shapes.axis;
         const int batchDims = Shapes.batch_dims;
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;
         std::shared_ptr<ov::Node> gatherNode;
         std::shared_ptr<ov::Node> axisNode;

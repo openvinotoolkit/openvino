@@ -77,7 +77,7 @@ using namespace ov::test::behavior;
 using namespace ov;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestBatchedTests,
-                         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                         ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                          OVInferRequestBatchedTests::getTestCaseName);
 
 }  // namespace

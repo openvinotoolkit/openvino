@@ -34,7 +34,7 @@ void ApiSummaryDestroyer::initialize(ApiSummary *p) {
 }
 
 ApiSummary::ApiSummary() : apiStats() {
-    reportFilename = CommonTestUtils::API_REPORT_FILENAME;
+    reportFilename = ov::test::utils::API_REPORT_FILENAME;
     isCrashReported = false;
     isHangReported = false;
 }
@@ -49,8 +49,8 @@ ApiSummary &ApiSummary::getInstance() {
 
 void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status, double rel_influence_coef) {
     if (apiStats.empty()) {
-        std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + reportFilename + CommonTestUtils::REPORT_EXTENSION;
-        const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+        std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + reportFilename + ov::test::utils::REPORT_EXTENSION;
+        const bool fileExists = ov::test::utils::fileExists(outputFilePath);
         if (extendReport && !isReported && fileExists) {
             getStatisticFromReport(outputFilePath);
         }
@@ -149,20 +149,20 @@ void ApiSummary::saveReport() {
         auto processId = std::to_string(getpid());
         filename += "_" + processId + "_" + ts;
     }
-    filename += CommonTestUtils::REPORT_EXTENSION;
+    filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!CommonTestUtils::directoryExists(outputFolder)) {
-        CommonTestUtils::createDirectoryRecursive(outputFolder);
+    if (!ov::test::utils::directoryExists(outputFolder)) {
+        ov::test::utils::createDirectoryRecursive(outputFolder);
     }
 
-    std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
+    std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
 
     auto &summary = ApiSummary::getInstance();
     auto stats = summary.getApiStats();
 
     pugi::xml_document doc;
 
-    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+    const bool fileExists = ov::test::utils::fileExists(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;
