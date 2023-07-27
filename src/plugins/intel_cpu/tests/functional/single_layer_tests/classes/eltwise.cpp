@@ -81,7 +81,7 @@ void EltwiseLayerCPUTest::SetUp() {
         ElementType netType;
         ngraph::helpers::InputLayerType secondaryInputType;
         ov::test::utils::OpType opType;
-        std::map<std::string, ov::element::Type> additional_config;
+        ov::AnyMap additional_config;
         std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additional_config) = basicParamsSet;
 
         if (ElementType::bf16 == netType) {
@@ -160,16 +160,15 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
 }
 
 namespace Eltwise {
-
-const std::vector<std::map<std::string, ov::element::Type>>& additional_config() {
-    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+const std::vector<ov::AnyMap>& additional_config() {
+        static const std::vector<ov::AnyMap> additional_config = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
 // x86 doesn't support FP16 for now
 #if defined(OV_CPU_WITH_ACL_FP16)
         {{ov::hint::inference_precision.name(), ov::element::f16}},
 #endif
-    };
-    return additionalConfig;
+        };
+        return additional_config;
 }
 
 const std::vector<ElementType>& netType() {

@@ -14,15 +14,15 @@ namespace test {
 namespace subgraph {
 
 typedef std::tuple<
-    std::vector<InputShape>,                    // input shapes
-    ngraph::helpers::EltwiseTypes,              // eltwise op type
-    ngraph::helpers::InputLayerType,            // secondary input type
-    ov::test::utils::OpType,                    // op type
-    ElementType,                                // Net precision
-    ElementType,                                // In precision
-    ElementType,                                // Out precision
-    TargetDevice,                               // Device name
-    std::map<std::string, ov::element::Type>    // Additional network configuration
+    std::vector<InputShape>,           // input shapes
+    ngraph::helpers::EltwiseTypes,     // eltwise op type
+    ngraph::helpers::InputLayerType,   // secondary input type
+    ov::test::utils::OpType,           // op type
+    ElementType,                       // Net precision
+    ElementType,                       // In precision
+    ElementType,                       // Out precision
+    TargetDevice,                      // Device name
+    ov::AnyMap                  // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,

@@ -19,7 +19,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
-    std::map<std::string, ov::element::Type> additional_config;
+    ov::AnyMap additional_config;
     std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
@@ -40,11 +40,9 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "InType=" << inType << "_";
     results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
-    if (!additional_config.empty()) {
-        results << "PluginConf";
-        for (auto& item : additional_config) {
-            results << "_" << item.first << "=" << item.second.get_type_name();
-        }
+    for (auto const& configItem : additional_config) {
+        results << "_configItem=" << configItem.first << "_";
+        configItem.second.print(results);
     }
     return results.str();
 }
@@ -75,8 +73,8 @@ void EltwiseLayerTest::SetUp() {
     ngraph::helpers::InputLayerType secondaryInputType;
     ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
-    std::map<std::string, ov::element::Type> additional_config;
-    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additional_config) =
+    Config additional_config;
+    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
             this->GetParam();
 
     init_input_shapes(shapes);
