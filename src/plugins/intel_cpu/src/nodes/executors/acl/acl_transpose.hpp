@@ -35,7 +35,7 @@ public:
               dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
             !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
               dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
-            DEBUG_LOG("NEPermute does not support precisions:",
+            DEBUG_LOG("NEPermute does not support layout:",
                       " src: ", srcDescs[0]->serializeFormat(),
                       " dst: ", dstDescs[0]->serializeFormat());
             return false;

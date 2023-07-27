@@ -16,7 +16,7 @@ namespace Transpose {
 std::map<std::string, std::string> additional_config = {
         {ov::hint::inference_precision.name(), "f32"},
 // x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
+#if defined(OPENVINO_ARCH_ARM_FP16)
         {ov::hint::inference_precision.name(), "f16"}
 #endif
 };

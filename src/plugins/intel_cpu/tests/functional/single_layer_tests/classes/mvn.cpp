@@ -107,9 +107,6 @@ void MvnLayerCPUTest::SetUp() {
         mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
     }
 
-    selectedType = getPrimitiveType();
-    selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-
     rel_threshold = 0.015f;
     if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
         inPrc = outPrc = netPrecision = ElementType::f16;
@@ -118,6 +115,10 @@ void MvnLayerCPUTest::SetUp() {
         rel_threshold = 250.f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+    selectedType = getPrimitiveType();
+    selectedType = makeSelectedTypeStr(selectedType, netPrecision);
+
     function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
 }
 
@@ -131,7 +132,7 @@ const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() 
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
 // x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
+#if defined(OPENVINO_ARCH_ARM_FP16)
         {{ov::hint::inference_precision.name(), ov::element::f16}},
 #endif
     };

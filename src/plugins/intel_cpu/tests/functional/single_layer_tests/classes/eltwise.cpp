@@ -161,12 +161,12 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
 
 namespace Eltwise {
 
-const std::map<std::string, ov::element::Type>& additional_config() {
-    static const std::map<std::string, ov::element::Type> additionalConfig = {
-        {ov::hint::inference_precision.name(), ov::element::f32},
+const std::vector<std::map<std::string, ov::element::Type>>& additional_config() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
 // x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
-        {ov::hint::inference_precision.name(), ov::element::f16},
+#if defined(OPENVINO_ARCH_ARM_FP16)
+        {{ov::hint::inference_precision.name(), ov::element::f16}},
 #endif
     };
     return additionalConfig;

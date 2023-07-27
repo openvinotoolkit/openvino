@@ -32,7 +32,8 @@ using MvnLayerCPUTestParamSet = std::tuple<
        CPUSpecificParams,
        fusingSpecificParams,
        ElementType, // CNNNetwork input precision
-       ElementType>; // CNNNetwork output precision
+       ElementType, // CNNNetwork output precision
+       std::map<std::string, ov::element::Type>>;
 
 class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamSet>,
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
