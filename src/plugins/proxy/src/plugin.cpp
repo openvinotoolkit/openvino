@@ -22,6 +22,26 @@
 
 namespace {
 
+bool compare_containers(const std::vector<std::string>& c1, const std::vector<std::string> c2) {
+    if (c1.size() != c2.size())
+        return false;
+    for (size_t i = 0; i < c1.size(); i++) {
+        if (c1.at(i) != c2.at(i))
+            return false;
+    }
+    return true;
+}
+
+bool compare_containers(const std::unordered_set<std::string>& c1, const std::unordered_set<std::string> c2) {
+    if (c1.size() != c2.size())
+        return false;
+    for (const auto& val : c1) {
+        if (c2.find(val) == c2.end())
+            return false;
+    }
+    return true;
+}
+
 size_t string_to_size_t(const std::string& s) {
     std::stringstream sstream(s);
     size_t idx;
@@ -153,19 +173,21 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     it = hw_config.find(ov::proxy::alias_for.name());
     bool fill_order = hw_config.find(ov::proxy::device_priorities.name()) == hw_config.end() && m_device_order.empty();
     if (it != hw_config.end()) {
+        std::unordered_set<std::string> new_alias;
         for (auto&& dev : it->second.as<std::vector<std::string>>()) {
-            proxy_config_was_changed = true;
-            m_alias_for.emplace(dev);
+            new_alias.emplace(dev);
             if (fill_order)
                 m_device_order.emplace_back(dev);
+        }
+        if (!compare_containers(m_alias_for, new_alias)) {
+            proxy_config_was_changed = true;
+            m_alias_for = new_alias;
         }
     }
 
     // Restore device order
     it = hw_config.find(ov::proxy::device_priorities.name());
     if (it != hw_config.end()) {
-        proxy_config_was_changed = true;
-        m_device_order.clear();
         std::vector<std::pair<std::string, size_t>> priority_order;
         // Biggest number means minimum priority
         size_t min_priority(0);
@@ -193,17 +215,23 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
                   [](const std::pair<std::string, size_t>& v1, const std::pair<std::string, size_t>& v2) {
                       return v1.second < v2.second;
                   });
-        m_device_order.reserve(priority_order.size());
+        std::vector<std::string> new_device_order;
+        new_device_order.reserve(priority_order.size());
         for (const auto& dev : priority_order) {
-            m_device_order.emplace_back(dev.first);
+            new_device_order.emplace_back(dev.first);
         }
         // Align sizes of device order with alias
-        if (m_device_order.size() < m_alias_for.size()) {
+        if (new_device_order.size() < m_alias_for.size()) {
             for (const auto& dev : m_alias_for) {
-                if (std::find(std::begin(m_device_order), std::end(m_device_order), dev) == std::end(m_device_order)) {
-                    m_device_order.emplace_back(dev);
+                if (std::find(std::begin(new_device_order), std::end(new_device_order), dev) ==
+                    std::end(new_device_order)) {
+                    new_device_order.emplace_back(dev);
                 }
             }
+        }
+        if (!compare_containers(m_device_order, new_device_order)) {
+            m_device_order = new_device_order;
+            proxy_config_was_changed = true;
         }
     }
 
@@ -212,12 +240,19 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
         it = hw_config.find(ov::device::priorities.name());
         if (it != hw_config.end()) {
-            proxy_config_was_changed = true;
-            m_configs[config_name][ov::device::priorities.name()] = it->second;
+            if (m_configs[config_name].find(ov::device::priorities.name()) == m_configs[config_name].end() ||
+                !compare_containers(
+                    m_configs[config_name][ov::device::priorities.name()].as<std::vector<std::string>>(),
+                    it->second.as<std::vector<std::string>>())) {
+                proxy_config_was_changed = true;
+                m_configs[config_name][ov::device::priorities.name()] = it->second;
+            }
             // Main device is needed in case if we don't have alias and would like to be able change fallback order per
             // device
-            if (m_alias_for.empty() && config_name.empty())
+            if (m_alias_for.empty() && config_name.empty()) {
+                proxy_config_was_changed = true;
                 m_alias_for.insert(it->second.as<std::vector<std::string>>()[0]);
+            }
         }
     }
     if (proxy_config_was_changed) {
