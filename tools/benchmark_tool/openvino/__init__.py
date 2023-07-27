@@ -12,18 +12,6 @@ try:
 except ImportError:
     pass
 
-# Internal modules
-try:
-    from openvino import test_utils as test_utils
-except ImportError:
-    pass
-
-# API 1.0 TODO: remove in 2024.0
-try:
-    from openvino import inference_engine as inference_engine
-except ImportError:
-    pass
-
 # API 2.0
 try:
     # Import all public modules
@@ -41,10 +29,6 @@ try:
     from openvino.runtime import InferRequest
     from openvino.runtime import AsyncInferQueue
 
-    from openvino.runtime.op import Constant
-    from openvino.runtime.op import Parameter
-
-    from openvino.runtime import Extension
     from openvino.runtime import Dimension
     from openvino.runtime import Strides
     from openvino.runtime import PartialShape
@@ -72,7 +56,6 @@ except ImportError:
 
 # Tools
 try:
-    from openvino import tools as tools
     # Model Conversion API - ovc should reside in the main namespace
     from openvino.tools.ovc import convert_model, InputCutInfo
 except ImportError:
