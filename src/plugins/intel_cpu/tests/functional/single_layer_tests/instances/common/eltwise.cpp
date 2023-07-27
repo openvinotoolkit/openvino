@@ -37,7 +37,7 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesDiffInp()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::Values(ElementType::f32),            //FIXME: FP16 tests crashes on this test
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -69,7 +69,7 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::ValuesIn(eltwiseOpTypesDiffInp()),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::Values(ElementType::f32),            //FIXME: FP16 tests crashes on this test
+                ::testing::ValuesIn(netType()),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
