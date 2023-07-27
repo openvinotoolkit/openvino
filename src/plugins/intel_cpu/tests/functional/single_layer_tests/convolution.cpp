@@ -10,10 +10,12 @@
 #include "ngraph_functions/builders.hpp"
 #include "openvino/core/visibility.hpp"
 #include <shared_test_classes/single_layer/convolution.hpp>
+#include "utils/general_utils.h"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
+using namespace ov::intel_cpu;
 
 namespace CPULayerTestsDefinitions {
 using LayerTestsDefinitions::convSpecificParams;
@@ -219,8 +221,13 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     if (!priority.empty()) {
+        // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].
+        // This convolution test code has already covered brgconv avx2 primitive.
+        // @todo: Remove this once brgconv_avx2 is enabled for convolution node.
+        if (priority[0].find("brgconv_avx2") != std::string::npos)
+                GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
         // Skip tests for brgconv convolution where kernel size = 1x1
-        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+        if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;
                 for (const auto &i : kernel) {
                 if (i != 1) {
@@ -826,6 +833,7 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D,
         conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
+        conv_avx2_1D_nspc_brgconv,
         conv_avx512_1D_nspc,
         conv_avx512_1D_nspc_brgconv
 };
@@ -934,6 +942,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D,
         conv_sse42_2D_nspc,
         conv_avx2_2D_nspc,
+        conv_avx2_2D_nspc_brgconv,
         conv_avx512_2D_nspc,
         conv_avx512_2D_nspc_brgconv
 };
@@ -1211,6 +1220,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx2_3D,
         conv_avx512_3D,
         conv_avx2_3D_nspc,
+        conv_avx2_3D_nspc_brgconv,
         conv_avx512_3D_nspc,
         conv_avx512_3D_nspc_brgconv
 };
@@ -1394,6 +1404,7 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
         conv_avx512_1D_1x1,
         conv_sse42_1D_1x1_nspc,
         conv_avx2_1D_1x1_nspc,
+        conv_avx2_1D_1x1_nspc_brgconv,
         conv_avx512_1D_1x1_nspc,
         conv_avx512_1D_1x1_nspc_brgconv
 };
@@ -1459,6 +1470,7 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
         conv_avx512_2D_1x1,
         conv_sse42_2D_1x1_nspc,
         conv_avx2_2D_1x1_nspc,
+        conv_avx2_2D_1x1_nspc_brgconv,
         conv_avx512_2D_1x1_nspc,
         conv_avx512_2D_1x1_nspc_brgconv
 };
