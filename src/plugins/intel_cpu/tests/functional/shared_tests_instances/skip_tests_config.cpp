@@ -189,7 +189,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // Issue: 113727
-        R"(.*MatMulCompressedU8Weights.*)",
+        R"(.*MatMulCompressedWeights.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

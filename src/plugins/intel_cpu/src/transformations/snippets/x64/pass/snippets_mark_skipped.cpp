@@ -397,26 +397,10 @@ bool isSuitableChildForFusingSumActivation(const std::shared_ptr<const Node> &no
 bool isSuitableReduceChild(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
     return node->get_output_element_type(0) == ov::element::f32 && isSuitableChildForFusingSimple(node, channelAxis);
 }
-bool isSuitableMatMulCompressedWeights(const std::shared_ptr<Node>& node) {
-    std::shared_ptr<Node> multiply;
-    if (ov::is_type<ov::opset1::Multiply>(node)) {
-        multiply = node;
-    } else {
-        const auto consumers = node->get_output_target_inputs(0);
-        if (consumers.size() != 1)
-            return false;
-        const auto consumer = consumers.begin()->get_node()->shared_from_this();
-        if (ov::is_type<ov::opset1::Multiply>(consumer)) {
-            multiply = consumer;
-        }
-    }
-    if (!multiply)
-        return false;
-    const auto consumers = multiply->get_output_target_inputs(0);
-    if (consumers.size() != 1)
-        return false;
-    const auto consumer = consumers.begin()->get_node()->shared_from_this();
-    return ov::is_type<ov::opset1::MatMul>(consumer) && ov::op::util::is_on_constant_path(multiply);
+bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
+    return ov::is_type<ov::opset1::MatMul>(node) &&
+           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           ov::op::util::is_on_constant_path(node->get_input_node_shared_ptr(1));
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
@@ -486,6 +470,15 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (is_skipped_op(node))
             continue;
+        // We perform this check separately because we mark here only weights path
+        // Matmul itself will be checked further
+        if (isSuitableMatMulWithConstantPath(node)) {
+            auto markup_func = [](Node* node) {
+                SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            };
+            std::unordered_set<Node*> visited;
+            ov::op::util::visit_shape_path(node->get_input_node_ptr(1), visited, markup_func);
+        }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
@@ -519,8 +512,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
         } else if (enableBF16 && isSuitableConvert(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
-        } else if (isSuitableMatMulCompressedWeights(node)) {
-            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
         } else {
             for (const auto fusingChainType : getContinuableChains(node)) {
                 if (fusingChainType == NodeFusingType::FusedWithReduce) {

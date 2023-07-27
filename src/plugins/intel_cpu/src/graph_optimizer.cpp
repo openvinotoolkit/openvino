@@ -278,6 +278,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 }
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
+    const std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
@@ -289,22 +290,23 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         const auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
-        const bool with_transpose = parent->getType() == Type::Transpose;
-        const NodePtr transposeNode = with_transpose ? parent : nullptr;
+        const bool withTranspose = parent->getType() == Type::Transpose;
+        const NodePtr transposeNode = withTranspose ? parent : nullptr;
 
-        const auto multiplyNode = with_transpose ? parent->getParentEdgesAtPort(0)[0]->getParent() : parent;
+        const auto multiplyNode = withTranspose ? parent->getParentEdgesAtPort(0)[0]->getParent() : parent;
         if (!expectedNode(multiplyNode, Type::Eltwise) || multiplyNode->getAlgorithm() != Algorithm::EltwiseMultiply ||
             !multiplyNode->isConstant())
             continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndWeightsDecompression);
         const auto multiplyConstNode = multiplyNode->getParentEdgesAtPort(1)[0]->getParent();
         if (!expectedNode(multiplyConstNode, Type::Input))
             continue;
 
         const auto mulParent = multiplyNode->getParentEdgesAtPort(0)[0]->getParent();
-        const bool with_subtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
+        const bool withSubtract = mulParent->getAlgorithm() == Algorithm::EltwiseSubtract;
         NodePtr subtractNode, subtractConstNode;
-        if (with_subtract) {
+        if (withSubtract) {
             subtractNode = mulParent;
             if (!expectedNode(subtractNode, Type::Eltwise))
                 continue;
@@ -313,7 +315,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 continue;
         }
 
-        const auto convertNode = with_subtract ? subtractNode->getParentEdgesAtPort(0)[0]->getParent() : mulParent;
+        const auto convertNode = withSubtract ? subtractNode->getParentEdgesAtPort(0)[0]->getParent() : mulParent;
         if (!expectedNode(convertNode, Type::Convert))
             continue;
         const auto weightsNode = convertNode->getParentEdgesAtPort(0)[0]->getParent();
@@ -323,9 +325,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         // Precision limitations
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
-        if (weightsNode->getOriginalOutputPrecisionAtPort(0) != Precision::U8)
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
-        if (with_subtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
+        if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
 
         // Shape limitations
@@ -334,21 +336,21 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (weightsShape != fcInputWeightsShape)
             continue;
 
-        const auto expectedDims = with_transpose ? VectorDims{1, weightsShape.getDims()[1]}
+        const auto expectedDims = withTranspose ? VectorDims{1, weightsShape.getDims()[1]}
                                                  : VectorDims{weightsShape.getDims()[0], 1};
         if (multiplyConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
             continue;
-        if (with_subtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
+        if (withSubtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
             continue;
 
         fcNode->fuseDecompressionMultiply(multiplyConstNode);
-        if (with_subtract)
+        if (withSubtract)
             fcNode->fuseDecompressionSubtract(subtractConstNode);
 
         fcNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         fcNode->addOriginalLayer(convertNode->getOriginalLayers());
 
-        if (with_subtract) {
+        if (withSubtract) {
             fcNode->addOriginalLayer(subtractNode->getOriginalLayers());
             auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
             graph.RemoveEdge(subtractConstEdge);
@@ -357,12 +359,12 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         graph.RemoveEdge(multiplyConstEdge);
 
         graph.DropNode(convertNode);
-        if (with_subtract)
+        if (withSubtract)
             graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);
 
         const auto& weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
-        if (with_transpose) {
+        if (withTranspose) {
             transposeNode->setOriginalInputPrecisionAtPort(0, weightsPrecision);
             transposeNode->setOriginalOutputPrecisionAtPort(0, weightsPrecision);
         }
