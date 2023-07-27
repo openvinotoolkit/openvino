@@ -14,9 +14,9 @@ namespace LayerTestsDefinitions {
         std::string targetDevice;
         std::tie(dataShapes, dataType, broadcast, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "COND=BOOL_" << CommonTestUtils::vec2str(dataShapes[CONDITION]);
-        result << "_THEN=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[THEN]);
-        result << "_ELSE=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[ELSE]);
+        result << "COND=BOOL_" << ov::test::utils::vec2str(dataShapes[CONDITION]);
+        result << "_THEN=" << dataType.name() << "_" << ov::test::utils::vec2str(dataShapes[THEN]);
+        result << "_ELSE=" << dataType.name() << "_" << ov::test::utils::vec2str(dataShapes[ELSE]);
         result << "_" << broadcast.m_type;
         result << "_targetDevice=" << targetDevice;
         return result.str();

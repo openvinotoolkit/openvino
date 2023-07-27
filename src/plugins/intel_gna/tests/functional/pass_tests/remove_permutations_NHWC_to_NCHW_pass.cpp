@@ -92,7 +92,7 @@ std::shared_ptr<ngraph::Node> CreateConvolution(const ngraph::Output<ngraph::Nod
     size_t filter_total_size =
         num_out_channels * input_shape.back() *
         std::accumulate(std::begin(kernel_shape), std::end(kernel_shape), 1, std::multiplies<size_t>());
-    const std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(filter_total_size, -0.01f, 0.01f);
+    const std::vector<float> filter_weights = ov::test::utils::generate_float_numbers(filter_total_size, -0.01f, 0.01f);
     const auto shape_size = input_shape.size();
     auto conv = ngraph::builder::makeConvolution(input,
                                                  ngPrc,
@@ -141,7 +141,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_1d_out=" << output1D;
         result << "_transpose2reshape=" << transpose_to_reshape;
         return result.str();
@@ -217,7 +217,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -262,7 +262,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_withActivation=" << withActivation;
         result << "_transpose2reshape=" << transpose_to_reshape;
         return result.str();
@@ -274,7 +274,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -356,7 +356,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -366,7 +366,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), 0.0f, 0.5f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -438,7 +438,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -448,7 +448,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -532,7 +532,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
         result << "_splits=" << splits_num;
         return result.str();
     }
@@ -543,7 +543,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -670,7 +670,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_PermutationPass,
     RemovePermutationsNHWCToNCHWPassTest,
     ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                       ::testing::Values(ov::test::utils::DEVICE_GNA),
                        ::testing::ValuesIn(configs),
                        ::testing::ValuesIn(inputShapes),
                        ::testing::ValuesIn(std::vector<bool>{false, true}),   // with 1d output of convolution
@@ -680,7 +680,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsNHWCToNCHWPassNoReshapesTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsNHWCToNCHWPassNoReshapesTest::getTestCaseName);
@@ -688,7 +688,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithPoolAndActTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(std::vector<bool>{false, true}),  // with activation
@@ -699,7 +699,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithTwoConvTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsWithTwoConvTest::getTestCaseName);
@@ -707,7 +707,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemovePermutationsWithEltwiseTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          RemovePermutationsWithEltwiseTest::getTestCaseName);
@@ -715,7 +715,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
 INSTANTIATE_TEST_SUITE_P(smoke_PermutationPass,
                          RemoveSharedPermutationTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapesSplit),
                                             ::testing::ValuesIn(splitsNum)),

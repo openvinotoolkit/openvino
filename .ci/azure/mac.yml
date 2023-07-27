@@ -188,8 +188,8 @@ jobs:
     displayName: 'OV Proxy Plugin Tests'
     enabled: 'false'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroUnitTests.xml
-    displayName: 'OV Hetero Unit Tests'
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
+    displayName: 'OV Hetero Func Tests'
     enabled: 'false'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
