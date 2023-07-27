@@ -153,6 +153,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
                                                          model_hash_str=model_hash_str)
     return partitioned_modules[signature](*args)
 
+
 def clear_caches():
     global partitioned_modules
     global compiled_cache

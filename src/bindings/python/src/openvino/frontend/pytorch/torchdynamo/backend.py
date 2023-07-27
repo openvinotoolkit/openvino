@@ -128,5 +128,6 @@ def fx_openvino(subgraph, example_inputs):
         log.debug(f"Failed in OpenVINO execution: {e}")
         return compile_fx(subgraph, example_inputs)
 
+
 def reset():
     clear_caches()
