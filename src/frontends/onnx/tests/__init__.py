@@ -109,8 +109,8 @@ xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
-xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
-                                      " z should be converted to TileIE operation.")
+skip_issue_39658 = pytest.mark.skip(reason="RuntimeError: Tile operation has a form that is not supported."
+                                           " z should be converted to TileIE operation.")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 
