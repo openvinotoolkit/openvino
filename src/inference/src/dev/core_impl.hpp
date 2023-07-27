@@ -152,8 +152,6 @@ private:
     mutable std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
-    // Map of remapped devices which have conflict with proxy device
-    std::unordered_map<std::string, std::string> remapped_devices;
 
     const bool m_new_api;
 

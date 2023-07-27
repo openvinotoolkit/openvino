@@ -100,10 +100,10 @@ public:
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-            ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _))
+            ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
             .WillByDefault(Return(mockExeNetwork));
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrNe(CommonTestUtils::DEVICE_CPU)), _))
+                    ::testing::Matcher<const std::string&>(StrNe(ov::test::utils::DEVICE_CPU)), _))
                     .WillByDefault(Return(mockExeNetworkActual));
     }
 };
@@ -153,11 +153,11 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
         plugin->set_device_name("MULTI");
 
     ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
                 ::testing::Matcher<const ov::AnyMap&>(_)))
                 .WillByDefault(Throw(ov::Exception{"Mock GPU Load Failed"}));
     ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                 ::testing::Matcher<const ov::AnyMap&>(_)))
                 .WillByDefault(Throw(ov::Exception{"Mock CPU Load Failed"}));
     if (device == "AUTO") {

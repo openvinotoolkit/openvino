@@ -16,7 +16,7 @@ std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<m
     std::tie(netPrecision, targetDevice, configuration, inputShape, outputSize) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "OS=" << outputSize << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
@@ -40,14 +40,14 @@ void MatmulSqueezeAddTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] },
-        CommonTestUtils::generate_float_numbers(outputSize * inputShape[1], 0, 1, seed), false);
+        ov::test::utils::generate_float_numbers(outputSize * inputShape[1], 0, 1, seed), false);
     auto matmul_0 = std::make_shared<ngraph::op::MatMul>(params[0], constant_0, false, true);
 
     auto constant_1 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
     auto unsqueeze_0 = std::make_shared<ngraph::op::v0::Unsqueeze>(matmul_0, constant_1);
 
     auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { 1, inputShape[0], outputSize },
-        CommonTestUtils::generate_float_numbers(inputShape[0] * outputSize, 0, 1, seed), false);
+        ov::test::utils::generate_float_numbers(inputShape[0] * outputSize, 0, 1, seed), false);
     auto add_0 = std::make_shared<ngraph::op::v1::Add>(unsqueeze_0, constant_2);
 
     auto constant_3 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});

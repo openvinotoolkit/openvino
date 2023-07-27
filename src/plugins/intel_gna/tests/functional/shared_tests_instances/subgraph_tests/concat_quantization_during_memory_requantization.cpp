@@ -26,7 +26,7 @@ std::vector<size_t> hiddenSizes = {128, 64, 32};
 INSTANTIATE_TEST_SUITE_P(smoke_concat_quant_memory_requant,
                          ConcatQuantDuringMemoryRequantTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(inputSizes),
                                             ::testing::ValuesIn(hiddenSizes),
                                             ::testing::ValuesIn(additionalConfig)),
