@@ -597,8 +597,12 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         // 2. Use individual fallback priorities to fill each list
         std::vector<DeviceID_t> all_highlevel_devices;
         std::set<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>> unique_devices;
-        std::unordered_set<std::string> unavailable_devices;
+        // Static unavailable device in order to avoid loading from different ov::Core the same unavailable plugin
+        static std::unordered_set<std::string> unavailable_devices;
         for (const auto& device : m_device_order) {
+            // Avoid loading unavailable device for several times
+            if (unavailable_devices.count(device))
+                continue;
             std::vector<std::string> supported_device_ids;
             try {
                 supported_device_ids = core->get_property(device, ov::available_devices);
