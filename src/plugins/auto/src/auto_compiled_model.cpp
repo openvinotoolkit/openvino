@@ -106,8 +106,10 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
         if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            real = m_scheduler->m_compile_context[ACTUALDEVICE].
-                m_compiled_model->get_property(name).as<unsigned int>();
+            real = m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<unsigned int>();
+            std::cout << "***** get optimial number from compiled model of "
+                      << m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info.device_name
+                      << "\t returned value: " << real << std::endl;
         } else {
             std::unique_lock<std::mutex> lock(m_context->m_mutex);
             auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
@@ -126,6 +128,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 real = m_context->m_ov_core->get_property(device_info.device_name,
                                                           ov::optimal_number_of_infer_requests,
                                                           device_info.config);
+
+                std::cout << "***** get optimial number from device " << device_info.device_name
+                          << "\t returned value: " << real << std::endl;
             }
             if (real > 0) {
                 if (is_supported_num_request && reqs_iter != device_info.config.end()) {
@@ -203,6 +208,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                     real = (std::max)(requests, optimal_batch_size);
                 } else if (device_info.device_name.find("VPU") != std::string::npos) {
                     real = 8u;
+                    std::cout << "****** set optimal numb for VPU\n";
                 } else {
                     real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
                 }
