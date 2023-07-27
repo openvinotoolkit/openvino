@@ -170,23 +170,23 @@ class CustomInstall(install):
 class CustomClean(clean):
     """Clean up staging directories"""
 
-    def clean(self, install_cfg):
+    def clean_temp_files(self):
         """Clean components staging directories"""
-        for comp, comp_data in install_cfg.items():
-            install_prefix = comp_data.get('prefix')
-            self.announce(f'Cleaning {comp}: {install_prefix}', level=log.INFO)
-            if os.path.exists(install_prefix):
-                shutil.rmtree(install_prefix)
-
-    def run(self):
-        self.clean(PKG_INSTALL_CFG)
         for pattern in './build ./dist **/*.pyc **/*.tgz **/*.egg-info'.split(' '):
-            paths = SCRIPT_DIR.glob(pattern)
+            paths = []
+            for comp, comp_data in PKG_INSTALL_CFG.items():
+                src_dir = Path(comp_data.get('src_dir'))
+                paths += src_dir.glob(pattern)
+            paths += SCRIPT_DIR.glob(pattern)
             for path in paths:
                 if path.is_file() and path.exists():
                     path = path.parent
                 self.announce(f'Cleaning: {path}', level=log.INFO)
-                shutil.rmtree(path)
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+
+    def run(self):
+        self.clean_temp_files()
         clean.run(self)
 
 
