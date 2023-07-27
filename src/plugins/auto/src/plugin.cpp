@@ -287,13 +287,13 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                                         default_device_id,
                                         unique_name,
                                         device_priority});
-            } catch (const ov::Exception& err) {
+            } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),
                               unique_name.c_str());
             OPENVINO_SUPPRESS_DEPRECATED_START
-            } catch (const InferenceEngine::Exception& err) {
+            } catch (const InferenceEngine::Exception&) {
                 LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                               device_name_with_id.c_str(),
                               default_device_id.c_str(),

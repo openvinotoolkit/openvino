@@ -190,7 +190,7 @@ namespace {
 
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               mockEngineName + IE_BUILD_POSTFIX);
 }
 
@@ -236,7 +236,7 @@ void ov::mock_auto_plugin::tests::AutoTestWithRealCore::reg_plugin(ov::Core& cor
     std::function<void(ov::IPlugin*)> inject_mock_plugin = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
     inject_mock_plugin(plugin.get());
-    core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                             std::string("mock_engine") + IE_BUILD_POSTFIX),
                          device_name,
                          properties);
