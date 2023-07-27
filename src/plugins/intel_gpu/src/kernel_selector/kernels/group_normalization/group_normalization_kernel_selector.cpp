@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_kernel_selector.h"
+#include "group_normalization_kernel_ref.h"
 
 namespace kernel_selector {
 
-kernel_selector::group_normalization_kernel_selector::group_normalization_kernel_selector() {
+group_normalization_kernel_selector::group_normalization_kernel_selector() {
+    Attach<GroupNormalizationKernelRef>();
 }
 
-KernelsData kernel_selector::group_normalization_kernel_selector::GetBestKernels(const Params &params,
-                                                                                 const optional_params &options) const {
+KernelsData group_normalization_kernel_selector::GetBestKernels(const Params &params,
+                                                                const optional_params &options) const {
     return GetNaiveBestKernel(params, options, KernelType::GROUP_NORMALIZATION);
 }
 
