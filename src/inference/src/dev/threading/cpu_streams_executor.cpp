@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <set>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -21,8 +22,14 @@
 
 namespace ov {
 namespace threading {
-struct CPUStreamsExecutor::Impl {
-    struct Stream {
+class StreamBase{
+};
+class ImplBase{
+};
+// maybe there are two CPUStreamsExecutor in the same thread
+thread_local std::map<ImplBase*, std::shared_ptr<StreamBase>> t_stream_map;
+class CPUStreamsExecutor::Impl : public ImplBase {
+    class Stream : public StreamBase {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         struct Observer : public custom::task_scheduler_observer {
             CpuSet _mask;
@@ -61,6 +68,7 @@ struct CPUStreamsExecutor::Impl {
             ~Observer() override = default;
         };
 #endif
+    public:
         explicit Stream(Impl* impl) : _impl(impl) {
             {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
@@ -113,6 +121,13 @@ struct CPUStreamsExecutor::Impl {
 #endif
         }
         ~Stream() {
+            // if (_isCustomer) {
+            //     set_cpu_used(_cpu_ids, NOT_USED);
+            //     if (nullptr != _observer) {
+            //         _observer->observe(false);
+            //     }
+            //     return;
+            // }
             {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
                 _impl->_streamIdQueue.push(_streamId);
@@ -277,7 +292,7 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints { _numaNodeId, concurrency }});
             } else if ((0 != _impl->_config._threadsPerStream) ||
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
@@ -306,25 +321,49 @@ struct CPUStreamsExecutor::Impl {
         int _socketId = 0;
         bool _execute = false;
         std::queue<Task> _taskQueue;
+        bool _isCustomer = false;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
         std::vector<int> _cpu_ids;
 #endif
     };
+    // if the thread is created by CPUStreamsExecutor, the Impl::Stream is stored by tbb Class enumerable_thread_specific, alias is ThreadLocal,
+    // the limit of ThreadLocal please refer to https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
+    // if the thread is created by customer, the Impl::Stream will be stored in thread_local variable t_stream_map
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
-        public:
-        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl):
+    public:
+        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl) :
             ThreadLocal<std::shared_ptr<Stream>>(callback_construct), _impl(impl) {
-            }
-        std::shared_ptr<Stream> local() {
-            auto search = _thread_ids.find(std::this_thread::get_id());
-            if (search != _thread_ids.end()) {
-                return ThreadLocal<std::shared_ptr<Stream>>::local();
-            } else {
-                return std::make_shared<Impl::Stream>(_impl);
+        }
+        ~CustomThreadLocal() {
+            // how to promise every stream is deleted?
+            for (auto it = t_stream_map.begin(); it != t_stream_map.end();) {
+                if (it->first == _impl) {
+                    t_stream_map.erase(it++);
+                } else {
+                    it++;
+                }
             }
         }
+        std::shared_ptr<Stream> local() {
+            auto id = std::this_thread::get_id();
+            auto search = _thread_ids.find(id);
+            if (search != _thread_ids.end()) {
+                return ThreadLocal<std::shared_ptr<Stream>>::local();
+            }
+            auto find = t_stream_map.find(_impl);
+            if (find != t_stream_map.end()) {
+                return std::static_pointer_cast<Stream>(find->second);
+            }
+            else {
+                auto stream = std::make_shared<Impl::Stream>(_impl);
+                stream->_isCustomer = true;
+                t_stream_map.insert({(ImplBase*)_impl, std::static_pointer_cast<StreamBase>(stream)});
+                return stream;
+            }
+        }
+
         void set_thread_id_map(std::vector<std::thread>& threads) {
             for (auto& thread: threads) {
                 _thread_ids.insert(thread.get_id());
@@ -335,6 +374,8 @@ struct CPUStreamsExecutor::Impl {
             std::set<std::thread::id> _thread_ids;
             Impl* _impl;
     };
+
+public:
     explicit Impl(const Config& config)
         : _config{config},
           _streams([this] {
@@ -425,6 +466,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Defer(Task task) {
+        auto  streamPtr = _streams.local();
         auto& stream = *(_streams.local());
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
