@@ -18,7 +18,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Transpose, Transpose,
                              ::testing::Values(std::vector<int> {0, 2,  3, 1}),
                              ::testing::Values(1), // Transpose
                              ::testing::Values(1), // Tokenized Transpose
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                      Transpose::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMul, TransposeMul,
@@ -28,7 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMul, TransposeMul,
                                  ::testing::Values(std::vector<int> {0, 2,  3, 1}),
                                  ::testing::Values(1), // Transpose
                                  ::testing::Values(1), // Tokenized Transpose
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TransposeMul::getTestCaseName);
 
 }  // namespace

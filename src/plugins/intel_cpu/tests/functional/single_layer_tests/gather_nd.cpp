@@ -31,12 +31,12 @@ public:
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "IDXShape=" << CommonTestUtils::vec2str(indexes.first) << "_";
+        results << "IDXShape=" << ov::test::utils::vec2str(indexes.first) << "_";
         results << "SRCPrc=" << dataElementType << "_";
         results << "IDXPrc=" << idxElementType << "_";
         results << "BD=" << batchDims << "_";
@@ -52,7 +52,7 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
@@ -78,7 +78,7 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);

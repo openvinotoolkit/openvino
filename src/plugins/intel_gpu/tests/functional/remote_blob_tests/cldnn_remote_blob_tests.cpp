@@ -31,7 +31,7 @@ protected:
 
 public:
     void SetUp() override {
-        deviceName = CommonTestUtils::DEVICE_GPU;
+        deviceName = ov::test::utils::DEVICE_GPU;
         auto with_auto_batching = this->GetParam();
         if (with_auto_batching) { // BATCH:GPU
             config =
@@ -614,7 +614,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
         net.getInputsInfo().begin()->second->setPrecision(Precision::FP32);
 
-        auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
+        auto exec_net = ie.LoadNetwork(net, ov::test::utils::DEVICE_GPU,
                                        {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)},
                                         {ov::hint::inference_precision.name(), "f32"}});
 
