@@ -2032,6 +2032,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 }
             }
         }
+        if (!forcedPrec.is_float()) {
+            forcedPrec = Precision::FP32;
+        }
     } else {
         forcedPrec = Precision::FP32;
     }
