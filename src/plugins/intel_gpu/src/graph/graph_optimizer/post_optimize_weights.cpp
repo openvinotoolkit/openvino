@@ -44,7 +44,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
         // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
         // This situation might be changed once onednn shape agnostic kernel is used in the future.
-        if (node.type() != fully_connected::type_id() || node.get_preferred_impl_type() != impl_types::ocl)
+        if (node.get_preferred_impl_type() == impl_types::onednn)
+            return;
+        if (node.type() != fully_connected::type_id())
             return;
     }
     // Don't run impl selection to avoid double compilation of reorder kernels
@@ -76,13 +78,22 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                                 !prev_node.has_fused_primitives() &&
                                 !prev_node.as<reorder>().has_mean() &&
                                 prev_node.as<reorder>().get_primitive()->subtract_per_feature.empty();
+            bool allow_new_shape_infer = p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            if (allow_new_shape_infer) {
+                // Need to restore the original shape
+                auto updated_output_layout = weights_reorder_params->get_output_layout();
+                auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
+                auto weight_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
+                updated_output_layout.set_partial_shape(
+                    updated_output_layout.get_tensor().get_partial_shape(orig_rank, weight_format_dims));
+                weights_reorder_params->set_output_layout(updated_output_layout);
+            }
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
                 data_types input_dtype = prev_node.get_input_layouts()[0].data_type;
                 auto updated_input_layout = weights_reorder_params->get_input_layout();
                 updated_input_layout.data_type = input_dtype;
                 weights_reorder_params->set_input_layout(updated_input_layout);
-
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
                                                                weights_reorder_params);
                 auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
@@ -93,15 +104,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     set_implementation(weights_reorder_node);
                 }
             } else {
-                bool allow_new_shape_infer = p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
-                if (allow_new_shape_infer) {
-                    // Need to restore the original shape
-                    auto updated_output_layout = weights_reorder_params->get_output_layout();
-                    auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
-                    auto new_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
-                    updated_output_layout.set_partial_shape(updated_output_layout.get_tensor().get_partial_shape(orig_rank, new_format_dims));
-                    weights_reorder_params->set_output_layout(updated_output_layout);
-                }
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
                 // insert new weights reorder node to topology
                 p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
