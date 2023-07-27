@@ -18,7 +18,7 @@ std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", 
 
 INSTANTIATE_TEST_SUITE_P(smoke_multiple_input,
                          MultipleInputTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input),
                                             ::testing::ValuesIn(configs)),

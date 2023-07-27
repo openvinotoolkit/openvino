@@ -19,7 +19,7 @@ ov::Tensor create_and_fill_tensor(
         const int32_t resolution,
         const int seed) {
     auto tensor = ov::Tensor{element_type, shape};
-#define CASE(X) case X: ::CommonTestUtils::fill_data_random(                   \
+#define CASE(X) case X: fill_data_random(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     shape_size(shape),                                                         \
     range, start_from, resolution, seed); break;
@@ -40,7 +40,7 @@ ov::Tensor create_and_fill_tensor(
         case ov::element::Type_t::u1:
         case ov::element::Type_t::i4:
         case ov::element::Type_t::u4:
-            ::CommonTestUtils::fill_data_random(
+            fill_data_random(
                 static_cast<uint8_t*>(tensor.data()),
                 tensor.get_byte_size(),
                 range, start_from, resolution, seed); break;
@@ -59,7 +59,7 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
     auto range = shape_size(shape) * 2;
 #define CASE(X)                                                                                           \
     case X:                                                                                               \
-        ::CommonTestUtils::fill_random_unique_sequence(tensor.data<element_type_traits<X>::value_type>(), \
+        fill_random_unique_sequence(tensor.data<element_type_traits<X>::value_type>(), \
                                                        shape_size(shape),                                 \
                                                        range,                                             \
                                                        start_from,                                        \
@@ -84,7 +84,7 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
-        ::CommonTestUtils::fill_random_unique_sequence(static_cast<uint8_t*>(tensor.data()),
+        fill_random_unique_sequence(static_cast<uint8_t*>(tensor.data()),
                                                        tensor.get_byte_size(),
                                                        range,
                                                        start_from,
@@ -105,7 +105,7 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
         const float stddev,
         const int seed) {
     auto tensor = ov::runtime::Tensor{element_type, shape};
-#define CASE(X) case X: ::CommonTestUtils::fill_data_ptr_normal_random_float(  \
+#define CASE(X) case X: fill_data_ptr_normal_random_float(  \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     shape_size(shape),                                                         \
     mean, stddev, seed); break;
@@ -126,7 +126,7 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
         case ov::element::Type_t::u1:
         case ov::element::Type_t::i4:
         case ov::element::Type_t::u4:
-            ::CommonTestUtils::fill_data_ptr_normal_random_float(
+            fill_data_ptr_normal_random_float(
                     static_cast<uint8_t*>(tensor.data()),
                     tensor.get_byte_size(),
                     mean, stddev, seed); break;
@@ -143,7 +143,7 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(
         const int32_t start_from,
         const int32_t resolution) {
     auto tensor = ov::runtime::Tensor{element_type, shape};
-#define CASE(X) case X: CommonTestUtils::fill_data_ptr_consistently(tensor.data<element_type_traits<X>::value_type>(), \
+#define CASE(X) case X: fill_data_ptr_consistently(tensor.data<element_type_traits<X>::value_type>(), \
 tensor.get_size(), range, start_from, resolution); break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
@@ -162,7 +162,7 @@ tensor.get_size(), range, start_from, resolution); break;
         case ov::element::Type_t::u1:
         case ov::element::Type_t::i4:
         case ov::element::Type_t::u4:
-            ::CommonTestUtils::fill_data_ptr_consistently(
+            fill_data_ptr_consistently(
                     static_cast<uint8_t*>(tensor.data()),
                     tensor.get_byte_size(), range, start_from, resolution); break;
         default: OPENVINO_THROW("Unsupported element type: ", element_type);

@@ -21,7 +21,7 @@ void QuantizedModelsTests::SetUp() {
 
 static std::string getModelFullPath(const char* path) {
     return FileUtils::makePath<char>(
-        FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(), TEST_MODELS), path);
+        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
 void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {
