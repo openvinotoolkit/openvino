@@ -29,7 +29,7 @@ const auto oneHotParams_IC = testing::Combine(
         testing::ValuesIn(argAxis_IC),
         testing::ValuesIn(netPrecisions),
         testing::ValuesIn(inputShapes_IC),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -57,7 +57,7 @@ const auto oneHotParams_Ax = testing::Combine(
         testing::ValuesIn(argAxis_Ax),
         testing::ValuesIn(netPrecisions),
         testing::ValuesIn(inputShapes_Ax),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -86,7 +86,7 @@ const auto oneHotParams_T = testing::Combine(
         testing::ValuesIn(argAxis_T),
         testing::ValuesIn(netPrecisions),
         testing::ValuesIn(inputShapes_T),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

@@ -442,7 +442,7 @@ public:
 
         std::tie(data_shape, data_prc, pred, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << std::to_string(data_prc) << "_";
         result << "ifCond=" << pred << "_";
         result << "targetDevice=" << targetDevice << "_";
@@ -453,7 +453,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         TestModelGenerator::PredicateTypes pred;
         std::tie(data_shape, data_prc, pred, targetDevice) = GetParam();
         const auto ngShape = ov::PartialShape{data_shape};
@@ -473,17 +473,17 @@ protected:
 
         if (tensor_desc.getLayout() == InferenceEngine::SCALAR) {
             auto prc = tensor_desc.getPrecision();
-            auto scalar_1d = CommonTestUtils::make_reshape_view(blob, {1});
+            auto scalar_1d = ov::test::utils::make_reshape_view(blob, {1});
             if (prc == InferenceEngine::Precision::BOOL) {
                 auto mem_blob = dynamic_cast<InferenceEngine::MemoryBlob*>(blob.get());
                 auto mem = mem_blob->rwmap();
                 auto data_ptr = mem.as<bool*>();
                 *data_ptr = false;
             } else {
-                CommonTestUtils::fill_data_with_broadcast(scalar_1d, 0, {20.f});
+                ov::test::utils::fill_data_with_broadcast(scalar_1d, 0, {20.f});
             }
         } else {
-            CommonTestUtils::fill_data_with_broadcast(blob, 0, {20.f});
+            ov::test::utils::fill_data_with_broadcast(blob, 0, {20.f});
         }
         return blob;
     }
@@ -516,7 +516,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_static, StaticConditionLayerGPUT
                     testing::ValuesIn(inputs_shape),
                     testing::ValuesIn(netPrecisions_static),
                     testing::ValuesIn(if_cond_types),
-                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                    testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 StaticConditionLayerGPUTest::getTestCaseName);
 
 
@@ -547,10 +547,10 @@ public:
         std::tie(inputShapes, bodyParams, dataPrc, condType, targetDevice) = obj.param;
         std::ostringstream result;
         result << "IS=(";
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
         for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(inputShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(inputShapes.second[i]) << "_";
             result << "}_";
         }
         result << ")_";
@@ -681,7 +681,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_dynamic_f32, DynamicConditionLay
                     testing::ValuesIn(innerBodyTypes_f32),                              // inner body type
                     testing::ValuesIn(netPrecisions_f32),                               // network precision
                     testing::ValuesIn(condTypes),                                       // cond type
-                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),         // device type
+                    testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),         // device type
                 DynamicConditionLayerGPUTest::getTestCaseName);
 
 
@@ -691,6 +691,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_dynamic_f16, DynamicConditionLay
                     testing::ValuesIn(innerBodyTypes_f16),                              // inner body type
                     testing::ValuesIn(netPrecisions_f16),                               // network precision
                     testing::ValuesIn(condTypes),                                       // cond type
-                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),         // device type
+                    testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),         // device type
                 DynamicConditionLayerGPUTest::getTestCaseName);
 } // namespace GPULayerTestsDefinitions

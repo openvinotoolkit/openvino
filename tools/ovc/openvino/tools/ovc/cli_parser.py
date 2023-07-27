@@ -464,11 +464,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     # Command line tool specific params
     parser.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
-    parser.add_argument('--compress_to_fp16', type=check_bool, nargs='?',
-                              help='Compress weights in output OpenVINO model to FP16. '
-                                   'To turn off compression use "--compress_to_fp16=False" command line parameter. '
-                                   'Default value is True.')
-    parser.add_argument('--version', action='version',
+    common_group.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
+                              help='Compress weights in output IR .xml/bin files to FP16.')
+    common_group.add_argument('--version', action='version',
                               help='Print ovc version and exit.',
                               version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
     add_args_by_description(parser, mo_convert_params_common)

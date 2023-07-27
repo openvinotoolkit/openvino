@@ -231,7 +231,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputTensors),
         ::testing::Values(ov::element::Type_t::f32),
         ::testing::Values(ov::element::Type_t::i32),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GenerateProposalsLayerTest::getTestCaseName);
 
 struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GenerateProposalsLayerTest> {};
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(inputTensors),
                 ::testing::Values(ov::element::Type_t::f32),
                 ::testing::Values(ov::element::Type_t::i32),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         GenerateProposalsLayerTest::getTestCaseName);
 
 } // namespace
