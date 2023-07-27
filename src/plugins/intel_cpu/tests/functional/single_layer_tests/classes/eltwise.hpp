@@ -41,7 +41,7 @@ namespace Eltwise {
 const std::vector<std::map<std::string, ov::element::Type>>& additional_config();
 
 const std::vector<ElementType>& netType();
-const std::vector<CommonTestUtils::OpType>& opTypes();
+const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes();
 

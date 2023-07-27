@@ -80,7 +80,7 @@ void EltwiseLayerCPUTest::SetUp() {
         std::vector<InputShape> shapes;
         ElementType netType;
         ngraph::helpers::InputLayerType secondaryInputType;
-        CommonTestUtils::OpType opType;
+        ov::test::utils::OpType opType;
         std::map<std::string, ov::element::Type> additional_config;
         std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) = basicParamsSet;
 
@@ -102,12 +102,12 @@ void EltwiseLayerCPUTest::SetUp() {
 
         shapes.resize(2);
         switch (opType) {
-            case CommonTestUtils::OpType::SCALAR: {
+            case ov::test::utils::OpType::SCALAR: {
                 std::vector<ngraph::Shape> identityShapes(shapes[0].second.size(), {1});
                 shapes[1] = {{}, identityShapes};
                 break;
             }
-            case CommonTestUtils::OpType::VECTOR:
+            case ov::test::utils::OpType::VECTOR:
                 if (shapes[1].second.empty()) {
                     shapes[1] = shapes[0];
                 }
@@ -178,9 +178,9 @@ const std::vector<ElementType>& netType() {
         return netType;
 }
 
-const std::vector<CommonTestUtils::OpType>& opTypes() {
-        static const std::vector<CommonTestUtils::OpType> opTypes = {
-                CommonTestUtils::OpType::VECTOR,
+const std::vector<ov::test::utils::OpType>& opTypes() {
+        static const std::vector<ov::test::utils::OpType> opTypes = {
+                ov::test::utils::OpType::VECTOR,
         };
         return opTypes;
 }

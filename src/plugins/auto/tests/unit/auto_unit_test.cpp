@@ -74,7 +74,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
     auto iGpuType = ov::device::Type::INTEGRATED;
     auto dGpuType = ov::device::Type::DISCRETE;
-    ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_CPU),
+    ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_CPU),
                    StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
     ON_CALL(*core, get_property(HasSubstr("GPU"),
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));

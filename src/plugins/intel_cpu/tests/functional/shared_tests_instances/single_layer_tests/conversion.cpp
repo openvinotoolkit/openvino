@@ -47,6 +47,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConversionLayerTest::getTestCaseName);
 }  // namespace
