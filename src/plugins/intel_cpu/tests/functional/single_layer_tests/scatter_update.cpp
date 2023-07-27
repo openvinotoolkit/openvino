@@ -41,24 +41,24 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
-        result << "indices_shape=" << indicesDescr.first << "_indices_values=" << CommonTestUtils::vec2str(indicesDescr.second)
+        result << "indices_shape=" << indicesDescr.first << "_indices_values=" << ov::test::utils::vec2str(indicesDescr.second)
                << "axis=" << axis << "_idx_precision=" << idxPrecision;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ScatterUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;

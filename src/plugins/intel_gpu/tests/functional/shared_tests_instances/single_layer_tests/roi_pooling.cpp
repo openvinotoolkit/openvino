@@ -50,7 +50,7 @@ const auto params_max = testing::Combine(testing::ValuesIn(inShapes),
                                          testing::ValuesIn(spatial_scales),
                                          testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_MAX),
                                          testing::ValuesIn(netPRCs),
-                                         testing::Values(CommonTestUtils::DEVICE_GPU));
+                                         testing::Values(ov::test::utils::DEVICE_GPU));
 
 const auto params_bilinear = testing::Combine(testing::ValuesIn(inShapes),
                                               testing::ValuesIn(coordShapes),
@@ -58,7 +58,7 @@ const auto params_bilinear = testing::Combine(testing::ValuesIn(inShapes),
                                               testing::Values(spatial_scales[1]),
                                               testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
                                               testing::ValuesIn(netPRCs),
-                                              testing::Values(CommonTestUtils::DEVICE_GPU));
+                                              testing::Values(ov::test::utils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPooling_max, ROIPoolingLayerTest, params_max, ROIPoolingLayerTest::getTestCaseName);
 
