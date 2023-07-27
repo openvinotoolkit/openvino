@@ -24,7 +24,7 @@ OutputVector translate_list_unpack(const NodeContext& context) {
         if (const auto& chunk_node = cast_fw_node(input_node, "aten::chunk")) {
             for (const auto& output : outputs) {
                 res.push_back(
-                    context.mark_node(std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::QUANTIZE_PER_TENSOR,
+                    context.mark_node(std::make_shared<QuantizedPtNode>(quantized_pt_node->get_type(),,
                                                                         output,
                                                                         quantized_pt_node->get_scale(),
                                                                         quantized_pt_node->get_zero_point(),

@@ -152,7 +152,7 @@ OutputVector quantizable_op(const NodeContext& context) {
     auto translation_res = T(context);
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() > out_idx, "Not enough outputs to apply quantization.");
     if (const auto quantized_pt_node = cast_quantized_fw_node(context.get_input(in_idx).get_node_shared_ptr())) {
-        return {context.mark_node(std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::QUANTIZE_PER_TENSOR,
+        return {context.mark_node(std::make_shared<QuantizedPtNode>(quantized_pt_node->get_type(),
                                                                     translation_res[out_idx],
                                                                     quantized_pt_node->get_scale(),
                                                                     quantized_pt_node->get_zero_point(),
