@@ -4,12 +4,27 @@
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
+# Required for Windows OS platforms
+# Note: always top-level
 try:
-    # Internal modules
+    from openvino.utils import _add_openvino_libs_to_search_path
+    _add_openvino_libs_to_search_path()
+except ImportError:
+    pass
+
+# Internal modules
+try:
     from openvino import test_utils as test_utils
 except ImportError:
     pass
 
+# API 1.0 TODO: remove in 2024.0
+try:
+    from openvino import inference_engine as inference_engine
+except ImportError:
+    pass
+
+# API 2.0
 try:
     # Import all public modules
     from openvino import runtime as runtime
@@ -18,14 +33,6 @@ try:
     from openvino import preprocess as preprocess
     from openvino import utils as utils
     from openvino.runtime import properties as properties
-    # Import old API
-    # TODO: remove in 2024.0
-    from openvino import inference_engine as inference_engine
-
-    # Required for Windows OS platforms
-    from openvino.utils import _add_openvino_libs_to_search_path
-
-    _add_openvino_libs_to_search_path()
 
     # Import most important classes and functions from openvino.runtime
     from openvino.runtime import Model
@@ -63,7 +70,7 @@ except ImportError:
     import warnings
     warnings.warn("openvino package has problems with imports!", ImportWarning, stacklevel=2)
 
-# Import openvino.tools
+# Tools
 try:
     from openvino import tools as tools
     # Model Conversion API - ovc should reside in the main namespace
