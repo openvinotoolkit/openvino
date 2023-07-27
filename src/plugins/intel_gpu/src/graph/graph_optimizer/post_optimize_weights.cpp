@@ -37,9 +37,16 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (!impl)
         return;
 
-    if (impl->is_dynamic())
-        return;
-
+    if (impl->is_dynamic()) {
+        // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
+        // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked format is not fully verified yet.
+        // So we need to enable other primiives such as convolution with verifying reorder b/w the possible layouts 
+        // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
+        // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
+        // This situation might be changed once onednn shape agnostic kernel is used in the future.
+        if (node.type() != fully_connected::type_id() || node.get_preferred_impl_type() != impl_types::ocl)
+            return;
+    }
     // Don't run impl selection to avoid double compilation of reorder kernels
     // in main program and internal program for constant propagation
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
@@ -86,6 +93,15 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     set_implementation(weights_reorder_node);
                 }
             } else {
+                bool allow_new_shape_infer = p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+                if (allow_new_shape_infer) {
+                    // Need to restore the original shape
+                    auto updated_output_layout = weights_reorder_params->get_output_layout();
+                    auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
+                    auto new_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
+                    updated_output_layout.set_partial_shape(updated_output_layout.get_tensor().get_partial_shape(orig_rank, new_format_dims));
+                    weights_reorder_params->set_output_layout(updated_output_layout);
+                }
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
                 // insert new weights reorder node to topology
                 p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
