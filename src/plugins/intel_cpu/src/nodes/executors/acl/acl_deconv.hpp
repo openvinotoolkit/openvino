@@ -53,7 +53,8 @@ public:
             return false;
         }
 
-        if (!(one_of(srcDescs[0]->getPrecision(), InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32) &&
+        // TODO: Ticket CVS-114087 - enable FP16 when check FP16 scoup
+        if (!(one_of(srcDescs[0]->getPrecision(), /*InferenceEngine::Precision::FP16, */InferenceEngine::Precision::FP32) &&
               srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
               srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
             DEBUG_LOG("AclDeconvExecutor does not support precisions:",
