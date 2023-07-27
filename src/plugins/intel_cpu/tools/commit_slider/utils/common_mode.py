@@ -79,12 +79,12 @@ class Mode(ABC):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
-    def prepareRun(self, i1, i2, list, cfg):
+    def prepareRun(self, list, cfg):
         cfg["serviceConfig"] = {}
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
-                i1=i1, i2=i2))
+                i1=0, i2=len(list) - 1))
         self.commitList = list
 
     def postRun(self, list):
@@ -109,10 +109,10 @@ class Mode(ABC):
                 csvwriter.writerow(fields)
                 csvwriter.writerows(rows)
 
-    def run(self, i1, i2, list, cfg) -> int:
-        self.prepareRun(i1, i2, list, cfg)
+    def run(self, list, cfg) -> int:
+        self.prepareRun(list, cfg)
         self.traversal.bypass(
-            i1, i2, list, cfg, self.commitPath
+            list, list, cfg, self.commitPath
         )
         self.postRun(list)
 
@@ -124,14 +124,14 @@ class Mode(ABC):
         # override if you need more details in output representation
         for pathcommit in self.commitPath.getList():
             print("Break commit: {c}".format(
-                c=self.commitList[pathcommit.id])
+                c=pathcommit.cHash)
             )
 
     def checkIfBordersDiffer(self, i1, i2, list, cfg):
         raise NotImplementedError("checkIfBordersDiffer() is not implemented")
 
     def checkIfListBordersDiffer(self, list, cfg):
-        return self.checkIfBordersDiffer(0, len(list) - 1, list, cfg)
+        return self.checkIfBordersDiffer(list[0], list[-1], list, cfg)
 
     class CommitPath:
 
@@ -146,8 +146,8 @@ class Mode(ABC):
             SKIPPED = 2
 
         class PathCommit:
-            def __init__(self, id, state):
-                self.id = id
+            def __init__(self, cHash, state):
+                self.cHash = cHash
                 self.state = state
 
         def append(self, commit):
@@ -160,14 +160,16 @@ class Mode(ABC):
             return self.commitList
 
     class Traversal(ABC):
-        def bypass(self, i1, i2, list, cfg, commitPath) -> int:
+        def bypass(self, curList, list, cfg, commitPath) -> int:
             raise NotImplementedError()
 
         def visit(self, cPath, commitToReport):
             cPath.append(commitToReport)
 
-        def prepBypass(self, i1, i2, list, cfg):
+        def prepBypass(self, curList, list, cfg):
             skipInterval = cfg["noCleanInterval"]
+            i1 = list.index(curList[0])
+            i2 = list.index(curList[-1])
             cfg["serviceConfig"]["skipCleanInterval"] = i2 - i1 < skipInterval
             self.mode.commonLogger.info(
                 "Check interval {i1}..{i2}".format(i1=i1, i2=i2)
@@ -183,15 +185,16 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, i1, i2, list, cfg, commitPath) -> int:
-            self.prepBypass(i1, i2, list, cfg)
-            sampleCommit = 0
+        def bypass(self, curList, list, cfg, commitPath) -> int:
+            self.prepBypass(curList, list, cfg)
+            sampleCommit = curList[0]
+            curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
-            if i1 + 1 >= i2:
+            if curLen <= 2:
                 isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, i1, list, cfg)
-                breakCommit = i1 if isBad else i2
+                    sampleCommit, curList[0], list, cfg)
+                breakCommit = curList[0] if isBad else curList[-1]
                 pc = Mode.CommitPath.PathCommit(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
@@ -199,31 +202,32 @@ class Mode(ABC):
                 self.mode.setOutputInfo(pc)
                 commitPath.accept(self, pc)
                 return
-            mid = (int)((i1 + i2) / 2)
+            mid = (int)((curLen - 1) / 2)
             isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, mid, list, cfg)
+                    sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
-                    i1, mid, list, cfg, commitPath
+                    curList[0 : mid + 1], list, cfg, commitPath
                 )
             else:
                 self.bypass(
-                    mid, i2, list, cfg, commitPath
+                    curList[mid :], list, cfg, commitPath
                 )
 
     class FirstFixedVersion(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, i1, i2, list, cfg, commitPath) -> int:
-            self.prepBypass(i1, i2, list, cfg)
-            sampleCommit = 0
+        def bypass(self, curList, list, cfg, commitPath) -> int:
+            self.prepBypass(curList, list, cfg)
+            sampleCommit = curList[0]
+            curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
-            if i1 + 1 >= i2:
+            if curLen <= 2:
                 isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, i1, list, cfg)
-                breakCommit = i2 if isBad else i1
+                    sampleCommit, curList[0], list, cfg)
+                breakCommit = curList[-1] if isBad else curList[0]
                 pc = Mode.CommitPath.PathCommit(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
@@ -231,55 +235,58 @@ class Mode(ABC):
                 self.mode.setOutputInfo(pc)
                 commitPath.accept(self, pc)
                 return
-            mid = (int)((i1 + i2) / 2)
+            mid = (int)((curLen - 1) / 2)
             isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, mid, list, cfg)
+                    sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
-                    mid, i2, list, cfg, commitPath
+                    curList[mid :], list, cfg, commitPath
                 )
             else:
                 self.bypass(
-                    i1, mid, list, cfg, commitPath
+                    curList[0 : mid + 1], list, cfg, commitPath
                 )
 
     class AllBreakVersions(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, i1, i2, list, cfg, commitPath) -> int:
-            self.prepBypass(i1, i2, list, cfg)
-            sampleCommit = 0
+        def bypass(self, curList, list, cfg, commitPath) -> int:
+            self.prepBypass(curList, list, cfg)
+            sampleCommit = curList[0]
+            curLen = len(curList)
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
-            if i1 + 1 >= i2:
+            if curLen <= 2:
                 isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, i1, list, cfg)
-                breakCommit = i1 if isBad else i2
+                    sampleCommit, curList[0], list, cfg)
+                breakCommit = curList[0] if isBad else curList[-1]
                 pc = Mode.CommitPath.PathCommit(
                     breakCommit,
                     Mode.CommitPath.CommitState.BREAK
                 )
                 self.mode.setOutputInfo(pc)
                 commitPath.accept(self, pc)
-                lastCommit = len(list) - 1
+                lastCommit = list[-1]
                 isTailDiffer = self.mode.checkIfBordersDiffer(
                     breakCommit, lastCommit, list, cfg)
                 if isTailDiffer:
                     cfg["serviceConfig"]["sampleCommit"] = breakCommit
+                    # to-do make copy without skip-commits
+                    brIndex = list.index(breakCommit)
                     self.bypass(
-                       breakCommit, lastCommit,
+                       list[brIndex :],
                        list, cfg, commitPath
                     )
                 return
-            mid = (int)((i1 + i2) / 2)
+            mid = (int)((curLen - 1) / 2)
             isBad = self.mode.checkIfBordersDiffer(
-                    sampleCommit, mid, list, cfg)
+                    sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
-                    i1, mid, list, cfg, commitPath
+                    curList[0 : mid + 1], list, cfg, commitPath
                 )
             else:
                 self.bypass(
-                    mid, i2, list, cfg, commitPath
+                    curList[mid :], list, cfg, commitPath
                 )

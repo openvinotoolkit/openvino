@@ -33,7 +33,7 @@ if args.__dict__["isWorkingDir"]:
 
     commitList.reverse()
     p = Mode.factory(cfgData)
-    p.run(0, len(commitList) - 1, commitList, cfgData)
+    p.run(commitList, cfgData)
     p.getResult()
 
 else:
