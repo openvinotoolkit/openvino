@@ -44,6 +44,8 @@ label_t TableOfEquivalence::get_next_label() {
 
 bool TableOfEquivalence::are_equal(const Dimension& lhs, const Dimension& rhs) {
     const auto &l_label = DimensionTracker::get_label(lhs), r_label = DimensionTracker::get_label(rhs);
+    if (l_label == r_label)
+        return true;
     if (dimension_table_of_equivalence.count(l_label) && dimension_table_of_equivalence[l_label])
         return dimension_table_of_equivalence[l_label]->count(r_label);
     return false;

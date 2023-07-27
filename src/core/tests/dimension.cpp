@@ -139,6 +139,9 @@ TEST(dimension, dimension_equality) {
     EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(B));
     EXPECT_NE(DimensionTracker::get_label(B), DimensionTracker::get_label(C));
     EXPECT_NE(DimensionTracker::get_label(A), DimensionTracker::get_label(C));
+    EXPECT_EQ(DimensionTracker::get_label(A), DimensionTracker::get_label(A));
+    EXPECT_EQ(DimensionTracker::get_label(B), DimensionTracker::get_label(B));
+    EXPECT_EQ(DimensionTracker::get_label(C), DimensionTracker::get_label(C));
 
     // setting A == B and B == C
     te->set_as_equal(A, B);
