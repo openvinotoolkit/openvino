@@ -85,18 +85,18 @@ public:
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "K" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << numOutChannels << "_";
         result << "AP=" << padType << "_";
-        result << "B=" << CommonTestUtils::vec2str(bias) << "_";
-        result << "B=" << CommonTestUtils::vec2str(transpBias) << "_";
-        result << "MPP=" << CommonTestUtils::vec2str(maxpoolPool) << "_";
-        result << "MPS=" << CommonTestUtils::vec2str(maxpoolStride) << "_";
+        result << "B=" << ov::test::utils::vec2str(bias) << "_";
+        result << "B=" << ov::test::utils::vec2str(transpBias) << "_";
+        result << "MPP=" << ov::test::utils::vec2str(maxpoolPool) << "_";
+        result << "MPS=" << ov::test::utils::vec2str(maxpoolStride) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {
@@ -135,7 +135,7 @@ protected:
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
         auto conv = builder::makeConvolution(transposeIn,
                                              ngPrc,
                                              kernel,
@@ -148,7 +148,7 @@ protected:
                                              false,
                                              filterWeights);
         auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
-        auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
+        auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
 
@@ -302,7 +302,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
                          ::testing::Combine(conv1DParams,
                                             misc1DParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs1D),
                                             ::testing::ValuesIn(input1DNHWC),
                                             ::testing::ValuesIn(models)),
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
                          ::testing::Combine(conv2DParams,
                                             misc2DParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs2D),
                                             ::testing::ValuesIn(input2DNHWC),
                                             ::testing::ValuesIn(models)),

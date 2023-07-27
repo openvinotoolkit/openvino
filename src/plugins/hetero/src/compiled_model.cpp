@@ -11,6 +11,7 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
@@ -410,7 +411,17 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[m_compiled_submodels[id].device];
         device_config[ov::cache_dir.name()] = "";
-
+        // set exclusive_async_requests in case when model is split
+        if (orderedSubgraphs.size() > 1) {
+            auto supported_internal_properties =
+                plugin->get_core()->get_property(m_compiled_submodels[id].device, ov::internal::supported_properties);
+            if (std::find(supported_internal_properties.begin(),
+                          supported_internal_properties.end(),
+                          ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
+                // adds property if it is not set yet
+                device_config.insert(ov::internal::exclusive_async_requests(true));
+            }
+        }
         m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(m_compiled_submodels[id].model,
                                                                                     m_compiled_submodels[id].device,
                                                                                     device_config);
