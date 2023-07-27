@@ -373,10 +373,10 @@ if (ENABLE_CPU_EXTENSIONS)
     if(LINUX AND X86_64)
         set(IE_PATH_TO_DEPS "https://github.com/luo-cheng2021/cpu_extensions/releases/download/20230725")
         RESOLVE_DEPENDENCY(CPU_EXTENSIONS
-                ARCHIVE "cpu_extensions_20230726_lin.tgz"
+                ARCHIVE "cpu_extensions_20230727_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                SHA256 "5104f512e439201c8e0f3fe75557a5e211663ca393787bffb84c4b286097e7ed"
+                SHA256 "584911f1640a1f4fa819a779313b70939bf9346e15b5bede155b5acfc7b2cec1"
                 USE_NEW_LOCATION TRUE)
         unset(IE_PATH_TO_DEPS)
     else()

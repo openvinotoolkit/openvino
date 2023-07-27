@@ -31,6 +31,7 @@
 #include "ie_parallel.hpp"
 #include "common/dnnl_thread.hpp"
 
+#include <atomic>
 #include <string>
 #include <vector>
 #ifdef OV_CPU_WITH_LLMDNN
@@ -1111,7 +1112,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
 }
 
 #ifdef OV_CPU_WITH_LLMDNN
-bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, MemoryPtr weightPtr) {
+bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
         return false;
 
@@ -1171,16 +1172,6 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, Mem
                     param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
                 else
                     param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU_TANH);
-            }
-
-            // compute q/dq
-            auto p = getenv("USE_INT8_WEIGHT");
-            if (p && p[0] == '1') {
-                auto* weight = reinterpret_cast<bfloat16*>(weightPtr->getData());
-                auto& weight_dims = weightPtr->getStaticDims();
-                llmdnn::fc_kernel_bf16w8_get_q_dq(weight_dims[0], weight_dims[1], weight_dims[1] * sizeof(bfloat16), weight, &param.q, &param.dq);
-                param.dt_b = llmdnn::dnnl_s8;
-                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::DEQUANT);
             }
 
             return true;
@@ -1265,7 +1256,10 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param, Mem
     return false;
 }
 
-MemoryPtr FullyConnected::castMemoryPtr(MemoryPtr memPtr, const InferenceEngine::Precision prec) {
+MemoryPtr FullyConnected::tryConvertMemoryPrecision(MemoryPtr memPtr, const InferenceEngine::Precision prec) {
+    if (prec == memPtr->getDesc().getPrecision())
+        return memPtr;
+
     auto newMemDescPtr = memPtr->getDescPtr()->cloneWithNewPrecision(prec);
 
     Memory srcMemory{ getEngine(), memPtr->getDescWithType<DnnlMemoryDesc>(), memPtr->getData() };
@@ -1327,23 +1321,15 @@ bool FullyConnected::tryUseLLMFc() {
     if (stateLLMFc != Not_Init)
         return stateLLMFc == State_Use;
 
-    // weight
-    // If the input precision is fp32 on SPR, the weight will be cast to bf16 for acceleration.
-    // Also, it can be used for tryExetractParamForLLMFc and llmdnn kernel initialize.
-    const auto inPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    auto weightPtr = castMemoryPtr(getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr(), inPrec);
-    weightDims = weightPtr->getStaticDims();
-    void* weight = weightPtr->getData();
-
     llmdnn::fc_create_param param;
-    if (!tryExtractParamForLLMFc(param, weightPtr)) {
+    if (!tryExtractParamForLLMFc(param)) {
         stateLLMFc = State_NotUse;
         return false;
     }
 
     auto thread_num = utility::get_total_threads();
     fcLLMs.resize(thread_num);
-    volatile bool ret = true;
+    std::atomic<bool> ret{true};
     // force to reference the function once
     utility::simple_parallel_for(thread_num, [&] (size_t i) {
         llmdnn::fc_kernel* fc;
@@ -1357,6 +1343,11 @@ bool FullyConnected::tryUseLLMFc() {
         stateLLMFc = State_Use;
         NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
         selected_pd->setImplementationType(gemm_llmdnn);
+
+        // If the input precision is fp32 on SPR, the weight will be cast to bf16 for acceleration.
+        auto weight_ptr = tryConvertMemoryPrecision(getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr(), Precision::BF16);
+        weightDims = weight_ptr->getStaticDims();
+        void* weight = weight_ptr->getData();
         primExecLLMFc(weight);
     } else {
         // fallback
