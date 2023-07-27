@@ -337,6 +337,7 @@ std::vector<uint8_t> load_binary(const std::string& path);
  * @param path - binary file path to store
  */
 void save_binary(const std::string& path, std::vector<uint8_t> binary);
+void save_binary(const std::string& path, const char* binary, size_t bin_size);
 
 /**
  * @brief Trim OpenVINO project file name path if OpenVINO project directory found.
