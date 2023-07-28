@@ -259,7 +259,7 @@ function initBenchmarkPickers() {
 function addFooter() {
     const footerAnchor = $('.footer');
 
-    fetch('../footer.html').then((response) => response.text()).then((text) => {
+    fetch('/footer.html').then((response) => response.text()).then((text) => {
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
