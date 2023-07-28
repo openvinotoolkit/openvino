@@ -165,18 +165,9 @@ struct CPUStreamsExecutor::Impl {
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
-                    if (nullptr != processMask) {
-                        _observer.reset(new Observer{*_taskArena,
-                                                     std::move(processMask),
-                                                     ncpus,
-                                                     0,
-                                                     concurrency,
-                                                     0,
-                                                     0,
-                                                     0,
-                                                     _cpu_ids});
-                        _observer->observe(true);
-                    }
+                    _observer.reset(
+                        new Observer{*_taskArena, std::move(processMask), ncpus, 0, concurrency, 0, 0, 0, _cpu_ids});
+                    _observer->observe(true);
                 }
             }
         }

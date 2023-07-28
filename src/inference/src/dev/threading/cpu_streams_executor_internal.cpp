@@ -51,7 +51,7 @@ void get_cur_stream_info(const int stream_id,
         max_threads_per_core = 2;
     }
 
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(__APPLE__)
     cpu_reserve = false;
 #endif
     if (cpu_reserve) {

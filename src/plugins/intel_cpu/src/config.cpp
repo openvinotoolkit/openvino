@@ -28,7 +28,7 @@ using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
     // this is default mode
-#if defined(__APPLE__) || defined(_WIN32)
+#if defined(__APPLE__)
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
 #else
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
@@ -36,7 +36,7 @@ Config::Config() {
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#    if defined(__APPLE__) || defined(_WIN32)
+#    if defined(__APPLE__)
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = getAvailableNUMANodes();
     if (numaNodes.size() > 1) {
