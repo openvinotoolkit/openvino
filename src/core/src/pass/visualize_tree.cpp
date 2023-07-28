@@ -443,7 +443,7 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
-    ss << "{" << node->get_element_type().get_type_name() << "}";
+    ss << "{" << node->get_element_type().to_string() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
 
     if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node))
@@ -482,7 +482,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                 for (const auto& input : node->inputs()) {
                     label << "\\nin" << to_string(input.get_index()) << ": ";
                     if (nvtot)
-                        label << "{" << input.get_element_type().get_type_name() << "}";
+                        label << "{" << input.get_element_type().to_string() << "}";
                     if (nvtos)
                         label << pretty_partial_shape(input.get_partial_shape());
                     label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
@@ -497,7 +497,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                 if (nvtio)
                     label << "\\nout" << to_string(output.get_index()) << ": ";
                 if (nvtot)
-                    label << "{" << output.get_element_type().get_type_name() << "}";
+                    label << "{" << output.get_element_type().to_string() << "}";
                 if (nvtos)
                     label << pretty_partial_shape(output.get_partial_shape());
 

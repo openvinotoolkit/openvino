@@ -52,8 +52,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
     using parent = typed_primitive_impl<activation>;
     using parent::parent;
 
-    activation_func activation_function;
-    activation_additional_params additional_params;
+    activation_func activation_function = activation_func::none;
+    activation_additional_params additional_params = {0.f, 0.f};
 
     std::shared_ptr<ov::op::Op> op;
 

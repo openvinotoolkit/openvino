@@ -14,8 +14,8 @@ std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<tra
     std::string targetDevice;
     std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "inputOrder=" << CommonTestUtils::vec2str(inputOrder) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "inputOrder=" << ov::test::utils::vec2str(inputOrder) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";

@@ -336,6 +336,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs) {
+    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("PTFrameworkNode");
+    attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
+    list_construct->set_attrs(attrs);
+    list_construct->validate_and_infer_types();
+    return list_construct;
+}
+
 bool is_none_node(const Output<Node>& node) {
     if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();

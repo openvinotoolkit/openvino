@@ -215,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testin
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
@@ -228,7 +228,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_BasicEmptyAxes, InterpolateLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
@@ -241,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::test
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
@@ -254,7 +254,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dLinearOnnx, GPUInterpolateLayerTest
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(in5dShapes),
         ::testing::ValuesIn(target5dShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
@@ -267,7 +267,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, :
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(in5dShapes),
         ::testing::ValuesIn(target5dShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 } // namespace

@@ -168,7 +168,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     device_config = {"PERF_COUNT": "NO",
                 "AFFINITY": "CORE",
                 "PERFORMANCE_HINT_NUM_REQUESTS":0,
-                "PERFORMANCE_HINT":"",
+                "PERFORMANCE_HINT":"LATENCY",
                 "INFERENCE_PRECISION_HINT": "f32",
                 "NUM_STREAMS":1,
                 "INFERENCE_NUM_THREADS":1}
@@ -378,6 +378,10 @@ def compare_dump_file(ieb_file1, ieb_file2, visualize):
         diff_abs = np.abs(ieb1.value.reshape(-1) - ieb2.value.reshape(-1))
     else:
         diff_abs = np.abs(ieb1.value - ieb2.value)
+
+    if not np.all(diff_abs.shape):
+        print(" Shape{} has dim 0".format(ieb1.shape))
+        return
 
     max_abs = np.amax(diff_abs)
     max_idx = np.where(diff_abs >= max_abs)

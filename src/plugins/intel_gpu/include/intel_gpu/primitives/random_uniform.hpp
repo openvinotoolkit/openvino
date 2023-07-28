@@ -81,7 +81,7 @@ struct random_uniform : public primitive_base<random_uniform> {
         ib >> *const_cast<uint64_t*>(&global_seed);
         ib >> *const_cast<uint64_t*>(&op_seed);
         ib >> *const_cast<tensor*>(&output_shape);
-        format::type tmp_type;
+        format::type tmp_type = format::type::any;
         ib >> make_data(&tmp_type, sizeof(format::type));
         *const_cast<format*>(&output_format) = format(tmp_type);
     }

@@ -164,12 +164,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
@@ -280,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHATest,
                                 ::testing::ValuesIn(matMulIn0Precisions),
                                 ::testing::ValuesIn(patternTypes),
                                 ::testing::Values("Subgraph"),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
@@ -290,7 +290,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
                                  ::testing::Values("MHA"),  // Snippets don't support BF16 MHA pattern yet
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
 } // namespace
@@ -460,12 +460,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
@@ -581,7 +581,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
                                 ::testing::Values("MHA"),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 
 } // namespace

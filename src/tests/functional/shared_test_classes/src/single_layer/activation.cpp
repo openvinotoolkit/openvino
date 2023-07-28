@@ -18,9 +18,9 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
     std::ostringstream result;
     const char separator = '_';
     result << activationNames[activationDecl.first] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;
-    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;
-    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationDecl.second) << separator;
+    result << "IS=" << ov::test::utils::vec2str(shapes.first) << separator;
+    result << "AS=" << ov::test::utils::vec2str(shapes.second) << separator;
+    result << "ConstantsValue=" << ov::test::utils::vec2str(activationDecl.second) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;

@@ -32,8 +32,10 @@ void op::v9::GridSample::validate_and_infer_types() {
                               "The element type of the grid input tensor must be a floating point type.");
     }
 
-    std::vector<PartialShape> out_shapes(1);
-    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto out_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
 

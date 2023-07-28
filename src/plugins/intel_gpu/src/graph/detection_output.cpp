@@ -87,7 +87,7 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         attrs.normalized = desc->prior_is_normalized;
         op.set_attrs(attrs);
 
-        ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
     } else {
         ov::op::v0::DetectionOutput op;
         ov::op::v0::DetectionOutput::Attributes attrs;
@@ -99,7 +99,7 @@ std::vector<layout> detection_output_inst::calc_output_layouts(detection_output_
         attrs.normalized = desc->prior_is_normalized;
         op.set_attrs(attrs);
 
-        ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     }
 
     return { layout{output_shapes[0], output_type, output_format} };

@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
 #include <string>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
-
 
 namespace ov {
 namespace test {
@@ -26,7 +25,9 @@ using ov::test::TestsCommon;
 
 namespace ov {
 namespace test {
+namespace utils {
 class PostgreSQLLink;
+} //namespace utils
 
 class TestsCommon : virtual public ::testing::Test {
     /// \brief Holds a pointer on PostgreSQL interface implementation (see postgres_link.hpp).
@@ -36,7 +37,7 @@ class TestsCommon : virtual public ::testing::Test {
     ///        uses in a project, which doesn't define expected definition.
     ///        But if no handler of the variable is linked to a final runtime, then it
     ///        will show an assert if some code tries to use it by a corresponding getter.
-    PostgreSQLLink* PGLink;
+    utils::PostgreSQLLink* PGLink;
 
 protected:
     TestsCommon();
@@ -56,7 +57,7 @@ protected:
     ///        by a wrong behaviour.
     /// \returns If object supports PostgreSQL reporting, then the method returns a pointer on
     ///          PostgreSQL interface implementation, otherwise - shows an assert or return a nullptr.
-    PostgreSQLLink* GetPGLink() {
+    utils::PostgreSQLLink* GetPGLink() {
 #ifdef ENABLE_CONFORMANCE_PGQL
         assert(this->PGLink != nullptr);
 #endif

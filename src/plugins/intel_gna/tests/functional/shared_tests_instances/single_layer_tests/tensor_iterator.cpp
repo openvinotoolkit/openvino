@@ -32,6 +32,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TensorIterator,
                                             ::testing::Values(ngraph::helpers::TensorIteratorBody::LSTM),
                                             ::testing::Values(ngraph::op::RecurrentSequenceDirection::FORWARD),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          TensorIteratorTest::getTestCaseName);
 }  // namespace
