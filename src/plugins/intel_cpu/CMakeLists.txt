@@ -20,11 +20,6 @@ elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
-set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
-                                    armv8.2-a
-                                    armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
-                                    armv8r64 # the same as armv8.4-a
-)
 if(ARM)
     set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
 else()
