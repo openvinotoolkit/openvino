@@ -12,7 +12,9 @@ static std::map<std::string, std::string>
 static std::map<std::string, std::string>
     ExtTestNames;  // Map of extended test name convertors. It is used to change a test name automatically.
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 using namespace PostgreSQLHelpers;
 
@@ -808,7 +810,10 @@ bool PostgreSQLLink::remove_custom_field(const std::string fieldName) const {
     return false;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
 namespace PostgreSQLLink {
 std::map<std::string, std::string>* get_ext_test_queries(void) {
     return &ExtTestQueries;
