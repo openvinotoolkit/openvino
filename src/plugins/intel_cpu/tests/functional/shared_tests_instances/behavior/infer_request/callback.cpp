@@ -13,24 +13,24 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::ValuesIn(configs)),
         InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                ::testing::Values(ov::test::utils::DEVICE_MULTI),
                 ::testing::ValuesIn(multiConfigs)),
         InferRequestCallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                 ::testing::ValuesIn(multiConfigs)),
         InferRequestCallbackTests::getTestCaseName);
 }  // namespace

@@ -53,7 +53,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -77,11 +77,11 @@ protected:
 
         std::shared_ptr<ngraph::Node> weights_node;
         if (firstInConst) {
-            std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
+            std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
             weights_node =
                 std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0]}, weights);
         } else {
-            std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
+            std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
             weights_node =
                 std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{matmul_in_shape[1], 1}, weights);
         }
@@ -111,7 +111,7 @@ const std::vector<bool> firstInputConst = {false, true};
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBeforeMatmulTest,
                          InsertTransposeBeforeMatmul,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(firstInputConst)),
@@ -146,7 +146,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -168,13 +168,13 @@ protected:
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
 
         std::vector<float> data =
-            CommonTestUtils::generate_float_numbers(ngraph::shape_size(matmul_in_shape), -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(ngraph::shape_size(matmul_in_shape), -0.2f, 0.2f);
         auto concat_const = std::make_shared<ngraph::opset1::Constant>(ngPrc, matmul_in_shape, data);
         ngraph::OutputVector concat_chunks{reshape, concat_const};
         auto concat = std::make_shared<ngraph::opset7::Concat>(concat_chunks, 0);
 
         std::shared_ptr<ngraph::Node> weights_node;
-        std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
+        std::vector<float> weights = ov::test::utils::generate_float_numbers(matmul_in_shape[0] * 2, -0.2f, 0.2f);
         weights_node =
             std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{1, matmul_in_shape[0] * 2}, weights);
 
@@ -197,7 +197,7 @@ const std::vector<bool> firstInputConstConcat = {true};
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBeforeMatmulConcat,
                          InsertTransposeBeforeConcatConcat,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(concatInputShape),
                                             ::testing::ValuesIn(firstInputConstConcat)),

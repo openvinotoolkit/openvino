@@ -54,6 +54,14 @@ std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
         return m_request_without_batch->get_profiling_info();
 }
 
+std::vector<ov::SoPtr<ov::IVariableState>> AsyncInferRequest::query_state() const {
+    check_state();
+    if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_status)
+        return m_sync_request->query_state();
+    else
+        return m_request_without_batch->query_state();
+}
+
 void AsyncInferRequest::infer_thread_unsafe() {
     start_async_thread_unsafe();
 }

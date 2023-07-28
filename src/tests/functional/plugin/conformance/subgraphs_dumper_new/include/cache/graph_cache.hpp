@@ -10,6 +10,7 @@
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
+#include "matchers/subgraph/repeat_pattern.hpp"
 
 namespace ov {
 namespace tools {
@@ -17,7 +18,8 @@ namespace subgraph_dumper {
 
 class GraphCache : public ICache {
 public:
-    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data,
+    void update_cache(const std::shared_ptr<ov::Model>& model,
+                      const std::string& model_meta_data,
                       bool extract_body = true) override;
     void serialize_cache() override;
 
@@ -45,6 +47,7 @@ protected:
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
             { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
     }

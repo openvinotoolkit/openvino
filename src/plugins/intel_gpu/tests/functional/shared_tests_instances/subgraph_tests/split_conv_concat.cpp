@@ -19,7 +19,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 6, 40, 40})),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         SplitConvConcat::getTestCaseName);
 
 }  // namespace

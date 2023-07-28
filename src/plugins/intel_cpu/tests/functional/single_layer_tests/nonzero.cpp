@@ -41,10 +41,10 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
         result << "StartFrom=" << genData.first << "_";
@@ -69,7 +69,7 @@ protected:
     size_t inferNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         NonZeroLayerTestParams basicParamsSet;
         std::pair<size_t, size_t> genData;
         CPUSpecificParams cpuParams;

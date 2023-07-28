@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include "common_test_utils/unicode_utils.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 const std::vector<std::wstring> test_unicode_postfix_vector = {
         L"unicode_Яㅎあ",
@@ -20,6 +21,8 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {
         L"СТУФХЦЧШЩЬЮЯ"
 };
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

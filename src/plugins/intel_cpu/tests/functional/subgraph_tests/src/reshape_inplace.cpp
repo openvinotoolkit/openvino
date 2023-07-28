@@ -43,7 +43,7 @@ protected:
         const ov::Shape secShape = {4};
         ngraph::ParameterVector params(2);
         targetStaticShapes = {{inpShape, secShape}};
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         params[0] = ngraph::builder::makeParams(rtPrc, {inpShape})[0];
         params[1] = ngraph::builder::makeParams(ov::element::i32, {secShape})[0];
         auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);

@@ -64,6 +64,7 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
 ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_properties = false) {
     const static std::vector<ov::PropertyName> proxy_properties = {ov::device::id,
                                                                    ov::internal::config_device_id,
+                                                                   ov::proxy::configuration::internal_name,
                                                                    ov::device::priorities,
                                                                    ov::proxy::alias_for,
                                                                    ov::proxy::device_priorities};
