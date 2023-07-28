@@ -664,6 +664,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
         impl_desc_type::gemm_avx2,
@@ -841,7 +842,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
-
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,

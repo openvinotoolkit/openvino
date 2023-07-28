@@ -758,6 +758,7 @@ void network::reset_execution(bool wait) {
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
+    GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
@@ -900,6 +901,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+    GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
@@ -970,7 +972,7 @@ std::string network::get_primitive_info(const primitive_id& id) const {
 bool network::is_cpu_impl(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
-    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
+    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
                                "doesn't contain primitive with requested id: ", id);
 
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
@@ -1235,6 +1237,14 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
+    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
+    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
+    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const size_t flush_frequency = needs_flushing ? 16 : 0;
+    size_t executed_prims = 0;
+
     for (auto& inst : _exec_order) {
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
@@ -1337,6 +1347,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
+        executed_prims++;
+
+        if (needs_flushing && executed_prims % flush_frequency == 0)
+            get_stream().flush();
 
         // Dump output buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
@@ -1378,7 +1392,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling;
+    auto store_events = is_out_of_order_queue || _enable_profiling;
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {
