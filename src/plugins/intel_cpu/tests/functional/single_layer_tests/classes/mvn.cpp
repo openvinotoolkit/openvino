@@ -109,7 +109,6 @@ void MvnLayerCPUTest::SetUp() {
 
     rel_threshold = 0.015f;
     if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
-        inPrc = outPrc = netPrecision = ElementType::f16;
         //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
         abs_threshold = .05f;
         rel_threshold = 250.f;
@@ -131,10 +130,7 @@ namespace MVN {
 const std::vector<std::map<std::string, ov::element::Type>>& additionalConfig() {
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
-// x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
-        {{ov::hint::inference_precision.name(), ov::element::f16}},
-#endif
+        {{ov::hint::inference_precision.name(), ov::element::f16}}
     };
     return additionalConfig;
 }

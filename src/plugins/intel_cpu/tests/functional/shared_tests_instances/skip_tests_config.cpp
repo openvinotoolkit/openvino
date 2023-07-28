@@ -242,6 +242,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
 #endif
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");

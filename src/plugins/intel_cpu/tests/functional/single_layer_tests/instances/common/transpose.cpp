@@ -15,10 +15,7 @@ namespace CPULayerTestsDefinitions {
 namespace Transpose {
 std::vector<std::map<std::string, std::string>> additional_config = {
         {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}},
-// x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
         {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}}
-#endif
 };
 
 const auto cpuParams_nhwc = CPUSpecificParams {{nhwc}, {}, {}, {}};

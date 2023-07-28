@@ -163,10 +163,7 @@ namespace Eltwise {
 const std::vector<ov::AnyMap>& additional_config() {
         static const std::vector<ov::AnyMap> additional_config = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
-// x86 doesn't support FP16 for now
-#if defined(OV_CPU_WITH_ACL_FP16)
-        {{ov::hint::inference_precision.name(), ov::element::f16}},
-#endif
+        {{ov::hint::inference_precision.name(), ov::element::f16}}
         };
         return additional_config;
 }
