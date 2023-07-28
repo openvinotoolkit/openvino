@@ -112,21 +112,6 @@ bool Edge::enforceReorder() {
         }
     }
 
-    // In case the parent node is an input constant, the memory is unaligned and the child primitive isa is SSE,
-    // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE isa requires
-    // the memory address in the operands must be aligned on 16-byte boundary.
-    if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
-        Type::Input == parentNode->getType() &&
-        parentNode->isConstant()) {
-        if (auto pInputNode = std::dynamic_pointer_cast<node::Input>(parentNode)) {
-            auto rawMemPtr = pInputNode->getMemoryPtr()->getData();
-            bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;
-            if (!isAligned) {
-                return true;
-            }
-        }
-    }
-
     return false;
 }
 

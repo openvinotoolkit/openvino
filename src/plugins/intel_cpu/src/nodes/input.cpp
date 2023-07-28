@@ -287,7 +287,15 @@ void Input::cloneBlobIfRequired() {
 
     auto isBlobAligned = [&, this] () {
         const void *ptr = constOp->get_data_ptr();
-        return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        bool blobAlignedOnSSE = true;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        // Majority of arithmetic and data processing instructions in legacy SSE isa requires
+        // the memory address in the operands must be aligned on 16-byte boundary. To ensure
+        // safely reusing ngraph const blob memory, need to check address alignment.
+        blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+#endif
+        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        return blobAlignedWithPrec && blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -363,6 +371,7 @@ void Input::cloneBlobIfRequired() {
     };
 
     auto weightCache = context->getWeightsCache();
+
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
