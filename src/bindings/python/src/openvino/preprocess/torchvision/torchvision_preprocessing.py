@@ -270,8 +270,6 @@ class _(TransformConverterBase):
 class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         resize_mode_map = {
-            InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
-            InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
             InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
         }
         if transform.max_size:

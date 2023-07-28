@@ -364,20 +364,6 @@ def test_graph_preprocess_set_memory_type():
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.BGR, ColorFormat.UNDEFINED, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BICUBIC_PILLOW, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.BGR, ColorFormat.UNDEFINED, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
-     #(ResizeAlgorithm.RESIZE_BILINEAR_PILLOW, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
      ])
 def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
     shape = [1, 3, 3, 3]
