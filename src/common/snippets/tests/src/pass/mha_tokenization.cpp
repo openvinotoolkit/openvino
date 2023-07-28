@@ -90,23 +90,13 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM) {
     run();
 }
 
-TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_NotFullConcurrency) {
-    const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{4, 256, 128}, {4, 128, 256}, {4, 256, 128}},
-                                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-                                                 std::vector<Shape>{{4, 4, 64, 128}, {4, 1, 128, 256}, {4, 1, 256, 128}, {4, 256, 128}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
-    config.concurrency = 18;
-    run();
-}
-
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
-    const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{5, 384, 32}, {5, 32, 384}, {5, 384, 32}},
+    const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{5, 30, 32}, {5, 32, 30}, {5, 30, 32}},
                                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-                                                 std::vector<Shape>{{5, 3, 128, 32}, {5, 1, 32, 384}, {5, 1, 384, 32}, {5, 384, 32}});
+                                                 std::vector<Shape>{{5, 6, 5, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
     function = f.getOriginal();
     function_ref = f.getReference();
-    config.concurrency = 8;
+    config.concurrency = 32;
     run();
 }
 

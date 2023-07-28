@@ -84,22 +84,17 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     const auto m_dim = get_dim_M(mm_shape);  // M
     const auto batch_dim =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
-    // [113745] Heurestic is equal to double block size.
-    // When this optimization will be moved into Subgraph and blocking param will be implemented as dependents of shapes,
-    // need to implement common way (for all backends) to calculate optimal value of M dimension
-    const auto optimal_m_dim = 32 * 2;
+
+    // We skip optimization if the current batch is optimal for concurrency
     const auto optimal_parallelism_work_amount = concurrency;
-    // We skip optimization
-    //  - if the current M dimension is not enough for splitting
-    //  - if the current batch is optimal for concurrency
-    if (m_dim <= optimal_m_dim || batch_dim % optimal_parallelism_work_amount == 0)
+    if (batch_dim % optimal_parallelism_work_amount == 0)
         return;
 
     size_t batch_m_dim = 1;
     size_t new_m_dim = m_dim;
 
-    auto is_optimized = [&](size_t batch_m_dim, size_t new_m_dim) {
-        return batch_m_dim > 1 && new_m_dim >= static_cast<size_t>(optimal_m_dim);
+    auto is_optimized = [&](size_t batch_m_dim) {
+        return batch_m_dim > 1;
     };
 
     // [ First Step ]
@@ -131,7 +126,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     //               - [5, 4,  96, 32] - WA = 20 = 8 x 2 + 4
     //               - [5, 6,  64, 32] - WA = 30 = 8 x 3 + 6
     // The most optimal and possible case is [5, 3, 128, 32] - almost all threads executes kernel twice
-    if (!is_optimized(batch_m_dim, new_m_dim)) {
+    if (!is_optimized(batch_m_dim)) {
         batch_m_dim = 1;
         new_m_dim = m_dim;
         // Heuristic value for a quick exit from the algorithm.
@@ -143,8 +138,6 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
         };
 
         auto update_optimal_params = [&](size_t divisor_0, size_t divisor_1) {
-            if (divisor_1 < optimal_m_dim)
-                return;
             const auto remainder = batch_dim * divisor_0 % optimal_parallelism_work_amount;
             if (remainder > optimal_remainder || remainder == 0) {
                 optimal_remainder = remainder;
@@ -173,7 +166,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
 
     OPENVINO_ASSERT(batch_m_dim * new_m_dim == m_dim, "Incorrect dimension M splitting!");
     // nothing to split
-    if (!is_optimized(batch_m_dim, new_m_dim))
+    if (!is_optimized(batch_m_dim))
         return;
 
     /***** Reshape insertion *****/
