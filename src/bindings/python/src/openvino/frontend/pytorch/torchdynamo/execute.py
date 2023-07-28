@@ -143,9 +143,20 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     signature = str(id(gm))
     for idx, input_data in enumerate(args):
-        signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
+        if isinstance(input_data, torch.Tensor):
+            signature = signature + "_" + str(idx) + ":" + str(input_data.type())[6:] + ":" + str(input_data.size())[11:-1].replace(" ", "")
+        else:
+            signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
                                                          model_hash_str=model_hash_str)
     return partitioned_modules[signature](*args)
+
+
+def clear_caches():
+    global partitioned_modules
+    global compiled_cache
+
+    compiled_cache.clear()
+    partitioned_modules.clear()
