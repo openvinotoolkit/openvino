@@ -23,7 +23,7 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         example_input: Any = None,
-        extensions: [str, pathlib.Path, list, Any] = None,
+        extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
 
@@ -93,7 +93,7 @@ def convert_model(
             For PyTorch it can be torch.Tensor.
             For Tensorflow it can be tf.Tensor or numpy.ndarray.
             For PaddlePaddle it can be Paddle Variable.
-        :param extensions:
+        :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
             objects. For the legacy MO path (if "use_legacy_frontend" is used),

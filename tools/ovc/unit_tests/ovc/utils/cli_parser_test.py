@@ -484,7 +484,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
     def test_mo_convert_params(self):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
-                'extensions': ConversionExtension("Ext", lambda x: x),
+                'extension': ConversionExtension("Ext", lambda x: x),
                 'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
                 'output': ["a", "b", "c"]}
 
@@ -492,7 +492,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         argv = pack_params_to_args_namespace(args, cli_parser, True)
 
         assert argv.input_model == args['input_model']
-        assert argv.extensions == args['extensions']
+        assert argv.extension == args['extension']
         assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
         assert argv.output == ["a","b","c"]
 
@@ -521,7 +521,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
             'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extensions', 'verbose', 'share_weights'},
+                                               'extension', 'verbose', 'share_weights'},
             'PaddlePaddle-specific parameters:': {'example_output'},
         }
 

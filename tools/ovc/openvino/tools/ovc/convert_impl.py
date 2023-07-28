@@ -143,7 +143,7 @@ def prepare_ir(argv: argparse.Namespace):
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         if new_extensions_used(argv):
-            for extension in argv.extensions:
+            for extension in argv.extension:
                 moc_front_end.add_extension(extension)
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model

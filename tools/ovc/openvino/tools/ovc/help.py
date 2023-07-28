@@ -72,7 +72,7 @@ def get_convert_model_help_specifics():
                  'transform "MakeStateful[param_res_names= {\'input_name_1\':'
                  '\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\" \n'
                  'Available transformations: "LowLatency2", "MakeStateful", "Pruning"'},
-        'extensions':
+        'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
                  '(.so or .dll) with extensions. For the legacy MO path '

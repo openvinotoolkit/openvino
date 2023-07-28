@@ -486,7 +486,7 @@ def get_common_cli_options(model_name):
 
 
 def get_params_with_paths_list():
-    return ['input_model', 'output_model', 'extensions']
+    return ['input_model', 'output_model', 'extension']
 
 
 def get_all_cli_parser():
@@ -1033,7 +1033,7 @@ def check_bool(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'output_dir', 'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if isinstance(value, list):
         updated_value = []
