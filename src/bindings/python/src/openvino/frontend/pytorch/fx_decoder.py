@@ -9,11 +9,7 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map, ov_to_c_type_map
 
-import typing
-from packaging.version import parse
 import torch
-import numpy as np
-import inspect
 import ctypes
 
 class TorchFXPythonDecoder (Decoder):
