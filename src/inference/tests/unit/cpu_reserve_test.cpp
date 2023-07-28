@@ -809,7 +809,7 @@ LinuxCpuReserveTestCase _1socket_32cores_hyper_1streams = {
     },
     {{1, ALL_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, EFFICIENT_CORE_PROC, 16, 0, 0}},
     {
-        {},
+        {1, 3, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
     },
     NOT_USED,
 };
