@@ -367,6 +367,10 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
             auto param = std::make_shared<ngraph::op::Parameter>(out_et, out_pshape);
             params.push_back(param);
             return_node = param;
+            // create additional result node if parameter is output without post reorder
+            if (is_output) {
+                results.emplace_back(std::make_shared<ngraph::op::Result>(return_node->get_default_output()));
+            }
         } else {
             return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(get_inputs(prim_info), output_size);
 

@@ -206,13 +206,24 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     } else {
         auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
         cldnn::layout inputLayout(networkInputLayout);
-        inputLayout.data_type = DataTypeFromPrecision(ip);
+        auto network_input_data_type = DataTypeFromPrecision(ip);
+        inputLayout.data_type = network_input_data_type;
         p.inputLayouts.insert({ inputInfo->name(), inputLayout });
 
         p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
 
         switch (preProcess.getMeanVariant()) {
-        case NONE:
+        case NONE: {
+            // If mean value is not specified and the data type does not change, do not add post reorder
+            if (network_input_data_type != networkInputLayout.data_type) {
+                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                    cldnn::input_info(inputName),
+                                                    networkInputLayout,
+                                                    meanValues,
+                                                    cldnn::reorder_mean_mode::none), {inputName});
+            }
+            break;
+        }
         case MEAN_VALUE: {
             p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
                                                 cldnn::input_info(inputName),
