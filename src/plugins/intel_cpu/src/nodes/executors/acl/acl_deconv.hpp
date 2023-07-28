@@ -132,6 +132,9 @@ public:
         unsigned int kernel_x = (deconvAttrs.kernel.size() > 1) ? deconvAttrs.kernel.at(1) : deconvAttrs.kernel.at(0);
         unsigned int kernel_y = deconvAttrs.kernel.at(0);
 
+        // After stride=8 up-sampling in ACL Deconvolution layer slower than reference
+        if (stride_x >= 8 || stride_y >= 8) return false;
+
         arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
 
         size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDims[2] : srcDims[1];
