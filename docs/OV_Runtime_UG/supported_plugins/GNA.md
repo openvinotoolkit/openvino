@@ -25,12 +25,20 @@ For more details on how to configure a system to use GNA, see the :doc:`GNA conf
 Intel® GNA Generational Differences
 ###########################################################
 
-The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered 
-functionally equivalent. Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0. Starting with 12th Generation 
-Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
+The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered
+functionally equivalent. Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0.
 
-In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, 
-and the term "GNA 3.0" refers to GNA hardware delivered on 12th generation Intel® Core™ processors.
+=======================  ========================
+ Intel CPU generation     GNA HW Version
+=======================  ========================
+10th, 11th                GNA 2.0
+12th, 13th                GNA 3.0
+14th                      GNA 3.5
+=======================  ========================
+
+In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors,
+and the term "GNA 3.0" refers to GNA hardware delivered on 12th, 13th generation Intel® Core™ processors, and the term
+"GNA 3.5" refers to GNA hardware delivered on 14th generation of Intel® Core™ processors.
 
 Intel® GNA Forward and Backward Compatibility
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -39,12 +47,13 @@ When a model is run, using the GNA plugin, it is compiled internally for the spe
 using `Import/Export <#import-export>`__ functionality to use it later. In general, there is no guarantee that a model compiled and 
 exported for GNA 2.0 runs on GNA 3.0 or vice versa.
 
-==================  ========================  =======================================================
- Hardware            Compile target 2.0        Compile target 3.0
-==================  ========================  =======================================================
- GNA 2.0             Supported                 Not supported (incompatible layers emulated on CPU)
- GNA 3.0             Partially supported       Supported
-==================  ========================  ======================================================= 
+==================  ========================  =======================================================  =======================================================
+ Hardware            Compile target 2.0        Compile target 3.0                                       Compile target 3.5
+==================  ========================  =======================================================  =======================================================
+ GNA 2.0             Supported                 Not supported (incompatible layers emulated on CPU)      Not supported (incompatible layers emulated on CPU)
+ GNA 3.0             Partially supported       Supported                                                Not supported (incompatible layers emulated on CPU)
+ GNA 3.5             Partially supported       Partially supported                                      Supported
+==================  ========================  =======================================================  =======================================================
 
 .. note::
 
@@ -53,7 +62,7 @@ exported for GNA 2.0 runs on GNA 3.0 or vice versa.
    with the number of filters greater than 8192 (see the `Model and Operation Limitations <#model-and-operation-limitations>`__ section).
 
 
-For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0 hardware, the following requirements should be satisfied:
+For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0/3.5 hardware, the following requirements should be satisfied:
 
 * Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 * To check interoperability in your application use: ``ov::intel_gna::execution_target`` and ``ov::intel_gna::compile_target``.
@@ -310,12 +319,13 @@ Limitations include:
 - Prior to GNA 3.0, only 1D convolutions are natively supported on the HW; 2D convolutions have specific limitations (see the table below).
 - The number of output channels for convolutions must be a multiple of 4.
 - The maximum number of filters is 65532 for GNA 2.0 and 8192 for GNA 3.0.
+- Starting with Intel® GNA 3.5 the support for Int8 convolution weights has been added. Int8 weights can be used in models quantized by POT.
 - *Transpose* layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 - Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 - For *Multiply*, *Add* and *Subtract* layers, auto broadcasting is only supported for constant inputs.
 
 
-Support for 2D Convolutions
+Support for 2D Convolutions up to GNA 3.0
 -----------------------------------------------------------
 
 The Intel® GNA 1.0 and 2.0 hardware natively supports only 1D convolutions. However, 2D convolutions can be mapped to 1D when 
@@ -346,10 +356,37 @@ and *W* is limited to 87 when there are 64 input channels.
 
 .. note:: 
 
-   The above limitations only apply to the new hardware 2D convolution operation. When possible, the Intel® GNA 
+   The above limitations only apply to the new hardware 2D convolution operation. For GNA 3.0, when possible, the Intel® GNA
    plugin graph compiler flattens 2D convolutions so that the second generation Intel® GNA 1D convolution operations 
    (without these limitations) may be used. The plugin will also flatten 2D convolutions regardless of the sizes if GNA 2.0 
    compilation target is selected (see below).
+Support for Convolutions since GNA 3.5
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Starting from Intel® GNA 3.5, 1D convolutions are handled in a different way than in GNA 3.0. Convolutions have the following limitations:
+
+============================  =======================  =================
+ Limitation                    Convolution 1D           Convolution 2D
+============================  =======================  =================
+Input height                   1                        1-65535
+Input Width                    1-65535                  1-65535
+Input channel number           1                        1-1024
+Kernel number                  1-8192                   1-8192
+Kernel height                  1                        1-255
+Kernel width                   1-2048                   1-256
+Stride height                  1                        1-255
+Stride width                   1-2048                   1-256
+Dilation height                1                        1
+Dilation width                 1                        1
+Pooling window height          1-1                      1-255
+Pooling window width           1-255                    1-255
+Pooling stride height          1                        1-255
+Pooling stride width           1-255                    1-255
+============================  =======================  =================
+
+
+Limitations for GNA 3.5 refers to the specific dimension. The full range of parameters is not always fully supported,
+e.g. where Convolution 2D Kernel can have height 255 and width 256, it may not work with Kernel with shape 255x256.
 
 Support for 2D Convolutions using POT
 -----------------------------------------------------------
