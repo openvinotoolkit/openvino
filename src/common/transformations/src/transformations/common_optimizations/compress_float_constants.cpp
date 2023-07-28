@@ -14,6 +14,18 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
+#define POSTPONED_FP16_COMPRESSION 1
+
+namespace {
+    const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
+}
+
+std::shared_ptr<ov::op::v0::Constant> postponed_fp16_compression(std::shared_ptr<ov::op::v0::Constant>& constant) {
+    constant->get_rt_info()[postponed_fp16_compression_tag] = true;
+    constant->validate_and_infer_types();
+    return constant;
+}
+
 namespace {
 template <ov::element::Type_t PREC_FROM>
 std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant) {
@@ -51,7 +63,11 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
         return nullptr;
     }
 
+#if POSTPONED_FP16_COMPRESSION
+    return postponed_fp16_compression(constant);
+#else
     return new_constant;
+#endif
 }
 }  // namespace
 
@@ -83,14 +99,21 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         if (!new_const) {
             return false;
         }
+        auto constant_target_inputs = const_node->get_output_target_inputs(0);
         auto convert = std::make_shared<ov::op::v0::Convert>(new_const, const_node->get_element_type());
 
-        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
         convert->set_friendly_name(const_node->get_friendly_name());
+        new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
+        convert->get_rt_info()[postponed_fp16_compression_tag] = true;
         ov::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
-
+        #if POSTPONED_FP16_COMPRESSION
+        for (const auto& target_input : constant_target_inputs) {
+            target_input.replace_source_output(convert);
+        }
+        #else
         ov::replace_node(const_node, convert);
+        #endif
 
         return true;
     };
