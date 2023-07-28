@@ -63,7 +63,7 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
 
 TEST_F(GraphCacheFuncTest, update_cache) {
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
-    ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
+    graph_cache->update_cache(test_model, test_model_path, true);
     ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
 }
 

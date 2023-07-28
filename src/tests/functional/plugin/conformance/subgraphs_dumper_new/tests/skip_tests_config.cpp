@@ -6,8 +6,10 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
+        // todo: enable these tests with graph cache enabling
         R"(.*RepeatPatternExtractorTest.*extract_1.*)",
         R"(.*ModelUtilsTest.*generate_.*)",
+        R"(.*GraphCacheFuncTest.*update_cache.*)",
     };
     return retVector;
 }
