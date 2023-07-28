@@ -183,7 +183,7 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    bool ReplaceNode(EdgePtr parent, EdgePtr child, NodePtr oldNode, NodePtr newNode, bool initNode);
+    bool ReplaceNode(EdgePtr edge, NodePtr oldNode, NodePtr newNode, bool initNode);
 
     std::shared_ptr<ov::Model> dump() const;
 

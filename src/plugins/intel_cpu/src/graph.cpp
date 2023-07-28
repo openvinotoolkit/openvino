@@ -505,13 +505,17 @@ void Graph::InitEdges() {
                                                                convertName,
                                                                context);
             convertNode->setDescs(inDesc, outDesc);
-            ReplaceNode(edge, edge->getChild()->getChildEdgeAt(0), convert, convertNode, true);
+            ReplaceNode(edge, convert, convertNode, true);
             edge = graphEdges[i];
         }
-        // std::cout << "InitEdges(): " << i << "/" << numberOfEdges << " edge_name = " << edge->name()
-        //          << ", input_precision = " << edge->getInputDesc().getPrecision()
-        //          << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
-
+#if 0
+        std::cout << "InitEdges(): " << i << "/" << numberOfEdges << ", edge=" << edge << std::endl;
+        for (auto& test_edge : graphEdges) {
+            std::cout << "     edge = " << test_edge << ", edge_name = " << test_edge->name()
+                      << ", input_precision = " << test_edge->getInputDesc().getPrecision()
+                      << ", output precision = " << test_edge->getOutputDesc().getPrecision() << std::endl;
+        }
+#endif
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
@@ -1676,15 +1680,51 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     return true;
 }
 
-bool Graph::ReplaceNode(EdgePtr parent, EdgePtr child, NodePtr oldNode, NodePtr newNode, bool initNode) {
+bool Graph::ReplaceNode(EdgePtr parent, NodePtr oldNode, NodePtr newNode, bool initNode) {
+    auto remove_graph_edge = [&](EdgePtr _edge) {
+        for (auto it = graphEdges.begin(); it != graphEdges.end();) {
+            if (*it == _edge) {
+                it = graphEdges.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+    auto remove_edge = [&](EdgePtr _edge, std::vector<ov::intel_cpu::EdgeWeakPtr>& edges) {
+        for (auto it = edges.begin(); it != edges.end();) {
+            if (static_cast<EdgePtr>(*it) == _edge) {
+                it = edges.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+#if 0
+    std::cout << "Original edges: " << std::endl;
+    for (auto& edge : graphEdges) {
+        std::cout << " edge_name = " << edge->name() << ", edge = " << edge
+                  << ", input_precision = " << edge->getInputDesc().getPrecision()
+                  << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
+    }
+#endif
     EdgePtr beforeNode(new Edge(parent->getParent(), newNode, parent->getInputNum(), parent->getOutputNum()));
-    EdgePtr afterNode(new Edge(newNode, child->getChild(), child->getInputNum(), child->getOutputNum()));
-
     beforeNode->getChild()->parentEdges.push_back(beforeNode);
     parent->getParent()->childEdges.push_back(beforeNode);
+    remove_edge(parent, parent->getParent()->childEdges);
 
-    afterNode->getParent()->childEdges.push_back(afterNode);
-    child->getChild()->parentEdges.push_back(afterNode);
+    // There maybe multiple child edges
+    for (size_t i = 0; i < oldNode->childEdges.size(); i++) {
+        auto edge = oldNode->getChildEdgeAt(i);
+        EdgePtr afterNode(new Edge(newNode, edge->getChild(), edge->getInputNum(), edge->getOutputNum()));
+        // std::cout << "                  replace parent edge for node = " << edge->getChild()->getName() << std::endl;
+        afterNode->getParent()->childEdges.push_back(afterNode);
+        edge->getChild()->parentEdges.push_back(afterNode);
+        remove_edge(edge, edge->getChild()->parentEdges);
+        remove_graph_edge(edge);
+        graphEdges.push_back(afterNode);
+    }
+    remove_graph_edge(parent);
+    graphEdges.push_back(beforeNode);
 
     if (initNode) {
         newNode->getSupportedDescriptors();
@@ -1694,13 +1734,9 @@ bool Graph::ReplaceNode(EdgePtr parent, EdgePtr child, NodePtr oldNode, NodePtr 
         resolveInPlaceDirection(newNode);
         newNode->initOptimalPrimitiveDescriptor();
     }
-    graphEdges.push_back(beforeNode);
-    graphEdges.push_back(afterNode);
     graphNodes.push_back(newNode);
-
     oldNode->remove();
-    parent->drop();
-    child->drop();
+    //parent->drop();
     for (auto it = graphNodes.begin(); it != graphNodes.end();) {
         if (*it == oldNode) {
             it = graphNodes.erase(it);
@@ -1709,13 +1745,14 @@ bool Graph::ReplaceNode(EdgePtr parent, EdgePtr child, NodePtr oldNode, NodePtr 
         }
     }
 
-    for (auto it = graphEdges.begin(); it != graphEdges.end();) {
-        if (*it == parent || *it == child) {
-            it = graphEdges.erase(it);
-        } else {
-            ++it;
-        }
+#if 0
+    std::cout << "New edges: " << std::endl;
+    for (auto& edge : graphEdges) {
+        std::cout << " edge_name = " << edge->name() << ", edge = " << edge
+                  << ", input_precision = " << edge->getInputDesc().getPrecision()
+                  << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
     }
+#endif
     return true;
 }
 
