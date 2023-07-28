@@ -45,15 +45,15 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     }
 }
 
-void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx].first == &new_dep)
+    if (dependencies[idx].first == new_dep.first)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.first->id(), true);
     }
 
     auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
@@ -64,14 +64,23 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx].first = &new_dep;
-    new_dep.users.push_back(this);
+    dependencies[idx].first = new_dep.first;
+    dependencies[idx].second = new_dep.second;
+    new_dep.first->users.push_back(this);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
+}
+
+void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
+    return replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {

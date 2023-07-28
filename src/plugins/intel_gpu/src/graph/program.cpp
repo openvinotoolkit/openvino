@@ -901,6 +901,10 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
+    return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
+}
+
+void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
@@ -1013,7 +1017,8 @@ bool program::extract(program_node& node) {
         outputs.push_back(&prev);
     }
 
-    auto& input = node.get_dependency(0);
+    auto input_with_port = node.get_dependency_with_port(0);
+    auto& input = *input_with_port.first;
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1040,7 +1045,7 @@ bool program::extract(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input, false);
+        replace_all_usages(node, input_with_port, false);
 
     if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
         processing_order.erase(&node);

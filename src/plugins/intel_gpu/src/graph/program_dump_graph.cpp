@@ -251,7 +251,9 @@ void dump_graph_init(std::ofstream& graph,
             }
             if (it == user->get_dependencies().end())
                 doubled = false;
-            graph << "    " << get_node_id(node) << " -> " << get_node_id(user);
+            graph << "    " << get_node_id(node) << " -> " << get_node_id(user)
+                  << " [label=\"" << it->second << " -> " << std::distance(user->get_dependencies().begin(), it) << "\"]";
+
 
             bool data_flow = node->is_in_data_flow() && user->is_in_data_flow();
             if (data_flow) {
