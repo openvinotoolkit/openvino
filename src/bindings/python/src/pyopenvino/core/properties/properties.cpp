@@ -167,6 +167,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
     wrap_property_RO(m_device, ov::device::uuid, "uuid");
+    wrap_property_RO(m_device, ov::device::luid, "luid");
 
     // Special case: ov::device::properties
     m_device.def("properties", []() {

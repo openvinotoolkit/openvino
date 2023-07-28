@@ -106,6 +106,7 @@ using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
 using OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_UUID = OVClassBaseTestP;
+using OVClassGetMetricTest_DEVICE_LUID = OVClassBaseTestP;
 using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
 using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
@@ -959,6 +960,16 @@ TEST_P(OVClassGetMetricTest_DEVICE_UUID, GetMetricAndPrintNoThrow) {
     std::cout << "Device uuid: " << std::endl << t << std::endl;
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::uuid);
+}
+
+TEST_P(OVClassGetMetricTest_DEVICE_LUID, GetMetricAndPrintNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::device::LUID t;
+
+    OV_ASSERT_NO_THROW(t = ie.get_property(target_device, ov::device::luid));
+    std::cout << "Device luid: " << std::endl << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::device::luid);
 }
 
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {

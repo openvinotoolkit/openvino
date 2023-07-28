@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/properties.hpp"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -21,12 +23,6 @@ namespace cldnn {
 enum class device_type {
     integrated_gpu = 0,
     discrete_gpu = 1
-};
-
-/// @brief Structure to represent gpu device UUID
-struct device_uuid {
-    static const constexpr size_t max_uuid_size = 16;
-    std::array<uint8_t, max_uuid_size> val;
 };
 
 /// @brief Defines version of GFX IP
@@ -87,7 +83,8 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
 
-    device_uuid uuid;                           ///< UUID of the gpu device
+    ov::device::UUID uuid;                      ///< UUID of the gpu device
+    ov::device::LUID luid;                      ///< LUID of the gpu device
 };
 
 /// @}

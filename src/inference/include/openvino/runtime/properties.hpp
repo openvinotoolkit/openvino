@@ -846,6 +846,45 @@ inline std::istream& operator>>(std::istream& is, UUID& device_uuid) {
 static constexpr Property<UUID, PropertyMutability::RO> uuid{"DEVICE_UUID"};
 
 /**
+ * @brief Structure which defines format of LUID.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct LUID {
+    static const uint64_t MAX_LUID_SIZE = 8;  //!< Max size of luid array (64 bits)
+    std::array<uint8_t, MAX_LUID_SIZE> luid;  //!< Array with luid for a device
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const LUID& device_luid) {
+    std::stringstream s;
+    for (auto& c : device_luid.luid) {
+        s << std::hex << std::setw(2) << std::setfill('0') << +c;
+    }
+    return os << s.str();
+}
+
+inline std::istream& operator>>(std::istream& is, LUID& device_luid) {
+    std::string s;
+    auto flags = is.flags();
+    for (size_t i = 0; i < LUID::MAX_LUID_SIZE; i++) {
+        is >> std::setw(2) >> s;
+        std::istringstream ss2(s);
+        int val;
+        ss2 >> std::hex >> val;
+        device_luid.luid[i] = static_cast<uint8_t>(val);
+    }
+    is.flags(flags);
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property which defines the LUID of the device.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<LUID, PropertyMutability::RO> luid{"DEVICE_LUID"};
+
+/**
  * @brief Enum to define possible device types
  * @ingroup ov_runtime_cpp_prop_api
  */
