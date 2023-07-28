@@ -1180,6 +1180,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
+        reusable_across_network = false;
+    }
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
