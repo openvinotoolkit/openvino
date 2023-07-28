@@ -7,6 +7,19 @@
 
 #include "tensor.hpp"
 
+const std::vector<std::string>& get_supported_types() {
+    static std::vector<std::string> supported_element_types = {"i8"
+                                                               "u8",
+                                                               "i16",
+                                                               "u16",
+                                                               "i32",
+                                                               "u32",
+                                                               "f32",
+                                                               "f64",
+                                                               "i64"};
+    return supported_element_types;
+}
+
 napi_types napiType(Napi::Value val) {
     if (val.IsTypedArray())
         return val.As<Napi::TypedArray>().TypedArrayType();
@@ -80,8 +93,9 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
             throw std::invalid_argument(std::string("Passed argument must be a Int32Array."));
         } else if ((type == napi_uint32_array))
             buf = elem.As<Napi::Uint32Array>();
-        else
+        else {
             buf = elem.As<Napi::Int32Array>();
+        } 
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
         std::vector<size_t> vector(data_ptr, data_ptr + buf.ElementLength());
         return vector;
@@ -121,11 +135,12 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
     const auto elem = info[idx];
     if (!acceptableType(elem, acceptable_types))
         throw std::invalid_argument(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
-    const auto key = elem.ToString();
-    if (element_type_map.find(key) == element_type_map.end())
-        throw std::invalid_argument(std::string("Cannot create ov element Type"));
+    const std::string type = elem.ToString();
+    auto et = get_supported_types();
+    if (std::find(et.begin(), et.end(), type) == et.end())
+        throw std::invalid_argument(std::string("Cannot create ov::element::Type"));
 
-    return element_type_map.at(key);
+    return static_cast<ov::element::Type_t>(ov::element::Type(type));
 }
 
 template <>
@@ -147,13 +162,7 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type) {
-    auto str = Napi::String::New(info.Env(), "");
-    for (auto& it : element_type_map)
-        if (it.second == type) {
-            str = Napi::String::New(info.Env(), it.first);
-            break;
-        }
-    return str;
+    return Napi::String::New(info.Env(), ov::element::Type(type).get_type_name());
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
@@ -164,7 +173,7 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor value_to_tensor(Napi::Object obj){
+ov::Tensor value_to_tensor(Napi::Object obj) {
     // Check of object type
     auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();

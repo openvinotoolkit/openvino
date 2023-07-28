@@ -9,9 +9,9 @@
 #pragma once
 #include <napi.h>
 
-#include <unordered_map>
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/openvino.hpp>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 
@@ -21,15 +21,9 @@ typedef enum {
     js_array,
 } js_type;
 
-const std::unordered_map<std::string, ov::element::Type_t> element_type_map = {{"i8", ov::element::Type_t::i8},
-                                                                     {"u8", ov::element::Type_t::u8},
-                                                                     {"i16", ov::element::Type_t::i16},
-                                                                     {"u16", ov::element::Type_t::u16},
-                                                                     {"i32", ov::element::Type_t::i32},
-                                                                     {"u32", ov::element::Type_t::u32},
-                                                                     {"f32", ov::element::Type_t::f32},
-                                                                     {"f64", ov::element::Type_t::f64},
-                                                                     {"i64", ov::element::Type_t::i64}};
+const std::unordered_map<std::string, ov::element::Type_t> element_type_map;
+
+const std::vector<std::string>& get_supported_types();
 
 typedef std::variant<napi_valuetype, napi_typedarray_type, js_type> napi_types;
 
@@ -114,7 +108,7 @@ Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackIn
 
 /** @brief Gets an input/output tensor from InferRequest by key. */
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
- 
+
 /** @brief Gets an input tensor from InferRequest by index. */
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
 
