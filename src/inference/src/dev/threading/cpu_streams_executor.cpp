@@ -364,7 +364,7 @@ struct CPUStreamsExecutor::Impl {
             for (auto& thread: threads) {
                 _thread_ids.insert(thread.get_id());
             }
-            _thread_ids.insert(std::this_thread::get_id());
+            // _thread_ids.insert(std::this_thread::get_id());
         }
 
         private:
