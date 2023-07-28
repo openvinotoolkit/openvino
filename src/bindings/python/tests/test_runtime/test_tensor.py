@@ -10,7 +10,7 @@ import numpy as np
 
 import openvino.runtime as ov
 import openvino.runtime.opset11 as ops
-from openvino.runtime import Tensor
+from openvino import Tensor
 from openvino.helpers import pack_data, unpack_data
 
 import pytest

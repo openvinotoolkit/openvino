@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import os
 
-from openvino.runtime import Core, Type, OVAny, properties
+from openvino import Core, Type, OVAny, properties
 
 
 ###

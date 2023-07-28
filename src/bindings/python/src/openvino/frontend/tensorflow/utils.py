@@ -5,11 +5,95 @@
 # mypy: ignore-errors
 
 
-from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
-from openvino.tools.ovc.environment_setup_utils import get_environment_setup  # pylint: disable=no-name-in-module
-from openvino.tools.ovc.error import Error
-from distutils.version import LooseVersion
 import logging as log
+import numpy as np
+import sys
+from distutils.version import LooseVersion
+from openvino.runtime import PartialShape, Dimension
+
+
+# TODO: reuse this method in ovc and remove duplication
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
+    # Current function returns list with static dimensions with following logic.
+    # For dynamic dimensions return lower boundaries if they are set, otherwise
+    # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
+    shape_list = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, tuple):
+            # tuple where (min_length, max_length), the format which uses MO cli parser
+            assert len(dim) == 2, "Unknown dimension type {}".format(dim)
+            if dim[0] > 0:
+                shape_list.append(dim[0])
+            elif dim[1] < np.iinfo(np.int64).max:
+                shape_list.append(dim[1])
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        elif isinstance(dim, Dimension):
+            if dim.is_static or dim.get_min_length() > 0:
+                shape_list.append(dim.get_min_length())
+            elif dim.get_max_length() != -1:
+                shape_list.append(dim.get_max_length())
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        else:
+            raise Exception("Unknown dimension type {}".format(dim))
+
+    return tuple(shape_list)
+
+
+def get_imported_module_version(imported_module):
+    """
+    Get imported module version
+    :return: version(str) or raise AttributeError exception
+    """
+    version_attrs = ("__version__", "VERSION", "version")
+    installed_version = None
+    for attr in version_attrs:
+        installed_version = getattr(imported_module, attr, None)
+        if isinstance(installed_version, str):
+           return installed_version
+        else:
+            installed_version = None
+
+    if installed_version is None:
+        raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+    else:
+        return installed_version
+
+
+# TODO: reuse this method in ovc and remove duplication
+def get_environment_setup(framework):
+    """
+    Get environment setup such as Python version, TensorFlow version
+    :param framework: framework name
+    :return: a dictionary of environment variables
+    """
+    env_setup = dict()
+    python_version = "{}.{}.{}".format(sys.version_info.major,
+                                       sys.version_info.minor,
+                                       sys.version_info.micro)
+    env_setup['python_version'] = python_version
+    try:
+        if framework == 'tf':
+            exec("import tensorflow")
+            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
+            exec("del tensorflow")
+    except (AttributeError, ImportError):
+        pass
+    env_setup['sys_platform'] = sys.platform
+    return env_setup
 
 
 def trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input):
@@ -55,7 +139,7 @@ def create_example_input_by_user_shapes(input_shapes, input_types):
             tensor = tf.zeros(shape=shape, **args)
             res.append(tensor)
         return res
-    raise Error("Could not create example input by provided shape {}".format(input_shapes))
+    raise Exception("Could not create example input by provided shape {}".format(input_shapes))
 
 
 def get_concrete_func(tf_function, example_input, input_needs_packing, error_message, use_example_input=True):
@@ -186,7 +270,7 @@ def extract_model_graph(argv):
             argv["input_model"] = model.root
             return True
         else:
-            raise Error("Unknown checkpoint format.")
+            raise Exception("Unknown checkpoint format.")
 
     if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
         return True
@@ -206,7 +290,7 @@ def extract_model_graph(argv):
         elif hasattr(model, "graph"):
             argv["input_model"] = model.graph
         else:
-            raise Error("Could not find signature of graph in a Trackable object.")
+            raise Exception("Could not find signature of graph in a Trackable object.")
         return True
     if model_is_graph_iterator(model):
         return True

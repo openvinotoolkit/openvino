@@ -5,11 +5,11 @@
 import os
 
 from ..conftest import model_path
-from openvino.runtime import Input, Shape, PartialShape, Type, RTMap
+from openvino.runtime import Input, RTMap
 from openvino._pyopenvino import DescriptorTensor
 import openvino.runtime.opset12 as ops
 
-from openvino.runtime import Core, OVAny
+from openvino import Core, OVAny, Shape, PartialShape, Type
 
 test_net_xml, test_net_bin = model_path()
 

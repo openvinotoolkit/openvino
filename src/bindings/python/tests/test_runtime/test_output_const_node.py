@@ -7,15 +7,17 @@ from copy import copy, deepcopy
 
 from ..conftest import model_path
 import openvino.runtime.opset12 as ops
-from openvino.runtime import (
-    ConstOutput,
+from openvino import (
     Shape,
     PartialShape,
     Type,
+    Core,
+    OVAny,
+)
+from openvino.runtime import (
+    ConstOutput,
     Output,
     RTMap,
-    OVAny,
-    Core,
 )
 
 import pytest

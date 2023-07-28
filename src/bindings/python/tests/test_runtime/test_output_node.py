@@ -6,7 +6,7 @@ import os
 
 from ..conftest import model_path
 import openvino.runtime.opset12 as ops
-from openvino.runtime import Type
+from openvino import Type
 
 
 def test_output_replace(device):
