@@ -115,15 +115,13 @@ This document provides description and default values for CMake options that can
 * `SELECTIVE_BUILD` enables [[Conditional compilation|ConditionalCompilation]] feature.
     * `OFF` is default.
 
-## Building with custom OpenCV
+## Building with OpenCV
 
-When OpenVINO CMake scripts are run with enabled OpenCV (`-DENABLE_OPENCV=ON` which is default), CMake OpenVINO scripts automatically download prebuilt OpenCV 
-from shared drive, such OpenCV is ABI-compatible with the default compiler of your system. If you have a non-default compiler or want to use custom version of OpenCV, you can pass it via CMake option:
+Some OpenVINO samples can benefit from OpenCV usage, e.g. can read more image formats as inputs. If you have OpenCV on your machine, you can pass it via CMake option:
 
 ```sh
 cmake -DOpenCV_DIR=<path to OpenCVConfig.cmake> ...
 ```
-In this case, default OpenCV will not downloaded and provided one will be used.
 
 ## Building with custom TBB
 

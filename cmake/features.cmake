@@ -110,8 +110,6 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
-ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
-
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
