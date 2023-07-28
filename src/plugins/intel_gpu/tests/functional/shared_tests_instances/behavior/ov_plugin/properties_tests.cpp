@@ -169,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                           {ov::device::uuid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name()}))),
+                        { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_MultiHeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
