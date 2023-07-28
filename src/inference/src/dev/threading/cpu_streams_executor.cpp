@@ -132,23 +132,31 @@ struct CPUStreamsExecutor::Impl {
                                    const StreamCreateType stream_type,
                                    const int concurrency,
                                    const int core_type,
-                                   const int numa_node_id) {
+                                   const int numa_node_id,
+                                   const int max_threads_per_core) {
             _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
                               ? -1  // macOS
                               : std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{concurrency});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
+                _taskArena.reset(new custom::task_arena{
+                    custom::task_arena::constraints{}.set_numa_id(_numaNodeId).set_max_concurrency(concurrency)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
                 const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
                                                 ? custom::info::core_types().back()
                                                 : custom::info::core_types().front();
-                _taskArena.reset(new custom::task_arena{
-                    custom::task_arena::constraints{}.set_core_type(real_core_type).set_max_concurrency(concurrency)});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_core_type(real_core_type)
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
             } else {
-                _taskArena.reset(new custom::task_arena{concurrency});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                            .set_max_concurrency(concurrency)
+                                                            .set_max_threads_per_core(max_threads_per_core)});
                 _cpu_ids = static_cast<int>(_impl->_config._stream_processor_ids.size()) == _impl->_config._streams
                                ? _impl->_config._stream_processor_ids[stream_id]
                                : _cpu_ids;
@@ -175,6 +183,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
+            int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
@@ -186,11 +195,17 @@ struct CPUStreamsExecutor::Impl {
                                 stream_type,
                                 concurrency,
                                 cpu_core_type,
-                                numa_node_id);
+                                numa_node_id,
+                                max_threads_per_core);
             if (concurrency <= 0) {
                 return;
             }
-            create_tbb_task_arena(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
+            create_tbb_task_arena(stream_id,
+                                  stream_type,
+                                  concurrency,
+                                  cpu_core_type,
+                                  numa_node_id,
+                                  max_threads_per_core);
         }
 
         void init_stream_legacy() {

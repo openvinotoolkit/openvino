@@ -20,7 +20,8 @@ void get_cur_stream_info(const int stream_id,
                          StreamCreateType& stream_type,
                          int& concurrency,
                          int& core_type,
-                         int& numa_node_id) {
+                         int& numa_node_id,
+                         int& max_threads_per_core) {
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool cpu_reserve = cpu_reservation;
@@ -34,6 +35,26 @@ void get_cur_stream_info(const int stream_id,
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = streams_info_table[stream_info_id][STREAM_NUMA_NODE_ID];
+    max_threads_per_core = 1;
+    bool have_main_core_proc = false;
+    bool have_hyper_threading_proc = false;
+    if (core_type == ALL_PROC) {
+        for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
+            if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
+                if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
+                    have_hyper_threading_proc = true;
+                } else if (streams_info_table[i][PROC_TYPE] == MAIN_CORE_PROC) {
+                    have_main_core_proc = true;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    if (have_main_core_proc && have_hyper_threading_proc) {
+        max_threads_per_core = 2;
+    }
 
 #if defined(_WIN32) || defined(__APPLE__)
     cpu_reserve = false;
