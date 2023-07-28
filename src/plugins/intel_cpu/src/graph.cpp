@@ -474,6 +474,7 @@ void Graph::InitEdges() {
             layerName = basicLayerName + "_" + std::to_string(idx);
         }
         uniqueLayerNames.insert(layerName);
+        std::cout << "Insert reorder node ... name =  " << layerName << std::endl;
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
@@ -485,11 +486,32 @@ void Graph::InitEdges() {
         numberOfEdges--;
     };
 
+    // static std::mutex mutex;
+    // std::lock_guard<std::mutex> _lock(mutex);
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
+        // If edge's child is 'Convert' op and the edge's input/output has different precision, we can set convert's input precision
+        // with parent precision to avoid additional new convert op is added.
+        if ((edge->getChild()->getType() == Type::Convert) &&/* (edge->getParent()->getType() != Type::Input) &&*/
+            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision()) {
+            auto convert = edge->getChild();
+            const auto& inDesc = edge->getInputDesc();
+            const auto& outDesc = convert->getChildEdgeAt(0)->getInputDesc();
+            std::string convertName = convert->getName();
+            std::cout << "replace convert node: " << convertName << std::endl;
+            auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(),
+                                                               inDesc.getPrecision(),
+                                                               outDesc.getPrecision(),
+                                                               convertName,
+                                                               context);
+            convertNode->setDescs(inDesc, outDesc);
+            ReplaceNode(edge, edge->getChild()->getChildEdgeAt(0), convert, convertNode, true);
+            edge = graphEdges[i];
+        }
         // std::cout << "InitEdges(): " << i << "/" << numberOfEdges << " edge_name = " << edge->name()
-        //           << ", input_precision = " << edge->getInputDesc().getPrecision()
-        //           << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
+        //          << ", input_precision = " << edge->getInputDesc().getPrecision()
+        //          << ", output precision = " << edge->getOutputDesc().getPrecision() << std::endl;
+
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
@@ -506,6 +528,7 @@ void Graph::InitEdges() {
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
 
+                std::cout << "Insert convert node: " << convertName << std::endl;
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, context);
                 convertNode->setDescs(inDesc, outDesc);
@@ -517,10 +540,12 @@ void Graph::InitEdges() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
+                std::cout << "Insert reorder node ... 1 " << std::endl;
                 insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
             }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
+            std::cout << "Insert reorder node ... 2 " << std::endl;
             insertReorder(edge, true);
             updateEdge(i);
         }
@@ -1648,6 +1673,49 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     graphEdges.push_back(beforeNode);
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
+    return true;
+}
+
+bool Graph::ReplaceNode(EdgePtr parent, EdgePtr child, NodePtr oldNode, NodePtr newNode, bool initNode) {
+    EdgePtr beforeNode(new Edge(parent->getParent(), newNode, parent->getInputNum(), parent->getOutputNum()));
+    EdgePtr afterNode(new Edge(newNode, child->getChild(), child->getInputNum(), child->getOutputNum()));
+
+    beforeNode->getChild()->parentEdges.push_back(beforeNode);
+    parent->getParent()->childEdges.push_back(beforeNode);
+
+    afterNode->getParent()->childEdges.push_back(afterNode);
+    child->getChild()->parentEdges.push_back(afterNode);
+
+    if (initNode) {
+        newNode->getSupportedDescriptors();
+        newNode->initSupportedPrimitiveDescriptors();
+        newNode->filterSupportedPrimitiveDescriptors();
+        newNode->selectOptimalPrimitiveDescriptor();
+        resolveInPlaceDirection(newNode);
+        newNode->initOptimalPrimitiveDescriptor();
+    }
+    graphEdges.push_back(beforeNode);
+    graphEdges.push_back(afterNode);
+    graphNodes.push_back(newNode);
+
+    oldNode->remove();
+    parent->drop();
+    child->drop();
+    for (auto it = graphNodes.begin(); it != graphNodes.end();) {
+        if (*it == oldNode) {
+            it = graphNodes.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = graphEdges.begin(); it != graphEdges.end();) {
+        if (*it == parent || *it == child) {
+            it = graphEdges.erase(it);
+        } else {
+            ++it;
+        }
+    }
     return true;
 }
 
