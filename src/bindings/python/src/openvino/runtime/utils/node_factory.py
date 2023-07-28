@@ -6,6 +6,7 @@ import logging as log
 
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
 
@@ -81,7 +82,7 @@ class NodeFactory(object):
             )
             setattr(
                 node,
-                self._normalize_attr_name_setter(attr_name),
+            self._normalize_attr_name_setter(attr_name),
                 partial(NodeFactory._set_node_attr_value, node, attr_name),
             )
 
@@ -91,6 +92,9 @@ class NodeFactory(object):
         node._attr_cache_valid = False
 
         return node
+
+    def load_extension(self, lib_path: Union[Path, str]):
+        return self.factory.load_extension(lib_path)
 
     @staticmethod
     def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:
