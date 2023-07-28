@@ -60,6 +60,7 @@
 #include "group_convolution_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
+#include "i420_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
@@ -404,6 +405,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset8
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::AdaptiveAvgPool, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::AdaptiveMaxPool, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::I420toBGR, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::I420toRGB, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::DeformableConvolution, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::DetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::Gather, ShapeInferTA, util::bit::mask(2)),
