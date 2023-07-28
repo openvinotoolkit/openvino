@@ -109,26 +109,22 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     const auto lcm = get_lcm(batch_dim, optimal_parallelism_work_amount);  // LCM(b, nthrs)
     const auto batch_dim_multiplier = lcm / batch_dim;  // LCM(b, nthrs) / b
     const auto needed_new_dim = m_dim / batch_dim_multiplier;  // m / (LCM(b, nthrs) / b) - needed factors of dimension m
-    if (batch_dim_multiplier * needed_new_dim == m_dim) {
+    if (batch_dim_multiplier * needed_new_dim == m_dim && is_optimized(batch_dim_multiplier)) {
         batch_m_dim = batch_dim_multiplier;
         new_m_dim = needed_new_dim;
-    }
-
-    // [ Second Step ]
-    // If we couldn't optimally split on the previous step, try the second step.
-    // The algorithm finds the more optimal parallelism work amount [batch_dim * batch_m_dim],
-    // where batch_m_dim is divisor of dimension M.
-    // The optimal parallelism work amount means the case when as many threads as possible have work
-    // For example, there are 8 threads and shape [5, 384, 32]
-    //              768 = [2 x 192] = [3 x 128] = [4 x 96] = [6 x 64]
-    //               - [5, 2, 192, 32] - WA = 10 = 8 + 2 (6 threads calculates once and 2 threads twice)
-    //               - [5, 3, 128, 32] - WA = 15 = 8 + 7 (all threads have 2 kernel except one thread) <- the most optimal case
-    //               - [5, 4,  96, 32] - WA = 20 = 8 x 2 + 4
-    //               - [5, 6,  64, 32] - WA = 30 = 8 x 3 + 6
-    // The most optimal and possible case is [5, 3, 128, 32] - almost all threads executes kernel twice
-    if (!is_optimized(batch_m_dim)) {
-        batch_m_dim = 1;
-        new_m_dim = m_dim;
+    } else {
+        // [ Second Step ]
+        // If we couldn't optimally split on the previous step, try the second step.
+        // The algorithm finds the more optimal parallelism work amount [batch_dim * batch_m_dim],
+        // where batch_m_dim is divisor of dimension M.
+        // The optimal parallelism work amount means the case when as many threads as possible have work
+        // For example, there are 8 threads and shape [5, 384, 32]
+        //              768 = [2 x 192] = [3 x 128] = [4 x 96] = [6 x 64]
+        //               - [5, 2, 192, 32] - WA = 10 = 8 + 2 (6 threads calculates once and 2 threads twice)
+        //               - [5, 3, 128, 32] - WA = 15 = 8 + 7 (all threads have 2 kernel except one thread) <- the most optimal case
+        //               - [5, 4,  96, 32] - WA = 20 = 8 x 2 + 4
+        //               - [5, 6,  64, 32] - WA = 30 = 8 x 3 + 6
+        // The most optimal and possible case is [5, 3, 128, 32] - almost all threads executes kernel twice
         // Heuristic value for a quick exit from the algorithm.
         // The value shows the number of threads in percentages that perform the most equal work
         const auto optimal_thread_num_percent = 0.8;
