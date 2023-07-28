@@ -162,14 +162,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
-                    // TODO: Use special API to set custom type specification
-                    std::shared_ptr<v0::Parameter> parameter;
-                    // TODO: Use decoder type or explore adding the missing cast types to Torchscript path
-                    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-                    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0)
-                        parameter = std::make_shared<v0::Parameter>(type.as<element::Type>(), ps);
-                    else
-                        parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
+                    auto dtype = element::dynamic;
+                    if (type.is<element::Type>()) {
+                        dtype = type.as<element::Type>();
+                    }
+                    auto parameter = std::make_shared<v0::Parameter>(dtype, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model

@@ -14,7 +14,7 @@ import typing
 import torch
 import numpy as np
 
-wrapper_template="""
+wrapper_template = """
 import torch
 from typing import *
 
@@ -26,6 +26,7 @@ class ModelWrapper(torch.nn.Module):
     def forward(self, {input_sign}):
         return self.model({example_input})
 """
+
 
 class TorchScriptPythonDecoder (Decoder):
     def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None):
@@ -63,6 +64,15 @@ class TorchScriptPythonDecoder (Decoder):
         if isinstance(self.graph_element, torch.Graph):
             self._transform_tensor_list_constants_to_listconstruct(self.graph_element)
             self._transform_optional_constants(self.graph_element)
+
+    @staticmethod
+    def _get_preserved_attributes(model) -> list:
+        preserved_attributes = []
+        for name, module in model.named_modules():
+            if hasattr(module, "weight"):
+                if module.weight.dtype in [torch.int8, torch.uint8]:
+                    preserved_attributes.append(name)
+        return preserved_attributes
 
     def _get_scripted_model(self, pt_module, example_inputs=None):
         import torch
@@ -156,12 +166,13 @@ class TorchScriptPythonDecoder (Decoder):
                     first_input = next(n.inputs())
                     if first_input.node().kind() == "prim::Constant":
                         ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.uint8, torch.int8, torch.bfloat16, torch.float16]:
+                        if ivalue is not None and ivalue.dtype in [torch.bfloat16, torch.float16]:
                             # do not freeze models with compressed constants
                             skip_freeze = True
                             break
             if not skip_freeze:
-                f_model = torch.jit.freeze(scripted)
+                preserved_attrs = self._get_preserved_attributes(scripted)
+                f_model = torch.jit.freeze(scripted, preserved_attrs=preserved_attrs)
             else:
                 f_model = scripted
         else:
