@@ -172,7 +172,14 @@ private:
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
     static bool is_up_to_20_hw(const target::DeviceVersion device_version) {
-        return device_version <= target::DeviceVersion::GNA2_0 && is_hw_target(device_version);
+        switch (device_version) {
+        case target::DeviceVersion::GNA1_0:
+        case target::DeviceVersion::GNAEmbedded1_0:
+        case target::DeviceVersion::GNA2_0:
+            return true;
+        default:
+            return false;
+        }
     }
     void createVirtualDevice(const target::DeviceVersion& devVersion);
     void updateGnaDeviceVersion();

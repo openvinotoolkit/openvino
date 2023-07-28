@@ -780,7 +780,7 @@ void GNAPlugin::DumpXNNToFile() const {
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
-    if (config.target->get_effective_compile_target() == target::DeviceVersion::GNA1_0) {
+    if (config.target->get_effective_compile_target() == target::DeviceVersion::GNAEmbedded1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = static_cast<uint32_t>(gnamem->getRegionBytes(REGION_SCRATCH));
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;

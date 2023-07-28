@@ -120,6 +120,7 @@ TEST_P(TransposesConcatTest, CompareWithRefs) {
 std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
 std::vector<std::map<std::string, std::string>> target_configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};

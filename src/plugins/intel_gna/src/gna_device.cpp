@@ -571,6 +571,7 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
 
     switch (target->get_effective_execution_target()) {
     case DeviceVersion::GNA1_0:
+    case DeviceVersion::GNAEmbedded1_0:
     case DeviceVersion::GNA2_0:
         return Limitations::kMaxLayersCountGNA2_0;
     case DeviceVersion::GNA3_0:
