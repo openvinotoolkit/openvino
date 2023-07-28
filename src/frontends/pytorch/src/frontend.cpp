@@ -25,7 +25,6 @@
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
-#include "transforms/dequantize_node_remover.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
@@ -38,6 +37,7 @@
 #include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
+#include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "translate_session.hpp"
@@ -109,7 +109,14 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 }
 }  // namespace
 
-FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
+FrontEnd::FrontEnd() {
+    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
+    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0) {
+        m_op_translators = get_supported_ops_fx();
+    } else {
+        m_op_translators = get_supported_ops_ts();
+    }
+}
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);
@@ -184,8 +191,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DequantizeNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
+    manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
 

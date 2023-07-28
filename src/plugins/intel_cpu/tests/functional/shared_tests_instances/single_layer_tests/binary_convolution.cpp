@@ -54,7 +54,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
 }   // namespace

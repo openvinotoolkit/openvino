@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShapeLarge),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTes
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShapeLarge),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 
@@ -114,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTes
                                ::testing::Values(InferenceEngine::Layout::ANY),
                                ::testing::Values(InferenceEngine::Layout::ANY),
                                ::testing::Values(inputShapeSmall),
-                               ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                               ::testing::Values(ov::test::utils::DEVICE_GPU)),
                        PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShapeSmall),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Pooling Cases ========== */
@@ -165,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShapeLarge),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
 
 
@@ -193,7 +193,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_FloorRounding, MaxPoolingV8L
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShapeSmall),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8La
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(inputShapeSmall),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MaxPoolingV8LayerTest::getTestCaseName);
 
 }  // namespace

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/util/file_util.hpp"
+
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -247,11 +249,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream,
 void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string filename = layerName;
-    std::replace(filename.begin(), filename.end(), '\\', '_');
-    std::replace(filename.begin(), filename.end(), '/', '_');
-    std::replace(filename.begin(), filename.end(), ' ', '_');
-    std::replace(filename.begin(), filename.end(), ':', '_');
+    std::string filename = debug_config->get_name_for_dump(layerName);
     filename = debug_config->dump_layers_path + filename + ".txt";
     std::ofstream file_stream(filename);
     if (!mem) {
@@ -304,6 +302,25 @@ void wait_for_the_turn() {}
 static uint32_t get_unique_net_id() {
     static std::atomic<uint32_t> id_gen{0};
     return ++id_gen;
+}
+
+static std::string get_file_path_for_binary_dump(cldnn::layout layout, std::string name) {
+    std::string filename;
+    std::string data_type = data_type_traits::name(layout.data_type);
+    std::string format = layout.format.to_string();
+    std::string tensor;
+    auto dims = layout.get_dims();
+    for (size_t r = 0 ; r < layout.get_rank() ; r++) {
+        tensor += ("_" + to_string(dims[r]));
+    }
+
+#ifdef GPU_DEBUG_CONFIG
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    std::string layer_name = debug_config->get_name_for_dump(name);
+    filename = debug_config->dump_layers_path + layer_name
+                + "__" + data_type + "_" + tensor + "__" + format + ".bin";
+#endif
+    return filename;
 }
 
 /*
@@ -1218,7 +1235,76 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
+    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
+    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
+    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const size_t flush_frequency = needs_flushing ? 16 : 0;
+    size_t executed_prims = 0;
+
     for (auto& inst : _exec_order) {
+        // Load binary dump for input layers
+        GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
+            const std::string layer_name = inst->id();
+            auto files = debug_config->get_filenames_for_matched_layer_loading_binaries(layer_name);
+            if (!files.empty()) {
+                if (inst->is_input()) {
+                    // Loading binary dumps for output tensors of input-layers : only one output exists or index(dstN) exists
+                    auto dump_file = debug_config->get_matched_from_filelist(files, "_dst0__");
+                    OPENVINO_ASSERT((files.size() == 1 || dump_file.length() != 0), "Unexpected binary dump for input layer");
+
+                    OPENVINO_ASSERT(files.size() == get_primitive(inst->id())->outputs_memory_count(), "Mis-match dump file count");
+
+                    for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+                        auto dump_file = files[0];
+                        if (files.size() > 1 || get_primitive(inst->id())->outputs_memory_count() != 1) {
+                            std::string pattern = "_dst" + std::to_string(i) + "__";
+                            dump_file = debug_config->get_matched_from_filelist(files, pattern);
+                        }
+                        OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_dst[N]__' for binary dump");
+                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for " << layer_name << std::endl;
+
+                        std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
+                        OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
+
+                        auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
+                        OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+
+                        output_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
+                    }
+                } else {
+                    auto check_dst = debug_config->get_matched_from_filelist(files, "_dst0__");
+                    OPENVINO_ASSERT(check_dst.length() == 0, "Expected to load binaries for inputs of " + layer_name);
+
+                    // Loading input tensors for any layer
+                    auto dump_file = debug_config->get_matched_from_filelist(files, "_src0__");
+                    OPENVINO_ASSERT(dump_file.length() != 0, "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
+
+                    OPENVINO_ASSERT(files.size() == get_primitive(inst->id())->dependencies().size(), "Mis-match dump file count");
+
+                    for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                        auto dump_file = files[0];
+                        if (files.size() > 1 || get_primitive(inst->id())->dependencies().size() != 1) {
+                            std::string pattern = "_src" + std::to_string(i) + "__";
+                            dump_file = debug_config->get_matched_from_filelist(files, pattern);
+                        }
+                        OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_src[N]__' for binary dump input");
+                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input of " << layer_name << std::endl;
+
+                        std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
+                        OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
+
+                        auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                        OPENVINO_ASSERT(input_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name);
+
+                        input_mem->copy_from(get_stream(), static_cast<void *>(&bin[0]), true);
+                    }
+                }
+            }
+        }
+
+        // Dump input buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -1226,43 +1312,85 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             }
 
             GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
-                        debug_config->dump_layers_dst_only == 0 && debug_config->is_dumped_layer(layer_name)) {
+                        debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
+                std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\"" + layer_name + ":";
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i),
-                                    get_stream(),
-                                    "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 0) +
-                                    "_network" + std::to_string(get_id()) +
-                                    "_" + get_iteration_prefix(curr_iter) +
-                                    layer_name + "_src" + std::to_string(i),
-                                    debug_config->dump_layers_raw);
+                    std::string name = "program" + std::to_string((get_program() != nullptr) ? get_program()->get_id() : 0) +
+                                        "_network" + std::to_string(get_id()) +
+                                        "_" + get_iteration_prefix(curr_iter) +
+                                        layer_name + "_src" + std::to_string(i);
+                    auto input_mem = get_primitive(inst->id())->dep_memory_ptr(i);
+                    GPU_DEBUG_IF(debug_config->dump_layers_binary) {
+                        // Binary dump : raw
+                        auto input_layout = inst->get_input_layout(i);
+                        auto filename = get_file_path_for_binary_dump(input_layout, name);
+
+                        mem_lock<char, mem_lock_type::read> lock(input_mem, get_stream());
+                        ov::util::save_binary(filename, lock.data(), input_mem->size());
+                        GPU_DEBUG_COUT  << " Dump layer src : " << layer_name << " to " << filename << std::endl;
+                        debug_str_for_bin_load += (filename + ",");
+                    } else {
+                        log_memory_to_file(input_mem,
+                                        get_stream(),
+                                        name,
+                                        debug_config->dump_layers_raw);
+                    }
+                }
+
+                GPU_DEBUG_IF(debug_config->dump_layers_binary && !inst->is_input()) {
+                    debug_str_for_bin_load[debug_str_for_bin_load.size()-1] = '\"';
+                    GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;;
                 }
             }
         }
 
         execute_primitive(inst, events);
+        executed_prims++;
 
+        if (needs_flushing && executed_prims % flush_frequency == 0)
+            get_stream().flush();
+
+        // Dump output buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
             const std::string layer_name = inst->id();
             auto prog_id = ((get_program() != nullptr) ? get_program()->get_id() : 0);
             auto net_id = get_id();
             GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
-                        debug_config->is_dumped_layer(layer_name, inst->is_output())) {
-                for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
-                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i),
-                                    get_stream(),
-                                    "program" + std::to_string(prog_id) +
-                                    "_network" + std::to_string(net_id) +
-                                    "_" + get_iteration_prefix(curr_iter) +
-                                    layer_name + "_dst" + std::to_string(i),
-                                    debug_config->dump_layers_raw);
+                        debug_config->is_layer_for_dumping(layer_name, inst->is_output(), inst->is_input())) {
+                std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\""
+                                                        + layer_name + ":";
+                for (size_t i = 0; i < get_primitive(layer_name)->outputs_memory_count(); i++) {
+                    std::string name = "program" + std::to_string(prog_id) +
+                                        "_network" + std::to_string(net_id) +
+                                        "_" + get_iteration_prefix(curr_iter) +
+                                        layer_name + "_dst" + std::to_string(i);
+                    auto output_mem = get_primitive(layer_name)->output_memory_ptr(i);
+                    GPU_DEBUG_IF(debug_config->dump_layers_binary) {
+                        // Binary dump : raw
+                        auto output_layout = inst->get_output_layout(i);
+                        auto filename = get_file_path_for_binary_dump(output_layout, name);
+
+                        mem_lock<char, mem_lock_type::read> lock(output_mem, get_stream());
+                        ov::util::save_binary(filename, lock.data(), output_mem->size());
+                        GPU_DEBUG_COUT  << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
+                        debug_str_for_bin_load += (filename + ",");
+                    } else {
+                        // Text dump
+                        log_memory_to_file(output_mem, get_stream(), name, debug_config->dump_layers_raw);
+                    }
+                }
+
+                GPU_DEBUG_IF(debug_config->dump_layers_binary && inst->is_input()) {
+                    debug_str_for_bin_load[debug_str_for_bin_load.size()-1] = '\"';
+                    GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;;
                 }
             }
         }
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling;
+    auto store_events = is_out_of_order_queue || _enable_profiling;
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {

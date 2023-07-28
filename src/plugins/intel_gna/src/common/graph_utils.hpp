@@ -388,14 +388,14 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @param order the permutation array to apply to the input shape
  * @return vector with indexes to gather
  */
-inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const AxisVector& order) {
     // Supported shape ranks: 2d, 3d, 4d
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
     }
 
     ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
+    ov::AxisVector order_4d = order;
     // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
@@ -683,6 +683,23 @@ inline bool is_shape_2d(const ov::Shape& shape) {
  */
 inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_consumers) {
     return node->output(0).get_target_inputs().size() == n_consumers;
+}
+
+/**
+ * @brief Merge gather indexes.
+ * @param ids_in vector with indexes to 1st gather
+ * @param ids_out vector with indexes to 2nd gather
+ * @return vector with indexes to merged gather
+ */
+inline std::vector<size_t> combine_gather_indexes(const std::vector<size_t>& ids_in,
+                                                  const std::vector<size_t>& ids_out) {
+    if (ids_in.size() != ids_out.size())
+        return {};
+    std::vector<size_t> result(ids_in.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = ids_in[ids_out[i]];
+    }
+    return result;
 }
 
 }  // namespace graph_utils

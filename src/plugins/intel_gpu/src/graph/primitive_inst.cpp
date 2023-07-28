@@ -1147,13 +1147,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
             allocation_type type, bool reusable_across_network, bool reset = true, memory* curr_memory = nullptr) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
-        auto static_layout = cldnn::layout(layout.get_partial_shape().get_max_shape(), layout.data_type, layout.format, layout.data_padding);
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
             if (curr_memory != nullptr)
                 pool.release_memory(curr_memory, id, net_id);
-            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable_across_network, reset);
+            return pool.get_memory(layout, id, net_id, dependencies, type, reusable_across_network, reset);
         }
-        return pool.get_memory(static_layout, type, reset);
+        return pool.get_memory(layout, type, reset);
     };
 
     auto layout = impl_params.get_output_layout(idx);
@@ -1167,6 +1166,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return a;
     };
 
+    layout = cldnn::layout(layout.get_partial_shape().get_max_shape(), layout.data_type, layout.format, layout.data_padding);
     bool usm_device_allocatable = true;
     const auto& total_device_input_mem_size = std::accumulate(impl_params.input_layouts.begin(), impl_params.input_layouts.end(), (uint64_t)0, device_mem_acc);
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
@@ -1180,6 +1180,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
+        reusable_across_network = false;
+    }
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;

@@ -33,18 +33,18 @@ public:
         std::tie(inputPrecision, inputShapes, alpha, beta, bias, size, axes) = obj.param;
 
         std::ostringstream result;
-        result << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShapes.first }) << "_" << "TS=(";
+        result << inputPrecision << "_" << "IS=" << ov::test::utils::partialShape2str({ inputShapes.first }) << "_" << "TS=(";
         for (const auto& shape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
 
-        result << ")_alpha=" << alpha << "_beta=" << beta << "_bias=" << bias << "_size=" << size << "_axes=" << CommonTestUtils::vec2str(axes);
+        result << ")_alpha=" << alpha << "_beta=" << beta << "_bias=" << bias << "_size=" << size << "_axes=" << ov::test::utils::vec2str(axes);
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ElementType inputPrecision;
         InputShape inputShapes;
         double alpha, beta, bias;

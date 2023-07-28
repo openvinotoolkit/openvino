@@ -14,7 +14,7 @@ using namespace BehaviorTestsDefinitions;
 namespace {
 std::vector<memoryStateParams> memoryStateTestCases = {memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                                                                          {"c_1-3", "r_1-3"},
-                                                                         CommonTestUtils::DEVICE_GNA,
+                                                                         ov::test::utils::DEVICE_GNA,
                                                                          {})};
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic,
