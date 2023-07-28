@@ -4,7 +4,10 @@
 
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/op/matmul.hpp>
+#include <ngraph/op/convert.hpp>
+#include <ngraph/op/transpose.hpp>
+#include <ngraph/op/reshape.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
@@ -18,12 +21,12 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         return ov::op::util::is_on_constant_path(output.get_node_shared_ptr());
     };
     auto weights_m = ngraph::pattern::any_input(weights_path);
-    auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
+    auto matmul_m = ngraph::pattern::wrap_type<ngraph::op::v0::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
+        auto matmul = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
@@ -33,7 +36,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
         bool is_convert = false;
-        if (auto convert_node = std::dynamic_pointer_cast<ngraph::opset1::Convert>(fc_input_b.get_node_shared_ptr())) {
+        if (auto convert_node = std::dynamic_pointer_cast<ngraph::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             if (is_decompression(convert_node)) {
                 is_convert = true;
                 fc_input_b = convert_node->get_input_node_shared_ptr(0);
@@ -109,9 +112,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ transpose_order.size() }, transpose_order);
-            auto transpose = ov::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
-            if (!ngraph::is_type<ngraph::opset1::Constant>(transpose)) {
+            auto transpose_const = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose = ov::op::util::make_try_fold<ngraph::op::v1::Transpose>(node, transpose_const);
+            if (!ngraph::is_type<ngraph::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
             }
@@ -138,13 +141,11 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         if (rank_b != 2) {
             ngraph::Dimension K = *(shape_b_aligned.rbegin() + 1);
             NGRAPH_CHECK(K.is_static());
-            std::vector<int64_t> reshape_shape_values = {K.get_length()};
-            const auto& insert_pos = matmul->get_transpose_b() ? reshape_shape_values.begin() : reshape_shape_values.begin() + 1;
-            reshape_shape_values.insert(insert_pos, -1);
-
-            auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ov::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
-            if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
+            auto k_len = K.get_length();
+            auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
+            auto reshape_shape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, reshape_shape_values);
+            fc_input_b = ov::op::util::make_try_fold<ngraph::op::v1::Reshape>(fc_input_b, reshape_shape, false);
+            if (!std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
             }
             new_ops.push_back(fc_input_b.get_node_shared_ptr());

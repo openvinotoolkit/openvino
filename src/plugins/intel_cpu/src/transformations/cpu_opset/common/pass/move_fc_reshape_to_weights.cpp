@@ -7,32 +7,38 @@
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/opsets/opset1.hpp>
+
+#include <openvino/op/constant.hpp>
+#include <openvino/op/convert.hpp>
+#include <openvino/op/subtract.hpp>
+#include <openvino/op/multiply.hpp>
+#include <openvino/op/transpose.hpp>
+#include <openvino/op/reshape.hpp>
 
 #include "itt.hpp"
 
 ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     MATCHER_SCOPE(MoveFCReshapeToWeights);
     using namespace ov::pass::pattern;
-    auto weights_m = wrap_type<ov::opset1::Constant>(consumers_count(1));
-    auto convert_m = wrap_type<ov::opset1::Convert>({weights_m});
+    auto weights_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
-    auto sub_const_m = wrap_type<ov::opset1::Constant>(consumers_count(1));
-    auto subtract_m = wrap_type<ov::opset1::Subtract>({convert_m, sub_const_m});
+    auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto subtract_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
 
-    auto mul_const_m = wrap_type<ov::opset1::Constant>(consumers_count(1));
-    auto mul_with_sub_m = wrap_type<ov::opset1::Multiply>({subtract_m, mul_const_m}, rank_equals(3));
-    auto mul_no_sub_m = wrap_type<ov::opset1::Multiply>({convert_m, mul_const_m}, rank_equals(3));
+    auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m}, rank_equals(3));
+    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m}, rank_equals(3));
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
 
     auto one_consumer_rank_2 = [](const ov::Output<ov::Node>& out) {
         return consumers_count(1)(out) && rank_equals(2)(out);
     };
-    auto reshape_const_m = wrap_type<ov::opset1::Constant>(consumers_count(1));
-    auto reshape_m = wrap_type<ov::opset1::Reshape>({mul_m, reshape_const_m}, one_consumer_rank_2);
+    auto reshape_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, one_consumer_rank_2);
 
-    auto transpose_const_m = wrap_type<ov::opset1::Constant>();
-    auto transpose_m = wrap_type<ov::opset1::Transpose>({reshape_m, transpose_const_m});
+    auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({reshape_m, transpose_const_m});
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
 
     auto data_m = any_input();
@@ -41,9 +47,9 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
         const auto weights_path = fully_connected->get_input_node_shared_ptr(1);
-        const bool with_transpose = ov::is_type<ov::opset1::Transpose>(weights_path);
+        const bool with_transpose = ov::is_type<ov::op::v1::Transpose>(weights_path);
         if (with_transpose) {
-            const auto transpose_const = ov::as_type_ptr<ov::opset1::Constant>(weights_path->get_input_node_shared_ptr(1));
+            const auto transpose_const = ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
             if (transpose_const->cast_vector<int>() != std::vector<int>{1, 0}) {
                 return false;
             }
@@ -53,7 +59,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         const auto reshape = with_transpose ? weights_path->get_input_node_shared_ptr(0) : weights_path;
 
         auto check_decompression_const = [&](const std::shared_ptr<ov::Node>& node) {
-            if (!ov::is_type<ov::opset1::Constant>(node))
+            if (!ov::is_type<ov::op::v0::Constant>(node))
                 return false;
             ov::Shape expected_shape(3, 1);
             const size_t out_channels_idx = with_transpose ? 2 : 1;
@@ -65,7 +71,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         if (!check_decompression_const(mul->get_input_node_shared_ptr(1)))
             return false;
         const auto mul_parent = mul->get_input_node_shared_ptr(0);
-        const bool with_subtract = ov::is_type<ov::opset1::Subtract>(mul_parent);
+        const bool with_subtract = ov::is_type<ov::op::v1::Subtract>(mul_parent);
         if (with_subtract && !check_decompression_const(mul_parent->get_input_node_shared_ptr(1)))
             return false;
 
@@ -78,11 +84,10 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
             return false;
 
         auto squeeze_constant = [](const std::shared_ptr<ov::Node>& node) {
-            const auto constant = ov::as_type_ptr<ov::opset1::Constant>(node);
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             auto shape = constant->get_shape();
-            OPENVINO_ASSERT(shape[0] == 1);
             shape.erase(shape.begin());
-            const auto new_constant = std::make_shared<ov::opset1::Constant>(*constant, shape);
+            const auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, shape);
             ov::replace_node(constant, new_constant);
             ov::copy_runtime_info(constant, new_constant);
             new_constant->set_friendly_name(constant->get_friendly_name());
