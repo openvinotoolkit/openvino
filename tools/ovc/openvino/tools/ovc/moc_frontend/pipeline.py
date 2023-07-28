@@ -49,10 +49,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     share_weights = getattr(argv, 'share_weights', True)    #FIXME: Should be controlled by default value
     if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
         # frozen format with v1 checkpoints
-        assert not hasattr(argv, 'saved_model_tags') or not argv.saved_model_tags
         input_model = moc_front_end.load([part for part in argv.input_model], share_weights)
-    elif hasattr(argv, 'saved_model_tags') and argv.saved_model_tags:
-        input_model = moc_front_end.load([argv.input_model, argv.saved_model_tags], share_weights)
     else:
         input_model = moc_front_end.load(argv.input_model, share_weights)
 

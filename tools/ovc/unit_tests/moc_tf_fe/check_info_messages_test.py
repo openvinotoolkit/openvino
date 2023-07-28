@@ -31,7 +31,7 @@ def arg_parse_helper(input_model,
         input=None,
         output_dir='.',
         compress_to_fp16=compress_to_fp16,
-        extensions=None
+        extension=None
     )
 
 

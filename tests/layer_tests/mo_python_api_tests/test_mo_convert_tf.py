@@ -756,6 +756,7 @@ class TestMoConvertTF(CommonMOConvertTest):
             arr[2] = 2
 
         # Check model inference
+        cmp_model = compile_model(ov_model)
         ov_infer2 = cmp_model(test_input)
         fw_infer2 = keras_model(test_input).numpy()
 
@@ -856,6 +857,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         gc.collect()
 
         # Check model inference
+        cmp_model = compile_model(ov_model)
         ov_infer2 = cmp_model(test_input, ie_device)
 
         feed_dict = {"Input:0": test_input}

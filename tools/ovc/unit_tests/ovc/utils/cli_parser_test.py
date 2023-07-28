@@ -13,8 +13,8 @@ from unittest.mock import patch
 import numpy as np
 
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
-    check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, get_all_cli_parser, \
+    check_positive, writable_dir, \
+    readable_file_or_object, get_freeze_placeholder_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
 from openvino.tools.ovc.error import Error
@@ -471,38 +471,30 @@ class PathCheckerFunctions(unittest.TestCase):
     def test_single_writable_non_existing_dir(self):
         self.assertEqual(__class__.WRITABLE_NON_EXISTING_DIR, writable_dir(__class__.WRITABLE_NON_EXISTING_DIR))
 
-    def test_readable_dirs(self):
-        dirs_str = ','.join([__class__.WRITABLE_DIR, __class__.READABLE_DIR])
-        self.assertEqual(dirs_str, readable_dirs(dirs_str))
-
-    def test_not_readable_dirs(self):
-        dirs_str = ','.join([__class__.WRITABLE_DIR, __class__.WRITABLE_NON_EXISTING_DIR])
-        with self.assertRaises(Error) as cm:
-            readable_dirs(dirs_str)
 
     def test_readable_file(self):
-        self.assertEqual(__class__.EXISTING_FILE, readable_file(__class__.EXISTING_FILE))
+        self.assertEqual(__class__.EXISTING_FILE, readable_file_or_object(__class__.EXISTING_FILE))
 
     def test_non_readable_file(self):
         with self.assertRaises(Error) as cm:
-            readable_file(__class__.NOT_EXISTING_FILE)
+            readable_file_or_object(__class__.NOT_EXISTING_FILE)
 
 
 class TestPackParamsToArgsNamespace(unittest.TestCase):
     def test_mo_convert_params(self):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
-                'extensions': ConversionExtension("Ext", lambda x: x),
+                'extension': ConversionExtension("Ext", lambda x: x),
                 'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
                 'output': ["a", "b", "c"]}
 
         cli_parser = get_all_cli_parser()
-        argv = pack_params_to_args_namespace(args, cli_parser)
+        argv = pack_params_to_args_namespace(args, cli_parser, True)
 
         assert argv.input_model == args['input_model']
-        assert argv.extensions == [args['extensions']]
+        assert argv.extension == args['extension']
         assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
-        assert argv.output == "a,b,c"
+        assert argv.output == ["a","b","c"]
 
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
@@ -512,8 +504,9 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {"input_model": "abc"}
         cli_parser = get_all_cli_parser()
 
-        with self.assertRaisesRegex(Error, "The \"abc\" is not existing file or directory"):
-            pack_params_to_args_namespace(args, cli_parser)
+        with self.assertRaisesRegex(Error, "The value for parameter \"input_model\" must be existing file/directory, "
+                                           "but \"abc\" does not exist."):
+            pack_params_to_args_namespace(args, cli_parser, True)
 
     def test_unknown_params(self):
         args = {"input_model": os.path.dirname(__file__),
@@ -521,15 +514,14 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         cli_parser = get_all_cli_parser()
 
         with self.assertRaisesRegex(Error, "Unrecognized argument: a"):
-            pack_params_to_args_namespace(args, cli_parser)
+            pack_params_to_args_namespace(args, cli_parser, True)
 
 
 class TestConvertModelParamsParsing(unittest.TestCase):
     def test_mo_convert_params_parsing(self):
         ref_params = {
-            'Framework-agnostic parameters:': {'input_model', 'input', 'output', 'example_input',
-                                               'extensions', 'verbose', 'share_weights'},
-            'TensorFlow*-specific parameters:': {'saved_model_tags'},
+            'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
+                                               'extension', 'verbose', 'share_weights'},
             'PaddlePaddle-specific parameters:': {'example_output'},
         }
 
