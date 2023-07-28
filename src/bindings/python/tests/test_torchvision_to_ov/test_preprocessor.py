@@ -201,7 +201,7 @@ def test_pipeline_1():
     test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.NEAREST),
             transforms.CenterCrop((216, 218)),
             transforms.Pad((2, 3, 4, 5), fill=3),
             transforms.ToTensor(),
