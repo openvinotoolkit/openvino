@@ -201,7 +201,7 @@ def test_pipeline_1():
     test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.NEAREST),
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
             transforms.CenterCrop((216, 218)),
             transforms.Pad((2, 3, 4, 5), fill=3),
             transforms.ToTensor(),
@@ -216,9 +216,10 @@ def test_pipeline_1():
 def test_pipeline_2():
     if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
         pytest.skip("Ticket: 114816")
-    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.NEAREST),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize((0.481, 0.457, 0.408), (0.268, 0.261, 0.275)),

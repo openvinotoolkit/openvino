@@ -274,6 +274,8 @@ class _(TransformConverterBase):
         }
         if transform.max_size:
             raise ValueError("Resize with max_size if not supported")
+        if transform.interpolation is not InterpolationMode.NEAREST:
+            raise ValueError("Only InterpolationMode.NEAREST is supported.")
 
         h, w = _setup_size(transform.size, "Incorrect size type for Resize operation")
 
