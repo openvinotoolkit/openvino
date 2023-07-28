@@ -1249,16 +1249,6 @@ bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<o
                                                                   inputs_from_same_source_or_equal_int_constants);
 }
 
-bool ov::pass::SharedConcatOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedConcatOptimization);
-    return shared_node_optimization_helper<ov::op::v0::Concat>(model, inputs_from_same_source_or_equal_int_constants);
-}
-
-bool ov::pass::SharedReshapeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedReshapeOptimization);
-    return shared_node_optimization_helper<ov::op::v1::Reshape>(model, inputs_from_same_source_or_equal_int_constants);
-}
-
 struct SliceAttrs {
     int64_t start, stop, axis;
 };
@@ -1628,8 +1618,7 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager_1, DeReshapeMatMulWithComplications)
     REGISTER_PASS(manager_1, ApplyTableOfEquivalence)
     REGISTER_PASS(manager_1, OptimizeLabelsUsedAsValues)
-    REGISTER_PASS(manager_1, SharedConcatOptimization)
-    REGISTER_PASS(manager_1, SharedReshapeOptimization)
+    REGISTER_PASS(manager_1, SharedOpOptimization)
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
     manager_1.run_passes(m);

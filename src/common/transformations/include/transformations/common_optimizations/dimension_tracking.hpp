@@ -25,8 +25,6 @@ class TRANSFORMATIONS_API RemoveSliceBeforeGatherElements;
 class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;
 
 class TRANSFORMATIONS_API SharedTransposeOptimization;
-class TRANSFORMATIONS_API SharedConcatOptimization;
-class TRANSFORMATIONS_API SharedReshapeOptimization;
 
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
@@ -136,18 +134,6 @@ class ov::pass::Fused_RPE_MHA_Replacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Fused_RPE_MHA_Replacer", "0");
     Fused_RPE_MHA_Replacer();
-};
-
-class ov::pass::SharedConcatOptimization : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SharedConcatOptimization", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class ov::pass::SharedReshapeOptimization : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SharedReshapeOptimization", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 class ov::pass::SharedTransposeOptimization : public ov::pass::ModelPass {
