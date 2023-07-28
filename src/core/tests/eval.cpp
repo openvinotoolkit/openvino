@@ -540,7 +540,7 @@ TEST(eval, evaluate_broadcast_v3_explicit_dyn) {
 TEST(eval, test_op_multi_out) {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});
     auto p2 = make_shared<op::Parameter>(element::f64, PartialShape{2, 2});
-    auto so = make_shared<TestOpMultiOut>(p, p2);
+    auto so = make_shared<ov::TestOpMultiOut>(p, p2);
     auto fun = make_shared<Function>(OutputVector{so->output(0), so->output(1)}, ParameterVector{p, p2});
     auto result = make_shared<HostTensor>(element::Type_t::f32, Shape{2, 3});
     auto result2 = make_shared<HostTensor>(element::Type_t::f64, Shape{2, 2});

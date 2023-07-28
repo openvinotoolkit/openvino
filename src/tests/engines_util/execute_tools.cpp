@@ -14,6 +14,28 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
+namespace ov {
+TestOpMultiOut::TestOpMultiOut(const Output<Node>& output_1, const Output<Node>& output_2) : Op({output_1, output_2}) {
+    validate_and_infer_types();
+}
+
+void TestOpMultiOut::validate_and_infer_types() {
+    set_output_size(2);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
+}
+
+std::shared_ptr<Node> TestOpMultiOut::clone_with_new_inputs(const OutputVector& new_args) const {
+    return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
+}
+
+bool TestOpMultiOut::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
+    inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());
+    return true;
+};
+}  // namespace ov
+
 // This function traverses the vector of ops and verifies that each op's dependencies (its inputs)
 // is located earlier in the vector. That is enough to be valid
 bool validate_list(const vector<shared_ptr<Node>>& nodes) {
@@ -65,10 +87,15 @@ shared_ptr<Function> make_test_graph() {
     return f0;
 }
 
-template <>
-void copy_data<bool>(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<bool>& data) {
-    std::vector<char> data_char(data.begin(), data.end());
-    copy_data(tv, data_char);
+template <typename T>
+void init_int_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max) {
+    size_t size = tv->get_element_count();
+    std::uniform_int_distribution<T> dist(min, max);
+    std::vector<T> vec(size);
+    for (T& element : vec) {
+        element = dist(engine);
+    }
+    tv->write(vec.data(), vec.size() * sizeof(T));
 }
 
 template <>
@@ -104,6 +131,17 @@ void init_int_tv<uint8_t>(ngraph::runtime::Tensor* tv, std::default_random_engin
     tv->write(vec.data(), vec.size() * sizeof(uint8_t));
 }
 
+template <typename T>
+void init_real_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max) {
+    size_t size = tv->get_element_count();
+    std::uniform_real_distribution<T> dist(min, max);
+    std::vector<T> vec(size);
+    for (T& element : vec) {
+        element = dist(engine);
+    }
+    tv->write(vec.data(), vec.size() * sizeof(T));
+}
+
 void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine) {
     element::Type et = tv->get_element_type();
     if (et == element::boolean) {
@@ -131,21 +169,6 @@ void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine
     } else {
         throw runtime_error("unsupported type");
     }
-}
-
-template <>
-string get_results_str(const std::vector<char>& ref_data, const std::vector<char>& actual_data, size_t max_results) {
-    stringstream ss;
-    size_t num_results = std::min(static_cast<size_t>(max_results), ref_data.size());
-    ss << "First " << num_results << " results";
-    for (size_t i = 0; i < num_results; ++i) {
-        ss << std::endl
-           << std::setw(4) << i << " ref: " << std::setw(16) << std::left << static_cast<int>(ref_data[i])
-           << "  actual: " << std::setw(16) << std::left << static_cast<int>(actual_data[i]);
-    }
-    ss << std::endl;
-
-    return ss.str();
 }
 
 ::testing::AssertionResult test_ordered_ops(shared_ptr<Function> f, const NodeVector& required_ops) {
@@ -176,10 +199,4 @@ string get_results_str(const std::vector<char>& ref_data, const std::vector<char
         }
     }
     return ::testing::AssertionSuccess();
-}
-
-bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
-    inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());
-    return true;
 }
