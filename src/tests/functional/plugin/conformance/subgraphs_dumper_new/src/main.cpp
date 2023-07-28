@@ -15,17 +15,16 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
-    // SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
 
-    std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
-    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
+    std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
     std::vector<std::string> models;
 
-    if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
+    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
         std::cout << msg << std::endl;
-        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
+        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
     }
     try {
         models = find_models(dirs, FLAGS_path_regex);
@@ -41,6 +40,9 @@ int main(int argc, char *argv[]) {
         caches.push_back(GraphCache::get());
     }
 
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(FLAGS_output_folder);
+    }
     std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
     // Upload previously cached graphs to cache
     if (!FLAGS_local_cache.empty()) {

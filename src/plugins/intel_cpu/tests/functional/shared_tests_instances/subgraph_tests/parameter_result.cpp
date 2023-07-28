@@ -12,7 +12,7 @@ namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTestLegacyApi,
                         ::testing::Combine(
                             ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ParameterResultSubgraphTestBase::getTestCaseName);
 
 const std::vector<ov::test::InputShape> inputShapes = {
@@ -24,7 +24,7 @@ const std::vector<ov::test::InputShape> inputShapes = {
 INSTANTIATE_TEST_SUITE_P(smoke_Check, ParameterResultSubgraphTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inputShapes),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ParameterResultSubgraphTestBase::getTestCaseName);
 
 }  // namespace

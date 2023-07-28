@@ -28,7 +28,7 @@ protected:
 
     void SetUp() override {
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
@@ -43,7 +43,7 @@ protected:
     };
 
     void TearDown() override {
-        CommonTestUtils::removeDir(test_artifacts_dir);
+        ov::test::utils::removeDir(test_artifacts_dir);
         OpCache::reset();
     }
 };
@@ -105,9 +105,9 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
         param->set_friendly_name("in_0");
         auto convert = std::make_shared<ov::op::v0::Convert>(param, ov::element::f16);
         convert->set_friendly_name("convert_0");
-        auto erf = std::make_shared<ov::op::v0::Erf>(convert);
-        erf->set_friendly_name("erf_0");
-        test_model_1 = std::make_shared<ov::Model>(erf, ov::ParameterVector{param});
+        auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convert);
+        shapeOf->set_friendly_name("shapeOf_0");
+        test_model_1 = std::make_shared<ov::Model>(shapeOf, ov::ParameterVector{param});
         test_model_1->set_friendly_name(test_model_name);
     }
     this->update_cache(test_model_1, test_model_path_1, false);
@@ -115,7 +115,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     ASSERT_EQ(m_ops_cache.size(), 2);
     for (const auto& cached_node : this->m_ops_cache) {
         ASSERT_TRUE(std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first) ||
-                    std::dynamic_pointer_cast<ov::op::v0::Erf>(cached_node.first));
+                    std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(cached_node.first));
         auto meta = cached_node.second;
         if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
@@ -127,6 +127,8 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             // check occurence
             ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 2);
             ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 3);
+            // max opset version for Convert - 1
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 3);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
             ASSERT_EQ(meta.get_input_info().begin()->first, "Convert-1_0");
@@ -142,9 +144,11 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             // check occurence
             ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 1);
             ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 2);
+            // max opset version for ShapeOf - 3
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 1);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
-            ASSERT_EQ(meta.get_input_info().begin()->first, "Erf-1_0");
+            ASSERT_EQ(meta.get_input_info().begin()->first, "ShapeOf-1_0");
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);

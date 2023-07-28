@@ -39,6 +39,8 @@ function(add_common_utils ADD_TARGET_NAME)
                 INCLUDES
                     PUBLIC
                         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    PRIVATE
+                        "${CMAKE_CURRENT_SOURCE_DIR}/src"
 
     )
 
@@ -53,7 +55,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
-        PCH PRIVATE "include/common_test_utils/precomp.hpp"
+        PCH PRIVATE "src/precomp.hpp"
     )
 
     # detecting regex support

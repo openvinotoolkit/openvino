@@ -34,7 +34,7 @@ const auto SpaceToBatch4D = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -64,7 +64,7 @@ const auto SpaceToBatch5D = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

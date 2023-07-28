@@ -115,13 +115,10 @@ xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadc
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
 xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
                                       " z should be converted to TileIE operation.")
-xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
-                                      "indices value that points to non-existing output tensor element")
 
 
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
-xfail_issue_49207 = xfail_test(reason="Model references undeclared parameters")
 xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
                                       "DESIRED: 3")
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
@@ -155,3 +152,4 @@ xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: z
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
+xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")

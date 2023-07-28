@@ -60,6 +60,7 @@
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/common_optimizations/select_with_one_value_condition.hpp>
 #include <transformations/common_optimizations/sequence_fusion.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -245,6 +246,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, MergeSimilarBranches);
+    REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
     manager.run_passes(f);
 

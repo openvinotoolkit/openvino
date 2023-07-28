@@ -152,7 +152,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
                 str != "cpu:unknown")
                 IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
-        // add default primitive priorities as a fallback for the custom ones
         const auto& defaultImplPriorities = getDefaultImplPriority();
         customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
@@ -471,6 +470,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
     SEARCH_TYPE(blas);
+    SEARCH_TYPE(mlas);
     SEARCH_TYPE(any);
     SEARCH_TYPE(uni);
 
@@ -665,11 +665,11 @@ void Node::initSupportedPrimitiveDescriptors() {
     };
 
     /* When custom implementation priorities are NOT defined it is enough to
-     * just use the first implementation from the priority list.
-     * When custom implementation priorities are defined, all the implementations should be considered,
-     * since custom implementations can be not available at all, so a fallback to the default ones must happen
-     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
-     * since oneDNN primitive is mutating while iterating */
+    * just use the first implementation from the priority list.
+    * When custom implementation priorities are defined, all the implementations should be considered,
+    * since custom implementations can be not available at all, so a fallback to the default ones must happen
+    * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+    * since oneDNN primitive is mutating while iterating */
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));

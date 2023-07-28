@@ -108,7 +108,8 @@ std::string permute_inst::to_string(permute_node const& node) {
 }
 
 permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
-        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+        parent(network, node, !node.can_be_optimized()
+                              && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())) {
     auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());

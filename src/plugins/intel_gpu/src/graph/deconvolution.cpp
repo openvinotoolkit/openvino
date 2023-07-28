@@ -187,13 +187,11 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             auto mem = memory_deps.at(2);
             auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
+            auto const_data =
+                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
             input_shapes.push_back(dims_shape);
-            output_shapes = ov::op::v1::shape_infer(
-                &op,
-                input_shapes,
-                pads_begin,
-                pads_end,
-                {{2, std::make_shared<ov::HostTensor>(ov::element::i64, dims_shape, dims.data())}});
+            output_shapes =
+                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
         } else {
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         }
@@ -213,13 +211,12 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             auto mem = memory_deps.at(2);
             auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
             auto dims_shape = ov::Shape{dims.size()};
+            auto const_data =
+                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
             input_shapes.push_back(dims_shape);
-            output_shapes = ov::op::v1::shape_infer(
-                &op,
-                input_shapes,
-                pads_begin,
-                pads_end,
-                {{2, std::make_shared<ov::HostTensor>(ov::element::i64, dims_shape, dims.data())}});
+
+            output_shapes =
+                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
         } else {
             output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
         }

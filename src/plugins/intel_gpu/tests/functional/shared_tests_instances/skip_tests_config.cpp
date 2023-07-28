@@ -62,6 +62,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVCompiledModelBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 114262
+            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.CompareWithRefs/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
             // TODO: Issue: 68712
@@ -137,8 +139,6 @@ std::vector<std::string> disabledTestPatterns() {
             // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
             // because it crashes in some random places during "reorder_inputs" pass.
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
-            // cvs-115052
-            R"(.*smoke_Multi.*canCreateContextThenRequestThenBlobsAndInfer.*)",
 #ifdef PROXY_PLUGIN_ENABLED
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",

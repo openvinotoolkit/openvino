@@ -43,7 +43,8 @@ TEST(TSSplit, Backward) {
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
         auto gather = make_gather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
         auto split_axis = Constant::create(element::i64, ov::Shape{}, ov::Shape{1});
-        auto split = std::make_shared<Split>(gather, split_axis, 1);
+        auto split_lengths = Constant::create(element::i64, ov::Shape{1}, ov::Shape{8});
+        auto split = std::make_shared<VariadicSplit>(gather, split_axis, split_lengths);
         auto reshape_const2 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 1, 2, 4});
         auto reshape2 = std::make_shared<Reshape>(split->output(0), reshape_const2, false);
         const auto result = std::make_shared<Result>(reshape2);

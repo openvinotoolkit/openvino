@@ -37,11 +37,11 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({config.inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({config.inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : config.inputShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "axis=" << config.axis << "_";
@@ -193,7 +193,7 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
 
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),
-                                              testing::Values(CommonTestUtils::DEVICE_CPU),
+                                              testing::Values(ov::test::utils::DEVICE_CPU),
                                               testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
 
 const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                  testing::ValuesIn(notOptimizedConfigsFP32),
-                                                 testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                 testing::Values(ov::test::utils::DEVICE_CPU),
                                                  testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
@@ -213,7 +213,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
 
 const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                 testing::ValuesIn(unsupportedConfigsFP32),
-                                                testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                testing::Values(ov::test::utils::DEVICE_CPU),
                                                 testing::Values(notOptimizedCPUSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,

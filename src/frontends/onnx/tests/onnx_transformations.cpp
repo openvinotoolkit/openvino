@@ -62,13 +62,13 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
 }
 }  // namespace
 
-NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
-    ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
+    ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/greater_or_equal.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/reference/"
                                                 "greater_or_equal_expanded.onnx");
@@ -78,13 +78,13 @@ NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
 }
 
 // Disabled, ticket: #81976
-NGRAPH_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
-    ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
+    ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/softmax_crossentropy_consumed.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/reference/"
                                                 "softmax_crossentropy_consumed_expanded.onnx");
