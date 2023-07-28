@@ -234,11 +234,13 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             has_xmm_block = true;
         }
 
+        if (!one_of(bytes_to_load, 0, 1, 2, 3, 4, 8, 16)) {
+            h->uni_vpxor(xmm, xmm, xmm);
+        }
         if (bytes_to_load >= 8 && bytes_to_load < 16)
             h->uni_vmovq(xmm, addr(start_bytes));
         else if (bytes_to_load == 16)
             h->uni_vmovdqu(xmm, addr(start_bytes));
-
         switch (bytes_to_load) {
             case 0: break;
             case 1:
