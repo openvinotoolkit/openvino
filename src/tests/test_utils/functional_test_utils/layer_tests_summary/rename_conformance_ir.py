@@ -202,6 +202,12 @@ def create_hash(in_dir_path: Path, operations=dict()):
             ports_info = ET.parse(meta_path).getroot().find("ports_info")
             str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
+            try:
+                model = ET.parse(meta_path).getroot().find("models").find("model")
+                str_to_hash += model.get('name')
+            except:
+                pass
+
             old_name = model_path
             new_name = str(sha256(str_to_hash.encode('utf-8')).hexdigest())
 
