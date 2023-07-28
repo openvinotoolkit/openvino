@@ -355,6 +355,22 @@ TYPED_TEST_P(ConvertI420BaseTest, shape_inference_error_2_planes) {
     EXPECT_THROW(empty->constructor_validate_and_infer_types(), ov::AssertFailure);
 }
 
+TYPED_TEST_P(ConvertI420BaseTest, shape_inference_2_plane_interval_dims_and_labels) {
+    auto param_shape_y = PartialShape{{2, 5}, {2, 20}, -1, 1};
+    auto param_shape_uv = PartialShape{{2, 3}, {2, 12}, 2, -1};
+    set_shape_labels(param_shape_y, 10);
+    set_shape_labels(param_shape_uv, 20);
+
+    auto param_y = std::make_shared<op::v0::Parameter>(element::f32, param_shape_y);
+    auto param_u = std::make_shared<op::v0::Parameter>(element::f32, param_shape_uv);
+    auto param_v = std::make_shared<op::v0::Parameter>(element::f32, param_shape_uv);
+    auto op = std::make_shared<TypeParam>(param_y, param_u, param_v);
+
+    EXPECT_EQ(op->output(0).get_partial_shape(), PartialShape({{2, 3}, {4, 20}, 4, 3}));
+    EXPECT_EQ(op->output(0).get_element_type(), element::f32);
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12, no_label));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ConvertI420BaseTest,
                             shape_inference_default_ctor_single_plane,
                             shape_inference_single_tensor,
@@ -389,4 +405,5 @@ REGISTER_TYPED_TEST_SUITE_P(ConvertI420BaseTest,
                             shape_inference_3_plane_error_width,
                             shape_inference_3_plane_error_width_odd,
                             shape_inference_3_plane_error_channels,
-                            shape_inference_error_2_planes);
+                            shape_inference_error_2_planes,
+                            shape_inference_2_plane_interval_dims_and_labels);
