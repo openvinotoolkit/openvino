@@ -192,6 +192,7 @@ protected:
         const size_t expected_count = additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES ? 1 : 0;
         CheckNumberOfNodesWithType(compiledModel, "Convert", expected_count);
         CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_count);
+        CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
     }
 };
 
