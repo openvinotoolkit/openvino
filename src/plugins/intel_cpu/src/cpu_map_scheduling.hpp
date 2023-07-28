@@ -54,7 +54,6 @@ bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
                      const int num_streams,
                      const threading::IStreamsExecutor::ThreadBindingType bind_type,
-                     const Config::LatencyThreadingMode latency_threading_mode,
                      const std::vector<std::vector<int>>& proc_type_table);
 
 }  // namespace intel_cpu

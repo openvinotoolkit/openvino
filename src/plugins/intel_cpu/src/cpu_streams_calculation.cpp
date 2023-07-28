@@ -439,7 +439,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                        config.changedCpuPinning,
                                                        streams,
                                                        executor_config._threadBindingType,
-                                                       config.latencyThreadingMode,
                                                        proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, config);
