@@ -40,7 +40,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     if (impl->is_dynamic()) {
         // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
         // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked format is not fully verified yet.
-        // So we need to enable other primiives such as convolution with verifying reorder b/w the possible layouts 
+        // So we need to enable other primiives such as convolution with verifying reorder b/w the possible layouts
         // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
         // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
         // This situation might be changed once onednn shape agnostic kernel is used in the future.
