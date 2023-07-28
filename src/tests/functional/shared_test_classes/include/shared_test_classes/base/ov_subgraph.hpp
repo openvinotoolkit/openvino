@@ -20,7 +20,7 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
-class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
+class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
     virtual void serialize();
@@ -69,6 +69,8 @@ protected:
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
+
+    friend void core_configuration(SubgraphBaseTest* test);
 };
 
 inline std::vector<InputShape> static_partial_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {

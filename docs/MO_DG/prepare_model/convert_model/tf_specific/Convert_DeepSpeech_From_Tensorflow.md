@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a DeepSpeech model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 `DeepSpeech project <https://github.com/mozilla/DeepSpeech>`__ provides an engine to train speech-to-text models.
 
 Downloading the Pretrained DeepSpeech Model
@@ -19,10 +24,10 @@ To download the model, follow the instruction below:
 
 * For UNIX-like systems, run the following command:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
-   wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
+     wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
+     wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
 
 * For Windows systems:
 

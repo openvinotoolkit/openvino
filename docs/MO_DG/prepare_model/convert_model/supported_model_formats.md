@@ -16,6 +16,10 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
 
+.. meta::
+   :description: In OpenVINO, ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite 
+                 models do not require any prior conversion, while MxNet, Caffe and Kaldi do.
+
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary format of OpenVINO™, benefiting from the full extent of its features.
 

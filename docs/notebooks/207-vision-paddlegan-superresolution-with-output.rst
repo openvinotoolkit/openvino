@@ -86,7 +86,7 @@ source code.
 
 .. parsed-literal::
 
-    [05/29 23:19:56] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [07/11 23:03:50] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -194,12 +194,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2023-05-29 23:20:02 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2023-07-11 23:03:56 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0529 23:20:02.063105 2574402 interpretercore.cc:267] New Executor is Running.
+    I0711 23:03:56.497538 3455488 interpretercore.cc:267] New Executor is Running.
 
 
 .. parsed-literal::
@@ -210,10 +210,10 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 13 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2023-05-29 23:20:05 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2023-07-11 23:04:00 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
-Convert ONNX Model to OpenVINO IR with `Model Optimizer Python API <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__
+Convert ONNX Model to OpenVINO IR with `Model Optimizer Python API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
@@ -273,7 +273,7 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f2169733e50>
+    <matplotlib.image.AxesImage at 0x7f8eb83c9550>
 
 
 
@@ -302,7 +302,7 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    Inference duration: 3.34 seconds
+    Inference duration: 3.26 seconds
 
 
 .. code:: ipython3
@@ -325,7 +325,7 @@ Do Inference on OpenVINO IR Model
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f2130210790>
+    <matplotlib.image.AxesImage at 0x7f8e44040460>
 
 
 

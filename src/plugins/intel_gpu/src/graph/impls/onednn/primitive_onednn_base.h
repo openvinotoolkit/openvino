@@ -14,6 +14,7 @@
 #include "register.hpp"
 #include "utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "runtime/ocl/ocl_event.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -46,16 +47,12 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             const ExecutionConfig& config,
             std::shared_ptr<dnnl::primitive_attr> attrs,
             const PrimDescType& pd,
-            kernel_selector::WeightsReorderParams weights_reorder = {})
-        : typed_primitive_impl<PType>(create_weights_reorder_params(weights_reorder), pd.impl_info_str()),
+            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
+        : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
         _engine(&engine),
         _attrs(attrs),
         _pd(pd) {
             _enable_profiling = config.get_property(ov::enable_profiling);
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-                _enable_profiling = true;
-            }
             build_primitive(config);
         }
 
@@ -443,13 +440,13 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
@@ -459,16 +456,6 @@ protected:
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return stream.enqueue_marker(events, is_output);
-    }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized())
@@ -485,8 +472,11 @@ protected:
         event::ptr event;
 
         if (_enable_profiling) {
-            stream.finish();
-            event = stream.create_user_event(false);
+            if (instance.can_be_optimized()) {
+                event = stream.create_user_event(true);
+            } else {
+                dnnl::reset_profiling(stream.get_onednn_stream());
+            }
         }
 
         if (!instance.can_be_optimized()) {
@@ -499,11 +489,24 @@ protected:
                 }
                 throw;    // rethrowing dnnl::error if not out_of_memory
             }
-        }
 
-        if (_enable_profiling) {
-            stream.finish();
-            event->set();
+            if (_enable_profiling) {
+                // Call wait() function here instead of finish() to prevent cache flushing,
+                // this synchronization point is needed for correct OneDNN's profiling process
+                stream.wait();
+
+                std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
+                OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
+                                                      "actual number is ", duration.size());
+
+                event = std::make_shared<ocl::ocl_event>(duration[0]);
+            } else {
+                // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
+                // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
+                // return it as oneDNN primitive's event as it is a single option for proper synchronization
+                if (instance.needs_completion_event())
+                    event = stream.enqueue_marker({});
+            }
         }
 
         return event;

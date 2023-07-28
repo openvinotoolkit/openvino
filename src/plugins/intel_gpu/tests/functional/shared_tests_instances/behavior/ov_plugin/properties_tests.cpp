@@ -31,22 +31,22 @@ const std::vector<ov::AnyMap> gpu_properties = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(gpu_properties)),
                          OVPropertiesTests::getTestCaseName);
 
 auto auto_multi_properties = []() {
     return std::vector<ov::AnyMap>{
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU),
          ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU),
          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU),
          ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("YES")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("YES")},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("NO")}};
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("YES")},
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::intel_auto::device_bind_buffer("NO")},
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("YES")},
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU), ov::intel_auto::enable_startup_fallback("NO")}};
 };
 
 const std::vector<ov::AnyMap> multi_properties = {{ov::device::priorities("CPU", "GPU")},
@@ -61,20 +61,20 @@ const std::vector<ov::AnyMap> auto_properties = {{ov::device::priorities("CPU", 
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
                          OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
-                                                              CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO,
+                                                              ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(auto_multi_properties())),
                          OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests,
                          OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(auto_properties)),
                          OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiBehaviorTests,
                          OVPropertiesTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multi_properties)),
                          OVPropertiesTests::getTestCaseName);
 
@@ -89,51 +89,51 @@ const std::vector<ov::AnyMap> gpu_compileModel_properties = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(gpu_setcore_properties),
                                             ::testing::ValuesIn(gpu_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> multi_setcore_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::HIGH)}};
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multi_setcore_properties),
                                             ::testing::ValuesIn(multi_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_setcore_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::HIGH)},
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::model_priority(ov::hint::Priority::HIGH)},
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::HIGH)},
 };
 const std::vector<ov::AnyMap> auto_compileModel_properties = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(auto_setcore_properties),
                                             ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
@@ -167,7 +167,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
-    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
                            {ov::device::uuid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
@@ -187,15 +187,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DE
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
                            {ov::hint::execution_mode.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 auto multiConfigs = []() {
     return std::vector<ov::AnyMap>{
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
-        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)},
+        {ov::device::priorities(ov::test::utils::DEVICE_GPU)},
     };
 };
 
@@ -793,7 +793,7 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ov::hint::execution_mode.name(),
     };
 
-    ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::caching_properties));
+    ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::internal::caching_properties));
 
     std::cout << "GPU Caching properties: " << std::endl;
     for (auto& prop : caching_properties) {
@@ -807,7 +807,7 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
                     caching_properties.end());
     }
 
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::caching_properties);
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -815,6 +815,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
                          ::testing::Values("GPU"));
 
 // GetConfig / SetConfig for specific device
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.0"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice1Test, OVSpecificDeviceSetConfigTest, ::testing::Values("GPU.1"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassSpecificDevice0Test, OVSpecificDeviceGetConfigTest, ::testing::Values("GPU.0"));
 

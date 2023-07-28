@@ -22,6 +22,4 @@ jobs:
           days-before-issue-stale: 274
           days-before-close: 7
           ascending: true
-          operations-per-run: 5000
-          repo-token: ${{ secrets.STALE_ISSUES_TOKEN }}
           exempt-pr-labels: 'no_stale'

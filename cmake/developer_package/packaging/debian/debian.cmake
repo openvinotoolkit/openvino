@@ -61,17 +61,9 @@ macro(ov_override_component_names)
     # merge C++ and C runtimes
     set(OV_CPACK_COMP_CORE_C "${OV_CPACK_COMP_CORE}")
     set(OV_CPACK_COMP_CORE_C_DEV "${OV_CPACK_COMP_CORE_DEV}")
-    # merge all pythons into a single component
-    set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
-    set(OV_CPACK_COMP_PYTHON_IE_API "${OV_CPACK_COMP_PYTHON_OPENVINO}")
-    set(OV_CPACK_COMP_PYTHON_NGRAPH "${OV_CPACK_COMP_PYTHON_OPENVINO}")
     # merge all C / C++ samples as a single samples component
     set(OV_CPACK_COMP_CPP_SAMPLES "samples")
     set(OV_CPACK_COMP_C_SAMPLES "${OV_CPACK_COMP_CPP_SAMPLES}")
-    # move requirements.txt to core-dev
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
-    # move core_tools to core-dev
-    # set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()
@@ -93,15 +85,26 @@ macro(ov_define_component_include_rules)
     # samples
     unset(OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL)
     set(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-    set(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    if(ENABLE_PYTHON_PACKAGING)
+        unset(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
     # python
+    if(ENABLE_PYTHON_PACKAGING)
+        # pack artifacts of setup.py install
+        unset(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL)
+    else()
+        set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    endif()
+    # we don't pack python components itself, we pack artifacts of setup.py install
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-    set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    # we don't need wheels in Debian packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
-    set(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
@@ -167,14 +170,17 @@ macro(ov_debian_specific_settings)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
         endif()
     endif()
+
+    # we don't need RPATHs, because libraries are search by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
 endmacro()
 
 ov_debian_specific_settings()
 
 # needed to override cmake auto generated files
-set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
-set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
-set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
+set(def_postinst "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postinst")
+set(def_postrm "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postrm")
+set(def_triggers "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/triggers")
 
 set(triggers_content "activate-noawait ldconfig\n\n")
 set(post_content "#!/bin/sh\n\nset -e;\nset -e\n\n")
@@ -310,7 +316,7 @@ macro(ov_debian_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "all")
+    set(CPACK_DEBIAN_${upper_case}_PACKAGE_ARCHITECTURE "all")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
     set(${comp_name}_copyright "generic")
 

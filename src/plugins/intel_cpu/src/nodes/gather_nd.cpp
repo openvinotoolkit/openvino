@@ -84,9 +84,9 @@ void GatherND::initSupportedPrimitiveDescriptors() {
 }
 
 void GatherND::prepareParams() {
-    auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
-    auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
+    auto idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input memory of 'data'.";
     if (!idxMemPtr || !idxMemPtr->isAllocated())
@@ -97,8 +97,8 @@ void GatherND::prepareParams() {
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
     attrs.srcDims = srcMemPtr->getStaticDims();
-    attrs.srcStrides = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    attrs.dstElementCount = dstMemPtr->GetShape().getElementsCount();
+    attrs.srcStrides = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
+    attrs.dstElementCount = dstMemPtr->getShape().getElementsCount();
     attrs.sliceRank =  idxMemPtr->getStaticDims().back();
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
@@ -136,7 +136,7 @@ void GatherND::execute(dnnl::stream strm) {
                   getChildEdgeAt(0)->getMemoryPtr());
 }
 
-void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
     if (dataLength > 1) {
         gatherBlocks(srcMemPtr, idxMemPtr, dstMemPtr);
         return;
@@ -149,10 +149,10 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPt
               OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));
 }
 
-void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -186,10 +186,10 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const 
 }
 
 template <typename dataType>
-void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr) {
-    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->GetPtr());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
-    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->GetPtr());
+void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
+    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->getData());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->getData());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

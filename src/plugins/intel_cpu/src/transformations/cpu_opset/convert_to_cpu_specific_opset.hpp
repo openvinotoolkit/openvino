@@ -3,7 +3,6 @@
 //
 
 #include <ngraph/pass/constant_folding.hpp>
-#include "common/pass/fc_bias_fusion.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "common/pass/reshape_fc_fusion.hpp"
@@ -35,7 +34,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
-    CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
     CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
@@ -43,7 +41,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     if (!ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         CPU_REGISTER_PASS_COMMON(manager, ReshapeFullyConnectedFusion);
     }
-    // after transformation "MoveEltwiseUpThroughDataMov" there can be Reshape sequences that should be eliminated or fused
+    // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});

@@ -31,39 +31,28 @@ Stable Diffusion v2: What’s new?
 The new stable diffusion model offers a bunch of new features inspired
 by the other models that have emerged since the introduction of the
 first iteration. Some of the features that can be found in the new model
-are: \* The model comes with a new robust encoder, OpenCLIP, created by
-LAION and aided by Stability AI; this version v2 significantly enhances
-the produced photos over the V1 versions. \* The model can now generate
-images in a 768x768 resolution, offering more information to be shown in
-the generated images. \* The model finetuned with
-`v-objective <https://arxiv.org/abs/2202.00512>`__. The
-v-parameterization is particularly useful for numerical stability
-throughout the diffusion process to enable progressive distillation for
-models. For models that operate at higher resolution, it is also
-discovered that the v-parameterization avoids color shifting artifacts
-that are known to affect high resolution diffusion models, and in the
-video setting it avoids temporal color shifting that sometimes appears
-with epsilon-prediction used in Stable Diffusion v1. \* The model also
-comes with a new diffusion model capable of running upscaling on the
-images generated. Upscaled images can be adjusted up to 4 times the
-original image. Provided as separated model, for more details please
-check
-`stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
-\* The model comes with a new refined depth architecture capable of
-preserving context from prior generation layers in an img2img setting.
-This structure preservation helps generate images that preserving forms
-and shadow of objects, but with different content. \* The model comes
-with an updated inpainting module built upon the previous model. This
-text-guided inpainting makes switching out parts in the image easier
-than before.
+are:
+
+* The model comes with a new robust encoder, OpenCLIP, created by LAION and aided by Stability AI; this version v2 significantly enhances the produced photos over the V1 versions.
+* The model can now generate images in a 768x768 resolution, offering more information to be shown in the generated images.
+* The model finetuned with `v-objective <https://arxiv.org/abs/2202.00512>`__. The v-parameterization is particularly useful for numerical stability throughout the diffusion process to enable progressive distillation for models. For models that operate at higher resolution, it is also discovered that the v-parameterization avoids color shifting artifacts that are known to affect high resolution diffusion models, and in the video setting it avoids temporal color shifting that sometimes appears with epsilon-prediction used in Stable Diffusion v1.
+* The model also comes with a new diffusion model capable of running upscaling on the images generated. Upscaled images can be adjusted up to 4 times the original image. Provided as separated model, for more details please check `stable-diffusion-x4-upscaler <https://huggingface.co/stabilityai/stable-diffusion-x4-upscaler>`__
+* The model comes with a new refined depth architecture capable of preserving context from prior generation layers in an img2img setting. This structure preservation helps generate images that preserving forms and shadow of objects, but with different content.
+* The model comes with an updated inpainting module built upon the previous model. This text-guided inpainting makes switching out parts in the image easier than before.
 
 This notebook demonstrates how to convert and run Stable Diffusion v2
 model using OpenVINO.
 
-Notebook contains the following steps: 1. Convert PyTorch models to ONNX
-format. 2. Convert ONNX models to OpenVINO IR format, using Model
-Optimizer tool. 3. Run Stable Diffusion v2 Text-to-Image pipeline with
-OpenVINO.
+Notebook contains the following steps:
+
+1. Convert PyTorch models to ONNX format.
+2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+3. Run Stable Diffusion v2 Text-to-Image pipeline with OpenVINO.
+
+**Note:** This is the full version of the Stable Diffusion text-to-image
+implementation. If you would like to get started and run the notebook
+quickly, check out
+`236-stable-diffusion-v2-text-to-image-demo.ipynb <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
 Prerequisites
 -------------
@@ -72,7 +61,7 @@ install required packages
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" openvino-dev "transformers >= 4.25.1"
+    !pip install -q "diffusers>=0.14.0" openvino-dev "transformers >= 4.25.1" gradio
 
 
 .. parsed-literal::
@@ -155,14 +144,14 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
 OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-to convert a model to IR format and compression weights to ``FP16``
-format.
+Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+to convert a model to IR format.
 
-The pipeline consists of three important parts: \* Text Encoder to
-create condition to generate an image from a text prompt. \* U-Net for
-step-by-step denoising latent image representation. \* Autoencoder (VAE)
-for decoding latent space to image.
+The pipeline consists of three important parts:
+
+* Text Encoder to create condition to generate an image from a text prompt.
+* U-Net for step-by-step denoising latent image representation.
+* Autoencoder (VAE) for decoding latent space to image.
 
 Let us convert each part:
 
@@ -232,7 +221,7 @@ this opset.
     
     if not TEXT_ENCODER_OV_PATH.exists():
         convert_encoder_onnx(text_encoder, TEXT_ENCODER_ONNX_PATH)
-        !mo --input_model $TEXT_ENCODER_ONNX_PATH --compress_to_fp16 --output_dir $sd2_1_model_dir
+        !mo --input_model $TEXT_ENCODER_ONNX_PATH --output_dir $sd2_1_model_dir
         print('Text Encoder successfully converted to IR')
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
@@ -264,7 +253,7 @@ this opset.
     Text Encoder successfully converted to ONNX
     Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/text_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/text_encoder.bin
@@ -277,10 +266,11 @@ U-Net
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
 
-U-Net model has three inputs: \* ``sample`` - latent image sample from
-previous step. Generation process has not been started yet, so you will
-use random noise. \* ``timestep`` - current scheduler step. \*
-``encoder_hidden_state`` - hidden state of text encoder.
+U-Net model has three inputs: 
+
+* ``sample`` - latent image sample from previous step. Generation process has not been started yet, so you will use random noise.
+* ``timestep`` - current scheduler step.
+* ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -340,7 +330,7 @@ such use cases required to modify number of input channels.
         convert_unet_onnx(unet, UNET_ONNX_PATH, width=96, height=96)
         del unet
         gc.collect()
-        !mo --input_model $UNET_ONNX_PATH --compress_to_fp16 --output_dir $sd2_1_model_dir
+        !mo --input_model $UNET_ONNX_PATH --output_dir $sd2_1_model_dir
         print('U-Net successfully converted to IR')
     else:
         del unet
@@ -370,7 +360,7 @@ such use cases required to modify number of input channels.
 
     U-Net successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/unet.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/unet.bin
@@ -442,7 +432,7 @@ RAM (recommended at least 32GB).
     
     if not VAE_ENCODER_OV_PATH.exists():
         convert_vae_encoder_onnx(vae, VAE_ENCODER_ONNX_PATH, 768, 768)
-        !mo --input_model $VAE_ENCODER_ONNX_PATH --compress_to_fp16 --output_dir $sd2_1_model_dir
+        !mo --input_model $VAE_ENCODER_ONNX_PATH --output_dir $sd2_1_model_dir
         print('VAE encoder successfully converted to IR')
     else:
         print(f"VAE encoder will be loaded from {VAE_ENCODER_OV_PATH}")
@@ -486,7 +476,7 @@ RAM (recommended at least 32GB).
     
     if not VAE_DECODER_OV_PATH.exists():
         convert_vae_decoder_onnx(vae, VAE_DECODER_ONNX_PATH, 96, 96)
-        !mo --input_model $VAE_DECODER_ONNX_PATH --compress_to_fp16 --output_dir $sd2_1_model_dir
+        !mo --input_model $VAE_DECODER_ONNX_PATH --output_dir $sd2_1_model_dir
         print('VAE decoder successfully converted to IR')
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
@@ -509,7 +499,7 @@ RAM (recommended at least 32GB).
 
     VAE encoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/vae_encoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/vae_encoder.bin
@@ -530,7 +520,7 @@ RAM (recommended at least 32GB).
 
     VAE decoder successfully converted to ONNX
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
+    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/2023.0/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/vae_decoder.xml
     [ SUCCESS ] BIN file: /home/ea/work/openvino_notebooks/notebooks/236-stable-diffusion-v2/sd2.1/vae_decoder.bin
@@ -543,10 +533,10 @@ Prepare Inference Pipeline
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
 
-.. figure:: https://user-images.githubusercontent.com/29454499/228472288-be6fecb6-5ab5-411f-86dc-0e9c482c733e.png
-   :alt: text2image stable diffusion v2
+.. figure:: https://github.com/openvinotoolkit/openvino_notebooks/assets/22090501/ec454103-0d28-48e3-a18e-b55da3fab381
+   :alt: text2img-stable-diffusion v2
 
-   text2image stable diffusion v2
+   text2img-stable-diffusion v2
 
 The stable diffusion model takes both a latent seed and a text prompt as
 input. The latent seed is then used to generate random latent image
@@ -578,19 +568,11 @@ Diffusion-Based Generative Models <https://arxiv.org/abs/2206.00364>`__.
 
 The chart above looks very similar to Stable Diffusion V1 from
 `notebook <225-stable-diffusion-text-to-image-with-output.html>`__,
-but there is some small difference in details: \* Changed input
-resolution for U-Net model. \* Changed text encoder and as the result
-size of its hidden state embeddings. \* Additionally, to improve image
-generation quality authors introduced negative prompting. Technically,
-positive prompt steers the diffusion toward the images associated with
-it, while negative prompt steers the diffusion away from it.In other
-words, negative prompt declares undesired concepts for generation image,
-e.g. if we want to have colorful and bright image, gray scale image will
-be result which we want to avoid, in this case grey scale can be treated
-as negative prompt. The positive and negative prompt are in equal
-footing. You can always use one with or without the other. More
-explanation of how it works can be found in this
-`article <https://stable-diffusion-art.com/how-negative-prompt-work/>`__.
+but there is some small difference in details:
+
+* Changed input resolution for U-Net model.
+* Changed text encoder and as the result size of its hidden state embeddings.
+* Additionally, to improve image generation quality authors introduced negative prompting. Technically, positive prompt steers the diffusion toward the images associated with it, while negative prompt steers the diffusion away from it.In other words, negative prompt declares undesired concepts for generation image, e.g. if we want to have colorful and bright image, gray scale image will be result which we want to avoid, in this case grey scale can be treated as negative prompt. The positive and negative prompt are in equal footing. You can always use one with or without the other. More explanation of how it works can be found in this `article <https://stable-diffusion-art.com/how-negative-prompt-work/>`__.
 
 .. code:: ipython3
 
@@ -980,65 +962,44 @@ Run Text-to-Image generation
 
 Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator
-seed for latent state initialization and number of steps. > **Note**:
-Consider increasing ``steps`` to get more precise results. A suggested
-value is ``50``, but it will take longer time to process.
+seed for latent state initialization and number of steps. 
+
+.. note::
+
+   Consider increasing ``steps`` to get more precise results. A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import gradio as gr
+    from socket import gethostbyname, gethostname
     
-    text_prompt = widgets.Textarea(value="valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k", description='positive prompt', layout=widgets.Layout(width="auto"))
-    negative_prompt = widgets.Textarea(value="frames, borderline, text, charachter, duplicate, error, out of frame, watermark, low quality, ugly, deformed, blur", description='negative prompt', layout=widgets.Layout(width="auto"))
-    num_steps = widgets.IntSlider(min=1, max=50, value=25, description='steps:')
-    seed = widgets.IntSlider(min=0, max=10000000, description='seed: ', value=42)
-    widgets.VBox([text_prompt, negative_prompt, seed, num_steps])
-
-
-
-
-.. parsed-literal::
-
-    VBox(children=(Textarea(value='valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k', descrip…
-
-
-
-.. code:: ipython3
-
-    print('Pipeline settings')
-    print(f'Input text: {text_prompt.value}')
-    print(f'Seed: {seed.value}')
-    print(f'Number of steps: {num_steps.value}')
-
-
-.. parsed-literal::
-
-    Pipeline settings
-    Input text: valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k
-    Seed: 42
-    Number of steps: 25
-
-
-.. code:: ipython3
-
-    result = ov_pipe(text_prompt.value, negative_prompt=negative_prompt.value, num_inference_steps=num_steps.value, seed=seed.value)
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/25 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
-
-    final_image = result['sample'][0]
-    final_image.save('result.png')
-    final_image
-
-
-
-
-.. image:: 236-stable-diffusion-v2-text-to-image-with-output_files/236-stable-diffusion-v2-text-to-image-with-output_23_0.png
-
-
+    
+    def generate(prompt, negative_prompt, seed, num_steps, _=gr.Progress(track_tqdm=True)):
+        result = ov_pipe(
+            prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=num_steps,
+            seed=seed,
+        )
+        return result["sample"][0]
+    
+    
+    gr.close_all()
+    demo = gr.Interface(
+        generate,
+        [
+            gr.Textbox(
+                "valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
+                label="Prompt",
+            ),
+            gr.Textbox(
+                "frames, borderline, text, charachter, duplicate, error, out of frame, watermark, low quality, ugly, deformed, blur",
+                label="Negative prompt",
+            ),
+            gr.Slider(value=42, label="Seed", maximum=10000000),
+            gr.Slider(value=25, label="Steps", minimum=1, maximum=50),
+        ],
+        "image",
+    )
+    ipaddr = gethostbyname(gethostname())
+    demo.queue().launch(server_name=ipaddr)

@@ -11,6 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "op/shape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -25,3 +26,4 @@ OutputVector shape(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

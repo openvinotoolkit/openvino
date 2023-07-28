@@ -13,7 +13,7 @@ namespace kernel_selector {
 struct eye_params : public base_params {
     eye_params() : base_params(KernelType::EYE) {}
 
-    std::int32_t diagonal_index;
+    std::int32_t diagonal_index = 0;
 };
 
 struct eye_optional_params : optional_params {

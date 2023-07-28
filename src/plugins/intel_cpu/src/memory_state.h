@@ -21,7 +21,7 @@ public:
         : InferenceEngine::IVariableStateInternal{name} {
         state = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->getDesc()));
         state->allocate();
-        cpu_memcpy(state->buffer(), storage->GetData(), storage->GetSize());
+        cpu_memcpy(state->buffer(), storage->getData(), storage->getSize());
     }
 
     void Reset() override;

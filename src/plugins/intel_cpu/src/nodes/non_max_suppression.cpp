@@ -723,20 +723,20 @@ void NonMaxSuppression::createJitKernel() {
 
 void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
-            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
+            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->getData())[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
-        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr()) = 0;
+        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->getData()) = 0;
         return;
     }
     execute(strm);
 }
 
 void NonMaxSuppression::execute(dnnl::stream strm) {
-    const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
-    const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
+    const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
+    const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
 
     if (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
-        maxOutputBoxesPerClass = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
+        maxOutputBoxesPerClass = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->getData())[0];
     }
 
     maxOutputBoxesPerClass = std::min(maxOutputBoxesPerClass, numBoxes);
@@ -746,20 +746,20 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (inputShapes.size() > NMS_IOUTHRESHOLD)
-        iouThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        iouThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->getData())[0];
 
     if (inputShapes.size() > NMS_SCORETHRESHOLD)
-        scoreThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        scoreThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->getData())[0];
 
     if (inputShapes.size() > NMS_SOFTNMSSIGMA)
-        softNMSSigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->GetPtr())[0];
+        softNMSSigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->getData())[0];
     scale = 0.0f;
     if (softNMSSigma > 0.0) {
         scale = -0.5f / softNMSSigma;
     }
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     const auto maxNumberOfBoxes = maxOutputBoxesPerClass * numBatches * numClasses;
     std::vector<filteredBoxes> filtBoxes(maxNumberOfBoxes);
@@ -804,10 +804,10 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
         redefineOutputMemory({newDims, newDims, {1}});
     }
 
-    int selectedIndicesStride = indicesMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    int selectedIndicesStride = indicesMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
 
-    int *selectedIndicesPtr = reinterpret_cast<int *>(indicesMemPtr->GetPtr());
-    float *selectedScoresPtr = reinterpret_cast<float *>(scoresMemPtr->GetPtr());
+    int *selectedIndicesPtr = reinterpret_cast<int *>(indicesMemPtr->getData());
+    float *selectedScoresPtr = reinterpret_cast<float *>(scoresMemPtr->getData());
 
     size_t idx = 0lu;
     for (; idx < validOutputs; idx++) {
@@ -827,7 +827,7 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);
     }
 
-    int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->getData());
     *valid_outputs = static_cast<int>(validOutputs);
 }
 

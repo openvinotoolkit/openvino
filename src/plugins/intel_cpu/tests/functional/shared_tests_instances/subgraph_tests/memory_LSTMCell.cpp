@@ -8,8 +8,6 @@
 namespace SubgraphTestsDefinitions {
     std::vector<ngraph::helpers::MemoryTransformation> transformation {
             ngraph::helpers::MemoryTransformation::NONE,
-            ngraph::helpers::MemoryTransformation::LOW_LATENCY,
-            ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
             ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
             ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API
     };
@@ -36,7 +34,7 @@ namespace SubgraphTestsDefinitions {
     INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(transformation),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::ValuesIn(input_sizes),
                                     ::testing::ValuesIn(hidden_sizes),

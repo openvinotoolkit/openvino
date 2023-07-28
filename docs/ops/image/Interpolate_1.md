@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about I420toRGB-8 - an image processing operation, which 
+                can be performed on two required tensors.
+
 **Versioned name**: *Interpolate-1*
 
 **Category**: *Image processing*
@@ -72,7 +76,8 @@ This is a scalar that specifies padding for each spatial dimension.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Interpolate" ...>
        <data axes="2,3" align_corners="0" pads_begin="0" pads_end="0" mode="linear"/>

@@ -40,7 +40,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
+        result << "_IS=" << ov::test::utils::vec2str(inputShape);
 
         return result.str();
     }
@@ -53,7 +53,7 @@ protected:
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
         // generate values with different dynamic ranges for different inputs to produce integer overload after Add
         const float valueLimit = (info.name() == "input1") ? 10.0 : 1.0;
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -valueLimit, valueLimit);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -valueLimit, valueLimit);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -83,7 +83,7 @@ protected:
         auto constant =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  inputShape,
-                                                 CommonTestUtils::generate_float_numbers(inputShape[1], -1.0f, 1.0f));
+                                                 ov::test::utils::generate_float_numbers(inputShape[1], -1.0f, 1.0f));
         auto mul = std::make_shared<ngraph::opset8::Multiply>(params[1], constant);
         auto lowNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-1.0f});
         auto highNodeMul = ngraph::builder::makeConstant<float>(ngPrc, {1}, {1.0f});
@@ -126,7 +126,7 @@ const std::vector<std::vector<size_t>> inputShapes = {{1, 128}};
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          AddOverloadCorrectionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShapes)),
                          AddOverloadCorrectionTest::getTestCaseName);

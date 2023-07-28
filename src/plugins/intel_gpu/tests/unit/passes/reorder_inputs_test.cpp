@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -13,6 +14,7 @@
 #include "dft_inst.h"
 #include "gather_inst.h"
 #include "border_inst.h"
+#include "reshape_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -255,6 +257,46 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     ASSERT_EQ(out_mem_ptr[7], 0.f);
 }
 
+TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 2, 7, 7, 384}, data_types::f32, format::bfwzyx };
+    auto in_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 7, 7, 384}, data_types::f32, format::bfwzyx });
+
+    auto in = rg.generate_random_1d<float>(in_memory->count(), -10, 10);
+
+    set_values<float>(in_memory, in);
+
+    topology topology;
+    topology.add(input_layout("input0", in_layout));
+    topology.add(permute("permute", input_info("input0"), {0, 1, 3, 2, 4, 5}));
+    topology.add(reshape("reshape", input_info("permute"), true, {1, 14, 14, 384}, {1, 14, 14, 384}));
+    topology.add(eltwise("eltw", input_info("reshape"), input_info("reshape"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+
+    ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
+    auto reshape_layout_in = prog->get_node("reshape").get_input_layouts()[0];
+    auto reshape_layout_out = prog->get_node("reshape").get_output_layout();
+
+    ASSERT_EQ(reshape_layout_in.format, format::bfwzyx);
+    ASSERT_EQ(reshape_layout_out.format, format::bfyx);
+
+    auto dep_id_of_reshape = prog->get_node("reshape").get_dependencies_ids()[0];
+    ASSERT_EQ(dep_id_of_reshape, "permute");
+
+    ov::PartialShape expected_out_shape{1, 14, 14, 384};
+    ASSERT_EQ(reshape_layout_out.get_partial_shape(), expected_out_shape);
+}
+
 // TODO Not yet implemented
 //TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
@@ -310,3 +352,77 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 //        ASSERT_EQ(out_mem_ptr[7], 44.f);
 //    }
 //}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(reorder_inputs, has_reshape_user) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+       return;
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 4, 4, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1, 1 } });
+
+    set_values(input, {
+        1.0f,  0.0f,  1.0f,  0.0f,
+        1.0f,  1.0f,  3.0f,  1.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+        0.0f,  2.0f,  1.0f,  1.0f,
+        1.0f,  0.0f,  0.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  2.0f,
+        3.0f,  1.0f,  1.0f,  1.0f,
+        0.0f,  0.0f,  3.0f,  1.0f,
+        2.0f,  0.0f,  1.0f,  1.0f,
+        3.0f,  3.0f,  1.0f,  0.0f,
+        2.0f,  1.0f,  1.0f,  0.0f,
+        3.0f,  2.0f,  1.0f,  2.0f,
+        1.0f,  0.0f,  2.0f,  0.0f,
+        1.0f,  0.0f,  3.0f,  3.0f,
+        3.0f,  1.0f,  0.0f,  0.0f,
+        1.0f,  1.0f,  0.0f,  2.0f,
+    });
+
+    set_values(weights, {
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+        2.0f,  1.0f,
+        0.0f,  0.0f,
+    });
+
+    set_values(biases, { 1.0f });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("weights", weights)),
+    topology.add(data("biases", biases)),
+    topology.add(convolution("conv", input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
+    topology.add(reshape("reshape1", input_info("conv"), false, { 1, 1, 3, 3, 3 }, { 1, 1, 3, 3, 3 }));
+    topology.add(permute("permute", input_info("reshape1"), { 0, 1, 2, 3, 4 }));
+    topology.add(reshape("reshape2", input_info("permute"), false, { 1, 3, 3, 3 }, { 1, 3, 3, 3 }));
+    topology.add(reorder("output", input_info("reshape2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    primitive_id out_id = "output";
+    auto output = network.execute();
+    auto out_l = network.get_output_layout(out_id);
+    auto out_mem = output.at(out_id).get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+    std::vector<int> ref_output = {
+        3, 2, 2, 6,  5,  6, 9, 4, 6,
+        5, 2, 5, 10, 9,  5, 7, 5, 4,
+        3, 4, 6, 6,  5, 10, 9, 4, 1
+    };
+
+    for (size_t x = 0; x < out_l.count(); ++x) {
+        ASSERT_EQ(static_cast<float>(ref_output[x]), output_ptr[x]);
+    }
+}
+#endif

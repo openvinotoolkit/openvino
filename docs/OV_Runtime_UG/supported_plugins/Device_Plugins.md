@@ -11,6 +11,11 @@
    openvino_docs_OV_UG_supported_plugins_GPU
    openvino_docs_OV_UG_supported_plugins_GNA
 
+.. meta::
+   :description: The list of types of devices and corresponding plugins which 
+                 are compatible with OpenVINO Runtime and support inference 
+                 of deep learning models.
+
 
 OpenVINO™ Runtime can infer deep learning models using the following device types:
 
@@ -29,20 +34,20 @@ Feature Support Matrix
 
 The table below demonstrates support of key features by OpenVINO device plugins.
 
- ========================================================================================= ============================ =============== ===============
-  Capability                                                                                CPU                         GPU             GNA            
- ========================================================================================= ============================ =============== ===============
-  :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes                         Yes             No            
-  :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes                         Yes             Partial       
-  :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No                          Yes             No            
-  :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes (Intel® x86-64 only)    Yes             No             
-  :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes                         Partial         Yes            
-  :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes                         Partial         No             
-  :doc:`Import/Export <openvino_ecosystem>`                                                 Yes                         No              Yes            
-  :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes                         Yes             No            
-  :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes                         No              Yes            
-  :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes                         Yes             No            
- ========================================================================================= ============================ =============== ===============
+========================================================================================= ============================ =============== ===============
+ Capability                                                                                CPU                         GPU             GNA            
+========================================================================================= ============================ =============== ===============
+ :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes                         Yes             No            
+ :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes                         Yes             Partial       
+ :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No                          Yes             No            
+ :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes (Intel® x86-64 only)    Yes             No             
+ :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes                         Partial         Yes            
+ :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes                         Partial         No             
+ :doc:`Import/Export <openvino_ecosystem>`                                                 Yes                         No              Yes            
+ :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes                         Yes             No            
+ :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes                         No              Yes            
+ :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes                         Yes             No            
+========================================================================================= ============================ =============== ===============
 
 For more details on plugin-specific feature limitations, see the corresponding plugin pages.
 
@@ -66,11 +71,14 @@ The OpenVINO Runtime API features dedicated methods of enumerating devices and t
 
 A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
 
-.. tab:: C++
+.. tab-set::
 
-    .. doxygensnippet:: docs/snippets/MULTI2.cpp
-       :language: cpp
-       :fragment: [part2]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI2.cpp
+         :language: cpp
+         :fragment: [part2]
 
 
 
@@ -87,12 +95,14 @@ For example, this is how two GPUs can be listed (iGPU is always GPU.0):
 
 So, the explicit configuration to use both would be "MULTI:GPU.1,GPU.0". Accordingly, the code that loops over all available devices of the "GPU" type only is as follows:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI3.cpp
-       :language: cpp
-       :fragment: [part3]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI3.cpp
+         :language: cpp
+         :fragment: [part3]
 
 
 

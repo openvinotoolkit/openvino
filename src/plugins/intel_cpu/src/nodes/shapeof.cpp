@@ -68,8 +68,6 @@ ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 }
 
 void ShapeOf::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -102,7 +100,7 @@ void ShapeOf::execute(dnnl::stream strm) {
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
         IE_THROW() << errorPrefix << "has inconsistent input shape and output size";
 
-    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     for (size_t i = 0; i < dimsCount; i++) {
         dst[i] = inDims[i];

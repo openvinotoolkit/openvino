@@ -12,14 +12,23 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd5051)
 endif()
 
-if (NOT OPENVINO_ARCH_X86_64)
-    set(EXCLUDED_SOURCE_PATHS_FOR_NON_X64 ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/convert_to_interaction.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/snipptes_mark_skipped.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/mul_add_to_fma.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+if (X86_64)
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
+else()
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+endif()
+
+if (NOT ENABLE_MLAS_FOR_CPU)
+    set(MLAS_LIBRARY "")
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+else()
+    set(MLAS_LIBRARY "mlas")
 endif()
 
 addIeTargetTest(
@@ -35,7 +44,7 @@ addIeTargetTest(
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
-            ${EXCLUDED_SOURCE_PATHS_FOR_NON_X64}
+            ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -47,10 +56,11 @@ addIeTargetTest(
             inference_engine_lp_transformations
             ov_shape_inference
             inference_engine_s
-            unitTestUtils
+            unit_test_utils
             ngraphFunctions
             snippetsNgraphFunctions
             snippets_test_utils
+            ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU

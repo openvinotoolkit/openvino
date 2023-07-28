@@ -82,12 +82,24 @@ def children(op, graph):
     return set(op for out in op.outputs for op in out.consumers())
 
 
+def collect_control_dependencies(graph):
+    control_dependents_map = {}
+    for op in graph.get_operations():
+        for control_input in op.control_inputs:
+            if control_input.name not in control_dependents_map:
+                control_dependents_map[control_input.name] = [op]
+            else:
+                control_dependents_map[control_input.name].append(op)
+    return control_dependents_map
+
+
 def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     placeholders = dict()
     variables = list()
     outputs = list()
     graph = load_graph(model_path, output_nodes_for_freeze)
     unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f']
+    control_dependents_map = collect_control_dependencies(graph)
     for node in graph.as_graph_def().node:
         if node.op == 'Placeholder':
             node_dict = dict()
@@ -98,7 +110,7 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
             placeholders[node.name] = node_dict
         if node.op == "Variable" or node.op == "VariableV2":
             variables.append(node.name)
-        if len(children(node.name, graph)) == 0:
+        if len(children(node.name, graph)) == 0 and node.name not in control_dependents_map:
             if node.op not in unlikely_output_types and node.name.split('/')[-1] not in unlikely_output_types:
                 outputs.append(node.name)
     result = dict()

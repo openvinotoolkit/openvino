@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 
 #include "ie_common.h"
+#include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 
 #ifndef _WIN32
@@ -77,7 +78,7 @@ std::string getIELibraryPathA() {
     if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             reinterpret_cast<LPSTR>(getIELibraryPath),
                             &hm)) {
-        IE_THROW() << "GetModuleHandle returned " << GetLastError();
+        OPENVINO_THROW("GetModuleHandle returned ", GetLastError());
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
@@ -119,7 +120,7 @@ std::wstring getIELibraryPathW() {
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             reinterpret_cast<LPCWSTR>(getIELibraryPath),
                             &hm)) {
-        IE_THROW() << "GetModuleHandle returned " << GetLastError();
+        OPENVINO_THROW("GetModuleHandle returned ", GetLastError());
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));

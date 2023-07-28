@@ -3,6 +3,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO toolkit workflow usually involves preparation, 
+                 optimization, and compression of models, running inference and 
+                 deploying deep learning applications.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

@@ -21,8 +21,7 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
 
     // params
     auto const_axis = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (!const_axis)
-        IE_THROW() << "Unsupported axis node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
@@ -42,7 +41,7 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     auto bufSize = scale->get_output_tensor(0).size();
 
     if (bufSize != constLayout.bytes_count())
-        IE_THROW() << "Invalid scales buffer in NormalizeL2 op " << op->get_friendly_name();
+        OPENVINO_THROW("Invalid scales buffer in NormalizeL2 op ", op->get_friendly_name());
 
     std::memcpy(&buf[0], scale->get_data_ptr(), bufSize);
     auto scalesName = layerName + "_cldnn_input_scales";

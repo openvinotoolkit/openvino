@@ -26,12 +26,11 @@ static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
     for (size_t i = 1; i < 4; ++i) {
         auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(i));
-        if (!inConst)
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        OPENVINO_ASSERT(inConst != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
         int32_t default_size = i == 1 ? 1 : 0;
-        for (size_t s = sizes.size(); s < rank; s++) {
+        for (size_t s = sizes.size(); s < format.dimension(); s++) {
             sizes.push_back(default_size);
         }
         tensor_inputs.emplace_back(format, sizes, default_size);

@@ -49,7 +49,8 @@ protected:
         actualFunction = ngraph::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,
                                                                             test_values.bias_shape,
-                                                                            layer_type);
+                                                                            layer_type,
+                                                                            false);
         SimpleLowPrecisionTransformer transformer;
         transformer.transform(actualFunction);
     }
@@ -58,7 +59,7 @@ protected:
 TEST_P(MarkupBiasTests, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
 
-    const auto addOps = LayerTransformation::get<opset1::Add>(actualFunction);
+    const auto addOps = LayerTransformation::get<ov::op::v1::Add>(actualFunction);
     EXPECT_EQ(1ul, addOps.size()) << "unexpected addOps size";
 
     const bool is_bias = std::get<1>(GetParam()).is_bias;

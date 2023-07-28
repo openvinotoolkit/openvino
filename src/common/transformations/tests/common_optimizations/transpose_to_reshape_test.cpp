@@ -42,7 +42,7 @@ struct ReferenceParams {
 };
 
 class TransposeToReshapeTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TransposeOrder, ReferenceParams>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -107,12 +107,12 @@ private:
 };
 
 TEST_P(TransposeToReshapeTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager m;
-    m.register_pass<pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::TransposeToReshape>();
-    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
@@ -207,13 +207,13 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto baseline_f = make_shared<Function>(transpose1, ParameterVector{param});
         auto optimized_f = baseline_f->clone();
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
-        m.register_pass<pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::Validate>();
+        m.register_pass<ov::pass::Validate>();
         m.register_pass<ov::pass::TransposeToReshape>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);

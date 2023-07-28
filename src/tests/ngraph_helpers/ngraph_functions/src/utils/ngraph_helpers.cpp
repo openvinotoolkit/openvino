@@ -895,14 +895,8 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
         case MemoryTransformation::LOW_LATENCY_V2:
             os << "LOW_LATENCY_V2";
             break;
-        case MemoryTransformation::LOW_LATENCY:
-            os << "LOW_LATENCY";
-            break;
         case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
             os << "LOW_LATENCY_V2_REGULAR_API";
-            break;
-        case MemoryTransformation::LOW_LATENCY_REGULAR_API:
-            os << "LOW_LATENCY_REGULAR_API";
             break;
         case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
             os << "LOW_LATENCY_V2_ORIGINAL_INIT";

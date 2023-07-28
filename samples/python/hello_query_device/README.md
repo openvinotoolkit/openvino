@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to show metrics and default 
+                 configuration values of inference devices using Query 
+                 Device (Python) API feature.
+
+
 This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using :doc:`Query Device API feature <openvino_docs_OV_UG_query_api>`.
 
 The following Python API is used in the application:
@@ -62,8 +68,6 @@ For example:
    [ INFO ]                CPU_THREADS_NUM: 0
    [ INFO ]                CPU_THROUGHPUT_STREAMS: 1
    [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT:
-   [ INFO ]                DYN_BATCH_ENABLED: NO
-   [ INFO ]                DYN_BATCH_LIMIT: 0
    [ INFO ]                ENFORCE_BF16: NO
    [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS: NO
    [ INFO ]                PERFORMANCE_HINT:

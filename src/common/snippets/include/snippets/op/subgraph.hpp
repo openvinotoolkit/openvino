@@ -104,12 +104,14 @@ public:
                                 ov::pass::Manager& pre_common,
                                 ov::pass::Manager& post_common,
                                 ov::pass::Manager& post_precision,
+                                lowered::pass::PassPipeline& target_lowered_markup_pipeline,
                                 lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
     snippets::Schedule generate(ov::pass::Manager& pre_common,
                                 ov::pass::Manager& post_common,
                                 ov::pass::Manager& post_precision,
+                                lowered::pass::PassPipeline& target_lowered_markup_pipeline,
                                 lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
@@ -136,7 +138,6 @@ public:
     // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
     // This check returns True if Constant op which is input of this op should be inside Subgraph body
     static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
-
     static bool check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept;
     // Return estimated unique buffer count (upper bound). It's needed for tokenization
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
@@ -145,7 +146,9 @@ public:
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void data_flow_transformations(ov::pass::Manager& pre_common, ov::pass::Manager& post_common, ov::pass::Manager& post_precision);
-    void control_flow_transformations(lowered::LinearIR& linear_ir, lowered::pass::PassPipeline& target_pipeline);
+    void control_flow_transformations(lowered::LinearIR& linear_ir,
+                                      lowered::pass::PassPipeline& target_markup_pipeline,
+                                      lowered::pass::PassPipeline& target_pipeline);
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)

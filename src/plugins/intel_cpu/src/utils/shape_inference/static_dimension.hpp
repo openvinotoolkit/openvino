@@ -42,6 +42,10 @@ public:
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
 
+    explicit operator size_t() const {
+        return m_dimension;
+    }
+
     static constexpr bool is_static() {
         return true;
     }

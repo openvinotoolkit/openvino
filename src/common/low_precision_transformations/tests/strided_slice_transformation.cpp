@@ -83,7 +83,7 @@ public:
             testValues.layerParams.elipsisMask);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::opset1::StridedSlice>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ov::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::StridedSliceFunction::getReference(
@@ -136,6 +136,8 @@ StridedSliceTransformationTestValues::LayerParams channelSlice = {
     {} // elipsisMask
 };
 
+namespace inputs_4d {
+
 StridedSliceTransformationTestValues::LayerParams channelSlice2D = {
     {0, 0},  // begin
     {0, 2},  // end
@@ -177,7 +179,7 @@ StridedSliceTransformationTestValues::LayerParams sliceWithRemovedAxis = {
     { 1, 0, 1, 1 }, // endMask
     { 0, 0, 0, 0 }, // newAxisMask
     { 0, 1, 0, 0 }, // shrinkAxisMask
-    { 0, 0, 0, 0 } // elipsisMask
+    { 0, 0, 0, 0 }  // elipsisMask
 };
 
 StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
@@ -191,7 +193,6 @@ StridedSliceTransformationTestValues::LayerParams sliceWithAdditionalAxis = {
     { 0, 0, 0, 0 } // elipsisMask
 };
 
-namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 24, 24},
     {-1, -1, -1, -1}
@@ -549,9 +550,9 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(stridedSliceTransformationTestValues)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues1
+} // namespace inputs_4d
 
-namespace testValues2 {
+namespace inputs_4d_spatial {
 const std::vector<ngraph::PartialShape> inputShapes = {
     { -1, -1, -1, -1 },
     { 1, 3, 4, 4 }
@@ -590,9 +591,9 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(testValuesWithDQBySpatialDimension)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues2
+} // namespace inputs_4d_spatial
 
-namespace testValues3 {
+namespace dynamic_inputs {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
     PartialShape::dynamic()
 };
@@ -637,5 +638,92 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapesWithDynamicChannels),
         ::testing::ValuesIn(testValues)),
     StridedSliceTransformation::getTestCaseName);
-} // namespace testValues3
+} // namespace dynamic_inputs
+
+namespace inputs_3d {
+const std::vector<ngraph::PartialShape> inputShapes = {
+    { 1, 3, 4 },
+    { 1, -1, 4 }
+};
+
+StridedSliceTransformationTestValues::LayerParams slice = {
+    { 0, 1 }, // begin
+    { 0, 2 }, // end
+    { 1, 1 }, // strided
+    { 1, 0 }, // beginMask
+    { 1, 0 }, // endMask
+    { 0, 0 }, // newAxisMask
+    { 0, 1 }, // shrinkAxisMask
+    { 0, 0 }  // elipsisMask
+};
+
+StridedSliceTransformationTestValues::LayerParams slice2 = {
+    { 0, 1 }, // begin
+    { 0, 2 }, // end
+    { 1, 1 }, // strided
+    { 1, 0 }, // beginMask
+    { 1, 0 }, // endMask
+    { 0, 0 }, // newAxisMask
+    { 0, 1 }, // shrinkAxisMask
+    { 0, 0 }  // elipsisMask
+};
+
+const std::vector<StridedSliceTransformationTestValues> testValuesWithDQBySpatialDimension = {
+    // U8: channel slice, quantization by spatial dimension
+    {
+        LayerTransformation::createParamsU8I8(),
+        slice,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4}},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 1, 4}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4}},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4}}
+            }
+        }
+    },
+    // U8: channel slice, quantization by spatial dimension
+    {
+        LayerTransformation::createParamsU8I8(),
+        slice2,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1}},
+                {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{2.f}, ngraph::element::f32, {}},
+                {{2.f}, ngraph::element::f32, {}}
+            }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    StridedSliceTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValuesWithDQBySpatialDimension)),
+    StridedSliceTransformation::getTestCaseName);
+} // namespace inputs_3d
+
 } // namespace

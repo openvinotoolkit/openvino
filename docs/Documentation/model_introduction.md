@@ -1,6 +1,11 @@
 # Model Preparation {#openvino_docs_model_processing_introduction}
 
 @sphinxdirective
+
+.. meta::
+   :description: Preparing models for OpenVINO Runtime. Learn how to convert and compile models from different frameworks or read them directly.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -16,7 +21,7 @@ Every deep learning workflow begins with obtaining a model. You can choose to pr
 
 There are several options to convert a model from original framework to OpenVINO model format (``ov.Model``).
 
-The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file formats, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in the OpenVINO IR format, it is read "as-is", without any conversion involved. ``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Post-Training Optimization tool <pot_introduction>` that applies post-training quantization methods.
+The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file formats, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in the OpenVINO IR format, it is read "as-is", without any conversion involved. ``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` that applies post-training quantization methods.
 
 Convert a model in Python
 ######################################

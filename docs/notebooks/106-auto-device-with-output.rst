@@ -2,21 +2,19 @@ Automatic Device Selection with OpenVINO™
 =========================================
 
 The `Auto
-device <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+device <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
+devices <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
 
 Next, if dedicated accelerators are available, these devices are
 preferred (for example, integrated and discrete
-`GPU <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__
-or
-`VPU <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_VPU.html>`__).
-`CPU <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
+`GPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u>`__).
+`CPU <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
 is used as the default “fallback device”. Keep in mind that AUTO makes
 this selection only once, during the loading of a model.
 
@@ -27,87 +25,17 @@ immediately on the CPU and then transparently shifts inference to the
 GPU, once it is ready. This dramatically reduces the time to execute
 first inference.
 
-.. raw:: html
-
-   <center>
-
-.. raw:: html
-
-   </center>
-
-Download and convert the model
-------------------------------
-
-This tutorial uses the
-`bvlc_googlenet <https://github.com/BVLC/caffe/tree/master/models/bvlc_googlenet>`__
-model. The bvlc_googlenet model is the first of the
-`Inception <https://github.com/tensorflow/tpu/tree/master/models/experimental/inception>`__
-family of models designed to perform image classification. Like other
-Inception models, bvlc_googlenet was pre-trained on the
-`ImageNet <https://image-net.org/>`__ data set. For more details about
-this family of models, see the `research
-paper <https://arxiv.org/abs/1512.00567>`__.
-
-.. code:: ipython3
-
-    import sys
-    
-    from pathlib import Path
-    from openvino.tools import mo
-    from openvino.runtime import serialize
-    from IPython.display import Markdown, display
-    
-    sys.path.append("../utils")
-    
-    import notebook_utils as utils
-    
-    base_model_dir = Path("./model").expanduser()
-    
-    model_name = "bvlc_googlenet"
-    caffemodel_name = f'{model_name}.caffemodel'
-    prototxt_name = f'{model_name}.prototxt'
-    
-    caffemodel_path = base_model_dir / caffemodel_name
-    prototxt_path = base_model_dir / prototxt_name
-    
-    if not caffemodel_path.exists() or not prototxt_path.exists():
-        caffemodel_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/googlenet-v1/bvlc_googlenet.caffemodel"
-        prototxt_url = "https://raw.githubusercontent.com/BVLC/caffe/88c96189bcbf3853b93e2b65c7b5e4948f9d5f67/models/bvlc_googlenet/deploy.prototxt"
-    
-        utils.download_file(caffemodel_url, caffemodel_name, base_model_dir)
-        utils.download_file(prototxt_url, prototxt_name, base_model_dir)
-    else:
-        print(f'{caffemodel_name} and {prototxt_name} already downloaded to {base_model_dir}')
-    
-    # postprocessing of model
-    text = prototxt_path.read_text()
-    text = text.replace('dim: 10', 'dim: 1')
-    res = prototxt_path.write_text(text)
-
-
-
-.. parsed-literal::
-
-    model/bvlc_googlenet.caffemodel:   0%|          | 0.00/51.1M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model/bvlc_googlenet.prototxt:   0%|          | 0.00/2.19k [00:00<?, ?B/s]
-
+.. image:: https://camo.githubusercontent.com/cc526c3f5fc992cc7176d097894303248adbd04b4d158bd98e65edc8270af5fc/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f31353730393732332f3136313435313834372d37353965326264622d373062632d343633642d393831382d3430306330636366336331362e706e67
 
 Import modules and create Core
 ------------------------------
 
 .. code:: ipython3
 
-    import cv2
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from openvino.runtime import Core, CompiledModel, AsyncInferQueue, InferRequest
-    import sys
     import time
+    import sys
+    from IPython.display import Markdown, display
+    from openvino.runtime import Core, CompiledModel, AsyncInferQueue, InferRequest
     
     ie = Core()
     
@@ -125,41 +53,50 @@ Import modules and create Core
 Convert the model to OpenVINO IR format
 ---------------------------------------
 
-Use Model Optimizer to convert the Caffe model to OpenVINO IR with
-``FP16`` precision. The models are saved to the ``model/ir_model/``
-directory. For more information about Model Optimizer, see the `Model
-Optimizer Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+This tutorial uses
+`resnet50 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#resnet50>`__
+model from
+`torchvision <https://pytorch.org/vision/main/index.html?highlight=torchvision#module-torchvision>`__
+library. ResNet 50 is image classification model pre-trained on ImageNet
+dataset described in paper `“Deep Residual Learning for Image
+Recognition” <https://arxiv.org/abs/1512.03385>`__. From OpenVINO
+2023.0, we can directly convert a model from the PyTorch format to the
+OpenVINO IR format using Model Optimizer. To convert model, we should
+provide model object instance into ``mo.convert_model`` function,
+optionally, we can specify input shape for conversion (by default models
+from PyTorch converted with dynamic input shapes). ``mo.convert_model``
+returns openvino.runtime.Model object ready to be loaded on device with
+``openvino.runtime.Core().compile_model`` or serialized for next usage
+with ``openvino.runtime.serialize``.
+
+For more information about Model Optimizer, see the `Model Optimizer
+Developer
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 .. code:: ipython3
 
-    ir_model_path = base_model_dir / 'ir_model' / f'{model_name}.xml'
-    model = None
+    import torchvision
+    from pathlib import Path
+    from openvino.tools import mo
+    from openvino.runtime import serialize
     
-    if not ir_model_path.exists():
-        model = mo.convert_model(input_model=base_model_dir / caffemodel_name,
-                                 input_proto=base_model_dir / prototxt_name,
-                                 input_shape=[1, 3, 224, 224],
-                                 layout="NCHW",
-                                 mean_values=[104.0,117.0,123.0],
-                                 output="prob",
-                                 compress_to_fp16=True)
-        serialize(model, str(ir_model_path))
-        print("IR model saved to {}".format(ir_model_path))
+    base_model_dir = Path("./model")
+    base_model_dir.mkdir(exist_ok=True)
+    model_path = base_model_dir / "resnet50.xml"
+    
+    if not model_path.exists():
+        pt_model = torchvision.models.resnet50(weights="DEFAULT")
+        ov_model = mo.convert_model(pt_model, input_shape=[[1,3,224,224]], compress_to_fp16=True)
+        serialize(ov_model, str(model_path))
+        print("IR model saved to {}".format(model_path))
     else:
-        print("Read IR model from {}".format(ir_model_path))
-        model = ie.read_model(ir_model_path)
+        print("Read IR model from {}".format(model_path))
+        ov_model = ie.read_model(model_path)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/numpy/lib/function_base.py:959: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
-      return array(a, order=order, subok=subok, copy=True)
-
-
-.. parsed-literal::
-
-    IR model saved to model/ir_model/bvlc_googlenet.xml
+    IR model saved to model/resnet50.xml
 
 
 (1) Simplify selection logic
@@ -177,7 +114,7 @@ By default, ``compile_model`` API will select **AUTO** as
     ie.set_property("AUTO", {"LOG_LEVEL":"LOG_INFO"})
     
     # Load the model onto the target device.
-    compiled_model = ie.compile_model(model=model)
+    compiled_model = ie.compile_model(ov_model)
     
     if isinstance(compiled_model, CompiledModel):
         print("Successfully compiled model without a device_name.")   
@@ -185,15 +122,6 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:35:25.7084]I[plugin.cpp:402][AUTO] load with CNN network
-    [22:35:25.7136]I[plugin.cpp:422][AUTO] device:CPU, config:EXCLUSIVE_ASYNC_REQUESTS=NO
-    [22:35:25.7137]I[plugin.cpp:422][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:35:25.7137]I[plugin.cpp:422][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:35:25.7137]I[plugin.cpp:422][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:35:25.7137]I[plugin.cpp:435][AUTO] device:CPU, priority:0
-    [22:35:25.7141]I[auto_schedule.cpp:103][AUTO] ExecutableNetwork start
-    [22:35:25.7145]I[auto_schedule.cpp:146][AUTO] select device:CPU
-    [22:35:25.8945]I[auto_schedule.cpp:188][AUTO] device:CPU loading Network finished
     Successfully compiled model without a device_name.
 
 
@@ -206,8 +134,6 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:35:25.9051]I[auto_schedule.cpp:509][AUTO] ExecutableNetwork end
-    [22:35:25.9052]I[multi_schedule.cpp:254][AUTO] CPU:infer:0
     Deleted compiled_model
 
 
@@ -222,7 +148,7 @@ improve readability of your code.
     # Set LOG_LEVEL to LOG_NONE.
     ie.set_property("AUTO", {"LOG_LEVEL":"LOG_NONE"})
     
-    compiled_model = ie.compile_model(model=model, device_name="AUTO")
+    compiled_model = ie.compile_model(model=ov_model, device_name="AUTO")
     
     if isinstance(compiled_model, CompiledModel):
         print("Successfully compiled model using AUTO.")
@@ -257,34 +183,30 @@ compilation. The challenge is with GPU devices since OpenCL graph
 complication to GPU-optimized kernels takes a few seconds to complete.
 This initialization time may be intolerable for some applications. To
 avoid this delay, the AUTO uses CPU transparently as the first inference
-device until GPU is ready. ### Load an Image
+device until GPU is ready.
+
+Load an Image
+~~~~~~~~~~~~~
+
+torchvision library provides model specific input transformation
+function, we will reuse it for preparing input data.
 
 .. code:: ipython3
 
-    # For demonstration purposes, load the model to CPU and get inputs for buffer preparation.
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    from PIL import Image
     
-    input_layer_ir = next(iter(compiled_model.inputs))
+    image = Image.open("../data/image/coco.jpg")
+    input_transform = torchvision.models.ResNet50_Weights.DEFAULT.transforms()
     
-    # Read image in BGR format.
-    image = cv2.imread("../data/image/coco.jpg")
-    
-    # N, C, H, W = batch size, number of channels, height, width.
-    N, C, H, W = input_layer_ir.shape
-    
-    # Resize image to the input size expected by the model.
-    resized_image = cv2.resize(image, (W, H))
-    
-    # Reshape to match the input shape expected by the model.
-    input_image = np.expand_dims(resized_image.transpose(2, 0, 1), 0)
-    
-    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    
-    del compiled_model
+    input_tensor = input_transform(image)
+    input_tensor = input_tensor.unsqueeze(0).numpy()
+    image
 
 
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_14_0.png
+
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_12_0.png
+
 
 
 Load the model to GPU device and perform inference
@@ -297,14 +219,10 @@ Load the model to GPU device and perform inference
     else :       
         # Start time.
         gpu_load_start_time = time.perf_counter()
-        compiled_model = ie.compile_model(model=model, device_name="GPU")  # load to GPU
-    
-        # Get input and output nodes.
-        input_layer = compiled_model.input(0)
-        output_layer = compiled_model.output(0)
+        compiled_model = ie.compile_model(model=ov_model, device_name="GPU")  # load to GPU
     
         # Execute the first inference.
-        results = compiled_model([input_image])[output_layer]
+        results = compiled_model(input_tensor)[0]
     
         # Measure time to the first inference.
         gpu_fil_end_time = time.perf_counter()
@@ -328,14 +246,10 @@ executed on CPU until GPU is ready.
 
     # Start time.
     auto_load_start_time = time.perf_counter()
-    compiled_model = ie.compile_model(model=model)  # The device_name is AUTO by default.
-    
-    # Get input and output nodes.
-    input_layer = compiled_model.input(0)
-    output_layer = compiled_model.output(0)
+    compiled_model = ie.compile_model(model=ov_model)  # The device_name is AUTO by default.
     
     # Execute the first inference.
-    results = compiled_model([input_image])[output_layer]
+    results = compiled_model(input_tensor)[0]
     
     
     # Measure time to the first inference.
@@ -346,7 +260,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.15 seconds.
+    Time to load model using AUTO device and get first inference: 0.18 seconds.
 
 
 .. code:: ipython3
@@ -367,9 +281,9 @@ completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
 For more information, refer to the `Performance
-Hints <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
+Hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
 section of `Automatic Device
-Selection <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 article.
 
 Class and callback definition
@@ -484,7 +398,7 @@ Loop for inference and update the FPS/Latency every
     print("Compiling Model for AUTO device with THROUGHPUT hint")
     sys.stdout.flush()
     
-    compiled_model = ie.compile_model(model=model, config={"PERFORMANCE_HINT":"THROUGHPUT"})
+    compiled_model = ie.compile_model(model=ov_model, config={"PERFORMANCE_HINT":"THROUGHPUT"})
     
     infer_queue = AsyncInferQueue(compiled_model, 0)  # Setting to 0 will query optimal number by default.
     infer_queue.set_callback(completion_callback)
@@ -493,7 +407,7 @@ Loop for inference and update the FPS/Latency every
     sys.stdout.flush()
     
     while THROUGHPUT_hint_context.feed_inference:
-        infer_queue.start_async({input_layer_ir.any_name: input_image}, THROUGHPUT_hint_context)
+        infer_queue.start_async(input_tensor, THROUGHPUT_hint_context)
         
     infer_queue.wait_all()
     
@@ -510,12 +424,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  461.74fps, latency:  24.68ms, time interval: 10.01s
-    throughput:  470.76fps, latency:  24.89ms, time interval: 10.00s
-    throughput:  470.13fps, latency:  24.96ms, time interval: 10.01s
-    throughput:  470.19fps, latency:  24.89ms, time interval: 10.00s
-    throughput:  471.13fps, latency:  24.87ms, time interval: 10.00s
-    throughput:  469.51fps, latency:  24.92ms, time interval: 10.00s
+    throughput:  190.70fps, latency:  29.76ms, time interval: 10.02s
+    throughput:  191.95fps, latency:  30.48ms, time interval: 10.00s
+    throughput:  192.78fps, latency:  30.40ms, time interval: 10.00s
+    throughput:  191.39fps, latency:  30.62ms, time interval: 10.00s
+    throughput:  192.18fps, latency:  30.44ms, time interval: 10.03s
+    throughput:  191.33fps, latency:  30.62ms, time interval: 10.00s
     Done
 
 
@@ -532,7 +446,7 @@ Loop for inference and update the FPS/Latency for each
     print("Compiling Model for AUTO Device with LATENCY hint")
     sys.stdout.flush()
     
-    compiled_model = ie.compile_model(model=model, config={"PERFORMANCE_HINT":"LATENCY"})
+    compiled_model = ie.compile_model(model=ov_model, config={"PERFORMANCE_HINT":"LATENCY"})
     
     # Setting to 0 will query optimal number by default.
     infer_queue = AsyncInferQueue(compiled_model, 0)
@@ -542,7 +456,7 @@ Loop for inference and update the FPS/Latency for each
     sys.stdout.flush()
     
     while LATENCY_hint_context.feed_inference:
-        infer_queue.start_async({input_layer_ir.any_name: input_image}, LATENCY_hint_context)
+        infer_queue.start_async(input_tensor, LATENCY_hint_context)
         
     infer_queue.wait_all()
     
@@ -559,12 +473,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  250.83fps, latency:  3.62ms, time interval: 10.00s
-    throughput:  253.12fps, latency:  3.70ms, time interval: 10.00s
-    throughput:  250.90fps, latency:  3.73ms, time interval: 10.00s
-    throughput:  249.98fps, latency:  3.74ms, time interval: 10.00s
-    throughput:  248.29fps, latency:  3.77ms, time interval: 10.00s
-    throughput:  255.00fps, latency:  3.67ms, time interval: 10.00s
+    throughput:  136.99fps, latency:  6.75ms, time interval: 10.00s
+    throughput:  140.91fps, latency:  6.74ms, time interval: 10.01s
+    throughput:  140.83fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.90fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.83fps, latency:  6.74ms, time interval: 10.00s
+    throughput:  140.85fps, latency:  6.74ms, time interval: 10.00s
     Done
 
 
@@ -573,6 +487,8 @@ Difference in FPS and latency
 
 .. code:: ipython3
 
+    import matplotlib.pyplot as plt
+    
     TPUT = 0
     LAT = 1
     labels = ["THROUGHPUT hint", "LATENCY hint"]
@@ -600,7 +516,7 @@ Difference in FPS and latency
 
 
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_27_0.png
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_25_0.png
 
 
 .. code:: ipython3
@@ -634,5 +550,5 @@ Difference in FPS and latency
 
 
 
-.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_28_0.png
+.. image:: 106-auto-device-with-output_files/106-auto-device-with-output_26_0.png
 

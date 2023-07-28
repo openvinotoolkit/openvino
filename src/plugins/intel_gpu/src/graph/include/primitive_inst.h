@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -20,6 +19,7 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "runtime/kernels_cache.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
@@ -98,7 +98,6 @@ struct primitive_impl {
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
-    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
@@ -149,13 +148,25 @@ public:
     primitive_id id() const { return _id; }
     primitive_id org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
+    void set_can_be_optimized(bool optimized) {
+        // TODO: consolidate to _impl_param in the future
+        _impl_params->_can_be_optimized = optimized;
+         this->_can_be_optimized = optimized;
+    }
     std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
+    virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
+    std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
+        std::vector<primitive_id> users;
+        for (auto u : get_users()) {
+            users.push_back(u->id());
+        }
+        return _network.get_primitives(users);
+    }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -199,6 +210,8 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+    void do_runtime_in_place_concat();
+    void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
@@ -215,12 +228,13 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-    bool is_output_event() const { return _is_output_event; }
+    bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
-
-    void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true);
+    bool has_node() const { return _node != nullptr; }
+    bool has_inner_networks() const;
+    void allocate_internal_buffers(bool reset = true);
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
+            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -242,6 +256,9 @@ public:
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
     }
+    void set_inner_networks(const std::vector<network::ptr> inner_nets) {
+        _impl_params->inner_nets = inner_nets;
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -257,6 +274,8 @@ protected:
     program_node const* _node;
     layout _node_output_layout;
 
+    bool update_shape_done_by_other = false;
+    bool allocation_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
@@ -266,6 +285,8 @@ protected:
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
     std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
 
+    // List of depandant shape_of primitives for shape_of subgraphs
+    std::vector<std::shared_ptr<primitive_inst>> dependant_shape_of_insts;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
@@ -312,13 +333,13 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
-    bool _is_output_event = false;
+    bool _needs_completion_event = false;
 
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true);
-    memory::ptr allocate_internal_buffer(size_t idx);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
+    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

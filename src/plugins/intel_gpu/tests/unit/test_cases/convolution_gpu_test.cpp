@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
@@ -2396,12 +2397,13 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
     //  rnd  rnd
 
     size_t batch = 1, input_f = 1, input_y = 4, input_x = 4;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<float> input_rnd = generate_random_4d<float>(batch, input_f, input_y, input_x, -10, 10);
+    VVVVF<float> input_rnd = rg.generate_random_4d<float>(batch, input_f, input_y, input_x, -10, 10);
     VF<float> input_rnd_vec = flatten_4d<float>(format::yxfb, input_rnd);
-    VVVVF<float> filter_rnd = generate_random_4d<float>(1, 1, 2, 2, -10, 10);
+    VVVVF<float> filter_rnd = rg.generate_random_4d<float>(1, 1, 2, 2, -10, 10);
     VF<float> filter_rnd_vec = flatten_4d<float>(format::bfyx, filter_rnd);
-    VF<float> bias_rnd = generate_random_1d<float>(1, -10, 10);
+    VF<float> bias_rnd = rg.generate_random_1d<float>(1, -10, 10);
     VVVVF<float> output_rnd(batch, VVVF<float>(filter_rnd.size()));
     for (size_t b = 0; b < output_rnd.size(); ++b) {
         for (size_t of = 0; of < filter_rnd.size(); ++of) {
@@ -2466,12 +2468,13 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
     //  rnd  rnd
 
     size_t batch = 2, input_f = 1, input_y = 2, input_x = 2;
+    tests::random_generator rg(GET_SUITE_NAME);
 
-    VVVVF<float> input_rnd = generate_random_4d<float>(batch, input_f, input_y, input_x, -10, 10);
+    VVVVF<float> input_rnd = rg.generate_random_4d<float>(batch, input_f, input_y, input_x, -10, 10);
     VF<float> input_rnd_vec = flatten_4d<float>(format::yxfb, input_rnd);
-    VVVVF<float> filter_rnd = generate_random_4d<float>(1, 1, 2, 2, -10, 10);
+    VVVVF<float> filter_rnd = rg.generate_random_4d<float>(1, 1, 2, 2, -10, 10);
     VF<float> filter_rnd_vec = flatten_4d<float>(format::bfyx, filter_rnd);
-    VF<float> bias_rnd = generate_random_1d<float>(1, -10, 10);
+    VF<float> bias_rnd = rg.generate_random_1d<float>(1, -10, 10);
     VVVVF<float> output_rnd(batch, VVVF<float>(filter_rnd.size()));
     for (size_t b = 0; b < output_rnd.size(); ++b) {
         for (size_t of = 0; of < filter_rnd.size(); ++of) {
@@ -5042,6 +5045,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_gpu_test,
 
 TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -5063,13 +5067,13 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     const int output_xy = 1 + (input_xy + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -5088,7 +5092,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5192,6 +5196,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 }
 
 TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -5209,13 +5214,13 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     const int output_xy = 1 + (input_xy - filter_xy) / stride;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -5233,7 +5238,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
 
     // Generate bias data
     auto biases_size = tensor(1, output_f, 1, 1);
-    auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+    auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
     auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
     set_values(biases_mem, biases_data);
 
@@ -5331,6 +5336,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_gpu_with_crop,
 
 TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -5352,13 +5358,13 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     const int output_xy = 1 + (input_xy + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // ref input
-    auto half_input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto half_input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data = VVVVF<FLOAT16>(batch_num);
 
     // concatenated cldnn input tensor
@@ -5403,7 +5409,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5533,6 +5539,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     const int input_size_x = 1280;
     const int input_size_y = 720;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (engine.get_device_info().supports_immad) {
@@ -5541,20 +5548,20 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     }
 
     auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
-    auto input_data = generate_random_4d<float>(batch_num, input_f, input_size_y, input_size_x, -10, 10);
+    auto input_data = rg.generate_random_4d<float>(batch_num, input_f, input_size_y, input_size_x, -10, 10);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, input_size });
     set_values(input, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<int8_t>(output_f, input_f, filter_xy, filter_xy, -10, 10);
+    auto weights_data = rg.generate_random_4d<int8_t>(output_f, input_f, filter_xy, filter_xy, -10, 10);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, weights_size });
     set_values(weights, weights_data_bfyx);
 
     auto biases_size = tensor(1, output_f, 1, 1);
-    auto biases_data = generate_random_4d<int8_t>(1, output_f, 1, 1, -10, 10);
+    auto biases_data = rg.generate_random_4d<int8_t>(1, output_f, 1, 1, -10, 10);
     auto biases_data_bfyx = flatten_4d(format::bfyx, biases_data);
     auto biases = engine.allocate_memory({ data_types::i8, format::bfyx, biases_size });
     set_values(biases, biases_data_bfyx);
@@ -5625,7 +5632,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
 TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 {
-
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -5653,14 +5660,14 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     const int output_y = 1 + (input_size_y + 2 * pad - filter_xy) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_size_y, input_size_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_size_y, input_size_x, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
 
@@ -5678,7 +5685,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5865,6 +5872,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_gpu_block3D,
 
 TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int batch_num = testing::get<0>(GetParam());
@@ -5881,13 +5889,13 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
         input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
-    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data = rg.generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
-    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -5908,7 +5916,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1, 1);
-        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<float>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -5997,6 +6005,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
 TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -6019,14 +6028,14 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
         input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
 
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfzyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6047,7 +6056,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfzyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6135,6 +6144,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
 
 TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6151,13 +6161,13 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
         input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
-    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data = rg.generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
-    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6178,7 +6188,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1, 1);
-        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<float>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f32, format::bfzyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6299,6 +6309,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_gpu_block,
 
 TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6319,13 +6330,13 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
     }
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data = rg.generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6346,7 +6357,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<float>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f32, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6457,15 +6468,16 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
         return;
     }
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
 
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6486,7 +6498,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6571,6 +6583,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
 TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -6590,13 +6603,13 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     const int pad = filter_xy / 2;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data = rg.generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
-    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
 
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
 
@@ -6617,7 +6630,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     {
         // Generate bias data
         auto biases_size = tensor(1, output_f, 1, 1, 1);
-        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<float>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f32, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -6745,6 +6758,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_fs_b_yx_fsv32,
 
 TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -6770,13 +6784,13 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(groups), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -6887,6 +6901,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16,
 
 TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -6913,13 +6928,13 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7017,6 +7032,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16_1d_depthwise_co
 
 TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -7044,13 +7060,13 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
     const int output_x = 1 + (input_x + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7233,6 +7249,7 @@ struct convolution_depthwise_gpu_bfyx : public convolution_depthwise_gpu {};
 
 TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -7259,13 +7276,13 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7437,6 +7454,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
                         convolution_grouped_gpu::PrintToStringParamName);
 
 TEST_P(convolution_grouped_gpu, base) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int input_x = testing::get<0>(GetParam()),
@@ -7465,7 +7483,7 @@ TEST_P(convolution_grouped_gpu, base) {
     auto num_in_spatial_dims = input_data_format.spatial_num();
 
     auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z));
-    auto input_rnd = generate_random_5d<int8_t>(batch_num, input_f, input_z, input_y, input_x, -127, 127);
+    auto input_rnd = rg.generate_random_5d<int8_t>(batch_num, input_f, input_z, input_y, input_x, -127, 127);
 
     auto input_lay = layout(data_types::i8, format::bfzyx, input_size);
     if (num_in_spatial_dims == 2) {
@@ -7487,7 +7505,7 @@ TEST_P(convolution_grouped_gpu, base) {
     auto input_zp_rnd = std::vector<int8_t>(input_f);
     auto input_zp_prim_name = "";
     if (has_input_zp) {
-        input_zp_rnd = generate_random_1d<int8_t>(input_f, -127, 127);
+        input_zp_rnd = rg.generate_random_1d<int8_t>(input_f, -127, 127);
         input_zp_prim_name = "input_zp";
     }
     auto input_zp_lay = layout(data_types::i8, format::bfyx, tensor(feature(input_f)));
@@ -7496,7 +7514,7 @@ TEST_P(convolution_grouped_gpu, base) {
 
     auto weights_size = tensor(group(groups), batch(output_f / groups), feature(input_f / groups), spatial(filter_x, filter_y, filter_z));
 
-    VVVVVVF<int8_t> weights_rnd = generate_random_6d<int8_t>(groups, output_f / groups, input_f / groups, filter_z, filter_y, filter_x, -127, 127);
+    VVVVVVF<int8_t> weights_rnd = rg.generate_random_6d<int8_t>(groups, output_f / groups, input_f / groups, filter_z, filter_y, filter_x, -127, 127);
     auto weights_lay = layout(data_types::i8, format::goizyx, weights_size);
     if (num_in_spatial_dims == 2) {
         weights_lay = layout(data_types::i8, format::goiyx, weights_size);
@@ -7518,7 +7536,7 @@ TEST_P(convolution_grouped_gpu, base) {
     auto weights_zp_rnd = std::vector<int8_t>(output_f);
     auto weights_zp_prim_name = "";
     if (has_weights_zp) {
-        weights_zp_rnd = generate_random_1d<int8_t>(output_f, -127, 127);
+        weights_zp_rnd = rg.generate_random_1d<int8_t>(output_f, -127, 127);
         weights_zp_prim_name = "weights_zp";
     }
     auto weights_zp_lay = layout(data_types::i8, format::bfyx, tensor(batch(output_f)));
@@ -7682,6 +7700,7 @@ INSTANTIATE_TEST_SUITE_P(conv_fp16_cases,
                         convolution_general_gpu::PrintToStringParamName);
 
 TEST_P(convolution_general_gpu, conv_fp16_cases) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -7707,13 +7726,13 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7725,7 +7744,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     // Calculate reference values
     if (with_bias) {
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -7844,6 +7863,7 @@ INSTANTIATE_TEST_SUITE_P(conv_b_fs_yx_fsv16_to_bfyx,
 
 TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16)
@@ -7866,13 +7886,13 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     const std::ptrdiff_t pad_x = (filter_x - 1) / 2;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(input_b, input_f, filter_x, filter_y, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::oiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -7943,6 +7963,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
 
 TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16)
@@ -7965,13 +7986,13 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     const std::ptrdiff_t pad_x = (filter_x - 1) / 2;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(input_b, input_f, filter_x, filter_y, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, filter_x, filter_y, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -8353,22 +8374,24 @@ public:
     }
 
     virtual void param_set_up(const convolution_random_test_all_params& params) {
+        auto& rg = get_random_generator();
+        rg.set_seed(GET_SUITE_NAME);
         auto wei_in_f = params.input_features / params.groups;
 
-        auto input_data = generate_random_4d<InputT>(
+        auto input_data = rg.template generate_random_4d<InputT>(
             params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
         if (params.grouped_weights_shape) {
-            auto weights_data = generate_random_5d<WeightsT>(
+            auto weights_data = rg.template generate_random_5d<WeightsT>(
                 params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
             this->set_grouped_weights(std::move(weights_data));
         } else {
-            auto weights_data = generate_random_4d<WeightsT>(
+            auto weights_data = rg.template generate_random_4d<WeightsT>(
                 params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
             this->set_weights(std::move(weights_data));
         }
-        auto bias_data = params.with_bias ? generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
-        auto weights_zp_data = params.asymmetric_weights ? generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
-        auto input_zp_data = params.asymmetric_data ? generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
+        auto bias_data = params.with_bias ? rg.template generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
+        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
+        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
         this->set_bias(std::move(bias_data));
@@ -8388,6 +8411,9 @@ public:
         VVVVF<OutputT> expected = calculate_reference();
         ASSERT_NO_FATAL_FAILURE(this->run_expect(expected));
     }
+
+    tests::random_generator _rg;
+    tests::random_generator& get_random_generator() { return _rg; }
 };
 
 // construct a readable name in format as follows:
@@ -8608,8 +8634,9 @@ public:
     void param_set_up(const convolution_random_test_all_params& params) override {
         parent::param_set_up(params);
 
-        _scale = generate_random_1d<OutputT>(this->output_features(), -1, 1);
-        _shift = generate_random_1d<OutputT>(this->output_features(), 128, 128);
+        auto& rg = this->get_random_generator();
+        _scale = rg.template generate_random_1d<OutputT>(this->output_features(), -1, 1);
+        _shift = rg.template generate_random_1d<OutputT>(this->output_features(), -128, 128);
     }
 protected:
     VF<OutputT> _scale;
@@ -8834,7 +8861,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 class convolution_test : public tests::generic_test {
 public:
+    tests::random_generator rg;
 
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+    
     static void TearDownTestCase() {
         all_generic_params.clear();
         all_layer_params.clear();
@@ -8974,21 +9006,21 @@ public:
         // Update inputs.
         auto input = inputs[0];
         auto input_size = inputs[0]->get_layout().get_tensor();
-        VVVVF<Type> input_rnd = generate_random_4d<Type>(input_size.batch[0], input_size.feature[0], input_size.spatial[1], input_size.spatial[0], -2, 2, k);
+        VVVVF<Type> input_rnd = rg.generate_random_4d<Type>(input_size.batch[0], input_size.feature[0], input_size.spatial[1], input_size.spatial[0], -2, 2, k);
         VF<Type> input_rnd_vec = flatten_4d<Type>(input->get_layout().format, input_rnd);
         set_values(input, input_rnd_vec);
 
         // Update weights.
         auto weight_input = inputs[1];
         auto weight_size = inputs[1]->get_layout().get_tensor();
-        VVVVF<Type> weight_rnd = generate_random_4d<Type>(weight_size.batch[0], weight_size.feature[0], weight_size.spatial[1], weight_size.spatial[0], -2, 2, k);
+        VVVVF<Type> weight_rnd = rg.generate_random_4d<Type>(weight_size.batch[0], weight_size.feature[0], weight_size.spatial[1], weight_size.spatial[0], -2, 2, k);
         VF<Type> weight_rnd_vec = flatten_4d<Type>(weight_input->get_layout().format, weight_rnd);
         set_values(weight_input, weight_rnd_vec);
 
         // Update biases.
         auto bias_input = inputs[2];
         auto bias_size = inputs[2]->get_layout().get_tensor();
-        VF<Type> bias_rnd = generate_random_1d<Type>(bias_size.spatial[0], -2, 2, k);
+        VF<Type> bias_rnd = rg.generate_random_1d<Type>(bias_size.spatial[0], -2, 2, k);
         set_values(bias_input, bias_rnd);
     }
 
@@ -9178,6 +9210,7 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
 
 
 TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
@@ -9203,13 +9236,13 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -9221,7 +9254,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     // Calculate reference values
     if (with_bias) {
         auto biases_size = tensor(1, output_f, 1, 1);
-        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
         auto biases_mem = engine.allocate_memory({ data_types::f16, format::bfyx, biases_size });
         set_values(biases_mem, biases_data);
 
@@ -9292,12 +9325,14 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
-    network.execute();
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(2));
+    ASSERT_TRUE(outputs.find("conv_fsv") != outputs.end());
 
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = get_output_values_to_float<FLOAT16>(network, "conv_fsv");
+    auto out_ptr = get_output_values_to_float<FLOAT16>(network, outputs.find("conv_fsv")->second);
     auto out_lay = network.get_node_output_layout("conv_fsv");
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
@@ -9328,17 +9363,18 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     if (!engine.get_device_info().supports_immad)
         return;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     int input_b = 1, input_f = 16, input_y = 3, input_x = 3;
     int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
 
     auto input_size = tensor(input_b, input_f, input_x, input_y);
-    auto input_data = generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data = rg.generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(16, 16, 1, 1, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, 1, 1, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, 1, 1, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
@@ -9407,15 +9443,16 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     if (!engine.get_device_info().supports_immad)
         return;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     ov::PartialShape input_pshape = {1, 16, 6};
     ov::PartialShape weights_pshape = {16, 16, 3};
     layout in_layout{ input_pshape, data_types::f16, format::bfyx };
     layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
-    auto input_data = generate_random_1d<FLOAT16>(in_layout.count(), -1, 1);
+    auto input_data = rg.generate_random_1d<FLOAT16>(in_layout.count(), -1, 1);
     auto input_mem = engine.allocate_memory(in_layout);
     set_values(input_mem, input_data);
 
-    auto weights_data = generate_random_1d<FLOAT16>(weights_layout.count(), -1, 1);
+    auto weights_data = rg.generate_random_1d<FLOAT16>(weights_layout.count(), -1, 1);
     auto weights_mem = engine.allocate_memory(weights_layout);
     set_values(weights_mem, weights_data);
 
@@ -9656,10 +9693,71 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
         }
 }
 
+TEST(convolution_gpu_onednn, has_proper_synchronization) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    layout in_layout{{1, 16, 2, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weights_mem = engine.allocate_memory({{16, 16, 1, 1}, data_types::f32, format::bfyx});
+
+    auto in_data = rg.generate_random_4d<float>(1, 16, 2, 4, -1, 1);
+    auto weights_data = rg.generate_random_4d<float>(16, 16, 1, 1, -1, 1);
+
+    set_values(input_mem, flatten_4d(format::bfyx, in_data));
+    set_values(weights_mem, flatten_4d(format::bfyx, weights_data));
+
+    auto create_topology =[&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        topology.add(activation("activation", input_info("conv"), activation_func::relu));
+        topology.add(reorder("reorder", input_info("conv"), in_layout));
+        return topology;
+    };
+
+    auto topology_ref = create_topology();
+    auto topology_test = create_topology();
+
+    auto impl_desc_cpu = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"conv", impl_desc_onednn}, {"activation", impl_desc_cpu}};
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto config_test = config_ref;
+    config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net_test(engine, topology_test, config_test);
+    net_test.set_input_data("input", input_mem);
+    auto outputs_test = net_test.execute();
+    auto res_test = outputs_test.at("activation").get_memory();
+
+    network net_ref(engine, topology_ref, config_ref);
+    net_ref.set_input_data("input", input_mem);
+    auto outputs_ref = net_ref.execute();
+    auto res_ref = outputs_ref.at("activation").get_memory();
+
+    ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
+
+    cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
+    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+
+    for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
+        ASSERT_EQ(test_mem[i], ref_mem[i]);
+    }
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
 void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(bool is_caching_test) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int batch_num = 1;
@@ -9685,13 +9783,13 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(
     }
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<T>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = rg.generate_random_4d<T>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<T>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<T>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);

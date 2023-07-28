@@ -15,11 +15,11 @@
 
 #include <vector>
 
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace testing;
@@ -625,15 +625,15 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equ
     ov::TensorLabel expected_labels{20, 0, 0, 0};
 
     auto eq_table = table_of_equivalence->get_equivalence_table();
-    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::unordered_set<ov::label_t>{20});
-    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::unordered_set<ov::label_t>{10});
+    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::set<ov::label_t>({10, 20}));
+    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::set<ov::label_t>({10, 20}));
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TYPED_TEST_P(ArithmeticOperator, labels_different_fully_dynamic_batch_broadcast_numpy) {
-    // Both params have fully dynamic dimension and different abels
+    // Both params have fully dynamic dimension and different labels
     Dimension dim_0_A = Dimension(-1);
     Dimension dim_0_B = Dimension(-1);
 

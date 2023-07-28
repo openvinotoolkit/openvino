@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+                 macOS operating systems, using a PyPi package.
+
+
 Using the PyPI repository, you can install either OpenVINO™ Runtime or OpenVINO Development Tools on Windows, Linux, and macOS systems.
 This article focuses on OpenVINO™ Runtime.
 
@@ -25,19 +30,19 @@ To create a virtual environment, use the following command:
 
 .. tab-set::
 
-    .. tab-item:: Linux and macOS
-       :sync: linmac
-
-       .. code-block:: sh
-
-          python3 -m venv openvino_env
-
     .. tab-item:: Windows
-       :sync: win
+       :sync: windows
 
        .. code-block:: sh
 
           python -m venv openvino_env
+
+    .. tab-item:: Linux and macOS
+       :sync: linux-and-macos
+
+       .. code-block:: sh
+
+          python3 -m venv openvino_env
 
 
 Step 2. Activate Virtual Environment
@@ -46,19 +51,19 @@ Step 2. Activate Virtual Environment
 
 .. tab-set::
 
-    .. tab-item:: Linux and macOS
-       :sync: linmac
-
-       .. code-block:: sh
-
-          source openvino_env/bin/activate
-
     .. tab-item:: Windows
-       :sync: win
+       :sync: windows
 
        .. code-block:: sh
 
           openvino_env\Scripts\activate
+
+    .. tab-item:: Linux and macOS
+       :sync: linux-and-macos
+
+       .. code-block:: sh
+
+          source openvino_env/bin/activate
 
 
 .. important::
@@ -113,9 +118,9 @@ Get started with Python
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`___
-* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`___
-* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`___
+* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 Run OpenVINO on accelerated devices
 +++++++++++++++++++++++++++++++++++
@@ -127,6 +132,5 @@ Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 @endsphinxdirective

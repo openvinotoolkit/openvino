@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a Cascade RCNN R-101 
+                 model from Pytorch to the OpenVINO Intermediate Representation.
+
+
 The goal of this article is to present a step-by-step guide on how to convert a PyTorch Cascade RCNN R-101 model to OpenVINO IR. First, you need to download the model and convert it to ONNX.
 
 Downloading and Converting Model to ONNX

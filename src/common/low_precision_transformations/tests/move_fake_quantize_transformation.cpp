@@ -135,14 +135,14 @@ public:
                                                                           oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ngraph::opset1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         ov::pass::Manager manager;
@@ -199,7 +199,7 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    const auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
         << "PrecisionsAttribute are not the same";
 }

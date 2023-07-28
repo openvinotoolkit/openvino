@@ -32,7 +32,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
+        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->getData());
         const int H = in_data[0];
         const int W = in_data[1];
         const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
@@ -106,13 +106,13 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 bool PriorBoxClustered::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
-    if (memory->GetShape().isDynamic()) {
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
+    if (memory->getShape().isDynamic()) {
         return true;
     }
 
-    const auto& outputShape = memory->GetShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->GetPtr());
+    const auto& outputShape = memory->getShape().getStaticDims();
+    const int* in_data = reinterpret_cast<int*>(memory->getData());
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
@@ -143,11 +143,11 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
     int img_height = in_image[0];
     int img_width = in_image[1];
 
@@ -158,8 +158,8 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto& out_shape = getChildEdgeAt(0)->getMemory().GetShape().getStaticDims();
+    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
     parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {

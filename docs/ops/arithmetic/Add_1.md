@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Add-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Add-1*
 
 **Category**: *Arithmetic binary*
@@ -49,7 +53,8 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Add">
        <data auto_broadcast="none"/>
@@ -73,7 +78,8 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 2: broadcast*
 
-.. code-block:: console
+.. code-block:: xml
+   :force:
    
    <layer ... type="Add">
        <data auto_broadcast="numpy"/>

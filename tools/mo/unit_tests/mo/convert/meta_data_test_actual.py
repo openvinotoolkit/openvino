@@ -39,7 +39,7 @@ class MetaDataTestTF(unittest.TestCase):
             assert key in ref_meta, "Unexpected runtime info attribute: {}".format(key)
 
     def test_meta_data_tf(self):
-        def create_tf_model():
+        def create_tf_model(out_dir):
             import tensorflow as tf
 
             tf.compat.v1.reset_default_graph()
@@ -53,13 +53,14 @@ class MetaDataTestTF(unittest.TestCase):
 
                 tf.compat.v1.global_variables_initializer()
                 tf_net = sess.graph_def
-            return tf_net
+            tf.io.write_graph(tf_net, out_dir + os.sep, 'model_bool.pb', as_text=False)
+            return out_dir + os.sep + 'model_bool.pb'
 
         def ref_meta_data():
             return {
                 'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
-                'legacy_frontend': "True",
+                'legacy_frontend': "False",
                 'conversion_parameters': {
                     'scale': "1.5",
                     'batch': "1"
@@ -67,11 +68,11 @@ class MetaDataTestTF(unittest.TestCase):
             }
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-            model = create_tf_model()
+            model = create_tf_model(tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
             ref_meta = ref_meta_data()
 
-            ov_model = convert_model(model, scale=1.5, batch=1, use_legacy_frontend=True)
+            ov_model = convert_model(model, scale=1.5, batch=1)
             self.check_meta_data(ov_model, ref_meta)
 
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))

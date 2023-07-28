@@ -53,7 +53,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    ASSERT_NE(0, transformation.size());
 //    const size_t originalSize = transformation.size();
 //
-//    transformations.removeCleanup<ngraph::pass::low_precision::FuseConvertTransformation, ngraph::opset1::Multiply>();
+//    transformations.removeCleanup<ngraph::pass::low_precision::FuseConvertTransformation, ov::op::v1::Multiply>();
 //    transformation = transformations.find("Multiply");
 //    ASSERT_EQ(originalSize - 1, transformation.size());
 //}
@@ -64,7 +64,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    ASSERT_NE(0, transformation.size());
 //    const size_t originalSize = transformation.size();
 //
-//    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>();
+//    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, ov::op::v1::Multiply>();
 //    transformation = transformations.find("Multiply");
 //    ASSERT_EQ(originalSize - 1, transformation.size());
 //}

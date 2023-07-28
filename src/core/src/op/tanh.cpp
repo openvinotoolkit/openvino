@@ -4,6 +4,7 @@
 
 #include "ngraph/op/tanh.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
@@ -30,29 +31,20 @@ shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) c
 
 namespace tanhop {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::tanh<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
+struct Evaluate : ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+        ngraph::runtime::reference::tanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        return true;
+    }
+};
 
 bool evaluate_tanh(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
     out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_tanh, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tanh, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tanh, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tanh, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tanh, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tanh, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<Evaluate>(arg0->get_element_type(), arg0, out, count);
 }
 }  // namespace
 }  // namespace tanhop

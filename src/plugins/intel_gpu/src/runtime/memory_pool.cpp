@@ -55,13 +55,12 @@ void memory_pool::release_memory(memory* mem, const primitive_id& id, uint32_t n
     auto type = mem->get_allocation_type();
 
     {
-        auto range = _non_padded_pool.equal_range(_layout.bytes_count());
-        auto it = range.first;
+        auto it = _non_padded_pool.lower_bound(_layout.bytes_count());
 
-        while (it != range.second && it != _non_padded_pool.end()) {
+        while (it != _non_padded_pool.end()) {
             if (it->second._network_id == network_id &&
                 it->second._type == type &&
-                it->second._memory.get() == mem) {
+                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
                 auto user_it = it->second._users.find({ id, network_id });
 
                 // normally there should be only one entry

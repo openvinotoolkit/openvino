@@ -21,9 +21,8 @@ namespace intel_gpu {
 
 static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
-    if (networkInputs.find(op->get_friendly_name()) == networkInputs.end()) {
-        IE_THROW() << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";
-    }
+    OPENVINO_ASSERT(networkInputs.find(op->get_friendly_name()) != networkInputs.end(),
+                    "[GPU] Can't find input ", op->get_friendly_name(), " in InputsDataMap");
 
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
@@ -61,7 +60,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
     if ((meanChannels > 0) &&
         (meanChannels != static_cast<size_t>(networkInputLayout.feature()))) {
-        IE_THROW() << "Mismatched mean values channels in input " << inputName;
+        OPENVINO_THROW("Mismatched mean values channels in input ", inputName);
     }
 
     switch (preProcess.getMeanVariant()) {
@@ -70,14 +69,14 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (meanChannels > 0) {
             for (size_t c = 0; c < meanChannels; c++) {
                 if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                    IE_THROW() << "not supporting stdScale yet in input " << inputName;
+                    OPENVINO_THROW("not supporting stdScale yet in input ", inputName);
                 meanValues.push_back(preProcess[c]->meanValue);
             }
         }
         break;
     }
     case MEAN_IMAGE: {
-        IE_ASSERT(meanChannels);
+        OPENVINO_ASSERT(meanChannels);
         // first merge all mean values to a single blob
         // todo make sure mean blob precision is the same as the input precision
         auto meanDims = input_pshape;
@@ -86,7 +85,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         case 4: meanDims[0] = 1;
             break;
         default:
-            IE_THROW() << "Missing batch dimensions in input image";
+            OPENVINO_THROW("Missing batch dimensions in input image");
         }
         const TensorDesc desc(Precision::FP32, meanDims.to_shape(), TensorDesc::getLayoutByDims(meanDims.to_shape()));
         TBlob<float> meanBlob(desc);
@@ -94,7 +93,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         auto meanBlobData = meanBlob.data();
         for (size_t c = 0; c < meanChannels; c++) {
             if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                IE_THROW() << "not supporting stdScale yet in input " << inputName;
+                OPENVINO_THROW("not supporting stdScale yet in input ", inputName);
             auto channelMeanBlob = std::dynamic_pointer_cast<TBlob<float>>(preProcess[c]->meanData);
             auto channelSize = channelMeanBlob->size();
             auto channelBlobData = channelMeanBlob->data();
@@ -128,7 +127,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         }
         break;
     }
-    default: IE_THROW() << "Invalid mean variant in input " << inputName;
+    default: OPENVINO_THROW("Invalid mean variant in input ", inputName);
         break;
     }
 
@@ -205,95 +204,44 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
         p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
     } else {
-        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
-            // for NV12, create two input layouts with reorder instead of one,
-            // and then would expect compound blob in inferRequest
-            if (InferenceEngine::Layout::NCHW != l &&
-               (InferenceEngine::Precision::I8 != ip || InferenceEngine::Precision::U8 != ip)) {
-                IE_THROW() << "Unsupported layout (" << l << ") or precision "
-                                   << ip.name() << ") for NV12 input " + inputInfo->name();
-            }
-            int height = input_pshape[2].get_length();
-            int width = input_pshape[3].get_length();
-            size_t batch = input_pshape[0].get_length();
-            std::vector<cldnn::input_info> reorders;
+        auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
+        cldnn::layout inputLayout(networkInputLayout);
+        auto network_input_data_type = DataTypeFromPrecision(ip);
+        inputLayout.data_type = network_input_data_type;
+        p.inputLayouts.insert({ inputInfo->name(), inputLayout });
 
-            for (size_t i = 0; i < batch; i++) {
-                auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
-                std::string y_name = inputName + "_Y" + std::to_string(i);
-                std::string uv_name = inputName + "_UV" + std::to_string(i);
+        p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
 
-                cldnn::layout y_layout(DataTypeFromPrecision(ip),
-                                       cldnn::format::nv12, { 1, 1, width, height });
-                cldnn::layout uv_layout(DataTypeFromPrecision(ip),
-                                        cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
-                auto inputY = cldnn::input_layout(y_name, y_layout);
-                auto inputUV = cldnn::input_layout(uv_name, uv_layout);
-
-                p.add_primitive(*op, inputY);
-                p.inputLayouts.insert({ inputInfo->name() + "_Y" + std::to_string(i), y_layout });
-                p.add_primitive(*op, inputUV);
-                p.inputLayouts.insert({ inputInfo->name() + "_UV" + std::to_string(i), uv_layout });
-                switch (preProcess.getMeanVariant()) {
-                case NONE:
-                case MEAN_VALUE: {
-                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        cldnn::input_info(y_name),
-                                                        cldnn::input_info(uv_name),
-                                                        networkInputLayout,
-                                                        meanValues,
-                                                        cldnn::reorder_mean_mode::subtract), {inputName});
-                    break;
-                }
-                case MEAN_IMAGE: {
-                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        cldnn::input_info(y_name),
-                                                        cldnn::input_info(uv_name),
-                                                        networkInputLayout,
-                                                        meanBlobID,
-                                                        cldnn::reorder_mean_mode::subtract), {inputName});
-                    break;
-                }
-                default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;
-                    break;
-                }
-
-                reorders.push_back(cldnn::input_info(preprocessPrimID));
-            }
-
-            if (input_pshape[0].get_length() > 1) {
-                auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-                p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0));
-            }
-        } else {
-            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
-            cldnn::layout inputLayout(networkInputLayout);
-            inputLayout.data_type = DataTypeFromPrecision(ip);
-            p.inputLayouts.insert({ inputInfo->name(), inputLayout });
-
-            p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
-
-            switch (preProcess.getMeanVariant()) {
-            case NONE:
-            case MEAN_VALUE: {
+        switch (preProcess.getMeanVariant()) {
+        case NONE: {
+            // If mean value is not specified and the data type does not change, do not add post reorder
+            if (network_input_data_type != networkInputLayout.data_type) {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
                                                     cldnn::input_info(inputName),
                                                     networkInputLayout,
                                                     meanValues,
-                                                    cldnn::reorder_mean_mode::subtract), {inputName});
-                break;
+                                                    cldnn::reorder_mean_mode::none), {inputName});
             }
-            case MEAN_IMAGE: {
-                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    cldnn::input_info(inputName),
-                                                    networkInputLayout,
-                                                    meanBlobID,
-                                                    cldnn::reorder_mean_mode::subtract), {inputName});
-                break;
-            }
-            default: IE_THROW() << "Invalid mean variant in input " << inputName;
-                break;
-            }
+            break;
+        }
+        case MEAN_VALUE: {
+            p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                cldnn::input_info(inputName),
+                                                networkInputLayout,
+                                                meanValues,
+                                                cldnn::reorder_mean_mode::subtract), {inputName});
+            break;
+        }
+        case MEAN_IMAGE: {
+            p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                cldnn::input_info(inputName),
+                                                networkInputLayout,
+                                                meanBlobID,
+                                                cldnn::reorder_mean_mode::subtract), {inputName});
+            break;
+        }
+        default: OPENVINO_THROW("Invalid mean variant in input ", inputName);
+            break;
         }
     }
 }

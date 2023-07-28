@@ -12,21 +12,33 @@ namespace ov {
 namespace intel_gna {
 namespace common {
 
-template <typename T>
-inline T FloatToInteger(float a) {
-    return static_cast<T>((a < 0.0f) ? (a - 0.5f) : (a + 0.5f));
+template <typename T, typename U, typename std::enable_if<std::is_floating_point<U>::value>::type* = nullptr>
+inline T FloatingToInteger(U a) {
+    return static_cast<T>((a < 0.0f) ? (a - static_cast<U>(0.5)) : (a + static_cast<U>(0.5)));
 }
 inline int8_t FloatToInt8(float a) {
-    return FloatToInteger<int8_t>(a);
+    return FloatingToInteger<int8_t>(a);
 }
 inline int16_t FloatToInt16(float a) {
-    return FloatToInteger<int16_t>(a);
+    return FloatingToInteger<int16_t>(a);
 }
 inline int32_t FloatToInt32(float a) {
-    return FloatToInteger<int32_t>(a);
+    return FloatingToInteger<int32_t>(a);
 }
 inline int64_t FloatToInt64(float a) {
-    return FloatToInteger<int64_t>(a);
+    return FloatingToInteger<int64_t>(a);
+}
+inline int8_t DoubleToInt8(double a) {
+    return FloatingToInteger<int8_t>(a);
+}
+inline int16_t DoubleToInt16(double a) {
+    return FloatingToInteger<int16_t>(a);
+}
+inline int32_t DoubleToInt32(double a) {
+    return FloatingToInteger<int32_t>(a);
+}
+inline int64_t DoubleToInt64(double a) {
+    return FloatingToInteger<int64_t>(a);
 }
 
 /**

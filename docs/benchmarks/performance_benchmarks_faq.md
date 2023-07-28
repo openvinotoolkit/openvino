@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
+
+
 .. dropdown:: How often do performance benchmarks get updated?
 
    New performance benchmarks are typically published on every

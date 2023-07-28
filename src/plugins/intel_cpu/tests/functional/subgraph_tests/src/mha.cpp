@@ -164,12 +164,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
@@ -188,18 +188,23 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+            // TODO: after snippets fixed should remove 2nd condition, ticket: 105339
+            if (patternType == 0 || expectedNode == "Subgraph")
+                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+            else
+                // generate all negative inputs
+                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, -5);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
 protected:
+    size_t patternType;
+    std::string expectedNode;
     void SetUp() override {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
         std::vector<ElementType> matMulIn0Precisions;
-        size_t patternType;
-        std::string expectedNode;
         std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
 
         init_input_shapes(inputShapes);
@@ -275,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHATest,
                                 ::testing::ValuesIn(matMulIn0Precisions),
                                 ::testing::ValuesIn(patternTypes),
                                 ::testing::Values("Subgraph"),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
@@ -285,7 +290,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
                                  ::testing::Values("MHA"),  // Snippets don't support BF16 MHA pattern yet
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
 } // namespace
@@ -372,8 +377,10 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
 }
 
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions,
-                                                        std::vector<ElementType>& matMulIn0Precisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                        const std::vector<ElementType>& inputPrecisions,
+                                                        const std::vector<ElementType>& matMulIn0Precisions,
+                                                        const bool fakeQuantize3Exists) {
     ngraph::ParameterVector ngraphParam;
 
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -428,8 +435,11 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialS
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(add, 3);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2, transA, transB);
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
-    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize2, transpose3Const);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(
+        fakeQuantize3Exists ?
+            ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, { 0.0f }, { 2.55f }, { 0.0f }, { 2.55f }) :
+            matMul1,
+        transpose3Const);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
@@ -450,12 +460,12 @@ public:
 
         results << "IS=(";
         for (const auto& shape : inputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
@@ -503,7 +513,9 @@ protected:
         if (patternType == 0) {
             function = initMHAQuantSubgraph0(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else if (patternType == 1) {
-            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, true);
+        } else if (patternType == 2) {
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, false);
         } else {
             FAIL() << "Unsupported MHA pattern type";
         }
@@ -559,7 +571,7 @@ std::vector<std::vector<ElementType>> matMulIn0PrecisionsQuant = {
 };
 
 std::vector<size_t> patternTypesQuant = {
-    0, 1
+    0, 1, 2
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
@@ -568,8 +580,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
-                                ::testing::Values("MHA"),  // Snippets don't support Quantized MHA pattern yet
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values("MHA"),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 
 } // namespace

@@ -9,7 +9,7 @@
 #include "engines_util/test_engines.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -464,6 +464,15 @@ static const std::vector<std::string> models{
     std::string("scale_bias_before_int64"),
     std::string("scale_tensor_bias_after"),
     std::string("scale_tensor_bias_before"),
+    std::string("set_value1"),
+    std::string("set_value2"),
+    std::string("set_value3"),
+    std::string("set_value4"),
+    std::string("set_value5"),
+    // std::string("set_value6"),
+    // std::string("set_value7"),
+    // std::string("set_value_dynamic1"),
+    std::string("set_value_dynamic2"),
     std::string("shape"),
     std::string("sigmoid"),
     std::string("silu_static_test1"),

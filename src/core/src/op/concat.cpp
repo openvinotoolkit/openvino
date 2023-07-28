@@ -8,10 +8,10 @@
 
 #include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "validation_util.hpp"
 
 using namespace std;
@@ -67,9 +67,7 @@ void op::Concat::validate_and_infer_types() {
         input_shapes.push_back(input_shape);
     }
 
-    std::vector<PartialShape> output_shapes(1, PartialShape{});
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, inputs_et, output_shapes.front());
 }
 

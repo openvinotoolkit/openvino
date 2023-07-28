@@ -101,7 +101,7 @@ public:
     void createPrimitive() override;
 
     void setInputNode(Node* node) override {}
-    void storeState(const Memory& mem);
+    void storeState(const IMemory& mem);
     MemoryPtr getStore();
  private:
     MemoryPtr dataStore;

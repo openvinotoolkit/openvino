@@ -80,12 +80,13 @@ public:
                                                 attrs.flip,
                                                 attrs.clip,
                                                 attrs.variances,
+                                                attrs.step,
                                                 attrs.offset,
                                                 attrs.scale_all_sizes,
                                                 attrs.fixed_ratios,
                                                 attrs.fixed_sizes,
                                                 attrs.densities,
-                                                attrs.step,
+                                                true,
                                                 attrs.min_max_aspect_ratios_order);
         topo.add(prior_box);
         topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));

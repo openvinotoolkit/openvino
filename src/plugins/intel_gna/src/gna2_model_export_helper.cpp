@@ -13,7 +13,14 @@
 #include "gna2-device-api.h"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
-#include "gna2-tlv-writer.h"
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4200)
+#    include "gna2-tlv-writer.h"
+#    pragma warning(pop)
+#else
+#    include "gna2-tlv-writer.h"
+#endif  // _MSC_VER
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log/log.hpp"
@@ -43,7 +50,7 @@ static std::vector<char> GetStringAsTlv(Gna2TlvType type, const std::string& s) 
 
     std::vector<char> vs(s.begin(), s.end());
     vs.resize(vs.size() + (4 - vs.size() % 4) % 4, 0);
-    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = vs.size();
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = static_cast<uint32_t>(vs.size());
     record.insert(record.end(), vs.begin(), vs.end());
     return record;
 }
@@ -98,7 +105,7 @@ void ExportTlvModel(uint32_t modelId,
                     const std::vector<GnaEndpoint>& allInputs,
                     const std::vector<GnaEndpoint>& allOutputs,
                     const GnaAllocations& allAllocations) {
-    if (compile_target == target::DeviceVersion::GNA1_0) {
+    if (compile_target == target::DeviceVersion::GNAEmbedded1_0) {
         THROW_GNA_EXCEPTION << "Unsupported compile target for TLV export: GNA Embedded 1.0" << std::endl;
     }
 
@@ -222,7 +229,7 @@ void* ExportSueLegacyUsingGnaApi2(uint32_t modelId, uint32_t deviceIndex, Gna2Mo
 
     status = Gna2ModelExportConfigSetSource(exportConfig, deviceIndex, modelId);
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetSource");
-    status = Gna2ModelExportConfigSetTarget(exportConfig, DeviceToGna(target::DeviceVersion::GNA1_0));
+    status = Gna2ModelExportConfigSetTarget(exportConfig, DeviceToGna(target::DeviceVersion::GNAEmbedded1_0));
     GNADeviceHelper::checkGna2Status(status, "Gna2ModelExportConfigSetTarget");
 
     void* bufferSueCreekHeader = nullptr;

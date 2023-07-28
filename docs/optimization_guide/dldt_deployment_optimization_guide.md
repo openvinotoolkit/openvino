@@ -16,6 +16,11 @@
    openvino_docs_deployment_optimization_guide_internals
    openvino_docs_memory_optimization_guide
 
+.. meta::
+   :description: Improving inference performance involves model and runtime 
+                 optimizations that can be done independently. Inference 
+                 speed depends on latency and throughput.
+
 
 Runtime optimization, or deployment optimization, focuses on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
 `ov::hint::inference_precision <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gad605a888f3c9b7598ab55023fbf44240>`__ is a "typical runtime configuration" which trades accuracy for performance, allowing ``fp16/bf16`` execution for the layers that remain in ``fp32`` after quantization of the original ``fp32`` model.

@@ -135,50 +135,6 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
     return result;
 }
 
-std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const NV12Blob::Ptr& inBlob,
-                                                          int batch_size) {
-    const auto& y_blob = inBlob->y();
-    const auto& uv_blob = inBlob->uv();
-
-    // convert Y and UV plane blobs to Mats _separately_
-    auto batched_y_plane_mats  = bind_to_blob(y_blob,  batch_size);
-    auto batched_uv_plane_mats = bind_to_blob(uv_blob, batch_size);
-
-    // combine corresponding Y and UV mats into 2-element vectors of (Y, UV) pairs
-    std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (int i = 0; i < batch_size; ++i) {
-        auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
-    }
-
-    return batched_input_plane_mats;
-}
-
-std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& inBlob,
-                                                          int batch_size) {
-    const auto& y_blob = inBlob->y();
-    const auto& u_blob = inBlob->u();
-    const auto& v_blob = inBlob->v();
-
-    // convert Y and UV plane blobs to Mats _separately_
-    auto batched_y_plane_mats = bind_to_blob(y_blob, batch_size);
-    auto batched_u_plane_mats = bind_to_blob(u_blob, batch_size);
-    auto batched_v_plane_mats = bind_to_blob(v_blob, batch_size);
-
-
-    // combine corresponding Y and UV mats into 2-element vectors of (Y, U, V) triple
-    std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (int i = 0; i < batch_size; ++i) {
-        auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_u_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_v_plane_mats[i][0]));
-    }
-
-    return batched_input_plane_mats;
-}
-
 template<typename... Ts, int... IIs>
 std::vector<cv::GMat> to_vec_impl(std::tuple<Ts...> &&gmats, cv::detail::Seq<IIs...>) {
     return { std::get<IIs>(gmats)... };
@@ -259,16 +215,6 @@ void validateColorFormats(const G::Desc &in_desc,
                 if (desc.d.C != 4) throw_invalid_number_of_channels();
                 break;
             }
-            IE_SUPPRESS_DEPRECATED_START
-            case ColorFormat::NV12: {
-                if (desc.d.C != 2) throw_invalid_number_of_channels();
-                break;
-            }
-            case ColorFormat::I420: {
-                if (desc.d.C != 3) throw_invalid_number_of_channels();
-                break;
-            }
-            IE_SUPPRESS_DEPRECATED_END
 
             default: break;
         }
@@ -286,12 +232,6 @@ void validateColorFormats(const G::Desc &in_desc,
     if (color_conv_required && (output_color_format == ColorFormat::RAW)) {
         IE_THROW() << "Network's expected color format is unspecified";
     }
-
-    IE_SUPPRESS_DEPRECATED_START
-    if (output_color_format == ColorFormat::NV12 || output_color_format == ColorFormat::I420) {
-        IE_THROW() << "NV12/I420 network's color format is not supported [by G-API]";
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     verify_layout(in_layout, "Input blob");
     verify_layout(out_layout, "Network's blob");
@@ -340,61 +280,9 @@ void validateTensorDesc(const TensorDesc& desc) {
 
 void validateBlob(const MemoryBlob::Ptr &) {}
 
-void validateBlob(const NV12Blob::Ptr &inBlob) {
-    const auto& y_blob = inBlob->y();
-    const auto& uv_blob = inBlob->uv();
-    if (!y_blob || !uv_blob) {
-        IE_THROW() << "Invalid underlying blobs in NV12Blob";
-    }
-
-    validateTensorDesc(uv_blob->getTensorDesc());
-}
-
-void validateBlob(const I420Blob::Ptr &inBlob) {
-    const auto& y_blob = inBlob->y();
-    const auto& u_blob = inBlob->u();
-    const auto& v_blob = inBlob->v();
-
-    if (!y_blob || !u_blob || !v_blob) {
-        IE_THROW() << "Invalid underlying blobs in I420Blob";
-    }
-
-    validateTensorDesc(u_blob->getTensorDesc());
-    validateTensorDesc(v_blob->getTensorDesc());
-}
-
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const MemoryBlob::Ptr &blob) {
     const auto& desc =  blob->getTensorDesc();
     return {desc, desc.getLayout()};
-}
-
-// use Y plane tensor descriptor's dims for tracking if update is needed. Y and U V planes are
-// strictly bound to each other: if one is changed, the other must be changed as well. precision
-// is always U8 and layout is always planar (NCHW)
-const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const NV12Blob::Ptr &blob) {
-    return {blob->y()->getTensorDesc(), Layout::NCHW};
-}
-
-const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const I420Blob::Ptr &blob) {
-    return {blob->y()->getTensorDesc(), Layout::NCHW};
-}
-
-G::Desc getGDesc(G::Desc in_desc_y, const NV12Blob::Ptr &) {
-    auto nv12_desc = G::Desc{};
-    nv12_desc.d = in_desc_y.d;
-    nv12_desc.d.C = 2;
-    nv12_desc.prec = in_desc_y.prec;
-
-    return nv12_desc;
-}
-
-G::Desc getGDesc(G::Desc in_desc_y, const I420Blob::Ptr &) {
-    auto i420_desc = G::Desc{};
-    i420_desc.d = in_desc_y.d;
-    i420_desc.d.C = 3;
-    i420_desc.prec = in_desc_y.prec;
-
-    return i420_desc;
 }
 
 G::Desc getGDesc(G::Desc in_desc_y, const MemoryBlob::Ptr &) {
@@ -502,11 +390,7 @@ public:
             { {ColorFormat::RGBX, ColorFormat::RGB}, dropLastChan },
             { {ColorFormat::BGRX, ColorFormat::BGR}, dropLastChan },
             { {ColorFormat::RGBX, ColorFormat::BGR}, dropLastChanAndReverse },
-            { {ColorFormat::BGRX, ColorFormat::RGB}, dropLastChanAndReverse },
-            { {ColorFormat::NV12, ColorFormat::BGR}, NV12toBGR },
-            { {ColorFormat::NV12, ColorFormat::RGB}, NV12toRGB },
-            { {ColorFormat::I420, ColorFormat::BGR}, I420toBGR },
-            { {ColorFormat::I420, ColorFormat::RGB}, I420toRGB }
+            { {ColorFormat::BGRX, ColorFormat::RGB}, dropLastChanAndReverse }
         };
         IE_SUPPRESS_DEPRECATED_END
     }
@@ -575,36 +459,23 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
     // 1. Requires interleaved image of type CV_8UC3/CV_8UC4 (except for NV12/I420 input)
     // 2. Supports bilinear resize only
     // 3. Supports NV12/I420 -> RGB/BGR color transformations
-    IE_SUPPRESS_DEPRECATED_START
-    const bool nv12_input = (input_color_format == ColorFormat::NV12);
-    const bool i420_input = (input_color_format == ColorFormat::I420);
-    IE_SUPPRESS_DEPRECATED_END
-    const bool specific_yuv420_input_handling = (nv12_input || i420_input)
-        && (output_color_format == ColorFormat::RGB || output_color_format == ColorFormat::BGR);
     const auto io_color_formats = std::make_tuple(input_color_format, output_color_format);
     const bool drop_channel = (io_color_formats == std::make_tuple(ColorFormat::RGBX, ColorFormat::RGB)) ||
                               (io_color_formats == std::make_tuple(ColorFormat::BGRX, ColorFormat::BGR));
-    const bool specific_case_of_preproc = ((in_layout == NHWC || specific_yuv420_input_handling)
-                                        && (in_desc.d.C == 3 || specific_yuv420_input_handling || drop_channel)
+    const bool specific_case_of_preproc = ((in_layout == NHWC)
+                                        && (in_desc.d.C == 3 || drop_channel)
                                         && ((in_desc.prec == CV_8U) && (in_desc.prec == out_desc.prec))
                                         && (algorithm == RESIZE_BILINEAR)
                                         && (input_color_format == ColorFormat::RAW
                                             || input_color_format == output_color_format
-                                            || drop_channel
-                                            || specific_yuv420_input_handling));
+                                            || drop_channel));
     if (specific_case_of_preproc) {
         const auto input_sz = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
         const auto scale_sz = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
 
         // convert color format to RGB in case of NV12 input
         std::vector<cv::GMat> color_converted_input;
-        if (nv12_input) {
-            color_converted_input.emplace_back(gapi::NV12toRGB::on(inputs[0], inputs[1]));
-        } else if (i420_input) {
-            color_converted_input.emplace_back(gapi::I420toRGB::on(inputs[0], inputs[1], inputs[2]));
-        } else {
-            color_converted_input = inputs;
-        }
+        color_converted_input = inputs;
 
         auto planes = drop_channel ?
                 to_vec(gapi::ScalePlanes4:: on(
@@ -614,11 +485,6 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
 
         if (drop_channel) {
             planes.pop_back();
-        }
-
-        // if color conversion is done, output is RGB. but if BGR is required, reverse the planes
-        if (specific_yuv420_input_handling && output_color_format == ColorFormat::BGR) {
-            std::reverse(planes.begin(), planes.end());
         }
 
         std::vector<cv::GMat> outputs;
@@ -772,10 +638,8 @@ PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) con
 void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
-    // src is either a memory blob, an NV12, or an I420 blob
-    const bool yuv420_blob = src->is<NV12Blob>() || src->is<I420Blob>();
-    if (!src->is<MemoryBlob>() && !yuv420_blob) {
-        IE_THROW()  << "Unsupported input blob type: expected MemoryBlob, NV12Blob or I420Blob";
+    if (!src->is<MemoryBlob>()) {
+        IE_THROW()  << "Unsupported input blob type: expected MemoryBlob";
     }
 
     // dst is always a memory blob
@@ -787,7 +651,7 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
     const auto &dst_dims = dst->getTensorDesc().getDims();
 
     // dimensions sizes must be equal if both blobs are memory blobs
-    if (!yuv420_blob && src_dims.size() != dst_dims.size()) {
+    if (src_dims.size() != dst_dims.size()) {
         IE_THROW() << "Preprocessing is not applicable. Source and destination blobs "
                               "have different number of dimensions.";
     }
@@ -997,39 +861,12 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
         IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
     }
 
-    // FIXME: refactor the code below. there must be a better way to handle the difference
-
-    // if input color format is not NV12, a MemoryBlob is expected. otherwise, NV12Blob is expected
-    switch (in_fmt) {
-    IE_SUPPRESS_DEPRECATED_START
-    case ColorFormat::NV12: {
-        auto inNV12Blob = as<NV12Blob>(inBlob);
-        if (!inNV12Blob) {
-            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
-                                << ": expected NV12Blob";
-        }
-        return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
+    auto inMemoryBlob = as<MemoryBlob>(inBlob);
+    if (!inMemoryBlob) {
+        IE_THROW()  << "Unsupported input blob for color format " << in_fmt
+            << ": expected MemoryBlob";
     }
-    case ColorFormat::I420: {
-        auto inI420Blob = as<I420Blob>(inBlob);
-        if (!inI420Blob) {
-            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
-                                << ": expected I420Blob";
-        }
-        return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    default:
-        auto inMemoryBlob = as<MemoryBlob>(inBlob);
-        if (!inMemoryBlob) {
-            IE_THROW()  << "Unsupported input blob for color format " << in_fmt
-                                << ": expected MemoryBlob";
-        }
-        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
-            batch_size);
-    }
+    return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+                          batch_size);
 }
 }  // namespace InferenceEngine

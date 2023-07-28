@@ -47,7 +47,7 @@ struct TestTransformationParams {
     std::vector<element::Type> defaultPrecisions;
 };
 
-class LayerTransformation : public CommonTestUtils::TestsCommon {
+class LayerTransformation : public ov::test::TestsCommon {
 public:
     static TestTransformationParams createParamsU8U8();
     static TestTransformationParams createParamsU8I8();

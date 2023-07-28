@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include "strided_slice_inst.h"
 
@@ -14,6 +15,64 @@ using namespace ::tests;
 
 class strided_slice_gpu: public ::testing::Test {
 public:
+    void test_2x2x2x2_full_legacy_activation(bool is_caching_test) {
+        // Input (BFYX): 2x2x2x2
+        // Begin (BFYX): 0x0x0x0
+        // End (BFYX): 2x2x2x2
+        // Stride (BFYX): 1x1x1x1
+        // Output (BFYX): 2x2x2x2
+
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
+
+        set_values(input, {
+                -0.2f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+                9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.8f
+        });
+
+        set_values<int64_t>(begin, {0, 0, 0, 0});
+        set_values<int64_t>(end, {2, 2, 2, 2});
+        set_values<int64_t>(strides, {1, 1, 1, 1});
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+        topology.add(activation("out", input_info("strided_slice"), activation_func::clamp, {0.f, 15.0f}));
+        topology.add(reorder("out_reorder", input_info("out"), format::bfyx, data_types::f32));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out_reorder");
+
+        auto output = outputs.at("out_reorder").get_memory();
+
+        std::vector<float> answers = {
+                0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
     void test_2x2x2x2_full(bool is_caching_test) {
         // Input (BFYX): 2x2x2x2
         // Begin (BFYX): 0x0x0x0
@@ -106,7 +165,7 @@ public:
         }
     }
 
-    void test_2x2x2x2_single(bool is_caching_test) {
+    void test_2x2x2x2_single(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x2x2
         // Begin (BFYX): 1x1x1x1
         // End (BFYX): 2x2x2x2
@@ -128,7 +187,11 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -358,7 +421,7 @@ public:
         }
     }
 
-    void test_2x2x1x1(bool is_caching_test) {
+    void test_2x2x1x1(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x1x1
         // Output (BFYX): 2x2x1x1
 
@@ -376,7 +439,11 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -415,7 +482,7 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -440,7 +507,7 @@ public:
         }
     }
 
-    void test_2x2x2x1x1_2(bool is_caching_test) {
+    void test_2x2x2x1x1_2(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFZYX): 2x2x2x1x1
         // Output (BFZYX): 2x1x1x1x1
 
@@ -458,7 +525,11 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -542,7 +613,7 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -567,7 +638,7 @@ public:
         }
     }
 
-    void test_2x2x2x1x1_2_negative_all_dynamic() {
+    void test_2x2x2x1x1_2_negative_all_dynamic(impl_types impl_type = impl_types::any) {
         // Input (BFZYX): 2x2x2x1x1
         // Output (BFZYX): 2x1x1x1x1
 
@@ -592,6 +663,9 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
         network network(engine, topology, config);
 
         network.set_input_data("input", input);
@@ -620,7 +694,7 @@ public:
         }
     }
 
-    void test_2x2x2_all_dynamic_bcast() {
+    void test_2x2x2_all_dynamic_bcast(impl_types impl_type = impl_types::any) {
         auto& engine = get_test_engine();
         auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
         auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
@@ -642,6 +716,9 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
         network network(engine, topology, config);
 
         network.set_input_data("input", input);
@@ -673,7 +750,7 @@ public:
         }
     }
 
-    void test_2x2x2x1x1_2_negative_all_dynamic_begin() {
+    void test_2x2x2x1x1_2_negative_all_dynamic_begin(impl_types impl_type = impl_types::any) {
         auto& engine = get_test_engine();
         auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
@@ -692,8 +769,11 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
         network network(engine, topology, config);
 
         network.set_input_data("input2", begin);
@@ -725,7 +805,7 @@ public:
 
 class strided_slice_gpu_constants: public ::testing::Test {
 public:
-    void test_2x2x2x2_full(bool is_caching_test) {
+    void test_2x2x2x2_full(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x2x2
         // Begin (BFYX): 0x0x0x0
         // End (BFYX): 2x2x2x2
@@ -759,7 +839,11 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -841,7 +925,7 @@ public:
         }
     }
 
-    void test_2x2x2x2_single(bool is_caching_test) {
+    void test_2x2x2x2_single(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x2x2
         // Begin (BFYX): 1x1x1x1
         // End (BFYX): 2x2x2x2
@@ -875,7 +959,11 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -897,7 +985,7 @@ public:
         }
     }
 
-    void test_2x2x4x3_stride(bool is_caching_test) {
+    void test_2x2x4x3_stride(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x4x3
         // Begin (BFYX): 0x0x0x0
         // End (BFYX): 2x2x4x3
@@ -935,7 +1023,11 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1046,7 +1138,7 @@ public:
         }
     }
 
-    void test_2x2x4x1_new_axis_mask(bool is_caching_test) {
+    void test_2x2x4x1_new_axis_mask(bool is_caching_test, impl_types impl_type = impl_types::any) {
         // Input (BFYX): 2x2x4x1
         // New_axis_mask: 1
         // Output (BFYX): 1x2x2x4
@@ -1078,7 +1170,11 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        auto config = get_test_default_config(engine);
+        if (impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -1238,7 +1334,7 @@ public:
         topology.add(data("input2", begin));
         topology.add(data("input3", end));
         topology.add(data("input4", strides));
-        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -1291,7 +1387,7 @@ public:
         topology.add(data("input2", begin));
         topology.add(data("input3", end));
         topology.add(data("input4", strides));
-        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -1554,7 +1650,7 @@ public:
         topology.add(data("input2", begin));
         topology.add(data("input3", end));
         topology.add(data("input4", strides));
-        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -1717,7 +1813,7 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+        topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1, 1}));
 
         cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -1934,6 +2030,48 @@ TEST_F(strided_slice_gpu, test_2x2x2_all_dynamic_bcast) {
     this->test_2x2x2_all_dynamic_bcast();
 }
 
+class strided_slice_cpu_impl : public strided_slice_gpu {};
+TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic) {
+    this->test_2x2x2x1x1_2_negative_all_dynamic(impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
+    this->test_2x2x2x1x1_2_negative_all_dynamic_begin(impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x2_all_dynamic_bcast) {
+    this->test_2x2x2_all_dynamic_bcast(impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x1x1) {
+    this->test_2x2x1x1(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2) {
+    this->test_2x2x2x1x1_2(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl, test_2x2x2x2_single) {
+    this->test_2x2x2x2_single(false, impl_types::cpu);
+}
+
+class strided_slice_cpu_impl_constants : public strided_slice_gpu_constants {};
+TEST_F(strided_slice_cpu_impl_constants, test_2x2x2x2_full) {
+    this->test_2x2x2x2_full(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl_constants, test_2x2x2x2_single) {
+    this->test_2x2x2x2_single(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl_constants, test_2x2x4x3_stride) {
+    this->test_2x2x4x3_stride(false, impl_types::cpu);
+}
+
+TEST_F(strided_slice_cpu_impl_constants, test_2x2x4x1_new_axis_mask) {
+    this->test_2x2x4x1_new_axis_mask(false, impl_types::cpu);
+}
+
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_F(strided_slice_gpu, test_2x2x2x2_full_cached) {
     this->test_2x2x2x2_full(true);
@@ -2057,4 +2195,9 @@ TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_cached) {
 #endif
 TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
     this->test_2x2x2x1x1_2_negative_all(true);
+}
+
+// test_2x2x2x2_full_activation
+TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
+    this->test_2x2x2x2_full_legacy_activation(true);
 }

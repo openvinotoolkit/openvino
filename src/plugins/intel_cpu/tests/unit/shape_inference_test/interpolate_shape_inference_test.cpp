@@ -211,7 +211,6 @@ protected:
 };
 
 TEST_F(InterpolateV11StaticShapeInferenceTest, default_ctor_no_attributes) {
-    GTEST_SKIP() << "Enable test when v11 opset will be added to shape inference factory.";
     attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
 
     op = make_op();

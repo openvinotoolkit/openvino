@@ -33,7 +33,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
+        const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->getData());
         const int H = in_data[0];
         const int W = in_data[1];
         const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
@@ -152,13 +152,13 @@ PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
 }
 
 bool PriorBox::needShapeInfer() const {
-    auto& memory = getChildEdgeAt(0)->getMemoryPtr();
-    if (memory->GetShape().isDynamic()) {
+    auto memory = getChildEdgeAt(0)->getMemoryPtr();
+    if (memory->getShape().isDynamic()) {
         return true;
     }
 
-    const auto& outputShape = memory->GetShape().getStaticDims();
-    const int* in_data = reinterpret_cast<int*>(memory->GetPtr());
+    const auto& outputShape = memory->getShape().getStaticDims();
+    const int* in_data = reinterpret_cast<int*>(memory->getData());
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
@@ -189,18 +189,18 @@ void PriorBox::createPrimitive() {
 }
 
 void PriorBox::execute(dnnl::stream strm) {
-    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int* in_data = reinterpret_cast<int*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const int H = in_data[0];
     const int W = in_data[1];
 
-    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const int* in_image = reinterpret_cast<int*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
     const int IH = in_image[0];
     const int IW = in_image[1];
 
     const int OH = 4 * H * W * number_of_priors;
     const int OW = 1;
 
-    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     float step_ = step;
     auto min_size_ = min_size;

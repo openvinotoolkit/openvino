@@ -33,7 +33,7 @@ using EltwiseShape = ngraph::Shape;
 using IsNegative = bool;
 
 class ConvFusionTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, WeightsShape, EltwiseType, EltwiseShape, IsNegative>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -130,13 +130,13 @@ private:
 };
 
 TEST_P(ConvFusionTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 

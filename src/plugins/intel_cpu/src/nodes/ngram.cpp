@@ -104,7 +104,7 @@ void Ngram::prepareParams() {
 
     idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
     numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
-    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
     windowStride = srcDataDims[1];
@@ -115,7 +115,7 @@ void Ngram::prepareParams() {
 
 template <typename idces_type>
 std::vector<size_t> Ngram::computeBatchLenghts() {
-    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -130,8 +130,8 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == InferenceEngine::Precision::I32) {

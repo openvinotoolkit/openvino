@@ -5,7 +5,7 @@ A very basic introduction to using object detection models with
 OpenVINO™.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/latest/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
 model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
@@ -25,6 +25,75 @@ Imports
     import matplotlib.pyplot as plt
     import numpy as np
     from openvino.runtime import Core
+    from pathlib import Path
+    import sys
+    
+    sys.path.append("../utils")
+    from notebook_utils import download_file
+
+Download model weights
+----------------------
+
+.. code:: ipython3
+
+    base_model_dir = Path("./model").expanduser()
+    
+    model_name = "horizontal-text-detection-0001"
+    model_xml_name = f'{model_name}.xml'
+    model_bin_name = f'{model_name}.bin'
+    
+    model_xml_path = base_model_dir / model_xml_name
+    model_bin_path = base_model_dir / model_bin_name
+    
+    if not model_xml_path.exists():
+        model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.xml"
+        model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
+    
+        download_file(model_xml_url, model_xml_name, base_model_dir)
+        download_file(model_bin_url, model_bin_name, base_model_dir)
+    else:
+        print(f'{model_name} already downloaded to {base_model_dir}')
+
+
+
+.. parsed-literal::
+
+    model/horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
+
+
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    ie = Core()
+    device = widgets.Dropdown(
+        options=ie.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 Load the Model
 --------------
@@ -33,7 +102,7 @@ Load the Model
 
     ie = Core()
     
-    model = ie.read_model(model="model/horizontal-text-detection-0001.xml")
+    model = ie.read_model(model=model_xml_path)
     compiled_model = ie.compile_model(model=model, device_name="CPU")
     
     input_layer_ir = compiled_model.input(0)
@@ -60,7 +129,7 @@ Load an Image
 
 
 
-.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_6_0.png
+.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_10_0.png
 
 
 Do Inference
@@ -133,5 +202,5 @@ Visualize Results
 
 
 
-.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_0.png
+.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_15_0.png
 

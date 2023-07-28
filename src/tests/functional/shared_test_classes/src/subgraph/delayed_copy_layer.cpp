@@ -70,7 +70,7 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, 3 * memory_size}});
 
-        memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
+        memory_init = ov::test::utils::generate_float_numbers(memory_size, -0.2f, 0.2f);
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
 
@@ -123,7 +123,7 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, memory_size / 2}});
 
-        memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
+        memory_init = ov::test::utils::generate_float_numbers(memory_size, -0.2f, 0.2f);
 
         auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{8, memory_size / 8}, memory_init);
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");

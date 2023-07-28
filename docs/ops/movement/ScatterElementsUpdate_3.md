@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ScatterElementsUpdate-3 - a data movement operation, which can be 
+                performed on four required input tensors.
+
 **Versioned name**: *ScatterElementsUpdate-3*
 
 **Category**: *Data movement*
@@ -52,7 +56,8 @@ The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. *
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="ScatterElementsUpdate">
         <input>

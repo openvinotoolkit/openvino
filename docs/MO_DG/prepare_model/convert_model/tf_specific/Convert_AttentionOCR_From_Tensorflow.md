@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert the Attention OCR 
+                 model from the TensorFlow Attention OCR repository to the 
+                 OpenVINO Intermediate Representation.
+
+
 This tutorial explains how to convert the Attention OCR (AOCR) model from the `TensorFlow Attention OCR repository <https://github.com/emedvedev/attention-ocr>`__ to the Intermediate Representation (IR).
 
 Extracting a Model from ``aocr`` Library

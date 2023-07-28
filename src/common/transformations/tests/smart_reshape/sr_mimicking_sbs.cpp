@@ -23,7 +23,7 @@ TEST(SmartReshapeTests, MimickingSBS) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -45,7 +45,7 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -67,7 +67,7 @@ TEST(SmartReshapeTests, MimickingSBS_2) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(1));
     check_unique_names(f, unh);

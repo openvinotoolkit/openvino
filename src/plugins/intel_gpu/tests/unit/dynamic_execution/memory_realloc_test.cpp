@@ -146,7 +146,13 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         layout(ov::PartialShape{ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}},
                data_types::f32,
                format::bfyx);
-    network network(engine, topology(input_layout("input", in_layout), softmax("softmax", input_info("input"), 3)), get_test_default_config(engine));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology(input_layout("input", in_layout),
+                                     reorder("reorder", input_info("input"), format::bfyx, data_types::f16),
+                                     softmax("softmax", input_info("reorder"), 3),
+                                     reorder("reorder2", input_info("softmax"), format::bfyx, data_types::f32)),
+                                     config);
 
     // First run
     float out_buffer_1[out_size_1];
@@ -186,6 +192,9 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
     ASSERT_EQ(internal_mems_1.size(), internal_mems_2.size());
     for (size_t i = 0; i < internal_mems_1.size(); ++i) {
         ASSERT_EQ(internal_mems_1[i]->buffer_ptr(), internal_mems_2[i]->buffer_ptr());
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(internal_mems_1[i]->get_allocation_type(), allocation_type::usm_device);
+        }
     }
 }
 

@@ -31,20 +31,17 @@ Clone and install the model repository.
 
 .. code:: ipython3
 
-    !pip install -q "python-ffmpeg<=1.0.16" moviepy
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q "python-ffmpeg<=1.0.16" moviepy transformers onnx
+    !pip install -q -I "git+https://github.com/garywu007/pytube.git"
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.7.0.72 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.74 which is incompatible.
     
-
-.. code:: ipython3
-
-    !pip install -q -I "git+https://github.com/garywu007/pytube.git"
 
 .. code:: ipython3
 
@@ -53,19 +50,18 @@ Clone and install the model repository.
     REPO_DIR = Path("whisper")
     if not REPO_DIR.exists():
         !git clone https://github.com/openai/whisper.git -b v20230124
-    %cd whisper
-    !python setup.py develop
+    !cd whisper && pip install .
 
 
 .. parsed-literal::
 
     Cloning into 'whisper'...
-    remote: Enumerating objects: 576, done.[K
-    remote: Counting objects: 100% (282/282), done.[K
-    remote: Compressing objects: 100% (48/48), done.[K
-    remote: Total 576 (delta 256), reused 234 (delta 234), pack-reused 294[K
-    Receiving objects: 100% (576/576), 8.23 MiB | 4.31 MiB/s, done.
-    Resolving deltas: 100% (343/343), done.
+    remote: Enumerating objects: 585, done.[K
+    remote: Counting objects: 100% (304/304), done.[K
+    remote: Compressing objects: 100% (53/53), done.[K
+    remote: Total 585 (delta 275), reused 253 (delta 251), pack-reused 281[K
+    Receiving objects: 100% (585/585), 8.14 MiB | 3.85 MiB/s, done.
+    Resolving deltas: 100% (352/352), done.
     Note: switching to '55f690af7914c672c69733b7e04ef5a41b2b2774'.
     
     You are in 'detached HEAD' state. You can look around, make experimental
@@ -83,179 +79,38 @@ Clone and install the model repository.
     
     Turn off this advice by setting config variable advice.detachedHead to false
     
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/_distutils/dist.py:265: UserWarning: Unknown distribution option: 'readme'
-      warnings.warn(msg)
-    running develop
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/command/develop.py:40: EasyInstallDeprecationWarning: easy_install command is deprecated.
-    !!
-    
-            ********************************************************************************
-            Please avoid running ``setup.py`` and ``easy_install``.
-            Instead, use pypa/build, pypa/installer, pypa/build or
-            other standards-based tools.
-    
-            See https://github.com/pypa/setuptools/issues/917 for details.
-            ********************************************************************************
-    
-    !!
-      easy_install.initialize_options(self)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/setuptools/_distutils/cmd.py:66: SetuptoolsDeprecationWarning: setup.py install is deprecated.
-    !!
-    
-            ********************************************************************************
-            Please avoid running ``setup.py`` directly.
-            Instead, use pypa/build, pypa/installer, pypa/build or
-            other standards-based tools.
-    
-            See https://blog.ganssle.io/articles/2021/10/setup-py-deprecated.html for details.
-            ********************************************************************************
-    
-    !!
-      self.initialize_options()
-    running egg_info
-    creating openai_whisper.egg-info
-    writing openai_whisper.egg-info/PKG-INFO
-    writing dependency_links to openai_whisper.egg-info/dependency_links.txt
-    writing entry points to openai_whisper.egg-info/entry_points.txt
-    writing requirements to openai_whisper.egg-info/requires.txt
-    writing top-level names to openai_whisper.egg-info/top_level.txt
-    writing manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    file whisper.py (for module whisper) not found
-    reading manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    reading manifest template 'MANIFEST.in'
-    adding license file 'LICENSE'
-    writing manifest file 'openai_whisper.egg-info/SOURCES.txt'
-    running build_ext
-    Creating /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openai-whisper.egg-link (link to .)
-    Adding openai-whisper 20230124 to easy-install.pth file
-    Installing whisper script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
-    Processing dependencies for openai-whisper==20230124
-    Searching for ffmpeg-python==0.2.0
-    Reading https://pypi.org/simple/ffmpeg-python/
-    Downloading https://files.pythonhosted.org/packages/d7/0c/56be52741f75bad4dc6555991fabd2e07b432d333da82c11ad701123888a/ffmpeg_python-0.2.0-py3-none-any.whl#sha256=ac441a0404e053f8b6a1113a77c0f452f1cfc62f6344a769475ffdc0f56c23c5
-    Best match: ffmpeg-python 0.2.0
-    Processing ffmpeg_python-0.2.0-py3-none-any.whl
-    Installing ffmpeg_python-0.2.0-py3-none-any.whl to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Adding ffmpeg-python 0.2.0 to easy-install.pth file
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/ffmpeg_python-0.2.0-py3.8.egg
-    Searching for more-itertools
-    Reading https://pypi.org/simple/more-itertools/
-    Downloading https://files.pythonhosted.org/packages/85/01/e2678ee4e0d7eed4fd6be9e5b043fff9d22d245d06c8c91def8ced664189/more_itertools-9.1.0-py3-none-any.whl#sha256=d2bc7f02446e86a68911e58ded76d6561eea00cddfb2a91e7019bbb586c799f3
-    Best match: more-itertools 9.1.0
-    Processing more_itertools-9.1.0-py3-none-any.whl
-    Installing more_itertools-9.1.0-py3-none-any.whl to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Adding more-itertools 9.1.0 to easy-install.pth file
-    detected new path './ffmpeg_python-0.2.0-py3.8.egg'
-    
-    Installed /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/more_itertools-9.1.0-py3.8.egg
-    Searching for transformers==4.29.2
-    Best match: transformers 4.29.2
-    Adding transformers 4.29.2 to easy-install.pth file
-    detected new path './more_itertools-9.1.0-py3.8.egg'
-    Installing transformers-cli script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for tqdm==4.65.0
-    Best match: tqdm 4.65.0
-    Adding tqdm 4.65.0 to easy-install.pth file
-    Installing tqdm script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for torch==1.13.1+cpu
-    Best match: torch 1.13.1+cpu
-    Adding torch 1.13.1+cpu to easy-install.pth file
-    Installing convert-caffe2-to-onnx script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing convert-onnx-to-caffe2 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing torchrun script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for numpy==1.23.4
-    Best match: numpy 1.23.4
-    Adding numpy 1.23.4 to easy-install.pth file
-    Installing f2py script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing f2py3 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing f2py3.8 script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for future==0.18.3
-    Best match: future 0.18.3
-    Adding future 0.18.3 to easy-install.pth file
-    Installing futurize script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    Installing pasteurize script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for tokenizers==0.13.3
-    Best match: tokenizers 0.13.3
-    Adding tokenizers 0.13.3 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for requests==2.31.0
-    Best match: requests 2.31.0
-    Adding requests 2.31.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for regex==2023.5.5
-    Best match: regex 2023.5.5
-    Adding regex 2023.5.5 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for PyYAML==6.0
-    Best match: PyYAML 6.0
-    Adding PyYAML 6.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for packaging==23.1
-    Best match: packaging 23.1
-    Adding packaging 23.1 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for huggingface-hub==0.14.1
-    Best match: huggingface-hub 0.14.1
-    Adding huggingface-hub 0.14.1 to easy-install.pth file
-    Installing huggingface-cli script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for filelock==3.12.0
-    Best match: filelock 3.12.0
-    Adding filelock 3.12.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for typing-extensions==4.6.2
-    Best match: typing-extensions 4.6.2
-    Adding typing-extensions 4.6.2 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for certifi==2023.5.7
-    Best match: certifi 2023.5.7
-    Adding certifi 2023.5.7 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for urllib3==1.26.16
-    Best match: urllib3 1.26.16
-    Adding urllib3 1.26.16 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for idna==3.4
-    Best match: idna 3.4
-    Adding idna 3.4 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for charset-normalizer==3.1.0
-    Best match: charset-normalizer 3.1.0
-    Adding charset-normalizer 3.1.0 to easy-install.pth file
-    Installing normalizer script to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/bin
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Searching for fsspec==2023.5.0
-    Best match: fsspec 2023.5.0
-    Adding fsspec 2023.5.0 to easy-install.pth file
-    
-    Using /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages
-    Finished processing dependencies for openai-whisper==20230124
+    Processing /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper
+      Preparing metadata (setup.py) ... - done
+    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.23.5)
+    Requirement already satisfied: torch in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (1.13.1+cpu)
+    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.65.0)
+    Collecting more-itertools (from openai-whisper==20230124)
+      Using cached more_itertools-9.1.0-py3-none-any.whl (54 kB)
+    Requirement already satisfied: transformers>=4.19.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openai-whisper==20230124) (4.30.2)
+    Collecting ffmpeg-python==0.2.0 (from openai-whisper==20230124)
+      Using cached ffmpeg_python-0.2.0-py3-none-any.whl (25 kB)
+    Requirement already satisfied: future in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from ffmpeg-python==0.2.0->openai-whisper==20230124) (0.18.3)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (3.12.2)
+    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.16.4)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (23.1)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (6.0)
+    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2023.6.3)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (2.31.0)
+    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.13.3)
+    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.19.0->openai-whisper==20230124) (0.3.1)
+    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->openai-whisper==20230124) (4.7.1)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.19.0->openai-whisper==20230124) (2023.6.0)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.2.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.19.0->openai-whisper==20230124) (2023.5.7)
+    Building wheels for collected packages: openai-whisper
+      Building wheel for openai-whisper (setup.py) ... - \ | done
+      Created wheel for openai-whisper: filename=openai_whisper-20230124-py3-none-any.whl size=1179311 sha256=a75d8198e0a3343e35889bda79a05e0b83878dae0f191cba9fd4ba44f5ca6ae6
+      Stored in directory: /tmp/pip-ephem-wheel-cache-4_3s8aog/wheels/07/04/88/d2c2d6f2253db7e60a09770f6870703d1fd581296886334a97
+    Successfully built openai-whisper
+    Installing collected packages: more-itertools, ffmpeg-python, openai-whisper
+    Successfully installed ffmpeg-python-0.2.0 more-itertools-9.1.0 openai-whisper-20230124
 
 
 Instantiate model
@@ -328,7 +183,7 @@ Convert Whisper Encoder to OpenVINO IR
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/227-whisper-subtitles-generation/whisper/whisper/model.py:153: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/whisper/model.py:153: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
@@ -507,7 +362,7 @@ modify this process for correct tracing to ONNX.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_2580215/1737529362.py:18: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /tmp/ipykernel_3462814/1737529362.py:18: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if module not in cache or output.shape[1] > positional_embeddings_size:
 
 
@@ -529,12 +384,6 @@ input shapes.
         compress_to_fp16=True,
         input=input_shapes)
     serialize(decoder_model, "whisper_decoder.xml")
-
-
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
-
 
 Prepare inference pipeline
 --------------------------
@@ -918,10 +767,10 @@ take some time.
 
     audio = get_audio(output_file)
 
-Select the task for the model: \* **transcribe** - generate audio
-transcription in the source language (automatically detected). \*
-**translate** - generate audio transcription with translation to English
-language.
+Select the task for the model:
+
+* **transcribe** - generate audio transcription in the source language (automatically detected).
+* **translate** - generate audio transcription with translation to English language.
 
 .. code:: ipython3
 

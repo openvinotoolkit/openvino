@@ -22,7 +22,8 @@ Improving accuracy after the Default Quantization
 
 Parameters of the Default Quantization algorithm with basic settings are presented below:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization", # Optimization algorithm name
@@ -57,7 +58,8 @@ Below is a list of best practices that can be applied to improve accuracy withou
 3. Some model architectures require a special approach when being quantized. For example, Transformer-based models need to keep some operations in the original precision to preserve accuracy. That is why POT provides a ``model_type`` option to specify the model architecture. Now, only ``"transformer"`` type is available. Use it to quantize Transformer-based models, e.g. BERT.
 4. Another important option is a `range_estimator`. It defines how to calculate the minimum and maximum of quantization range for weights and activations. For example, the following ``range_estimator`` for activations can improve the accuracy for Faster R-CNN-based networks:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       {
           "name": "DefaultQuantization",
@@ -86,7 +88,8 @@ Accuracy-aware Quantization
 
 When the steps above do not lead to the accurate quantized model, you may use the :doc:`Accuracy-aware Quantization <pot_accuracyaware_usage>` algorithm which leads to mixed-precision models. A fragment of Accuracy-aware Quantization configuration with default settings is shown below:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    {
        "name": "AccuracyAwareQuantization",

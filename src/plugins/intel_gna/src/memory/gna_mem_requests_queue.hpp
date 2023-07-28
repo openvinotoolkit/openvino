@@ -199,7 +199,7 @@ public:
         auto size = getSize();
         if (ptr >= ptrBegin && ptr < ptrBegin + size) {
             auto curOffset = static_cast<uint8_t*>(ptr) - ptrBegin;
-            return {true, curOffset};
+            return {true, static_cast<uint32_t>(curOffset)};
         }
         return {false, 0};
     }
@@ -260,7 +260,7 @@ public:
 
             // setting offsets
             for (auto const& box : boxes) {
-                _mem_requests[box.id]._offset = memSolver.getOffset(box.id);
+                _mem_requests[box.id]._offset = memSolver.getOffset(static_cast<int>(box.id));
             }
             return _size;
         } else {

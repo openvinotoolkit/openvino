@@ -145,19 +145,28 @@ structure and according to the following rules:
 .. code:: ipython3
 
     import os
-    import shutil
+    import sys
+    
+    sys.path.append("../utils")
+    from notebook_utils import download_file
     
     dedicated_dir = "models"
     model_name = "detection"
     model_version = "1"
     
     MODEL_DIR = f"{dedicated_dir}/{model_name}/{model_version}"
-    XML_PATH = "../004-hello-detection/model/horizontal-text-detection-0001.xml"
-    BIN_PATH = "../004-hello-detection/model/horizontal-text-detection-0001.bin"
+    XML_PATH = "horizontal-text-detection-0001.xml"
+    BIN_PATH = "horizontal-text-detection-0001.bin"
     os.makedirs(MODEL_DIR, exist_ok=True)
-    shutil.copy(XML_PATH, MODEL_DIR)
-    shutil.copy(BIN_PATH, MODEL_DIR)
-    print(f"Model Copied to \"./{MODEL_DIR}\".")
+    model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.xml"
+    model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
+    
+    download_file(model_xml_url, XML_PATH, MODEL_DIR)
+    download_file(model_bin_url, BIN_PATH_name, MODEL_DIR)model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.xml"
+        model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
+    
+        download_file(model_xml_url, model_xml_name, base_model_dir)
+        download_file(model_bin_url, model_bin_name, base_model_dir)
 
 
 .. parsed-literal::
@@ -194,7 +203,7 @@ Check whether the OVMS container is running normally:
 
 The required Model Server parameters are listed below. For additional
 configuration options, see the `Model Server Parameters
-section <https://docs.openvino.ai/latest/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
+section <https://docs.openvino.ai/2023.0/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
 
 .. raw:: html
 
@@ -845,5 +854,5 @@ References
 ----------
 
 1. `OpenVINO™ Model
-   Server <https://docs.openvino.ai/latest/ovms_what_is_openvino_model_server.html>`__
+   Server <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__
 2. `openvinotoolkit/model_server <https://github.com/openvinotoolkit/model_server/>`__

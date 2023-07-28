@@ -4,6 +4,9 @@
 
 #include "matchers/convolutions.hpp"
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+
 using namespace SubgraphsDumper;
 ConvolutionsMatcher::ConvolutionsMatcher() {
     default_configs = {

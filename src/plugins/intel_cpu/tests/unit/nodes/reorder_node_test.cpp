@@ -15,20 +15,20 @@
 #include <dnnl.hpp>
 #include <utility>
 
-#include "../../../ie_test_utils/common_test_utils/common_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "cache/multi_cache.h"
 #include "nodes/input.h"
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
-inline void checkReorder(const ov::intel_cpu::Memory& inputMemory,
-                         const ov::intel_cpu::Memory& outputMemory,
+inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
+                         const ov::intel_cpu::IMemory& outputMemory,
                          const InferenceEngine::Precision& prescision) {
-    auto srcData = inputMemory.GetData();
-    auto dstData = outputMemory.GetData();
-    auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto srcData = inputMemory.getData();
+    auto dstData = outputMemory.getData();
+    auto mdInput = inputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto mdOutput = outputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
     const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.get());
     const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.get());
@@ -68,11 +68,11 @@ inline std::string layoutName(const LayoutType& layout) {
     return "Unsupported layout type";
 }
 
-inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::Precision& prec) {
-    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
+inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceEngine::Precision& prec) {
+    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.getDescWithType<DnnlMemoryDesc>();
     const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
-    auto inputReorderData = inputMemory.GetData();
+    auto inputReorderData = inputMemory.getData();
     switch (prec) {
     case InferenceEngine::Precision::FP32:
         for (int64_t i = 0; i < elemNum; ++i)
@@ -133,10 +133,8 @@ public:
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
 
-        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
-        parentMemory->Create(inputDesc, nullptr);
-        childMemory->Create(outputDesc, nullptr);
+        auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, inputDesc);
+        auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine, outputDesc);
 
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
@@ -179,7 +177,7 @@ public:
         ReorderCustomImplTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        result << CommonTestUtils::vec2str(p.srcDims);
+        result << ov::test::utils::vec2str(p.srcDims);
         result << (p.isNspc2Ncsp ? "_NSPC2NCSP" : "_NCSP2NSPC");
         result << "_InputDataType:" << p.prec.name();
         result << "_OutputDataType:" << p.prec.name();
@@ -274,7 +272,7 @@ protected:
     // Fill dstData with zeros
     void generateInput() {
         fillData(parentEdge->getMemory(), prec);
-        memset(childEdge->getMemory().GetData(), 0, childEdge->getMemory().GetSize());
+        memset(childEdge->getMemory().getData(), 0, childEdge->getMemory().getSize());
     }
 
     size_t getNumElems(const std::vector<size_t>& dims) {
@@ -320,9 +318,9 @@ public:
         ReorderCPUTestParamSet p = obj.param;
         std::ostringstream result;
         result << "IS:(";
-        result << "InputPartialShape:" << CommonTestUtils::partialShape2str({p.inputPartialShape});
+        result << "InputPartialShape:" << ov::test::utils::partialShape2str({p.inputPartialShape});
         for (const auto& inputShape : p.inputShapes) {
-            result << CommonTestUtils::vec2str(inputShape);
+            result << ov::test::utils::vec2str(inputShape);
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";
         result << "_OutputLayoutType:" << layoutName(p.dstLayout) << ".";

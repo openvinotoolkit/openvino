@@ -135,7 +135,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const cldnn::primitive_id execution_condition_id = layer_type_name_ID(op->get_input_node_shared_ptr(1));
     const int64_t num_iterations = op->get_num_iterations();
     if (num_iterations < 0) {
-        IE_THROW() << "loop's num_iteration cannot be negative";
+        OPENVINO_THROW("loop's num_iteration cannot be negative");
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {

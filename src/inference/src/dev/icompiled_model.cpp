@@ -18,7 +18,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                   const ov::RemoteContext& context,
+                                   const ov::SoPtr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
@@ -48,34 +48,60 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             }
         }
 
-        if (add_operation_names) {
-            for (const auto& param : model->get_parameters()) {
-                const auto& param_name = param->get_friendly_name();
+        std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
+        for (const auto& param : model->get_parameters()) {
+            const auto& param_name = param->get_friendly_name();
+            auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
+            new_param->set_friendly_name(param_name);
+            if (add_operation_names) {
                 OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(param_name);
                 param->output(0).get_tensor().add_names({param_name});
-                m_inputs.emplace_back(
-                    ov::Output<const ov::Node>{param->output(0).get_node(), param->output(0).get_index()});
+                new_param->output(0).get_tensor().add_names({param_name});
             }
-            for (const auto& result : model->get_results()) {
-                auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
-                                                                          result->get_output_partial_shape(0));
-                const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+            new_param->set_element_type(param->get_element_type());
+            new_param->set_layout(param->get_layout());
+            new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
+            auto old_tensor = param->output(0).get_tensor_ptr();
+            if (tensor_map.count(old_tensor)) {
+                new_param->output(0).set_tensor_ptr(tensor_map[old_tensor]);
+            } else {
+                tensor_map[old_tensor] = new_param->output(0).get_tensor_ptr();
+            }
+            new_param->validate_and_infer_types();
+            m_inputs.emplace_back(new_param->output(0));
+        }
+        for (const auto& result : model->get_results()) {
+            auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+                                                                      result->get_output_partial_shape(0));
+            const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+            fake_param->set_friendly_name(res_name);
+            fake_param->set_element_type(result->get_element_type());
+            fake_param->validate_and_infer_types();
+            auto new_result = result->copy_with_new_inputs({fake_param});
+            new_result->set_friendly_name(result->get_friendly_name());
+            if (add_operation_names) {
                 OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(res_name);
                 result->output(0).get_tensor().add_names({res_name});
-                m_outputs.emplace_back(
-                    ov::Output<const ov::Node>{result->output(0).get_node(), result->output(0).get_index()});
+                new_result->output(0).get_tensor().add_names({res_name});
             }
-        } else {
-            m_inputs = model->inputs();
-            m_outputs = model->outputs();
+            auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+            r->set_layout(result->get_layout());
+            new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+            auto old_tensor = result->output(0).get_tensor_ptr();
+            if (tensor_map.count(old_tensor)) {
+                new_result->output(0).set_tensor_ptr(tensor_map[old_tensor]);
+            } else {
+                tensor_map[old_tensor] = new_result->output(0).get_tensor_ptr();
+            }
+            m_outputs.emplace_back(new_result->output(0));
         }
     }
 }
@@ -110,11 +136,11 @@ void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threadi
     m_callback_executor = callback_executor;
 }
 
-std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
+ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
     }
-    if (m_context._impl)
-        return m_context._impl;
+    if (m_context)
+        return m_context;
     return m_plugin->get_default_context({});
 }

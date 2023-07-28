@@ -37,13 +37,13 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
         }
@@ -80,7 +80,7 @@ protected:
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         flattened = std::get<0>(flatOrAxis);
@@ -159,6 +159,26 @@ std::vector<CPUSpecificParams> getCPUInfo() {
     resCPUParams.push_back(CPUSpecificParams{{}, {}, {"ref"}, "ref"});
     return resCPUParams;
 }
+
+std::vector<std::vector<InputShape>> statShapes1D = {
+        {{{}, {{1}}}},     // Static shapes
+        {{{}, {{5}}}},     // Static shapes
+        {{{}, {{8}}}},     // Static shapes
+        {{{}, {{16}}}},    // Static shapes
+        {{{}, {{32}}}},    // Static shapes
+        {{{}, {{64}}}},    // Static shapes
+        {{{}, {{99}}}},    // Static shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D, UniqueLayerTestCPU,
+             ::testing::Combine(
+                     ::testing::ValuesIn(statShapes1D),
+                     ::testing::ValuesIn(std::vector<std::tuple<bool, int>>{{true, 0}, {false, 0}}),
+                     ::testing::ValuesIn(sorted),
+                     ::testing::ValuesIn(dataPrecisionSmoke),
+                     ::testing::ValuesIn(getCPUInfo()),
+                     ::testing::Values(additionalConfig[0])),
+             UniqueLayerTestCPU::getTestCaseName);
 
 std::vector<std::vector<InputShape>> getStaticShapes() {
     std::vector<std::vector<InputShape>> result = {

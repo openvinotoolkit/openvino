@@ -26,7 +26,7 @@ using FQMulFusionParams = std::tuple<ngraph::Shape,   // FQ data shape
                                      ngraph::Shape,   // Mul constant shape
                                      ngraph::Shape>;  // Expected shape of the new out_* constants
 
-class FQMulFusion : public testing::WithParamInterface<FQMulFusionParams>, public CommonTestUtils::TestsCommon {
+class FQMulFusion : public testing::WithParamInterface<FQMulFusionParams>, public ov::test::TestsCommon {
 public:
     void SetUp() override {
         ngraph::Shape data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape;
@@ -73,12 +73,12 @@ public:
 };
 
 TEST_P(FQMulFusion, ExpectFusion) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeMulFusion>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(m_function);
     ASSERT_NO_THROW(check_rt_info(m_function));

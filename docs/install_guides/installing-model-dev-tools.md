@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Development Tools on Windows, 
+                 Linux, and macOS operating systems, using a PyPi package.
+
 OpenVINO Development Tools is a set of utilities that make it easy to develop and optimize models and applications for OpenVINO. It provides the following tools:
 
 * Model conversion API
@@ -64,17 +68,21 @@ Step 1. Set Up Python Virtual Environment
 
 Create a virtual Python environment to avoid dependency conflicts. To create a virtual environment, use the following command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Windows
+      :sync: windows
    
-      python3 -m venv openvino_env
-   
-.. tab:: Windows
+      .. code-block:: sh
+      
+         python -m venv openvino_env
 
-   .. code-block:: sh
+   .. tab-item:: Linux and macOS
+      :sync: linux-and-macos
    
-      python -m venv openvino_env
+      .. code-block:: sh
+      
+         python3 -m venv openvino_env
      
      
 
@@ -83,17 +91,21 @@ Step 2. Activate Virtual Environment
 
 Activate the newly created Python virtual environment by issuing this command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: sh
+   
+         openvino_env\Scripts\activate
 
-      source openvino_env/bin/activate
+   .. tab-item:: Linux and macOS
+      :sync: linux-and-macos
 
-.. tab:: Windows
-
-   .. code-block:: sh
-
-      openvino_env\Scripts\activate
+      .. code-block:: sh
+   
+         source openvino_env/bin/activate
 
 .. important::
 
@@ -136,7 +148,7 @@ For example, to install and configure dependencies required for working with Ten
 
    Model conversion API support for TensorFlow 1.x environment has been deprecated. Use the ``tensorflow2`` parameter to install a TensorFlow 2.x environment that can convert both TensorFlow 1.x and 2.x models. If your model isn't compatible with the TensorFlow 2.x environment, use the `tensorflow` parameter to install the TensorFlow 1.x environment. The TF 1.x environment is provided only for legacy compatibility reasons.
 
-For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/>`__ .
+For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/2023.0.1>`__ .
 
 Step 5. Test the Installation
 +++++++++++++++++++++++++++++
@@ -189,7 +201,7 @@ Learn OpenVINO Development Tools
 
 * Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
 * Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` page.
-* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Post-Training Optimization Tool <pot_introduction>`.
+* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>`.
 * Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 
 Additional Resources
@@ -197,7 +209,7 @@ Additional Resources
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
 
 @endsphinxdirective
 

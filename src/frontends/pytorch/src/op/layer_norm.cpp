@@ -7,6 +7,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -23,7 +24,7 @@ OutputVector translate_layer_norm(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(normalized_shape.size() == 1,
                                   "Translation for aten::layer_norm supports only single normalized_shape value, "
                                   "which means normalizing over the last dimension.");
-    // TODO: support any dimention
+    // TODO: support any dimension
     auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto out_node =
         context.mark_node(std::make_shared<v6::MVN>(context.get_input(0), axes, true, eps, MVNEpsMode::INSIDE_SQRT));
@@ -36,6 +37,11 @@ OutputVector translate_layer_norm(const NodeContext& context) {
     // Input with index 5 is flag "cudnn_enabled" we can ignore it
     return {out_node};
 };
+
+OutputVector translate_layer_norm_fx(const NodeContext& context) {
+    auto output = translate_layer_norm(context);
+    return {context.mark_node(make_list_construct(output))};
+}
 
 }  // namespace op
 }  // namespace pytorch

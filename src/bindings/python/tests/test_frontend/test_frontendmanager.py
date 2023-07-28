@@ -115,7 +115,19 @@ def test_load_wrong_path():
 @mock_needed
 def test_load_by_model():
     clear_all_stat()
-    fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
+    fe = fem.load_by_model(model="abc.test_mock_py_mdl")
+    assert fe is not None
+    assert fe.get_name() == MOCK_PY_FRONTEND_NAME
+    stat = get_fe_stat()
+    assert stat.get_name == 1
+    assert stat.supported == 1
+
+
+@mock_needed
+def test_load_by_model_path():
+    clear_all_stat()
+    import pathlib
+    fe = fem.load_by_model(pathlib.Path("abc.test_mock_py_mdl"))
     assert fe is not None
     assert fe.get_name() == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()

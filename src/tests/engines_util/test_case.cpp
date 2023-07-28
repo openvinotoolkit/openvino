@@ -4,6 +4,7 @@
 
 #include "test_case.hpp"
 
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "shared_utils.hpp"
@@ -12,7 +13,7 @@ namespace {
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
 compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_t tolerance_bits) {
-    return ngraph::test::all_close_f(expected, result, static_cast<int>(tolerance_bits));
+    return ov::test::utils::all_close_f(expected, result, static_cast<int>(tolerance_bits));
 }
 
 testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_tensor,
@@ -35,7 +36,7 @@ testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_te
 template <typename T>
 typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
 compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_t) {
-    return ov::test::all_close(expected, result);
+    return ov::test::utils::all_close(expected, result);
 }
 
 // used for float16 and bfloat 16 comparisons
@@ -62,7 +63,7 @@ compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tenso
         result_double[i] = static_cast<double>(result[i]);
     }
 
-    return ngraph::test::all_close_f(expected_double, result_double, static_cast<int>(tolerance_bits));
+    return ov::test::utils::all_close_f(expected_double, result_double, static_cast<int>(tolerance_bits));
 }
 };  // namespace
 
@@ -182,7 +183,7 @@ TestCase::TestCase(const std::shared_ptr<Function>& function, const std::string&
     try {
         // Register template plugin
         m_core.register_plugin(
-            ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
             "TEMPLATE");
     } catch (...) {

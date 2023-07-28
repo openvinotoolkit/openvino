@@ -3,26 +3,42 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The GNA plugin in OpenVINO™ Runtime enables running inference 
+                 on Intel® Gaussian & Neural Accelerator (GNA) and in the 
+                 software execution mode on CPU.
+
 
 The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 
 Intel® GNA is not intended to replace typical inference devices such as the CPU and GPU. It is designed for offloading
 continuous inference workloads including but not limited to noise reduction or speech recognition
-to save power and free CPU resources.
+to save power and free CPU resources. It lets you run inference on Intel® GNA, as well as the CPU, in the software execution mode.
+For more details on how to configure a system to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
 
-The GNA plugin provides a way to run inference on Intel® GNA, as well as in the software execution mode on CPU.
+.. note::
 
-For more details on how to configure a machine to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
+   Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) will be the last generation of hardware to include it.
+   Consider Intel's new Visual Processing Unit as a low-power solution for offloading neural network computation, for processors offering the technology.
+   
 
 Intel® GNA Generational Differences
 ###########################################################
 
-The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered 
-functionally equivalent. Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0. Starting with 12th Generation 
-Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
+The first (1.0) and second (2.0) versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered
+functionally equivalent. Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0.
 
-In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, 
-and the term "GNA 3.0" refers to GNA hardware delivered on 12th generation Intel® Core™ processors.
+=======================  ========================
+ Intel CPU generation     GNA HW Version
+=======================  ========================
+10th, 11th                GNA 2.0
+12th, 13th                GNA 3.0
+14th                      GNA 3.5
+=======================  ========================
+
+In this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors,
+and the term "GNA 3.0" refers to GNA hardware delivered on 12th, 13th generation Intel® Core™ processors, and the term
+"GNA 3.5" refers to GNA hardware delivered on 14th generation of Intel® Core™ processors.
 
 Intel® GNA Forward and Backward Compatibility
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -31,21 +47,22 @@ When a model is run, using the GNA plugin, it is compiled internally for the spe
 using `Import/Export <#import-export>`__ functionality to use it later. In general, there is no guarantee that a model compiled and 
 exported for GNA 2.0 runs on GNA 3.0 or vice versa.
 
-==================  ========================  =======================================================
- Hardware            Compile target 2.0        Compile target 3.0
-==================  ========================  =======================================================
- GNA 2.0             Supported                 Not supported (incompatible layers emulated on CPU)
- GNA 3.0             Partially supported       Supported
-==================  ========================  ======================================================= 
+==================  ========================  =======================================================  =======================================================
+ Hardware            Compile target 2.0        Compile target 3.0                                       Compile target 3.5
+==================  ========================  =======================================================  =======================================================
+ GNA 2.0             Supported                 Not supported (incompatible layers emulated on CPU)      Not supported (incompatible layers emulated on CPU)
+ GNA 3.0             Partially supported       Supported                                                Not supported (incompatible layers emulated on CPU)
+ GNA 3.5             Partially supported       Partially supported                                      Supported
+==================  ========================  =======================================================  =======================================================
 
 .. note::
 
    In most cases, a network compiled for GNA 2.0 runs as expected on GNA 3.0. However, performance may be worse 
    compared to when a network is compiled specifically for the latter. The exception is a network with convolutions 
-   with the number of filters greater than 8192 (see the :ref:`Model and Operation Limitations <#model-and-operation-limitations>` section).
+   with the number of filters greater than 8192 (see the `Model and Operation Limitations <#model-and-operation-limitations>`__ section).
 
 
-For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0 hardware, the following requirements should be satisfied:
+For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0/3.5 hardware, the following requirements should be satisfied:
 
 * Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 * To check interoperability in your application use: ``ov::intel_gna::execution_target`` and ``ov::intel_gna::compile_target``.
@@ -78,39 +95,29 @@ Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version 
 In this mode, the GNA driver automatically falls back on CPU for a particular infer request if the HW queue is not empty. 
 Therefore, there is no need for explicitly switching between GNA and CPU.
 
+.. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
 
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [import]
 
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
+   .. tab-item:: C++
+      :sync: cpp
 
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
 
-
-   .. tab-set::
-   
-      .. tab-item:: C++
-         :sync: cpp
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [include]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-   
-      .. tab-item:: Python
-         :sync: py
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [import]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
-
-
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
 .. note:: 
@@ -141,7 +148,7 @@ quantization hints based on statistics for the provided dataset.
 * Performance (i8 weights)
 
 For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
-:ref:`Model and Operation Limitations section <#model-and-operation-limitations>`.
+`Model and Operation Limitations section <#model-and-operation-limitations>`__.
 
 
 Supported Features
@@ -168,18 +175,18 @@ To export a model for a specific version of GNA HW, use the ``ov::intel_gna::com
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-         :language: cpp
-         :fragment: [ov_gna_export]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/import_export.py
          :language: py
+         :fragment: [ov_gna_export]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
+         :language: cpp
          :fragment: [ov_gna_export]
 
 
@@ -188,18 +195,18 @@ Import model:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
-         :language: cpp
-         :fragment: [ov_gna_import]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/import_export.py
          :language: py
+         :fragment: [ov_gna_import]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/import_export.cpp
+         :language: cpp
          :fragment: [ov_gna_import]
 
 
@@ -223,14 +230,17 @@ Profiling
 The GNA plugin allows turning on profiling, using the ``ov::enable_profiling`` property.
 With the following methods, you can collect profiling information with various performance data about execution on GNA:
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+   
+      ``openvino.runtime.InferRequest.get_profiling_info``
 
-   ``ov::InferRequest::get_profiling_info``
-
-.. tab:: Python
-
-   ``openvino.runtime.InferRequest.get_profiling_info``
+   .. tab-item:: C++
+      :sync: cpp
+   
+      ``ov::InferRequest::get_profiling_info``
 
 
 The current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. 
@@ -266,31 +276,33 @@ Read-write Properties
 
 In order to take effect, the following parameters must be set before model compilation or passed as additional arguments to ``ov::Core::compile_model()``:
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::inference_precision
-- ov::hint::num_requests
-- ov::intel_gna::compile_target
-- ov::intel_gna::firmware_model_image_path
-- ov::intel_gna::execution_target
-- ov::intel_gna::pwl_design_algorithm
-- ov::intel_gna::pwl_max_error_percent
-- ov::intel_gna::scale_factors_per_input
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::inference_precision``
+- ``ov::hint::num_requests``
+- ``ov::intel_gna::compile_target``
+- ``ov::intel_gna::firmware_model_image_path``
+- ``ov::intel_gna::execution_target``
+- ``ov::intel_gna::pwl_design_algorithm``
+- ``ov::intel_gna::pwl_max_error_percent``
+- ``ov::intel_gna::scale_factors_per_input``
 
 These parameters can be changed after model compilation ``ov::CompiledModel::set_property``:
-- ov::hint::performance_mode
-- ov::intel_gna::execution_mode
-- ov::log::level
+
+- ``ov::hint::performance_mode``
+- ``ov::intel_gna::execution_mode``
+- ``ov::log::level``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-- ov::available_devices
-- ov::device::capabilities
-- ov::device::full_name
-- ov::intel_gna::library_full_version
-- ov::optimal_number_of_infer_requests
-- ov::range_for_async_infer_requests
-- ov::supported_properties
+
+- ``ov::available_devices``
+- ``ov::device::capabilities``
+- ``ov::device::full_name``
+- ``ov::intel_gna::library_full_version``
+- ``ov::optimal_number_of_infer_requests``
+- ``ov::range_for_async_infer_requests``
+- ``ov::supported_properties``
 
 Limitations
 ###########################################################
@@ -307,12 +319,13 @@ Limitations include:
 - Prior to GNA 3.0, only 1D convolutions are natively supported on the HW; 2D convolutions have specific limitations (see the table below).
 - The number of output channels for convolutions must be a multiple of 4.
 - The maximum number of filters is 65532 for GNA 2.0 and 8192 for GNA 3.0.
+- Starting with Intel® GNA 3.5 the support for Int8 convolution weights has been added. Int8 weights can be used in models quantized by POT.
 - *Transpose* layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 - Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 - For *Multiply*, *Add* and *Subtract* layers, auto broadcasting is only supported for constant inputs.
 
 
-Support for 2D Convolutions
+Support for 2D Convolutions up to GNA 3.0
 -----------------------------------------------------------
 
 The Intel® GNA 1.0 and 2.0 hardware natively supports only 1D convolutions. However, 2D convolutions can be mapped to 1D when 
@@ -343,10 +356,37 @@ and *W* is limited to 87 when there are 64 input channels.
 
 .. note:: 
 
-   The above limitations only apply to the new hardware 2D convolution operation. When possible, the Intel® GNA 
+   The above limitations only apply to the new hardware 2D convolution operation. For GNA 3.0, when possible, the Intel® GNA
    plugin graph compiler flattens 2D convolutions so that the second generation Intel® GNA 1D convolution operations 
    (without these limitations) may be used. The plugin will also flatten 2D convolutions regardless of the sizes if GNA 2.0 
    compilation target is selected (see below).
+Support for Convolutions since GNA 3.5
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Starting from Intel® GNA 3.5, 1D convolutions are handled in a different way than in GNA 3.0. Convolutions have the following limitations:
+
+============================  =======================  =================
+ Limitation                    Convolution 1D           Convolution 2D
+============================  =======================  =================
+Input height                   1                        1-65535
+Input Width                    1-65535                  1-65535
+Input channel number           1                        1-1024
+Kernel number                  1-8192                   1-8192
+Kernel height                  1                        1-255
+Kernel width                   1-2048                   1-256
+Stride height                  1                        1-255
+Stride width                   1-2048                   1-256
+Dilation height                1                        1
+Dilation width                 1                        1
+Pooling window height          1-1                      1-255
+Pooling window width           1-255                    1-255
+Pooling stride height          1                        1-255
+Pooling stride width           1-255                    1-255
+============================  =======================  =================
+
+
+Limitations for GNA 3.5 refers to the specific dimension. The full range of parameters is not always fully supported,
+e.g. where Convolution 2D Kernel can have height 255 and width 256, it may not work with Kernel with shape 255x256.
 
 Support for 2D Convolutions using POT
 -----------------------------------------------------------
@@ -368,17 +408,6 @@ To set the layout of model inputs in runtime, use the :doc:`Optimize Preprocessi
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-         :language: cpp
-         :fragment: [include]
-      
-      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
-         :language: cpp
-         :fragment: [ov_gna_set_nc_layout]
-
    .. tab-item:: Python
       :sync: py
 
@@ -390,23 +419,34 @@ To set the layout of model inputs in runtime, use the :doc:`Optimize Preprocessi
          :language: py
          :fragment: [ov_gna_set_nc_layout]
 
-
-then set batch size:
-
-.. tab-set::
-
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
          :language: cpp
-         :fragment: [ov_gna_set_batch_size]
+         :fragment: [include]
+      
+      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
+         :language: cpp
+         :fragment: [ov_gna_set_nc_layout]
+
+
+then set batch size:
+
+.. tab-set::
 
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gna/set_batch.py
          :language: py
+         :fragment: [ov_gna_set_batch_size]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gna/set_batch.cpp
+         :language: cpp
          :fragment: [ov_gna_set_batch_size]
 
 

@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, FullyConnectedBiasFusionTest3D) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
 
         manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, FullyConnectedBiasFusionTest2D) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
         manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -94,7 +94,7 @@ TEST_F(TransformationTestsF, FullyConnectedBiasFusionTestBias1x1) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
 
         manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> function) {
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> function) {
             check_rt_info(function);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();

@@ -12,6 +12,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -72,7 +73,7 @@ TSFuse::TSFuse() {
             copy_runtime_info(transpose1, new_transpose);
             ov::replace_node(transpose1, new_transpose);
 
-            UpdateForwardSinkingAbility(new_transpose);
+            mark_as_no_sinking_node(new_transpose);
         }
         return true;
     };

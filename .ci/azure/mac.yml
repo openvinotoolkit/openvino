@@ -180,8 +180,16 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVCoreUT.xml
     displayName: 'OV Core UT'
+    enabled: 'false'
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
+    displayName: 'OV Proxy Plugin Tests'
+    enabled: 'false'
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
+    displayName: 'OV Hetero Func Tests'
     enabled: 'false'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
@@ -196,8 +204,8 @@ jobs:
     displayName: 'Intel CPU Unit Tests'
     enabled: 'false'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
-    displayName: 'MULTI UT'
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_unit_tests.xml
+    displayName: 'AUTO UT'
     enabled: 'false'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml

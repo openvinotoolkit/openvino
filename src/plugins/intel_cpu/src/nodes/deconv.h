@@ -23,8 +23,6 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
-    void filterSupportedPrimitiveDescriptors() override;
-    void filterSupportedDescriptors();
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -34,8 +32,8 @@ public:
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -50,8 +48,8 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
 
-    bool canBeExecutedInInt8() const;
     bool canFuseBias() const;
+    bool canBeExecutedInInt8() const override;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
@@ -99,7 +97,7 @@ private:
     ov::CoordinateDiff outputPadding;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
-    VectorDims biasesDims;
+    VectorDims expectedBiasDims {};
 
     Shape inShape;
 

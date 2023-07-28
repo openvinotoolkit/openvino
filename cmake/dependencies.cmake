@@ -32,21 +32,24 @@ if(THREADING STREQUAL "OMP")
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
+                USE_NEW_LOCATION TRUE)
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
@@ -108,21 +111,23 @@ function(ov_download_tbb)
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-canary.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "0a56f73baaa40d72e06949ea6d593ae63a19f7580ce71c08287c1f59d2e5b988"
+                SHA256 "3a2c2ec79b3cce7e6a2484754ba6f029fa968db2eefc6659540792b7db8fea0c"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
+                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
         # build oneTBB 2021.2.1 with OS version 11.4
         RESOLVE_DEPENDENCY(TBB
@@ -142,10 +147,10 @@ function(ov_download_tbb)
     elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-canary.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "6b87194a845aa9314f3785d842e250d934e545eccc4636655c7b27c98c302c0c"
+                SHA256 "042fdac53be65841a970b05d892f4b20b556b06fd3b20d2d0068e49c4fd74f07"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0

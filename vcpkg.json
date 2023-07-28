@@ -14,7 +14,7 @@
     "homepage": "https://github.com/openvinotoolkit/openvino",
     "documentation": "https://docs.openvino.ai/latest/index.html",
     "license": "Apache-2.0",
-    "builtin-baseline": "838af19556a975f1755918a360b5f83909857f11",
+    "builtin-baseline": "63366443439398a62afc9a63b34b9a3ba63b1cae",
     "dependencies": [
         "ade",
         {
@@ -24,9 +24,8 @@
         "pugixml",
         {
             "name": "tbb",
-            "$TODO": "Remove condition for Android once it's enabled",
-            "platform": "(static | osx) & !android",
-            "version>=": "2021.9.0#1"
+            "platform": "static | osx",
+            "version>=": "2021.9.0#2"
         },
         {
             "name": "tbb",
@@ -35,7 +34,7 @@
             ],
             "$TODO": "Remove condition for static once static tbbbind can work in oneTBB",
             "platform": "!static & !osx",
-            "version>=": "2021.9.0#1"
+            "version>=": "2021.9.0#2"
         },
         {
             "name": "xbyak",

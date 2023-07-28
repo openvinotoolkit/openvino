@@ -134,6 +134,10 @@ public:
         return m_linear_before_reset;
     }
 
+    void set_linear_before_reset(bool linear_before_reset) {
+        m_linear_before_reset = linear_before_reset;
+    }
+
 private:
     /// brief Add and initialize bias input to all zeros.
     void add_default_bias_input();

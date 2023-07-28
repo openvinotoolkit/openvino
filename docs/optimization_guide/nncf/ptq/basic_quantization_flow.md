@@ -36,13 +36,13 @@ The transformation function is a function that takes a sample from the dataset a
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [dataset]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -69,18 +69,19 @@ If there is no framework dataset object, you can create your own entity that imp
 Quantize a Model
 #####################
 
-Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
+Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it.
+See the `example section <#examples-of-how-to-apply-nncf-post-training-quantization>`__ at the end of this document for examples for each framework.
 
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [quantization]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -102,18 +103,19 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
          :fragment: [quantization]
          
 
-After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO:
+After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
+If you have not already installed OpenVINO developer tools, install it with ``pip install openvino-dev``.
 
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment:  [inference]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py

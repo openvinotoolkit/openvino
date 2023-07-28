@@ -5,10 +5,10 @@
 #include "openvino/op/util/framework_node.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ov;

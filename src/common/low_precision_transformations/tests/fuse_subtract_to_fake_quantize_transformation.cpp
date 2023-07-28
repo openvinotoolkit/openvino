@@ -86,7 +86,7 @@ public:
                 testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, ov::op::v1::Subtract>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.expected.fakeQuantizeOnData2.empty() ?

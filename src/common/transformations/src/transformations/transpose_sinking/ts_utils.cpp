@@ -66,14 +66,22 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
+                                           bool const_transpose_order,
+                                           const std::vector<size_t>& indices) {
+    auto indices_to_check = indices;
+    if (indices.empty()) {
+        indices_to_check.resize(node->get_input_size());
+        std::iota(indices_to_check.begin(), indices_to_check.end(), 0);
+    }
+
+    for (const auto& input_idx : indices_to_check) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (!constant_node)
+        if (const_transpose_order && !constant_node)
             continue;
         {
             TransposeInputsInfo input_info;
@@ -85,11 +93,6 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
     }
 
     return {};
-}
-
-bool IfNodeHasTransposeInputs(const Output<Node>& output) {
-    TransposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
-    return !inputs_info.isEmpty();
 }
 
 AxisVector ReverseTransposeOrder(const AxisVector& axis_order) {
@@ -104,6 +107,12 @@ void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
     const auto node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto node2_legacy_output_names = get_ov_tensor_legacy_name(output2.get_tensor());
+    set_ov_tensor_legacy_name(output2.get_tensor(), get_ov_tensor_legacy_name(output1.get_tensor()));
+    set_ov_tensor_legacy_name(output1.get_tensor(), node2_legacy_output_names);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void SwapFriendlyNames(const NodePtr& node1, const NodePtr& node2) {
@@ -303,67 +312,6 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
     return new_nodes;
 }
 }  // namespace sink_backward
-
-#define CHECK_TRANSPOSE_SINKING_SUPPORTED(TYPE, node) \
-    if (dynamic_cast<TYPE*>(node)) {                  \
-        return true;                                  \
-    }
-
-namespace {
-
-bool CanPropagateForwardThrough(Node* node) {
-    // todo: collect this info automatically
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::UnaryElementwiseArithmetic, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Clamp, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Elu, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v4::SoftPlus, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::LogicalNot, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Convert, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsInf, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsNaN, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsFinite, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseArithmetic, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseComparison, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseLogical, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::PRelu, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Pad, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::BatchToSpace, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::SpaceToBatch, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::ReverseSequence, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v8::Gather, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v4::Interpolate, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::ArithmeticReductionKeepDims, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::LogicalReductionKeepDims, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v8::Slice, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Split, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::VariadicSplit, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Squeeze, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Reshape, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Unsqueeze, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Transpose, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::FakeQuantize, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Concat, node)
-
-    return false;
-}
-
-bool CanPropagateForward(const NodePtr& node) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (auto& consumer_input : node->output(i).get_target_inputs()) {
-            if (!CanPropagateForwardThrough(consumer_input.get_node()))
-                return false;
-        }
-    }
-
-    return true;
-}
-
-}  // namespace
-
-void UpdateForwardSinkingAbility(const NodePtr& node) {
-    if (!CanPropagateForward(node))
-        mark_as_no_sinking_node(node);
-}
 
 namespace {
 

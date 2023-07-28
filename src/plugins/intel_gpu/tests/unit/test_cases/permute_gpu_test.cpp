@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/permute.hpp>
@@ -22,6 +23,23 @@
 using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
+
+namespace {
+
+// TODO: Move somewhere
+template <class vecElementType>
+std::string vec2str(const std::vector<vecElementType>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return "()";
+}
+
+}  // namespace
 
 TEST(permute_gpu_f32, output_ordering_test)
 {
@@ -691,6 +709,7 @@ TEST(fc_permute_gpu, basic_permute_bfyx)
 
 TEST(permute_gpu_f32, permute_bfwzyx)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     const int b = 1;
     const int f = 2;
@@ -702,7 +721,7 @@ TEST(permute_gpu_f32, permute_bfwzyx)
 
     auto input_size = cldnn::tensor(batch(b), feature(f), spatial(x, y, z, w));
     auto input_mem = engine.allocate_memory({ data_types::f32, format::bfwzyx, input_size });
-    auto input_data = generate_random_1d<float>(input_mem->get_layout().count(), -1, 1);
+    auto input_data = rg.generate_random_1d<float>(input_mem->get_layout().count(), -1, 1);
 
     set_values(input_mem, input_data);
 
@@ -1869,6 +1888,13 @@ public:
     void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                   const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
                   std::vector<uint16_t> permute_order = {}, bool is_caching_test = false);
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<TiledPermuteParam>& info) {
+        std::ostringstream result;
+        result << "InputShape=" << vec2str(info.param.sizes) << "_";
+        result << "Format=" << fmt_to_str(info.param.format_fsv);
+        return result.str();
+    }
 };
 
 template<>
@@ -2218,3 +2244,181 @@ TEST_P(permute_tile_fsv_5d, i64_cached) {
     auto p = GetParam();
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
+
+class permute_f_y_axes_tile: public TiledPermuteTest {};
+
+// Test cases are disabled because permute_f_y_axes_tile kernel itself is disabled for accuracy issue
+// INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
+//                          permute_f_y_axes_tile,
+//                          ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+//                              {{1, 4, 8, 1}, format::bfyx},                // permute_f_y_axes
+//                              {{1, 64, 32, 1}, format::bfyx},              // permute_f_y_axes
+//                              {{1, 32, 256, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE
+//                              {{1, 32, 256, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
+//                              {{1, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
+//                              {{1, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
+//                          }),
+//                          TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_f_y_axes_tile, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+}
+
+struct TiledPerformancePermuteTest : TiledPermuteTest
+{
+    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                                const std::string& primitive_id)
+    {
+        using namespace std::chrono;
+        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
+        e->wait(); // should ensure execution completion, if not segfault will occur
+        double avg_time = 0.0;
+        auto intervals = e->get_profiling_info();
+        for (const auto& q : intervals)
+        {
+            if (q.stage != instrumentation::profiling_stage::executing) {
+                continue;
+            }
+            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+            break;
+        }
+        return avg_time;
+    }
+
+    static void print_all_perf(std::map<primitive_id, network_output> outputs)
+    {
+        std::cout << "Print last run time" << std::endl;
+        using namespace std::chrono;
+        for( const auto &n : outputs ) {
+            std::shared_ptr<event> e = n.second.get_event();
+            auto intervals = e->get_profiling_info();
+            double time = 0.0;
+            for (const auto& q : intervals)
+            {
+                if (q.stage == instrumentation::profiling_stage::executing) {
+                    continue;
+                }
+                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+                break;
+            }
+            std::cout << n.first << ":" << time << std::endl;
+        }
+        std::cout << std::endl;
+    }
+
+    template<data_types Data_Type>
+    void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+                            const std::string & kernel_name, std::vector<uint16_t> permute_order)
+    {
+        auto& engine = get_test_engine();
+        // convert half_t to FLOAT16
+        using type_ = typename data_type_to_type<Data_Type>::type;
+        using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+
+        std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
+        std::swap(internal_sizes.at(2), internal_sizes.back());
+        cldnn::tensor tensor(internal_sizes);
+
+        cldnn::format format = sizes.size() == 4 ? cldnn::format::bfyx : cldnn::format::bfzyx;
+
+        std::vector<uint16_t> order = {0};
+        if (permute_order.empty()) {
+            for (uint16_t i = 1; i < (sizes.size() - 1); ++i) {
+                order.push_back(i+1);
+            }
+            order.push_back(1);
+        } else {
+            std::swap(order, permute_order);
+        }
+
+        auto input_ref = engine.allocate_memory({Data_Type, format, tensor});
+        set_random_values<type>(input_ref);
+        topology topology_ref = topology(
+            input_layout("input", input_ref->get_layout()),
+            reorder("reorder", input_info("input"), {Data_Type, format_fsv, tensor}),
+            permute("output", input_info("reorder"), order)
+        );
+        // run with permute_ref
+        ExecutionConfig config_ref(ov::enable_profiling(true));
+        ov::intel_gpu::ImplementationDesc permute_ref = {format_fsv, "permute_ref"};
+        config_ref.set_property(
+            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"output", permute_ref}}));
+        cldnn::network network_ref(engine, topology_ref, config_ref);
+        network_ref.set_input_data("input", input_ref);
+
+        // run with optimized kernel, e.g. permute_tile_8x8_4x4_fsv16
+        auto input_opt = engine.allocate_memory({Data_Type, format, tensor});
+        set_random_values<type>(input_opt);
+        topology topology_opt = topology(
+            input_layout("input", input_opt->get_layout()),
+            reorder("reorder", input_info("input"), {Data_Type, format_fsv, tensor}),
+            permute("output", input_info("reorder"), order)
+        );
+        ExecutionConfig config_tile(ov::enable_profiling(true));
+        ov::intel_gpu::ImplementationDesc permute_tile_opt = {format_fsv, kernel_name};
+        config_tile.set_property(
+            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"output", permute_tile_opt}}));
+        cldnn::network network_tile(engine, topology_opt, config_tile);
+        network_tile.set_input_data("input", input_opt);
+
+        // first execution of opt
+        std::map<primitive_id, network_output> output_permute_ref;
+        std::map<primitive_id, network_output> output_permute_opt;
+
+        for (int i = 0; i < 10; ++i) {
+            output_permute_ref = network_ref.execute();
+            output_permute_opt = network_tile.execute();
+        }
+
+        auto r = 100;
+        double exectime_ref = 0.f;
+        double exectime_opt = 0.f;
+        for (int i = 0; i < r; ++i) {
+            output_permute_opt = network_tile.execute();
+            auto t_opt = get_exectime(output_permute_opt, "output");
+            exectime_opt += t_opt;
+
+            output_permute_ref = network_ref.execute();
+            auto t_ref = get_exectime(output_permute_ref, "output");
+            exectime_ref += t_ref;
+        }
+        exectime_ref /= r;
+        exectime_opt /= r;
+        std::cout << std::endl;
+        auto output_layout_ref = network_ref.get_program()->get_node("output").get_output_layout();
+        auto output_layout_opt = network_tile.get_program()->get_node("output").get_output_layout();
+        std::string frm_str = cldnn::format(format).to_string();
+        std::string input_type = data_type_traits::name(Data_Type);
+
+        std::cout << "Exectued time " << " " << "permute_ref" << " " << " input(" << tensor.to_string()
+                  << ") output(" <<  output_layout_ref.to_string() << ") "
+                  << frm_str << " " << input_type << " " << exectime_ref << std::endl;
+        std::cout << "Exectued time " << " " << kernel_name << " " << " input(" << tensor.to_string()
+                  << ") output(" <<  output_layout_opt.to_string() << ") "
+                  << frm_str << " " << input_type << " " << exectime_opt << std::endl;
+
+    }
+};
+
+// No need to run performance tests on CI
+TEST_P(TiledPerformancePermuteTest, DISABLED_f32) {
+    auto p = GetParam();
+    execute_perf_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+}
+
+INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
+    ::testing::ValuesIn(std::vector<TiledPermuteParam> {
+        // b_fs_zy_fsv16
+        // normal cases
+        {{1, 512, 16384, 1}, format::bfyx},
+        {{1, 512, 16384, 1}, format::b_fs_yx_fsv16},
+        {{1, 256, 128, 256}, format::bfyx},
+        {{1, 256, 256, 128}, format::b_fs_yx_fsv16},
+    }));
+

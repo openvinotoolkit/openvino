@@ -141,7 +141,12 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     }
 
     {
-        decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
+        const auto& res_tuple = decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
+        auto newFQ = std::get<1>(res_tuple);
+        auto dequantize = std::get<2>(res_tuple);
+        if (newFQ != nullptr && dequantize != nullptr)
+            updateOutput(context, dequantize, newFQ);
+
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
         if (const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the openvino::funcSharedTests library, which includes 
+                 a predefined set of functional tests and utilities to verify a plugin.
+
+
 OpenVINO tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the OpenVINO public API.
 All the tests are written in the `Google Test C++ framework <https://github.com/google/googletest>`__.
 

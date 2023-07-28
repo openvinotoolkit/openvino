@@ -2,14 +2,21 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from a 
+                 TensorFlow format to the OpenVINO Intermediate Representation.
+
+
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
+
+.. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 To use model conversion API, install OpenVINO Development Tools by following the :doc:`installation instructions <openvino_docs_install_guides_install_dev_tools>`.
 
-Converting TensorFlow 1 Models 
+Converting TensorFlow 1 Models
 ###############################
 
-Converting Frozen Model Format 
+Converting Frozen Model Format
 +++++++++++++++++++++++++++++++
 
 To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model with a path to the input model ``*.pb*`` file:
@@ -19,7 +26,7 @@ To convert a TensorFlow model, use the ``*mo*`` script to simply convert a model
    mo --input_model <INPUT_MODEL>.pb
 
 
-Converting Non-Frozen Model Formats 
+Converting Non-Frozen Model Formats
 +++++++++++++++++++++++++++++++++++
 
 There are three ways to store non-frozen TensorFlow models and convert them by model conversion API:
@@ -62,14 +69,15 @@ If a model contains operations currently unsupported by OpenVINO, prune these op
 To determine custom input nodes, display a graph of the model in TensorBoard. To generate TensorBoard logs of the graph, use the ``--tensorboard_logs`` option.
 TensorFlow 2.x SavedModel format has a specific graph due to eager execution. In case of pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph of TensorFlow 2.x SavedModel format.
 
-Freezing Custom Models in Python 
+Freezing Custom Models in Python
 ++++++++++++++++++++++++++++++++
 
 When a network is defined in Python code, you have to create an inference graph file. Graphs are usually built in a form
 that allows model training. That means all trainable parameters are represented as variables in the graph.
 To be able to use such graph with model conversion API, it should be frozen and dumped to a file with the following code:
 
-.. code-block:: python 
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from tensorflow.python.framework import graph_io
@@ -84,7 +92,7 @@ Where:
 * ``inference_graph.pb`` is the name of the generated inference graph file.
 * ``as_text`` specifies whether the generated file should be in human readable text format or binary.
 
-Converting TensorFlow 2 Models 
+Converting TensorFlow 2 Models
 ###############################
 
 To convert TensorFlow 2 models, ensure that `openvino-dev[tensorflow2]` is installed via `pip`.
@@ -114,7 +122,8 @@ pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
 It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
 
-.. code-block:: python 
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
@@ -135,7 +144,8 @@ Keras H5
 If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
 SavedModel format. Here is an example of how to do it:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    model = tf.keras.models.load_model('model.h5')
@@ -145,7 +155,8 @@ SavedModel format. Here is an example of how to do it:
 The Keras H5 model with a custom layer has specifics to be converted into SavedModel format.
 For example, the model with a custom layer ``CustomLayer`` from ``custom_layer.py`` is converted as follows:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from custom_layer import CustomLayer
@@ -155,7 +166,7 @@ For example, the model with a custom layer ``CustomLayer`` from ``custom_layer.p
 
 Then follow the above instructions for the SavedModel format.
 
-.. note:: 
+.. note::
 
    Do not use other hacks to resave TensorFlow 2 models into TensorFlow 1 formats.
 
@@ -164,23 +175,23 @@ Command-Line Interface (CLI) Examples Using TensorFlow-Specific Parameters
 
 * Launching model conversion for Inception V1 frozen model when model file is a plain text protobuf:
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
+     mo --input_model inception_v1.pbtxt --input_model_is_text -b 1
 
 
 * Launching model conversion for Inception V1 frozen model and dump information about the graph to TensorBoard log dir ``/tmp/log_dir``
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
+     mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir
 
 
 * Launching model conversion for BERT model in the SavedModel format, with three inputs. Specify explicitly the input shapes where the batch size and the sequence length equal 2 and 30 respectively.
 
-.. code-block:: sh
+  .. code-block:: sh
 
-   mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
+     mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2,30],[2,30]
 
 Conversion of TensorFlow models from memory using Python API
 ############################################################
@@ -189,96 +200,104 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.keras.Model``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   model = tf.keras.applications.ResNet50(weights="imagenet")
-   ov_model = convert_model(model)
+     model = tf.keras.applications.ResNet50(weights="imagenet")
+     ov_model = convert_model(model)
 
 
 * ``tf.keras.layers.Layer``. Requires setting the "input_shape".
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   import tensorflow_hub as hub
+     import tensorflow_hub as hub
 
-   model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
-   ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
+     model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
+     ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
 
 * ``tf.Module``. Requires setting the "input_shape".
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   class MyModule(tf.Module):
-      def __init__(self, name=None):
-         super().__init__(name=name)
-         self.variable1 = tf.Variable(5.0, name="var1")
-         self.variable2 = tf.Variable(1.0, name="var2")
-      def __call__(self, x):
-         return self.variable1 * x + self.variable2
+     class MyModule(tf.Module):
+        def __init__(self, name=None):
+           super().__init__(name=name)
+           self.variable1 = tf.Variable(5.0, name="var1")
+           self.variable2 = tf.Variable(1.0, name="var2")
+        def __call__(self, x):
+           return self.variable1 * x + self.variable2
 
-   model = MyModule(name="simple_module")
-   ov_model = convert_model(model, input_shape=[-1])
+     model = MyModule(name="simple_module")
+     ov_model = convert_model(model, input_shape=[-1])
 
 * ``tf.compat.v1.Graph``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
-      model = sess.graph
-   
-   ov_model = convert_model(model)  
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
+        model = sess.graph
+
+     ov_model = convert_model(model)
 
 * ``tf.compat.v1.GraphDef``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
-      model = sess.graph_def
-   
-   ov_model = convert_model(model)  
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
+        model = sess.graph_def
+
+     ov_model = convert_model(model)
 
 * ``tf.function``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   @tf.function(
-      input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
-                       tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
-   def func(x, y):
-      return tf.nn.sigmoid(tf.nn.relu(x + y))
-   
-   ov_model = convert_model(func)  
+     @tf.function(
+        input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
+                         tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
+     def func(x, y):
+        return tf.nn.sigmoid(tf.nn.relu(x + y))
+
+     ov_model = convert_model(func)
 
 * ``tf.compat.v1.session``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   with tf.compat.v1.Session() as sess:
-      inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
-      inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
-      output = tf.nn.relu(inp1 + inp2, name='Relu')
-      tf.compat.v1.global_variables_initializer()
+     with tf.compat.v1.Session() as sess:
+        inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
+        output = tf.nn.relu(inp1 + inp2, name='Relu')
+        tf.compat.v1.global_variables_initializer()
 
-      ov_model = convert_model(sess)
+        ov_model = convert_model(sess)
 
 * ``tf.train.checkpoint``
 
-.. code-block:: python
+  .. code-block:: py
+     :force:
 
-   model = tf.keras.Model(...)
-   checkpoint = tf.train.Checkpoint(model)
-   save_path = checkpoint.save(save_directory)
-   # ... 
-   checkpoint.restore(save_path)
-   ov_model = convert_model(checkpoint)
+     model = tf.keras.Model(...)
+     checkpoint = tf.train.Checkpoint(model)
+     save_path = checkpoint.save(save_directory)
+     # ...
+     checkpoint.restore(save_path)
+     ov_model = convert_model(checkpoint)
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################

@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Power-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Power-1*
 
@@ -47,7 +50,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 1 - no broadcasting*
 
-.. code-block::  cpp   
+.. code-block:: xml
+   :force:
 
     <layer ... type="Power">
         <data auto_broadcast="none"/>
@@ -72,7 +76,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 2: numpy broadcasting*
 
-.. code-block::  cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="Power">
         <data auto_broadcast="numpy"/>

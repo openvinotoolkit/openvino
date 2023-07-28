@@ -58,6 +58,7 @@ using InputsInfo = std::map<std::string, InputInfo>;
 using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app
 
+bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info);
 bool is_virtual_device(const std::string& device_name);
 bool is_virtual_device_found(const std::vector<std::string>& device_names);
 void update_device_properties_setting(const std::string& device_name,

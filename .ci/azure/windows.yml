@@ -222,10 +222,14 @@ jobs:
       $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+      if not exist %USERPROFILE%\Documents\Intel\OpenVINO\openvino_cpp_samples_build\ exit 1
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: |
+      $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+      if not exist %USERPROFILE%\Documents\Intel\OpenVINO\openvino_c_samples_build\ exit 1
     displayName: 'Build c samples'
 
   - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
@@ -259,6 +263,12 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceUnit.xml
     displayName: 'Inference Unit Tests'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVProxyTests.xml
+    displayName: 'OV Proxy Plugin Tests'
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVHeteroFuncTests.xml
+    displayName: 'OV Hetero Func Tests'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 
@@ -286,11 +296,11 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
     displayName: 'Transformations Tests'
-    
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LegacyTransformations.xml
     displayName: 'Legacy Transformations Tests'
-    
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\commonUtilsTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\CommonUtilTests.xml
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_util_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\CommonUtilTests.xml
     displayName: 'Common Utils Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineUnitTests.xml
@@ -302,8 +312,8 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
-    displayName: 'MULTI UT'
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_unit_tests.xml
+    displayName: 'AUTO UT'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_unit_tests.xml
     displayName: 'AutoBatch UT'

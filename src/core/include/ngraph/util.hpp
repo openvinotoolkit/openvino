@@ -150,7 +150,7 @@ NGRAPH_API_DEPRECATED T parse_string(const std::string& s) {
 
     // Check that (1) parsing succeeded and (2) the entire string was used.
     if (ss.fail() || ss.rdbuf()->in_avail() != 0) {
-        throw std::runtime_error("Could not parse literal '" + s + "'");
+        OPENVINO_THROW("Could not parse literal '" + s + "'");
     }
 
     return result;
@@ -238,7 +238,7 @@ void parse_version_string(std::string version, size_t& major, size_t& minor, siz
 template <typename T>
 NGRAPH_API_DEPRECATED T double_to_int(double x, double float_to_int_converter(double)) {
     if (!std::is_integral<T>()) {
-        throw std::runtime_error("Function double_to_int template parameter must be an integral type.");
+        OPENVINO_THROW("Function double_to_int template parameter must be an integral type.");
     }
 
     x = float_to_int_converter(x);
@@ -260,7 +260,7 @@ NGRAPH_API_DEPRECATED T double_to_int(double x, double float_to_int_converter(do
 template <typename T>
 NGRAPH_API_DEPRECATED std::vector<T> read_vector(std::shared_ptr<ngraph::runtime::Tensor> tv) {
     if (ngraph::element::from<T>() != tv->get_element_type()) {
-        throw std::invalid_argument("read_vector type must match Tensor type");
+        OPENVINO_THROW("read_vector type must match Tensor type");
     }
     size_t element_count = ngraph::shape_size(tv->get_shape());
     size_t size = element_count * sizeof(T);

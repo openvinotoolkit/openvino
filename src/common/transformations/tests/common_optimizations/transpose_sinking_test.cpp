@@ -33,7 +33,7 @@ struct TransposeFQReduceParams {
     std::vector<int32_t> ex_transpose_order;
 };
 
-class TransposeSinkingFQ : public CommonTestUtils::TestsCommon,
+class TransposeSinkingFQ : public ov::test::TestsCommon,
                            public testing::WithParamInterface<std::tuple<TransposeFQReduceParams>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -96,13 +96,13 @@ public:
 };
 
 TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::TransposeFQReduction>();
     manager.register_pass<ov::pass::TransposeReduction>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -157,7 +157,7 @@ struct TransposeReduceParams {
     std::vector<int32_t> ex_transpose_order;
 };
 
-class TransposeSinking : public CommonTestUtils::TestsCommon,
+class TransposeSinking : public ov::test::TestsCommon,
                          public testing::WithParamInterface<std::tuple<TransposeReduceParams, ngraph::NodeTypeInfo>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -215,12 +215,12 @@ private:
 };
 
 TEST_P(TransposeSinking, TransposeReduction) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::TransposeReduction>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 

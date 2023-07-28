@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/ops.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
@@ -64,8 +64,7 @@ const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_
                                                                                            _NGRAPH_REG_OPSET(opset8),
                                                                                            _NGRAPH_REG_OPSET(opset9),
                                                                                            _NGRAPH_REG_OPSET(opset10),
-                                                                                           _NGRAPH_REG_OPSET(opset11),
-                                                                                           _NGRAPH_REG_OPSET(opset12)};
+                                                                                           _NGRAPH_REG_OPSET(opset11)};
 #undef _NGRAPH_REG_OPSET
     return opset_map;
 }
@@ -273,10 +272,5 @@ const ngraph::OpSet& ngraph::get_opset10() {
 
 const ngraph::OpSet& ngraph::get_opset11() {
     static OpSet opset(ov::get_opset11());
-    return opset;
-}
-
-const ngraph::OpSet& ngraph::get_opset12() {
-    static OpSet opset(ov::get_opset12());
     return opset;
 }

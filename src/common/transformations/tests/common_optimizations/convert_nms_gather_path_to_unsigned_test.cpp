@@ -204,5 +204,5 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
     manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
-    ASSERT_EQ(count_ops_of_type<opset1::Convert>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Convert>(f), 0);
 }

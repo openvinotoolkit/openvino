@@ -19,7 +19,7 @@ public:
 static std::shared_ptr<ngraph::Function> get(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type inputPrecision,
-    const std::shared_ptr<ngraph::opset1::Constant> weights,
+    const std::shared_ptr<ov::op::v0::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights);
 };
 

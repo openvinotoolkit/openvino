@@ -2096,7 +2096,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                    std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
             }
@@ -2182,7 +2182,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastScales.empty()) {
             return true;
         }
-        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(get_scale_id())[0]->getMemory().GetPtr());
+        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(get_scale_id())[0]->getMemory().getData());
         for (size_t i = 0; i < lastScales.size(); i++) {
             if (lastScales[i] != scales[i]) {
                 return true;
@@ -2192,7 +2192,7 @@ bool Interpolate::needShapeInfer() const {
         if (lastSizes.empty()) {
             return true;
         }
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetPtr());
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().getData());
         for (size_t i = 0; i < lastSizes.size(); i++) {
             if (sizes[i] != lastSizes[i]) {
                 return true;
@@ -2208,10 +2208,10 @@ void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
-        const float *scales = reinterpret_cast<const float *>(memory.GetPtr());
+        const float *scales = reinterpret_cast<const float *>(memory.getData());
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
-        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.GetPtr());
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.getData());
         lastSizes.assign(sizes, sizes + memory.getDesc().getShape().getElementsCount());
     }
 }
@@ -2238,26 +2238,26 @@ void Interpolate::prepareParams() {
         IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
     }
 
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
 
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
 
     if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
-        auto& tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
+        auto tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
         if (!tsMemPtr || !tsMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate target shape memory";
     } else {
-        auto& scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
+        auto scaleMemPtr = getParentEdgeAt(get_scale_id())->getMemoryPtr();
         if (!scaleMemPtr || !scaleMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate scales memory";
     }
 
     if (isAxesSpecified) {
-        auto &axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
+        auto axesMemPtr = getParentEdgeAt(get_axis_id())->getMemoryPtr();
         if (!axesMemPtr || !axesMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate axes memory";
     }
@@ -2288,7 +2288,7 @@ void Interpolate::prepareParams() {
     if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgesAtPort(get_scale_id())[0]->getMemory();
-            const float* scalesData = reinterpret_cast<const float *>(scalesMem.GetPtr());
+            const float* scalesData = reinterpret_cast<const float *>(scalesMem.getData());
             scales.assign(scalesData, scalesData + scalesMem.getStaticDims()[0]);
         }
     }
@@ -2353,8 +2353,8 @@ void Interpolate::prepareParams() {
 }
 
 void Interpolate::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -2443,12 +2443,12 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
 }
 
 void Interpolate::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-        const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->GetData());
+        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+        const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
         const uint8_t *src_data = nullptr;
         std::vector<uint8_t> srcPadded;
         if (hasPad) {

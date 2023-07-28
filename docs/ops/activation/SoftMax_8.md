@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SoftMax-8 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *SoftMax-8*
 
 **Category**: *Activation function*
@@ -38,12 +42,13 @@ where :math:`C` is a size of tensor along *axis* dimension.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
-  <layer ... type="SoftMax" ... >
-      <data axis="1" />
-      <input> ... </input>
-      <output> ... </output>
-  </layer>
+   <layer ... type="SoftMax" ... >
+       <data axis="1" />
+       <input> ... </input>
+       <output> ... </output>
+   </layer>
 
 @endsphinxdirective

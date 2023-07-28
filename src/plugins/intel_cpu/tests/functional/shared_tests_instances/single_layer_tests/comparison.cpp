@@ -44,13 +44,13 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
@@ -85,7 +85,7 @@ const auto ComparisonTestParamsIs = ::testing::Combine(
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_IsOp, ComparisonLayerTest, ComparisonTestParamsIs, ComparisonLayerTest::getTestCaseName);

@@ -25,6 +25,9 @@ OutputVector translate_unflatten(const NodeContext& context) {
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto sizes = context.get_input(2);
+    if (context.get_input_type(2).is<type::List>()) {
+        sizes = concat_list_construct(sizes);
+    }
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto one_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));

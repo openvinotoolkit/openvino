@@ -4,11 +4,11 @@
 
 #include <map>
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

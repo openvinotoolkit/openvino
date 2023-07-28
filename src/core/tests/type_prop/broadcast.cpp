@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
-
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

@@ -20,7 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Select, Select,
                 ::testing::ValuesIn({ov::element::f32, ov::element::i8}),
                 ::testing::Values(1),
                 ::testing::Values(1),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         Select::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastSelect, BroadcastSelect,
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastSelect, BroadcastSelect,
                                  ::testing::ValuesIn({ov::element::f32, ov::element::i8}),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          BroadcastSelect::getTestCaseName);
 
 

@@ -21,7 +21,7 @@ namespace pass {
 class FuseLoadStoreConvert: public snippets::lowered::pass::Pass {
 public:
     FuseLoadStoreConvert() = default;
-    OPENVINO_RTTI("FuseLoadStoreConvert", "LinearIRTransformation");
+    OPENVINO_RTTI("FuseLoadStoreConvert", "Pass");
     bool run(snippets::lowered::LinearIR& linear_ir) override;
 
 private:

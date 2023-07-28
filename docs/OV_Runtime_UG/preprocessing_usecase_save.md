@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Once a model is read, the preprocessing/ postprocessing steps 
+                 can be added and then the resulting model can be saved to 
+                 OpenVINO Intermediate Representation.
+
+
 Previous sections covered the topic of the :doc:`preprocessing steps <openvino_docs_OV_UG_Preprocessing_Details>` 
 and the overview of :doc:`Layout <openvino_docs_OV_UG_Layout_Overview>` API.
 
@@ -37,18 +43,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_headers
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_headers
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_headers
 
 
@@ -57,18 +63,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save
 
 
@@ -82,18 +88,18 @@ time when the cached model is available.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_load
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_load
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_load
 
 

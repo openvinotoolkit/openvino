@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to create a Yocto image with Intel® Distribution of 
+                 OpenVINO™ toolkit on your host machine.
+
 This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 System Requirements
@@ -123,7 +127,7 @@ Additional Resources
 - `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README>`__
 - `Meta-openembedded <http://cgit.openembedded.org/meta-openembedded/tree/README>`__
 - `Meta-clang <https://github.com/kraj/meta-clang/tree/master/#readme>`__
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
 
 @endsphinxdirective
 

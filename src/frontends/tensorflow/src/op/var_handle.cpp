@@ -67,6 +67,10 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
         auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
         bool result = var_index->get_mapped_variable(var_name, &entry_data, &entry_size);
 
+        if (!result) {
+            result = var_index->get_variable(var_name, &entry_data, &entry_size);
+        }
+
         TENSORFLOW_OP_VALIDATION(node, result, "[TensorFlow Frontend] Internal error: Cannot find requested variable.");
 
         ::tensorflow::BundleEntryProto entry;

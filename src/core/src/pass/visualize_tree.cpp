@@ -140,15 +140,10 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     std::stringstream ss;
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
-        size_t output = 0;
-        stringstream label_edge;
-        label_edge << "[label=\" " << output << " -> " << arg_index << " \"]";
-        ss << label_edge.str();
+        ss << "[label=\" " << dst->input_value(arg_index).get_index() << " -> " << arg_index << " \"]";
     } else if (getenv_bool("OV_VISUALIZE_TREE_EDGE_JUMP_DISTANCE")) {
         if (jump_distance > 1) {
-            stringstream label_edge;
-            label_edge << "[label=\"jump=" << jump_distance << "\"]";
-            ss << label_edge.str();
+            ss << "[label=\"jump=" << jump_distance << "\"]";
         }
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -298,21 +293,7 @@ static std::string pretty_partial_shape(const PartialShape& shape) {
     if (shape.rank().is_dynamic()) {
         ss << "?";
     } else {
-        bool first = true;
-
-        ss << "[";
-        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
-            if (!first) {
-                ss << ",";
-            }
-            if (shape[i].is_dynamic()) {
-                ss << shape[i];
-            } else {
-                ss << shape[i].get_length();
-            }
-            first = false;
-        }
-        ss << "]";
+        ss << shape;
     }
 
     return ss.str();
@@ -355,7 +336,7 @@ static std::string pretty_min_max_denormal_value(const vector<T>& values) {
 }
 
 template <typename T>
-static std::string pretty_value(const vector<T>& values, size_t max_elements) {
+static std::string pretty_value(const vector<T>& values, size_t max_elements, bool allow_obfuscate = false) {
     std::stringstream ss;
     for (size_t i = 0; i < values.size(); ++i) {
         if (i < max_elements) {
@@ -363,14 +344,22 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements) {
                 ss << std::endl;
             }
         } else {
-            ss << "...";
+            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
+                return el == values[0];
+            });
+            ss << "..." << (all_same ? " same" : "");
             break;
         }
 
         const auto& value = values[i];
         if (i > 0)
             ss << ", ";
-        ss << value;
+        if (allow_obfuscate && value == std::numeric_limits<T>::max())
+            ss << "max";
+        else if (allow_obfuscate && value == std::numeric_limits<T>::min())
+            ss << "min";
+        else
+            ss << value;
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -383,16 +372,10 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements) {
     return ss.str();
 }
 
-std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
+static std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
+                             size_t max_elements,
+                             bool allow_obfuscate = false) {
     std::stringstream ss;
-    ss << "{" << node->get_element_type().get_type_name() << "}";
-    ss << pretty_partial_shape(node->get_output_partial_shape(0));
-
-    if (!ngraph::op::is_constant(node))
-        return ss.str();
-
-    ss << "\nvalue: ";
-    const auto constant = ov::as_type_ptr<ngraph::op::Constant>(node);
     switch (constant->get_output_element_type(0)) {
     case element::Type_t::undefined:
         ss << "[ undefined value ]";
@@ -413,22 +396,58 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     case element::Type_t::f16:
     case element::Type_t::f32:
     case element::Type_t::f64:
-        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
         break;
     case element::Type_t::i8:
     case element::Type_t::i16:
     case element::Type_t::i32:
     case element::Type_t::i64:
-        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
         break;
     case element::Type_t::boolean:
     case element::Type_t::u8:
     case element::Type_t::u16:
     case element::Type_t::u32:
     case element::Type_t::u64:
-        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements) << "]";
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
         break;
     }
+    return ss.str();
+}
+
+static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) {
+    const auto& tensor = output.get_tensor();
+    const auto& lower = tensor.get_lower_value();
+    const auto& upper = tensor.get_upper_value();
+    const auto& value_label = tensor.get_value_label();
+
+    if (!lower && !upper && value_label.empty())
+        return "";
+
+    std::stringstream label;
+    size_t size = lower ? lower.get_size() : upper ? upper.get_size() : value_label.size();
+    if (size == 0) {
+        label << "empty";
+    } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        label << " lower: "
+              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
+        label << " upper: "
+              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
+        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+    }
+    return label.str();
+}
+
+std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
+    std::stringstream ss;
+    ss << "{" << node->get_element_type().to_string() << "}";
+    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+
+    if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(node))
+        ss << "\nvalue: " << get_value(constant, max_elements);
     return ss.str();
 }
 
@@ -455,6 +474,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
             getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES") || getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = getenv_bool("OV_VISUALIZE_TREE_IO");
         static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
+        static const bool ovpvl = getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (nvtos || nvtot || nvtio) {
@@ -462,7 +482,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                 for (const auto& input : node->inputs()) {
                     label << "\\nin" << to_string(input.get_index()) << ": ";
                     if (nvtot)
-                        label << "{" << input.get_element_type().get_type_name() << "}";
+                        label << "{" << input.get_element_type().to_string() << "}";
                     if (nvtos)
                         label << pretty_partial_shape(input.get_partial_shape());
                     label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
@@ -477,13 +497,15 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                 if (nvtio)
                     label << "\\nout" << to_string(output.get_index()) << ": ";
                 if (nvtot)
-                    label << "{" << output.get_element_type().get_type_name() << "}";
+                    label << "{" << output.get_element_type().to_string() << "}";
                 if (nvtos)
                     label << pretty_partial_shape(output.get_partial_shape());
 
                 if (nvtrti) {
                     label << get_attribute_values(output.get_rt_info());
                 }
+                if (ovpvl)
+                    label << get_bounds_and_label_info(output);
             }
         }
 
@@ -577,7 +599,7 @@ void pass::VisualizeTree::render() const {
     }
     ofstream out(dot_file);
     if (out) {
-        out << "digraph ngraph\n{\n";
+        out << "digraph \n{\n";
         out << m_ss.str();
         out << "}\n";
         out.close();

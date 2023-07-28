@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to estimate performance of a model using Asynchronous Inference Request (C++) API in throughput mode.
+
+
 This sample demonstrates how to estimate performance of a model using Asynchronous Inference Request API in throughput mode. Unlike :doc:`demos <omz_demos>` this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 The reported results may deviate from what :doc:`benchmark_app <openvino_inference_engine_samples_benchmark_app_README>` reports. One example is model input precision for computer vision tasks. benchmark_app sets ``uint8``, while the sample uses default model precision which is usually ``float32``.

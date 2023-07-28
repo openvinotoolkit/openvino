@@ -14,9 +14,9 @@ scratch; the data is from
 This third tutorial in the series shows how to:
 
 -  Convert an Original model to OpenVINO IR with `Model
-   Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__,
+   Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__,
    using `Model Optimizer Python
-   API <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__
+   API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
 -  Quantize a PyTorch model with NNCF
 -  Evaluate the F1 score metric of the original model and the quantized
    model
@@ -146,21 +146,15 @@ Imports
 
 .. parsed-literal::
 
-    2023-05-29 22:49:24.630818: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-05-29 22:49:24.666920: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-11 22:37:38.702892: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-11 22:37:38.737776: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-05-29 22:49:25.225999: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-11 22:37:39.282688: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future, use `openvino.runtime.passes` instead!
-      warnings.warn(
 
 
 Settings
@@ -192,7 +186,7 @@ notebook <pytorch-monai-training.ipynb>`__.
 
 .. code:: ipython3
 
-    state_dict_url = "https://github.com/helena-intel/openvino_notebooks/raw/110-nncf/notebooks/110-ct-segmentation-quantize/pretrained_model/unet_kits19_state_dict.pth"
+    state_dict_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/unet_kits19_state_dict.pth"
     state_dict_file = download_file(state_dict_url, directory="pretrained_model")
     state_dict = torch.load(state_dict_file, map_location=torch.device("cpu"))
     
@@ -422,26 +416,26 @@ this notebook.
 
 .. parsed-literal::
 
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-    [ WARNING ] Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
 
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
-OpenVINO with minimal accuracy drop. > **Note**: NNCF Post-training
-Quantization is available in OpenVINO 2023.0 release.
+OpenVINO with minimal accuracy drop. 
+
+.. note::
+
+   NNCF Post-training Quantization is available in OpenVINO 2023.0 release.
 
 Create a quantized model from the pre-trained ``FP32`` model and the
 calibration dataset. The optimization process contains the following
-steps: 1. Create a Dataset for quantization. 2. Run ``nncf.quantize``
-for getting an optimized model. 3. Export the quantized model to ONNX
-and then convert to OpenVINO IR model. 4. Serialize the INT8 model using
-``openvino.runtime.serialize`` function for benchmarking.
+steps:
+
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model.
+3. Export the quantized model to ONNX and then convert to OpenVINO IR model.
+4. Serialize the INT8 model using ``openvino.runtime.serialize`` function for benchmarking.
 
 .. code:: ipython3
 
@@ -481,6 +475,19 @@ model and save it.
     torch.onnx.export(quantized_model, dummy_input, int8_onnx_path)
     int8_ir_model = mo.convert_model(input_model=int8_onnx_path)
     serialize(int8_ir_model, str(int8_ir_path))
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      return self._level_low.item()
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      return self._level_high.item()
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/monai/networks/nets/basic_unet.py:179: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
+      output = g.op(
+
 
 This notebook demonstrates post-training quantization with NNCF.
 
@@ -535,7 +542,7 @@ Compare Performance of the FP32 IR Model and Quantized Models
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or
@@ -568,35 +575,35 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to LATENCY.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 10.98 ms
+    [ INFO ] Read model took 22.47 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input_0 (node: input_0) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     1 , x (node: Parameter_2) : f32 / [...] / [1,1,512,512]
     [ INFO ] Model outputs:
-    [ INFO ]     238 (node: 238) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     169 (node: aten::_convolution_861) : f32 / [...] / [1,1,512,512]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input_0 (node: input_0) : f32 / [N,C,H,W] / [1,1,512,512]
+    [ INFO ]     1 , x (node: Parameter_2) : f32 / [N,C,H,W] / [1,1,512,512]
     [ INFO ] Model outputs:
-    [ INFO ]     238 (node: 238) : f32 / [...] / [1,1,512,512]
+    [ INFO ]     169 (node: aten::_convolution_861) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 88.50 ms
+    [ INFO ] Compile model took 89.66 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
+    [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
     [ INFO ]   NUM_STREAMS: 1
     [ INFO ]   AFFINITY: Affinity.CORE
@@ -604,22 +611,28 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input_0'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_0' with random values 
+    [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
+    [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 52.29 ms
+    [ INFO ] First inference took 56.61 ms
     [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            427 iterations
-    [ INFO ] Duration:         15001.20 ms
+    [ INFO ] Duration:         15001.35 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        34.91 ms
-    [ INFO ]    Average:       34.93 ms
-    [ INFO ]    Min:           34.61 ms
-    [ INFO ]    Max:           37.31 ms
-    [ INFO ] Throughput:   28.64 FPS
+    [ INFO ]    Median:        34.89 ms
+    [ INFO ]    Average:       34.92 ms
+    [ INFO ]    Min:           34.57 ms
+    [ INFO ]    Max:           39.09 ms
+    [ INFO ] Throughput:   28.66 FPS
 
 
 .. code:: ipython3
@@ -634,18 +647,18 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to LATENCY.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 24.51 ms
+    [ INFO ] Read model took 32.41 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x.1 (node: x.1) : f32 / [...] / [1,1,512,512]
@@ -659,7 +672,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ] Model outputs:
     [ INFO ]     578 (node: 578) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 149.51 ms
+    [ INFO ] Compile model took 144.74 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -670,22 +683,28 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   PERF_COUNT: False
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
     [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]   ENABLE_CPU_PINNING: True
+    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x.1'!. This input will be filled with random values!
     [ INFO ] Fill input 'x.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 29.36 ms
+    [ INFO ] First inference took 32.29 ms
     [Step 11/11] Dumping statistics report
-    [ INFO ] Count:            995 iterations
-    [ INFO ] Duration:         15002.63 ms
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            985 iterations
+    [ INFO ] Duration:         15013.03 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        14.84 ms
-    [ INFO ]    Average:       14.88 ms
-    [ INFO ]    Min:           14.49 ms
-    [ INFO ]    Max:           15.59 ms
-    [ INFO ] Throughput:   67.38 FPS
+    [ INFO ]    Median:        14.99 ms
+    [ INFO ]    Average:       15.04 ms
+    [ INFO ]    Min:           14.76 ms
+    [ INFO ]    Max:           17.68 ms
+    [ INFO ] Throughput:   66.70 FPS
 
 
 Visually Compare Inference Results
@@ -768,7 +787,7 @@ seed is displayed to enable reproducing specific runs of this cell.
 
 .. parsed-literal::
 
-    Visualizing results with seed 1685393451
+    Visualizing results with seed 1689107962
 
 
 
@@ -845,8 +864,8 @@ performs inference, and displays the results on the frames loaded in
 
 .. parsed-literal::
 
-    Loaded model to CPU in 0.14 seconds.
-    Total time for 68 frames: 2.89 seconds, fps:23.84
+    Loaded model to CPU in 0.13 seconds.
+    Total time for 68 frames: 3.28 seconds, fps:21.05
 
 
 References

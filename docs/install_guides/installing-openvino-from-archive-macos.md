@@ -2,28 +2,36 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on macOS operating 
+                 system, using an archive file, which is a recommended 
+                 installation method for C++ developers.
+
 With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 .. note::
 
    Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only.
 
+.. tab-set::
 
-.. tab:: System Requirements
-
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-.. tab:: Software Requirements
-
-  * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-  * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
-  * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
-  * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
+   .. tab-item:: System Requirements
+      :sync: system-requirements
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+   .. tab-item:: Software Requirements
+      :sync: software-requirements
+   
+      * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
+      * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
+      * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
+      * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
 
 Installing OpenVINO Runtime
@@ -53,30 +61,35 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
-   .. tab:: x86, 64-bit
+   .. tab-set::
 
-      .. code-block:: sh
-
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-
-   .. tab:: ARM, 64-bit
-
-      .. code-block:: sh
-
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64.tgz --output openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+      .. tab-item:: x86, 64-bit
+         :sync: x86-64
+   
+         .. code-block:: sh
+   
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
+   
+      .. tab-item:: ARM, 64-bit
+         :sync: arm-64
+   
+         .. code-block:: sh
+   
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64.tgz --output openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
 
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2023.0.0 openvino_2023
+      sudo ln -s /opt/intel/openvino_2023.0.1 /opt/intel/openvino_2023 
+
 
    .. note::
 
@@ -92,6 +105,7 @@ You must update several environment variables before you can compile and run Ope
 
 .. code-block:: sh
 
+   cd /opt/intel/openvino_2023 
    source /opt/intel/openvino_2023/setupvars.sh
 
 
@@ -117,31 +131,34 @@ What's Next?
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
+.. tab-set::
 
-.. tab:: Get started with Python
-
-   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
-
-   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-      :width: 400
-
-   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
-
-.. tab:: Get started with C++
-
-   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
-
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
-
-   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+   .. tab-item:: Get started with Python
+      :sync: get-started-py
+   
+      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   
+      .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+         :width: 400
+   
+      Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   
+      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+   
+   .. tab-item:: Get started with C++
+      :sync: get-started-cpp
+   
+      Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   
+      .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+         :width: 400
+   
+      Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+   
+      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+      * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 Uninstalling Intel® Distribution of OpenVINO™ Toolkit
 #####################################################
@@ -151,7 +168,6 @@ To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openv
 Additional Resources
 ####################
 
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`

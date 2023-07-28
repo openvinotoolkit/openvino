@@ -451,7 +451,7 @@ inline SizeVector getBlockND(const SizeVector& shape) {
 }
 
 const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(src[0]->GetData());
+    const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(src[0]->getData());
 
     const auto &srcDim = src[0]->getStaticDims();
     const auto &dstDim = dst[0]->getStaticDims();

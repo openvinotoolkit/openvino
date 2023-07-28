@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the pre-release information that includes a general 
+                 changelog for each version of OpenVINO Toolkit published under 
+                 the current cycle.
+
 To ensure you can test OpenVINO's upcoming features even before they are officially released, 
 OpenVINO developers continue to roll out pre-release software. On this page you can find
 a general changelog for each version published under the current cycle.
@@ -17,12 +22,22 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * NOT subject to official support.
    * Subject to change in the future.
    * Introduced to allow early testing and get early feedback from the community.
- 
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230427
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230623
    :open:
    :animate: fade-in-slide-down
    :color: primary
+
+   The first pre-release for OpenVINO 2023.1, focused on fixing bugs and performance issues.
+
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
+   
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+   :animate: fade-in-slide-down
+   :color: secondary
 
    Note that a new distribution channel has been introduced for C++ developers: `Conda Forge <https://anaconda.org/conda-forge/openvino>`__ 
    (the 2022.3.0 release is available there now).

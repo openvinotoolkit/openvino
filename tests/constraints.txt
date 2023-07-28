@@ -1,4 +1,4 @@
-numpy>=1.16.6,<1.25.0
+numpy>=1.16.6,<1.26
 attrs==23.1.0
 distro==1.8.0
 h5py>=3.1.0
@@ -13,9 +13,9 @@ fastjsonschema~=2.17.1
 test-generator==0.1.2
 requests>=2.25.1
 opencv-python>=4.5
-paddlepaddle==2.4.2
+paddlepaddle==2.5.0
 py>=1.9.0
-pytest>=5.0,<7.4
+pytest>=5.0,<7.5
 pytest-dependency==0.5.1
 pytest-html==3.2.0
 pytest-timeout==2.1.0

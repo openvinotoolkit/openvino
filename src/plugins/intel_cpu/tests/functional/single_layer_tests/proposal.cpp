@@ -88,7 +88,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -96,20 +96,20 @@ public:
         result << "TS=";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "base_size=" << base_size << "_";
         result << "framework=" << framework << "_";
-        result << "ratio=" << CommonTestUtils::vec2str(ratio) << "_";
-        result << "scale=" << CommonTestUtils::vec2str(scale) << "_";
+        result << "ratio=" << ov::test::utils::vec2str(ratio) << "_";
+        result << "scale=" << ov::test::utils::vec2str(scale) << "_";
         result << "netPRC=" << netPrecision.name();
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
         proposalSpecificParams proposalParams;

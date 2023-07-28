@@ -52,6 +52,9 @@ public:
     inline bool supported(const Types&... vars) const {
         return supported_impl({ov::Any(vars)...});
     }
+    inline bool supported(const ov::AnyVector& vars) const {
+        return supported_impl(vars);
+    }
 
     /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
     /// defines what arguments it can accept.

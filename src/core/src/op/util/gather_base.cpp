@@ -32,9 +32,8 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
     const auto& axis_pshape = get_input_partial_shape(2);
-    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape},
-                              output_shapes = {PartialShape{}};
-    shape_infer(this, input_shapes, output_shapes, {});
+    std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape};
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }
 
@@ -229,16 +228,15 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     }
 
     if (axis < 0) {
-        const auto& input_rank = get_input_partial_shape(0).rank();
-        if (input_rank.is_static()) {
-            axis += input_rank.get_length();
-        }
+        const auto input_rank = inputs[0]->get_shape().size();
+        axis += input_rank;
     }
 
     int64_t batch_dims = m_batch_dims;
-    const auto& indices_rank = get_input_partial_shape(1).rank();
-    if (batch_dims < 0 && indices_rank.is_static())
-        batch_dims += indices_rank.get_length();
+    if (batch_dims < 0) {
+        const auto indices_rank = inputs[1]->get_shape().size();
+        batch_dims += indices_rank;
+    }
 
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }

@@ -268,7 +268,7 @@ spectrogram.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3057245/2518307745.py:2: FutureWarning: waveshow() keyword argument 'x_axis' has been renamed to 'axis' in version 0.10.0.
+    /tmp/ipykernel_2115037/2518307745.py:2: FutureWarning: waveshow() keyword argument 'x_axis' has been renamed to 'axis' in version 0.10.0.
     	This alias will be removed in version 1.0.
       librosa.display.waveshow(y=audio, sr=sampling_rate, max_points=50000, x_axis='time', offset=0.0);
 
@@ -393,7 +393,7 @@ Now, you can read and load the network.
     ie = Core()
 
 You may run the network on multiple devices. By default, it will load
-the model on CPU (you can choose manually CPU, GPU, MYRIAD, etc.) or let
+the model on CPU (you can choose manually CPU, GPU, etc.) or let
 the engine choose the best available device (AUTO).
 
 To list all available devices that can be used, run
