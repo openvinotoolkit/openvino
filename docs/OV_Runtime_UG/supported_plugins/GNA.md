@@ -363,7 +363,7 @@ and *W* is limited to 87 when there are 64 input channels.
 Support for Convolutions since GNA 3.5
 --------------------------------------------------------------------------------------------------------------------------------------
 
-Starting from Intel® GNA 3.5, 1D convolution are handled in a different way than in GNA 3.0. Convolution have following limitations:
+Starting from Intel® GNA 3.5, 1D convolutions are handled in a different way than in GNA 3.0. Convolutions have the following limitations:
 
 ============================  =======================  =================
  Limitation                    Convolution 1D           Convolution 2D
