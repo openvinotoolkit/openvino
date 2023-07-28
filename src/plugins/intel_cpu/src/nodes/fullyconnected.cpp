@@ -406,7 +406,7 @@ void FullyConnected::createPrimitive() {
 
 void FullyConnected::prepareParams() {
 #ifdef OV_CPU_WITH_LLMDNN
-    if (tryUseLLMFc())
+    if (initLLMFc())
         return;
 #endif
 
@@ -602,7 +602,7 @@ void FullyConnected::execute(dnnl::stream strm) {
 #endif
 
 #ifdef OV_CPU_WITH_LLMDNN
-    if (tryExecLLMFc())
+    if (execLLMFc())
         return;
 #endif
 
@@ -1112,7 +1112,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
 }
 
 #ifdef OV_CPU_WITH_LLMDNN
-bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
+bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
         return false;
 
@@ -1256,7 +1256,7 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
     return false;
 }
 
-MemoryPtr FullyConnected::tryConvertMemoryPrecision(MemoryPtr memPtr, const InferenceEngine::Precision prec) {
+MemoryPtr FullyConnected::convertMemoryPrecision(MemoryPtr memPtr, const InferenceEngine::Precision prec) {
     if (prec == memPtr->getDesc().getPrecision())
         return memPtr;
 
@@ -1317,12 +1317,12 @@ void FullyConnected::primExecLLMFc(void* weight) {
     });
 }
 
-bool FullyConnected::tryUseLLMFc() {
+bool FullyConnected::initLLMFc() {
     if (stateLLMFc != Not_Init)
         return stateLLMFc == State_Use;
 
     llmdnn::fc_create_param param;
-    if (!tryExtractParamForLLMFc(param)) {
+    if (!extractParamForLLMFc(param)) {
         stateLLMFc = State_NotUse;
         return false;
     }
@@ -1345,7 +1345,8 @@ bool FullyConnected::tryUseLLMFc() {
         selected_pd->setImplementationType(gemm_llmdnn);
 
         // If the input precision is fp32 on SPR, the weight will be cast to bf16 for acceleration.
-        auto weight_ptr = tryConvertMemoryPrecision(getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr(), Precision::BF16);
+        // TODO(116635): 1, kernel support f32 input 2, dedicated inferface for pack weight
+        auto weight_ptr = convertMemoryPrecision(getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr(), Precision::BF16);
         weightDims = weight_ptr->getStaticDims();
         void* weight = weight_ptr->getData();
         primExecLLMFc(weight);
@@ -1358,7 +1359,7 @@ bool FullyConnected::tryUseLLMFc() {
     return ret;
 }
 
-bool FullyConnected::tryExecLLMFc() {
+bool FullyConnected::execLLMFc() {
     if (stateLLMFc != State_Use)
         return false;
 
