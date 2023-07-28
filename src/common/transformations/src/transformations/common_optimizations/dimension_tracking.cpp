@@ -521,37 +521,6 @@ ov::pass::NopBroadcast::NopBroadcast() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::BroadcastOnes::BroadcastOnes() {
-    MATCHER_SCOPE(BroadcastOnes);
-    auto input = pattern::any_input(pattern::has_static_rank());
-    auto ones = pattern::any_input();
-    auto broadcast = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>({input, ones},
-                                                                                            pattern::has_static_rank());
-
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& broadcast = m.get_match_root();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto constant_output_shape = ov::get_constant_from_source(broadcast->input_value(1));
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!constant_output_shape)
-            return false;
-        auto data = constant_output_shape->cast_vector<int64_t>();
-        if (!std::all_of(begin(data), end(data), [](const int64_t& i) {
-                return i == 1;
-            }))
-            return false;
-        const auto& input_rank = broadcast->get_input_partial_shape(0).size();
-        const auto& output_rank = broadcast->get_output_partial_shape(0).size();
-        if (input_rank != output_rank)
-            return false;
-        broadcast->output(0).replace(broadcast->input_value(0));
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
-    register_matcher(m, matcher_pass_callback);
-}
-
 bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     bool labels_exist_and_equal = false;
 
@@ -969,41 +938,6 @@ ov::pass::DeReshapeMatMulWithComplications::DeReshapeMatMulWithComplications() {
     };
 
     auto m = std::make_shared<pattern::Matcher>(final_reshape, matcher_name);
-    register_matcher(m, matcher_pass_callback);
-}
-
-ov::pass::RemoveSliceBeforeGatherElements::RemoveSliceBeforeGatherElements() {
-    MATCHER_SCOPE(RemoveSliceBeforeGatherElements);
-
-    auto slice = pattern::wrap_type<op::v8::Slice>();
-    auto gather = pattern::wrap_type<op::v6::GatherElements>({slice, pattern::any_input()});
-
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_node = m.get_pattern_map();
-
-        auto is_constant_and_all_values_equal = [](const Output<Node>& output, const int64_t& v) -> bool {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto& constant = ov::get_constant_from_source(output);
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            if (!constant)
-                return false;
-            const auto& values = constant->cast_vector<int64_t>();
-            return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
-                return i == v;
-            });
-        };
-
-        const auto& slice_node = pattern_to_node.at(slice);
-        if (!is_constant_and_all_values_equal(slice_node->input_value(1), 0) ||
-            !is_constant_and_all_values_equal(slice_node->input_value(3), 1))
-            return false;
-        // we slice from 0 to
-        const auto& gather_node = pattern_to_node.at(gather);
-        gather_node->input(0).replace_source_output(slice_node->input_value(0));
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(gather, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -1622,25 +1556,6 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
     manager_1.run_passes(m);
-
-    // TODO Before this transformation:
-    // Nop + ReshapeUpThroughBEAWithConstScalar -- should be same optimization
-    // TS Slice Backward + Shared Transpose Optimization + TS Slice Forward
-    // Grouped Slice -> VSplit
-
-    // TODO: After Symbolic applied
-    // SymbolicPOC
-    // Chained Maximum Optimization
-    // NopBroadcast
-    //   LabelResolvingThroughSelect
-    //   ApplyTableOfEquivalence
-    //   OptimizeLabelsUsedAsValues
-    // DeReshape MatMul
-
-    // TODO After this transformation:
-    // Fuse RPE
-    // NopElimination // Broadcast (Tile) Ones + Remove Slice Before GatherElements
-    // SharedOpOptimization // Shared GatherElements
 
     return true;  // cleans up all the label information
 }
