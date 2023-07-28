@@ -4,8 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
-
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/openvino.hpp"
@@ -16,9 +14,11 @@
 #include "cache/cache.hpp"
 #include "cache/meta/meta_info.hpp"
 
+#include "base_test.hpp"
+
 namespace {
 
-class ICacheUnitTest : public ::testing::Test,
+class ICacheUnitTest : public SubgraphsDumperBaseTest,
                        public virtual ov::tools::subgraph_dumper::ICache {
 protected:
     std::shared_ptr<ov::Model> test_model;
@@ -27,6 +27,7 @@ protected:
     std::string test_artifacts_dir;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         model_name = "test_model";
         test_artifacts_dir = "test_artifacts";
         test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });

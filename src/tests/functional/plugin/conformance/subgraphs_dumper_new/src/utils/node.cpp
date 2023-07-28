@@ -14,6 +14,8 @@ std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov
         std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
+            if (ov::shape_size(input_node->get_output_shape(0)) == 0)
+                continue;
             auto const_node =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node);
             in_info.is_const = true;
@@ -124,7 +126,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     }
     if (!has_parameters && !is_copy_const_node) {
         auto cloned_node = clone_node(node, true, true);
-        std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
+        // std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0), cloned_node->get_input_partial_shape(0));
         std::string param_name = node_name + "_0";

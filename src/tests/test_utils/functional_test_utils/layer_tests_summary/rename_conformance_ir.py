@@ -180,7 +180,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                         pass
             except:
                 logger.error(f"Impossible to create hash for {model_path}")
-        ports_info = ET.parse(meta_path).getroot().find("ports_info")
+        ports_info = ET.parse(meta_path).getroot().find("input_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
         old_name = model_path

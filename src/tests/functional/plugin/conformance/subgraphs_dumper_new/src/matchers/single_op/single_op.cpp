@@ -4,9 +4,7 @@
 
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
-
 #include "common_test_utils/graph_comparator.hpp"
-
 #include "matchers/single_op/single_op.hpp"
 
 using namespace ov::tools::subgraph_dumper;

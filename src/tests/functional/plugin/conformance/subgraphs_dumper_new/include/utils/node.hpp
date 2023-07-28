@@ -8,7 +8,6 @@
 #include "cache/meta/input_info.hpp"
 #include "functional_test_utils/node_utils.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
-
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"

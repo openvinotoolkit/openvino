@@ -14,6 +14,8 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
+#include "openvino/pass/constant_folding.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -505,8 +507,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogical
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
-
-
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,

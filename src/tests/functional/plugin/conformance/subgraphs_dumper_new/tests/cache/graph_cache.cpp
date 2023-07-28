@@ -4,8 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
-
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -18,6 +16,7 @@
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
+#include "base_test.hpp"
 
 namespace {
 
@@ -25,12 +24,13 @@ using namespace ov::tools::subgraph_dumper;
 
 // ====================== Graph Cache Functional tests ==============================
 
-class GraphCacheFuncTest : public ::testing::Test {
+class GraphCacheFuncTest : public SubgraphsDumperBaseTest {
 protected:
     std::shared_ptr<ov::Model> test_model;
     std::string test_artifacts_dir, test_model_name, test_model_path;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
         test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
@@ -63,7 +63,7 @@ TEST_F(GraphCacheFuncTest, get_graph_cache_twice) {
 
 TEST_F(GraphCacheFuncTest, update_cache) {
     auto graph_cache = ov::tools::subgraph_dumper::GraphCache::get();
-    ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
+    graph_cache->update_cache(test_model, test_model_path, true);
     ASSERT_NO_THROW(graph_cache->update_cache(test_model, test_model_path, true));
 }
 

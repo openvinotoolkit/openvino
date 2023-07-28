@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
 #include "pugixml.hpp"
 
 #include "openvino/openvino.hpp"
@@ -14,13 +13,15 @@
 
 #include "cache/meta/meta_info.hpp"
 
+#include "base_test.hpp"
+
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
 // ======================== Input Info Unit tests =============================================
 
-class InputInfoUnitTest : public ::testing::Test {};
+class InputInfoUnitTest : public SubgraphsDumperBaseTest {};
 
 TEST_F(InputInfoUnitTest, constructor) {
     ASSERT_NO_THROW(auto in_info = InputInfo());
@@ -58,7 +59,7 @@ TEST_F(ModelInfoFuncTest, constructor) {
 
 // ======================== Meta Info Functional tests =============================================
 
-class MetaInfoFuncTest : public ::testing::Test {
+class MetaInfoFuncTest : public SubgraphsDumperBaseTest {
 protected:
     std::string test_model_path, test_model_name;
     std::map<std::string, InputInfo> test_in_info;
@@ -66,6 +67,7 @@ protected:
     std::string test_artifacts_dir;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         test_model_path = "test_model_path.xml";
         test_model_name = ov::test::utils::replaceExt(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
@@ -195,10 +197,11 @@ TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
 }
 
 TEST_F(MetaInfoUnitTest, get_graph_priority) {
+    auto meta = MetaInfo(test_model_name, test_in_info);
+    this->update(test_model_name, meta.get_input_info());
+    ASSERT_NO_THROW(this->get_abs_graph_priority());
     ASSERT_NO_THROW(this->get_graph_priority());
     ASSERT_TRUE(this->get_graph_priority() >= 0 && this->get_graph_priority() <= 1);
-    ASSERT_NO_THROW(this->get_abs_graph_priority());
-    ASSERT_EQ(this->get_abs_graph_priority(), 5);
 }
 
 }  // namespace

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "matchers/subgraph/subgraph.hpp"
+#include "base_test.hpp"
 
 #include "openvino/op/abs.hpp"
 #include "openvino/op/relu.hpp"
@@ -17,9 +16,10 @@ using namespace ov::tools::subgraph_dumper;
 
 // ======================= ExtractorsManagerTest Unit tests =======================
 class SubgraphExtractorTest : public SubgraphExtractor,
-                              public ::testing::Test {
+                              public SubgraphsDumperBaseTest {
 protected:
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         {
             std::shared_ptr<ov::op::v0::Parameter> test_parameter =
                 std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});

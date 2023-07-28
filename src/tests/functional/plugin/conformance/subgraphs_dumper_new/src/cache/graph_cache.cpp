@@ -19,6 +19,7 @@ std::shared_ptr<GraphCache> GraphCache::m_cache_instance = nullptr;
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
                               const std::string& model_meta_data,
                               bool extract_body) {
+    std::cout << "[ INFO ][ GRAPH CACHE ] Processing model: " << model_meta_data << std::endl;
     auto model_total_op = model->get_ops().size() - model->get_output_size() - model->inputs().size();
     auto extracted_patterns = m_manager.extract(model, extract_body);
     if (extracted_patterns.empty()) {

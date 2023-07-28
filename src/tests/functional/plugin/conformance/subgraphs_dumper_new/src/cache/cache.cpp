@@ -23,25 +23,26 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
     std::map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> nodes;
     ov::ParameterVector param_vector;
     for (const auto& op : model->get_ordered_ops()) {
+        std::shared_ptr<ov::op::v0::Parameter> param = nullptr;
         if (ov::op::util::is_parameter(op)) {
-            auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op);
-            param_vector.push_back(param);
-        }
-        if (ov::op::util::is_constant(op)) {
+            param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op);
+        } else if (ov::op::util::is_constant(op)) {
             auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
             if (op_to_replace->get_byte_size() > 1024) {
-            auto param = std::make_shared<ov::op::v0::Parameter>(
-                op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
-                nodes.insert({ op_to_replace, param });
+                param = std::make_shared<ov::op::v0::Parameter>(
+                    op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
                 param->set_friendly_name(op_to_replace->get_friendly_name());
-                param_vector.push_back(param);
+                nodes.insert({ op_to_replace, param });
             }
         }
-    }
-    for (const auto& node : nodes) {
-        model->replace_node(node.first, node.second);
+        if (param != nullptr) {
+            param_vector.push_back(param);
+        }
     }
     if (!nodes.empty()) {
+        for (const auto& node : nodes) {
+            model->replace_node(node.first, node.second);
+        }
         model = std::make_shared<ov::Model>(model->get_results(), param_vector);
     }
 
@@ -64,7 +65,7 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
             meta.serialize(meta_path);
             return true;
         } catch (std::exception &e) {
-            std::cout << "Failed to serialize model: " << model_name
+            std::cout << "[ ERROR ] Failed to serialize model: " << model_name
                         << ". Exception: " << e.what() << std::endl;
             ov::test::utils::removeIRFiles(xml_path, bin_path);
             ov::test::utils::removeFile(meta_path);

@@ -29,6 +29,8 @@ inline std::string get_node_version(const std::shared_ptr<ov::Node>& node, const
 }  // namespace test
 }  // namespace ov
 
+
+// todo: remove these structure after remove old subgraphs dumper
 namespace LayerTestsUtils {
 
 struct ModelInfo {
