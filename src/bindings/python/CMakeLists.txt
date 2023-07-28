@@ -192,6 +192,10 @@ endif()
 # Build the code
 #
 
+# TODO: find a real root cause and remove this workaround
+# or localize it to the specific place of the code
+add_definitions(-DPYBIND11_NO_ASSERT_GIL_HELD_INCREF_DECREF)
+
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
