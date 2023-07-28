@@ -133,13 +133,13 @@
                                         data-hanged="{{api_info[test_type][sw_plugin][device]['hanged']}}"
 
                                         >
-                                        <span>{{api_info[test_type][sw_plugin][device]['passrate']}} %</span>
+                                        <span>{{api_info[test_type][sw_plugin][device]['relative_passrate']}} %</span>
                                         <div style="width: 150px; margin: auto;">
-                                            <span class="green" title="Passed">P:{{api_info[test_type][sw_plugin][device]['passed']}}</span>
-                                            <span class="red" title="Failed">F:{{api_info[test_type][sw_plugin][device]['failed']}}</span>
-                                            <span class="grey" title="Skipped">S:{{api_info[test_type][sw_plugin][device]['skipped']}}</span>
-                                            <span class="dark" title="Crashed">C:{{api_info[test_type][sw_plugin][device]['crashed']}}</span>
-                                            <span class="grey-red" title="Hanged">H:{{api_info[test_type][sw_plugin][device]['hanged']}}</span>
+                                            <span class="green" title="Passed">P:{{ api_info[test_type][sw_plugin][device]['relative_passed'] }}</span>
+                                            <span class="red" title="Failed">F:{{ api_info[test_type][sw_plugin][device]['relative_all'] - api_info[test_type][sw_plugin][device]['relative_passed'] }}</span>
+                                            <span class="grey" title="Skipped" style="display: none;">---</span>
+                                            <span class="dark" title="Crashed" style="display: none;">---</span>
+                                            <span class="grey-red" title="Hanged" style="display: none;">---</span>
                                         </div>
                                     </td>
                                 {% else %}
