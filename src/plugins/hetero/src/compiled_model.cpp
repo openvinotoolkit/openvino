@@ -424,10 +424,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         device_config[ov::cache_dir.name()] = "";
         // set exclusive_async_requests in case when model is split
         if (orderedSubgraphs.size() > 1) {
-            m_compiled_submodels[id].model->validate_nodes_and_infer_types();
-            if (m_compiled_submodels[id].model->is_dynamic()) {
-                OPENVINO_THROW("Heterogeneous mode is not supported for dynamic models yet!");
-            }
             auto supported_internal_properties =
                 plugin->get_core()->get_property(m_compiled_submodels[id].device, ov::internal::supported_properties);
             if (std::find(supported_internal_properties.begin(),
