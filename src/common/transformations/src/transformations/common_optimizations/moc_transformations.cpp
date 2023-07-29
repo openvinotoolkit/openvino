@@ -84,6 +84,7 @@
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -246,6 +247,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ResolveNameCollisions)
     manager.run_passes(f);
 
     if (!m_use_shapes) {
