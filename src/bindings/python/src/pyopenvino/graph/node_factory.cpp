@@ -19,8 +19,8 @@
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/op_extension.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -42,13 +42,15 @@ public:
                                      const py::dict& attributes = py::dict()) {
         // Check for available extensions first, because they may override ops from main opset
         auto ext_it = m_opset_so_extensions.find(op_type_name);
-        if(ext_it != m_opset_so_extensions.end()) {
+        if (ext_it != m_opset_so_extensions.end()) {
             auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_it->second->extension());
-            NGRAPH_CHECK(op_extension); // guaranteed by load_extension method
+            NGRAPH_CHECK(op_extension);  // guaranteed by add_extension method
             util::DictAttributeDeserializer visitor(attributes, m_variables);
             auto outputs = op_extension->create(arguments, visitor);
 
-            NGRAPH_CHECK(outputs.size() > 0, "Failed to create extension operation with type: ", op_type_name,
+            NGRAPH_CHECK(outputs.size() > 0,
+                         "Failed to create extension operation with type: ",
+                         op_type_name,
                          " because it doesn't contain output ports. Operation should has at least one output port.");
 
             return outputs[0].get_node_shared_ptr();
@@ -57,8 +59,8 @@ public:
 
             NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
             NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
-                        "Currently NodeFactory doesn't support Constant operation: ",
-                        op_type_name);
+                         "Currently NodeFactory doesn't support Constant operation: ",
+                         op_type_name);
 
             util::DictAttributeDeserializer visitor(attributes, m_variables);
 
@@ -85,10 +87,10 @@ public:
 
     void add_extension(const std::string& lib_path) {
         auto extensions = ov::detail::load_extensions(lib_path);
-        for(auto extension : extensions) {
+        for (auto extension : extensions) {
             auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
             ov::Extension::Ptr extension_extracted = so_extension ? so_extension->extension() : extension;
-            if(auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
+            if (auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
                 auto op_type = op_extension->get_type_info().name;
                 // keep so extension instead of extension_extracted to hold loaded library
                 m_opset_so_extensions[op_type] = so_extension;
@@ -132,11 +134,9 @@ void regclass_graph_NodeFactory(py::module m) {
             return self.create(name, arguments, attributes);
         });
 
-    node_factory.def(
-        "add_extension",
-        [](NodeFactory& self, const py::object& lib_path) {
-            return self.add_extension(Common::utils::convert_path_to_string(lib_path));
-        });
+    node_factory.def("add_extension", [](NodeFactory& self, const py::object& lib_path) {
+        return self.add_extension(Common::utils::convert_path_to_string(lib_path));
+    });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
         return Common::get_simple_repr(self);
