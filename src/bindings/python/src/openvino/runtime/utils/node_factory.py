@@ -93,8 +93,24 @@ class NodeFactory(object):
 
         return node
 
-    def load_extension(self, lib_path: Union[Path, str]):
-        return self.factory.load_extension(lib_path)
+    def add_extension(self, lib_path: Union[Path, str]):
+        """Load operation extensions created with OpExtension from a
+        library and makes them available for node creation.
+
+        Extends operation types available for creation by operations
+        loaded from prebuilt C++ library. Enables instantiation of custom
+        operations exposed in that library without direct use of
+        operation classes. Other types of extensions, e.g. conversion
+        extensions, if they are exposed in the library, are ignored.
+
+        In case if an extension operation type from a library match
+        one of existing operations registered before (from the standard
+        OpenVINO opset or from another extension loaded earlier), a new
+        operation overrides an old operation.
+
+        :param      lib_path:  A path to the library with extension.
+        """
+        self.factory.add_extension(lib_path)
 
     @staticmethod
     def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:

@@ -83,7 +83,7 @@ public:
         return op_node;
     }
 
-    void load_extension(const std::string& lib_path) {
+    void add_extension(const std::string& lib_path) {
         auto extensions = ov::detail::load_extensions(lib_path);
         for(auto extension : extensions) {
             auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);
@@ -133,9 +133,9 @@ void regclass_graph_NodeFactory(py::module m) {
         });
 
     node_factory.def(
-        "load_extension",
+        "add_extension",
         [](NodeFactory& self, const py::object& lib_path) {
-            return self.load_extension(Common::utils::convert_path_to_string(lib_path));
+            return self.add_extension(Common::utils::convert_path_to_string(lib_path));
         });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
