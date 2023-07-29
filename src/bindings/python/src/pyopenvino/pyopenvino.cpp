@@ -10,7 +10,6 @@
 #include <string>
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/core/so_extension.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
@@ -204,49 +203,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     You might want to use this function if you are developing a dynamically-loaded library which should clean up all
                     resources after itself when the library is unloaded.
                 )");
-
-    m.def("load_extensions",
-        [](const py::object& path) {
-            auto extensions = ov::detail::load_extensions(Common::utils::convert_path_to_string(path));
-            return extensions;
-            // TODO: Repack extensions to expose known Extension classes
-            #if 0
-            for(auto extension : self.get_extensions()) {
-                ov::Extension::Ptr extension_extracted = extension;
-                if(auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
-                    extension_extracted = so_extension->extension();
-                }
-                if(auto op_extension = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension_extracted)) {
-                    if(op_extension->get_type_info().name == op_type) {
-
-                        std::map<std::string, ov::Any> attributes;
-                        for (const auto& it : py_attributes) {
-                            attributes[it.first] = Common::utils::py_object_to_any(it.second);
-                        }
-
-                        AnyMapAttributeVisitor visitor(attributes);
-                        auto node = op_extension->create(inputs, visitor)[0].get_node_shared_ptr();
-
-                        const auto& unused_attributes = visitor.get_unused_attributes();
-                        if(unused_attributes.size()) {
-                            std::ostringstream message;
-                            message << "While creating operation " + op_type + " unknown attributes are provided: ";
-                            std::copy(
-                                unused_attributes.begin(),
-                                unused_attributes.end(),
-                                std::ostream_iterator<std::string>(message, ", ")
-                            );
-                            message << ". Consult with operation class definition on supported attribute names.";
-                            throw py::value_error(message.str());
-                        }
-
-                        return node;
-                    }
-                }
-            }
-            #endif
-        }
-    );
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);

@@ -46,7 +46,6 @@ from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
 from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
-from openvino._pyopenvino import load_extensions
 
 # Import opsets
 from openvino.runtime import opset1
