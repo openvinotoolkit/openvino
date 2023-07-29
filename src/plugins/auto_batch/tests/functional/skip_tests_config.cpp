@@ -10,7 +10,6 @@
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> disabled_items = {
         // TODO: for CVS-68949
-        R"(.*AutoBatching_Test_DetectionOutput.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
