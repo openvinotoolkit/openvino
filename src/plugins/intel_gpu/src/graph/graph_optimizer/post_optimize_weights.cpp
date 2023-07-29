@@ -44,6 +44,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
         // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
         // This situation might be changed once onednn shape agnostic kernel is used in the future.
+        if (p.is_internal_program())
+            return;
         if (node.get_preferred_impl_type() == impl_types::onednn)
             return;
         if (node.type() != fully_connected::type_id())
