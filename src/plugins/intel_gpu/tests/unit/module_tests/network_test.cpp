@@ -12,6 +12,8 @@
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "primitive_inst.h"
 
 #include "runtime/ocl/ocl_event.hpp"
 
@@ -208,4 +210,44 @@ TEST(network_test, has_proper_event_for_in_order_queue_onednn) {
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(reorder_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(activation_ev.get())->get().get() != nullptr);
 }
+
+TEST(network_test, scratchpad_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    // benchdnn parameters:
+    // --ip --engine=gpu:0 --dir=FWD_B --dt=f16:f16:f16 --stag=abcd --wtag=any --dtag=ab --attr-scratchpad=user mb16384ic768ih1iw1oc3072
+    layout in_layout{{16384, 768}, data_types::f16, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weights = engine.allocate_memory({{3072, 768}, data_types::f16, format::oiyx});
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", padding()));
+
+    auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"fc_prim", impl_desc_onednn}};
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net1(engine, topology, config);
+    net1.set_input_data("input", input_mem);
+    net1.execute();
+
+    network net2(net1.get_program(), 1);
+    net2.set_input_data("input", input_mem);
+    net2.execute();
+
+    auto fc1 = net1.get_primitive("fc_prim");
+    auto fc2 = net2.get_primitive("fc_prim");
+
+    ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() != fc2->get_intermediates_memories()[0]->buffer_ptr());
+}
+
 #endif
