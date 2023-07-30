@@ -99,7 +99,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             if (stream_info[NUMBER_OF_STREAMS] > 0) {
                 streams_info_table.push_back(stream_info);
                 n_streams -= stream_info[NUMBER_OF_STREAMS];
-            }           
+            }
         }
     };
 
