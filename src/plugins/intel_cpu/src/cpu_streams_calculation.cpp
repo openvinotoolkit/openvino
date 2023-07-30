@@ -106,7 +106,6 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     auto check_threads_per_stream = [&]() {
         int count = 0;
         while (count < n_streams) {
-            int node_start = proc_type_table.size() == 1 ? 0 : 1;
             for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
                 count += static_cast<int>(proc_type_table[0][n_type] / n_threads_per_stream);
             }
