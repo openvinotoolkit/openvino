@@ -471,10 +471,16 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7 = {
     {{6, MAIN_CORE_PROC, 8, 0, 0},
      {6, MAIN_CORE_PROC, 8, 1, 1},
      {6, HYPER_THREADING_PROC, 8, 0, 0},
-     {6, HYPER_THREADING_PROC, 8, 1, 1}},
+     {6, HYPER_THREADING_PROC, 8, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, HYPER_THREADING_PROC, 4, 0, 0},
+     {0, HYPER_THREADING_PROC, 4, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_7_1 = {
-    24,
+    26,
     true,
     0,
     0,
@@ -485,7 +491,13 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_1 = {
     {{6, MAIN_CORE_PROC, 8, 0, 0},
      {6, MAIN_CORE_PROC, 8, 1, 1},
      {6, HYPER_THREADING_PROC, 8, 0, 0},
-     {6, HYPER_THREADING_PROC, 8, 1, 1}},
+     {6, HYPER_THREADING_PROC, 8, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, HYPER_THREADING_PROC, 4, 0, 0},
+     {0, HYPER_THREADING_PROC, 4, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_7_2 = {
     1,
@@ -500,14 +512,13 @@ StreamsCalculationTestCase _2sockets_104cores_tput_7_2 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{6, MAIN_CORE_PROC, 4, 0, 0},
-     {6, MAIN_CORE_PROC, 4, 1, 0},
-     {6, MAIN_CORE_PROC, 4, 2, 1},
-     {6, MAIN_CORE_PROC, 4, 3, 1},
-     {6, HYPER_THREADING_PROC, 4, 0, 0},
-     {6, HYPER_THREADING_PROC, 4, 1, 0},
-     {6, HYPER_THREADING_PROC, 4, 2, 1},
-     {6, HYPER_THREADING_PROC, 4, 3, 1}},
+    {{6, MAIN_CORE_PROC, 4, 0, 0},       {6, MAIN_CORE_PROC, 4, 1, 0},       {6, MAIN_CORE_PROC, 4, 2, 1},
+     {6, MAIN_CORE_PROC, 4, 3, 1},       {6, HYPER_THREADING_PROC, 4, 0, 0}, {6, HYPER_THREADING_PROC, 4, 1, 0},
+     {6, HYPER_THREADING_PROC, 4, 2, 1}, {6, HYPER_THREADING_PROC, 4, 3, 1}, {1, ALL_PROC, 4, -1, 0},
+     {0, MAIN_CORE_PROC, 2, 0, 0},       {0, MAIN_CORE_PROC, 2, 1, 0},       {1, ALL_PROC, 4, -1, 1},
+     {0, MAIN_CORE_PROC, 2, 2, 1},       {0, MAIN_CORE_PROC, 2, 3, 1},       {1, ALL_PROC, 4, -1, 0},
+     {0, HYPER_THREADING_PROC, 2, 0, 0}, {0, HYPER_THREADING_PROC, 2, 1, 0}, {1, ALL_PROC, 4, -1, 1},
+     {0, HYPER_THREADING_PROC, 2, 2, 1}, {0, HYPER_THREADING_PROC, 2, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_8 = {
     1,
@@ -641,7 +652,11 @@ StreamsCalculationTestCase _2sockets_104cores_tput_17 = {
     "THROUGHPUT",
     ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
     {{104, 104, 0, 0, -1, -1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 1}},
-    {{6, MAIN_CORE_PROC, 8, 0, 0}, {6, MAIN_CORE_PROC, 8, 1, 1}},
+    {{6, MAIN_CORE_PROC, 8, 0, 0},
+     {6, MAIN_CORE_PROC, 8, 1, 1},
+     {1, ALL_PROC, 8, -1, -1},
+     {0, MAIN_CORE_PROC, 4, 0, 0},
+     {0, MAIN_CORE_PROC, 4, 1, 1}},
 };
 
 StreamsCalculationTestCase _2sockets_104cores_tput_18 = {
