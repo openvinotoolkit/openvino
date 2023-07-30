@@ -988,7 +988,9 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     auto layout = ibuf_layouts[idx];
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
     auto alloc_type = allocation_type::unknown;
-    if (input_device_mem && ((int64_t) available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+    if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn)) {
+        // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
         alloc_type = engine.get_preferred_memory_allocation_type();
@@ -998,7 +1000,12 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
         alloc_type = engine.get_lockable_preferred_memory_allocation_type();
     }
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
-    return engine.allocate_memory(layout, alloc_type, reset);
+
+    // Reuse intermediate buffer like output buffer.
+    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
+    GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
+        << " " << ret_mem->buffer_ptr() << std::endl;
+    return ret_mem;
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
@@ -1681,7 +1688,8 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         allocation_type _allocation_type;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-        _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
+        _intermediates_memory[i] = get_network().get_memory_pool().get_memory(ibuf_layout, id(), get_network_id(),
+                                                                            _node_mem_deps, _allocation_type, true, true);
     }
 
     bool has_impl;
