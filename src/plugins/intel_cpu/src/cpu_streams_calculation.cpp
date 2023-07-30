@@ -342,9 +342,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
         if (n_streams > 0) {
             std::vector<std::vector<int>> remain_proc_type_table(proc_type_table);
-            int stream_table_size = streams_info_table.size();
+            size_t stream_table_size = streams_info_table.size();
 
-            for (int i = 0; i < stream_table_size; i++) {
+            for (size_t i = 0; i < stream_table_size; i++) {
                 if ((streams_info_table[i][STREAM_NUMA_NODE_ID] >= 0) &&
                     (streams_info_table[i][STREAM_SOCKET_ID] >= 0)) {
                     for (auto& row : remain_proc_type_table) {
@@ -368,7 +368,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 n_streams--;
                 int numa_node_id = streams_info_table[stream_table_size + 1][STREAM_NUMA_NODE_ID];
                 int socket_id = streams_info_table[stream_table_size + 1][STREAM_SOCKET_ID];
-                for (int i = stream_table_size + 1; i < streams_info_table.size(); i++) {
+                for (size_t i = stream_table_size + 1; i < streams_info_table.size(); i++) {
                     numa_node_id = numa_node_id == streams_info_table[i][STREAM_NUMA_NODE_ID] ? numa_node_id : -1;
                     socket_id = socket_id == streams_info_table[i][STREAM_SOCKET_ID] ? socket_id : -1;
                     for (auto& row : remain_proc_type_table) {
