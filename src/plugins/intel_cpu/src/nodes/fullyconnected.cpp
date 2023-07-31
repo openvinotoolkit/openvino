@@ -1138,6 +1138,26 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
         (context->getConfig().streamExecutorConfig._streams > get_num_numa_nodes()))
         return false;
 
+    auto mapToLLMDataType = [] (const dnnl::memory::data_type dataType) {
+        switch (dataType) {
+            case dnnl::memory::data_type::f16:
+                return llmdnn::llmdnn_f16;
+            case dnnl::memory::data_type::bf16:
+                return llmdnn::llmdnn_bf16;
+            case dnnl::memory::data_type::f32:
+                return llmdnn::llmdnn_f32;
+            case dnnl::memory::data_type::f64:
+                return llmdnn::llmdnn_f64;
+            case dnnl::memory::data_type::s8:
+                return llmdnn::llmdnn_s8;
+            case dnnl::memory::data_type::u8:
+                return llmdnn::llmdnn_u8;
+            case dnnl::memory::data_type::s32:
+                return llmdnn::llmdnn_s32;
+            default:
+                return llmdnn::llmdnn_data_type_undef;
+        }
+    };
     auto tryExtractBias = [&] () {
         auto* bias = reinterpret_cast<float*>(getParentEdgeAt(BIAS_ID)->getMemoryPtr()->getData());
         auto bias_count = getParentEdgeAt(BIAS_ID)->getMemoryPtr()->getShape().getElementsCount();
@@ -1158,9 +1178,9 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
             (fusedWith.empty() ||
             (fusedWith.size() == 1 && (fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf ||
                                        fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluTanh)))) {
-            param.dt_a = llmdnn::dnnl_bf16;
-            param.dt_b = llmdnn::dnnl_bf16;
-            param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
+            param.dt_a = llmdnn::llmdnn_bf16;
+            param.dt_b = llmdnn::llmdnn_bf16;
+            param.dt_c = mapToLLMDataType(outputDataType);
             param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
             if (withBiases) {
@@ -1178,9 +1198,9 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
         }
     } else if (data_type == Precision::I8) {
         if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16, memory::data_type::s8)) {
-            param.dt_a = llmdnn::dnnl_s8;
-            param.dt_b = llmdnn::dnnl_s8;
-            param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
+            param.dt_a = llmdnn::llmdnn_s8;
+            param.dt_b = llmdnn::llmdnn_s8;
+            param.dt_c = mapToLLMDataType(outputDataType);
             param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
 
@@ -1327,13 +1347,13 @@ bool FullyConnected::initLLMFc() {
         return false;
     }
 
-    auto thread_num = utility::get_total_threads();
+    auto thread_num = llmdnn::get_total_threads();
     fcLLMs.resize(thread_num);
     std::atomic<bool> ret{true};
     // force to reference the function once
-    utility::simple_parallel_for(thread_num, [&] (size_t i) {
+    llmdnn::simple_parallel_for(thread_num, [&] (size_t i) {
         llmdnn::fc_kernel* fc;
-        if (!fc_kernel_create(&fc, &param)) {
+        if (fc_kernel_create(&fc, &param) != llmdnn::status_ok) {
             ret = false;
             return;
         }

@@ -8,7 +8,9 @@
 #include <string>
 #include "ie_parallel.hpp"
 
-namespace utility {
+#ifdef OV_CPU_WITH_LLMDNN
+
+namespace llmdnn {
 
 size_t get_total_threads() {
     return parallel_get_max_threads();
@@ -18,4 +20,6 @@ void simple_parallel_for(const size_t total, const std::function<void(size_t)>& 
     ov::parallel_for(total, fn);
 }
 
-}  // namespace utility
+}  // namespace llmdnn
+
+#endif
