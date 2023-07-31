@@ -280,7 +280,7 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints { _numaNodeId, concurrency }});
+                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if ((0 != _impl->_config._threadsPerStream) ||
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
@@ -460,7 +460,6 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Defer(Task task) {
-        auto  streamPtr = _streams.local();
         auto& stream = *(_streams.local());
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
