@@ -97,9 +97,9 @@ def test_node_factory_validate_missing_arguments():
 
 def test_extension_added_from_library():
     if platform == "win32":
-        library_path="openvino_template_extension.dll"
+        library_path = "openvino_template_extension.dll"
     else:
-        library_path="libopenvino_template_extension.so"
+        library_path = "libopenvino_template_extension.so"
 
     factory = NodeFactory()
     factory.add_extension(library_path)
