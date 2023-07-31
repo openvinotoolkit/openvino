@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,22 +8,27 @@
 
 namespace ov {
 namespace intel_cpu {
-class RefTransposeExecutor : public TransposeExecutor {
+class MlasTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
-    static void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb);
     bool init(const TransposeParams &transposeParams,
               const std::vector<MemoryDescPtr> &srcDescs,
               const std::vector<MemoryDescPtr> &dstDescs,
               const dnnl::primitive_attr &attr) override;
     void exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst, const int MB) override;
+
     impl_desc_type getImplType() const override { return implType; }
 private:
-    static const impl_desc_type implType = impl_desc_type::ref;
-    jit_permute_config_params jcp;
+    bool IsTransposeMovingSingleAxis(InferenceEngine::SizeVector permutations, size_t& from, size_t& to);
+    void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+    void TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
+
+    static const impl_desc_type implType = impl_desc_type::mlas;
+    size_t from;
+    size_t to;
 };
 
-class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
+class MlasTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
@@ -32,7 +37,7 @@ public:
     }
 
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<RefTransposeExecutor>(context);
+        return std::make_shared<MlasTransposeExecutor>(context);
     }
 };
 
