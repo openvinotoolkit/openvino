@@ -84,19 +84,19 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                                 !prev_node.has_fused_primitives() &&
                                 !prev_node.as<reorder>().has_mean() &&
                                 prev_node.as<reorder>().get_primitive()->subtract_per_feature.empty();
-            if (node.is_dynamic() && weights_reorder_params->get_output_layout().compatible(prev_node.get_output_layout())) {
-                // if compatible, it can be reinterpreted, thus no need to reorder at build time
-                continue;
-            }
-            bool allow_new_shape_infer = p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
-            if (allow_new_shape_infer) {
+            if (impl->is_dynamic()) {
+                if (weights_reorder_params->get_output_layout().compatible(prev_node.get_output_layout())) {
+                    // if compatible, it can be reinterpreted, thus no need to reorder at build time
+                    continue;
+                }
                 // Need to restore the original shape
                 auto updated_output_layout = weights_reorder_params->get_output_layout();
                 auto orig_rank = prev_node.get_output_layout().get_partial_shape().size();
                 auto weight_format_dims = format::dimension(weights_reorder_params->get_output_layout().format);
                 updated_output_layout.set_partial_shape(
                     updated_output_layout.get_tensor().get_partial_shape(orig_rank, weight_format_dims));
-                weights_reorder_params->set_output_layout(updated_output_layout);
+                if (updated_output_layout != weights_reorder_params->get_output_layout())
+                    weights_reorder_params->set_output_layout(updated_output_layout);
             }
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
