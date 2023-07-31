@@ -21,6 +21,7 @@ public:
 
 private:
     void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
+    void FuseFCAndWeightsDecompression(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);

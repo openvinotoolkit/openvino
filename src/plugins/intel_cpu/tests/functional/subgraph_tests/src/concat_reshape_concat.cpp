@@ -110,15 +110,11 @@ public:
             results.push_back(std::make_shared<ngraph::opset1::Result>(soft_max->output(i)));
 
         function = std::make_shared<ngraph::Function>(results, input_params, "ConcatReshapeConcatPattern");
-        ov::pass::Serialize serializer("ngraph.xml", "ngraph.bin");
-        serializer.run_on_model(function);
     }
 };
 
 TEST_P(ConcatReshapeConcatSubgraphTest, CompareWithRefs) {
     run();
-    ov::pass::Serialize serializer("exec_graph_dyn.xml", "exec_graph_dyn.bin");
-    serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
 }
 
 namespace {

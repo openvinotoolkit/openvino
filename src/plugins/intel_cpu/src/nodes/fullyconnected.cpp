@@ -25,6 +25,7 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
+#include "common/cpu_convert.h"
 
 #include <string>
 #include <vector>
@@ -1083,6 +1084,28 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
+void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionMultiply);
+}
+
+void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionSubtract);
+}
+
+void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues) {
+    auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
+    if (!constInputNode) {
+        IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
+    }
+    auto constBlob = constInputNode->getMemoryPtr();
+    const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    decompressionValues.resize(elementsCount);
+    cpu_convert(constBlob->getData(),
+                &decompressionValues[0],
+                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
+                Precision::FP32,
+                elementsCount);
+}
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
