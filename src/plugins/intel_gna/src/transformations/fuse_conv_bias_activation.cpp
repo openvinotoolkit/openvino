@@ -23,6 +23,9 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+
 #include "ops/gna_convolution.hpp"
 #include "rt_info/gna_node_id.hpp"
 
@@ -72,7 +75,7 @@ struct GnaConvCallbacks {
         const ov::Output<ov::Node>& filters = m_conv->input(1).get_source_output();
         const ov::Output<ov::Node>& bias = m_const->output(0);
 
-        auto gna_conv = std::make_shared<GNAConvolution>(data,
+        std::shared_ptr<ov::Node> gna_conv = std::make_shared<GNAConvolution>(data,
                                                          filters,
                                                          bias,
                                                          m_conv->get_strides(),
@@ -80,18 +83,16 @@ struct GnaConvCallbacks {
                                                          m_conv->get_pads_end(),
                                                          m_conv->get_dilations(),
                                                          m_conv->get_auto_pad());
-        ov::Output<ov::Node> new_conv(gna_conv);
 
         gna_conv->set_friendly_name(eltwise->get_friendly_name());
 
-        ov::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
-        ov::intel_gna::rt_info::set_node_id(new_conv.get_node_shared_ptr(),
-                                            ov::intel_gna::rt_info::get_node_id(eltwise));
+        ov::copy_runtime_info({m_conv, eltwise}, gna_conv);
+        set_node_id(gna_conv, get_node_id(eltwise));
 
         const std::string originalLayers = eltwise->get_friendly_name() + "," + m_conv->get_friendly_name();
         gna_conv->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalLayers;
 
-        ov::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
+        ov::replace_node(eltwise, gna_conv);
         return true;
     }
 
@@ -146,7 +147,7 @@ struct GnaConvCallbacks {
         const ov::Output<ov::Node>& filters = gna_conv->input(1).get_source_output();
         const ov::Output<ov::Node>& bias = gna_conv->input(2).get_source_output();
 
-        auto gna_conv_add = std::make_shared<GNAConvolution>(data,
+        std::shared_ptr<ov::Node> gna_conv_add = std::make_shared<GNAConvolution>(data,
                                                              filters,
                                                              bias,
                                                              gna_conv->get_strides(),
@@ -154,7 +155,6 @@ struct GnaConvCallbacks {
                                                              gna_conv->get_pads_end(),
                                                              gna_conv->get_dilations(),
                                                              gna_conv->get_auto_pad());
-        ov::Output<ov::Node> gna_conv_add_output{gna_conv_add};
 
         gna_conv_add->set_friendly_name(add->get_friendly_name());
         ov::copy_runtime_info({node, gna_conv}, gna_conv_add);
@@ -287,15 +287,27 @@ bool is_add_to_be_fused(const ov::Output<ov::Node>& output) {
     }
     return (partial_shape0.to_shape() == partial_shape1.to_shape());
 }
+
+bool set_nodes_order(const std::shared_ptr<ov::Model>& model, uint64_t& id) {
+    for (auto& node : model->get_ordered_ops()) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                const std::shared_ptr<ov::Model>& sub_model = sub_graph_node->get_function(static_cast<int>(sub_graph_ind));
+                set_nodes_order(sub_model, id);
+            }
+        }
+        set_node_id(node, id++);
+    }
+    return true;
+}
+
 }  // namespace
 
 bool ov::intel_gna::pass::GnaFuseMarkUpNodesOrder::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(GnaFuseMarkUpNodesOrder);
-    uint64_t id = 0;
-    for (auto& node : m->get_ordered_ops()) {
-        set_node_id(node, id++);
-    }
-    return false;
+    uint64_t init_id = 0;
+    return set_nodes_order(m, init_id);
 }
 
 bool ov::intel_gna::pass::GnaFuseCleanUpNodesOrder::run_on_model(const std::shared_ptr<ov::Model>& m) {
