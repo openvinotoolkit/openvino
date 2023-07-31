@@ -645,6 +645,19 @@ bool primitive_inst::update_impl() {
     return true;
 }
 
+void primitive_inst::do_runtime_skip_reorder() {
+    // set successive reorder can_be_optimized if layouts are same
+    for (auto u : get_user_insts()) {
+        if (u->get_node().is_type<reorder>()) {
+            u->update_shape();
+            u->update_shape_done_by_other = true;
+            if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
+                u->set_can_be_optimized(true);
+            }
+        }
+    }
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
@@ -722,10 +735,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
-        // skip reorder if layouts are same
-        if (_node->is_type<reorder>() && (_impl_params->get_input_layout() == _impl_params->get_output_layout())) {
-            this->set_can_be_optimized(true);
-        }
+        // Check successor reorder if layouts are same
+        // Need to set can_be_optimized for user reorder at predesescor because
+        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
+        do_runtime_skip_reorder();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
