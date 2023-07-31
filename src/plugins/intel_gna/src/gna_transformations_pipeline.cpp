@@ -12,6 +12,7 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
 #include "optimizer/gna_pass_manager.hpp"
+#include "transformations/big_transpose.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
