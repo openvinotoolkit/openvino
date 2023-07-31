@@ -65,6 +65,10 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     };
 
     auto& memory_deps = impl_param.memory_deps;
+    if (desc->pad_value == 0 && (is_begin_mem || is_end_mem) && memory_deps.empty()) {
+        return {layout{ShapeType::dynamic(static_cast<int64_t>(input_shapes[0].size())), input0_layout.data_type, input0_layout.format}};
+    }
+
     std::map<size_t, ngraph::HostTensorPtr> const_data;
     auto ta = ov::make_tensor_accessor(const_data);
 

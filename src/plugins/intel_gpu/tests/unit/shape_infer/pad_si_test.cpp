@@ -312,4 +312,64 @@ INSTANTIATE_TEST_SUITE_P(smoke, pad_test_non_constant_input_begin_end,
         }
     }));
 
+class pad_test_non_constant_input_begin_end_from_split : public testing::TestWithParam<pad_test_params> { };
+
+TEST_P(pad_test_non_constant_input_begin_end_from_split, shape_infer) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory(p.in_layout);
+    auto pads = engine.allocate_memory(p.pads_begin_layout);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("pads", pads));
+    topology.add(split("split", input_info("pads"),
+    {
+        {"pads_begin", {0, 0, 0, 0}},
+        {"pads_end", {4, 0, 0, 0}},
+    }));
+    topology.add(border("output",
+                        {input_info("input"), input_info("split:pads_begin"), input_info("split:pads_end")},
+                        cldnn::border::PAD_NON_CONST_INPUT::BEGIN |
+                        cldnn::border::PAD_NON_CONST_INPUT::END,
+                        std::vector<int64_t>{},
+                        std::vector<int64_t>{},
+                        ov::op::PadMode::CONSTANT,
+                        0.0f));
+
+    std::vector<float> input_data(p.in_layout.get_linear_size(), 1);
+    set_values(input, input_data);
+    set_values(pads, {1, 1, 1, 1, 1, 1, 1, 1});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output->get_layout(), p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, pad_test_non_constant_input_begin_end_from_split,
+    testing::ValuesIn(std::vector<pad_test_params>{
+        {
+            layout{ov::PartialShape{1, 3, 32, 40}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{8}, data_types::i32, format::bfyx}, {},
+            layout{}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{3, 5, 34, 42}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape{2, 3, 5, 4}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{8}, data_types::i32, format::bfyx}, {},
+            layout{}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{4, 5, 7, 6}, data_types::f32, format::bfyx}
+        },
+    }));
+
 }  // namespace shape_infer_tests

@@ -7,6 +7,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/border.hpp>
+#include <intel_gpu/primitives/split.hpp>
 
 #include <border_inst.h>
 
@@ -1614,6 +1615,92 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "border");
 
     auto output = outputs.at("border").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (auto b = 0; b < out_size_b; ++b) {             // B
+        for (auto f = 0; f < out_size_f; ++f) {         // F
+            for (auto y = 0; y < out_size_y; ++y) {     // Y
+                for (auto x = 0; x < out_size_x; ++x) { // X
+                    auto output_off = ((b * out_size_f + f) * out_size_y + y) * out_size_x + x; // BFYX
+
+                    if (b < blt_size_b || b >= out_size_b - brb_size_b ||
+                        f < blt_size_f || f >= out_size_f - brb_size_f ||
+                        y < blt_size_y || y >= out_size_y - brb_size_y ||
+                        x < blt_size_x || x >= out_size_x - brb_size_x) {
+                        ASSERT_EQ(output_ptr[output_off], 0.0f);
+                    } else {
+                        auto input_off  = (((b - blt_size_b) * in_size_f + f - blt_size_f) * in_size_y + y - blt_size_y) * in_size_x + x - blt_size_x; // BFYX
+                        ASSERT_EQ(output_ptr[output_off], input_data[input_off]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic_with_split) {
+    constexpr auto in_size_b = 2;
+    constexpr auto in_size_f = 3;
+    constexpr auto in_size_y = 5;
+    constexpr auto in_size_x = 4;
+
+    constexpr auto blt_size_b = 2;
+    constexpr auto blt_size_f = 1;
+    constexpr auto blt_size_y = 2;
+    constexpr auto blt_size_x = 3;
+
+    constexpr auto brb_size_b = 1;
+    constexpr auto brb_size_f = 2;
+    constexpr auto brb_size_y = 3;
+    constexpr auto brb_size_x = 4;
+
+    constexpr auto out_size_b = in_size_b + blt_size_b + brb_size_b;
+    constexpr auto out_size_f = in_size_f + blt_size_f + brb_size_f;
+    constexpr auto out_size_y = in_size_y + blt_size_y + brb_size_y;
+    constexpr auto out_size_x = in_size_x + blt_size_x + brb_size_x;
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{in_size_b, in_size_f, in_size_y, in_size_x}, data_types::f32, format::bfyx});
+    auto pads = engine.allocate_memory({{8}, data_types::i32, format::bfyx});
+    set_values(pads, {blt_size_b, blt_size_f, blt_size_y, blt_size_x, brb_size_b, brb_size_f, brb_size_y, brb_size_x});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("pads", pads));
+    topology.add(split("split", input_info("pads"),
+    {
+        {"pads_begin", {0, 0, 0, 0}},
+        {"pads_end", {4, 0, 0, 0}},
+    }));
+    topology.add(border("output",
+                        {input_info("input"), input_info("split:pads_begin"), input_info("split:pads_end")},
+                        cldnn::border::PAD_NON_CONST_INPUT::BEGIN |
+                        cldnn::border::PAD_NON_CONST_INPUT::END,
+                        std::vector<int64_t>{},
+                        std::vector<int64_t>{},
+                        ov::op::PadMode::CONSTANT,
+                        0.0f));
+
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x)};
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
+    set_values(input, input_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("output");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
+
+    auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
