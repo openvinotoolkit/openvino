@@ -94,8 +94,7 @@ class NodeFactory(object):
         return node
 
     def add_extension(self, lib_path: Union[Path, str]):
-        """Load operation extensions created with OpExtension from a
-        library and makes them available for node creation.
+        """Add custom operations from extension library.
 
         Extends operation types available for creation by operations
         loaded from prebuilt C++ library. Enables instantiation of custom
