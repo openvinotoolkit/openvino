@@ -11,20 +11,29 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Reduce the rank of Transpose shape by fusing by fusing dimentions
- *    [A, B, C, D]            [A, B, C, D]
+ * @brief Replace the unsupported 2D Transpose by sequence of supported Transposes.
+ *
+ *       [A, B]                  [A, B]
  *         |                       |
- *     Transpose                Reshape
+ *      Transpose                Reshape
  *         |                       |
- *    [A, D, B, C]             [A, B*C, D]
+ *       [B, A]                 [A1, B1]
  *         |                       |
  *         |                   Transpose
  *         |           ->          |
- *         |           <-     [A, D, B*C]
+ *         |           <-       [B1, A1]
  *         |                       |
  *         |                    Reshape
  *         |                       |
- *         |                  [A, D, B, C]
+ *         |                    [A2, B2]
+ *         |                       |
+ *         |                   Transpose
+ *         |                       |
+ *         |                    [B2, A2]
+ *         |                       |
+ *         |                    Reshape
+ *         |                       |
+ *         |                     [B, A]
  *         |                       |
  *     Any Layer                Any Layer
  */
