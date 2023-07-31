@@ -259,7 +259,7 @@ function initBenchmarkPickers() {
 function addFooter() {
     const footerAnchor = $('.footer');
 
-    fetch('../footer.html').then((response) => response.text()).then((text) => {
+    fetch('/footer.html').then((response) => response.text()).then((text) => {
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
@@ -269,12 +269,15 @@ function initSplide() {
   const slides = $('.splide__slide');
   const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
   var splide = new Splide('.splide', {
-    direction  : 'ttb',
-    type       : 'loop',
-    height     : `${height}px`,
-    perPage    : 1,
-    autoplay   : true,
-    arrows     : false,
+    direction         : 'ttb',
+    type              : 'loop',
+    height            : `${height}px`,
+    perPage           : 1,
+    autoplay          : true,
+    arrows            : false,
+    waitForTransition : true,
+    wheel             : true,
+    wheelSleep        : 250,
   });
   splide.mount();
 }

@@ -33,7 +33,7 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/affine.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/affine.onnx"));
 
     // input/output shape (1, 3)
     auto input = test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
@@ -47,7 +47,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_affine) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop.onnx"));
 
     // input shape (1, 1, 4, 4)
     auto input = test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},
@@ -67,7 +67,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/crop_with_scale.onnx"));
 
     // input shape (1, 1, 4, 4)
     auto input = test::NDArray<float, 4>({{{{19.f, 20.f, 21.f, 22.f},

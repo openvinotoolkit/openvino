@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -50,7 +50,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -75,7 +75,7 @@ protected:
         size_t kernal_size = 8;
         size_t stride_size = 8;
         std::vector<float> filter_weights_1 =
-            CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[1] * kernal_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * inputShape[1] * kernal_size, -0.2f, 0.2f);
         auto conv1 = ngraph::builder::makeConvolution(reshape1,
                                                       ngPrc,
                                                       {1, kernal_size},
@@ -96,7 +96,7 @@ protected:
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv1, pattern2, false);
 
         std::vector<float> filter_weights_2 =
-            CommonTestUtils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
         auto conv2 = ngraph::builder::makeConvolution(reshape2,
                                                       ngPrc,
                                                       {1, kernal_size},
@@ -137,7 +137,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 
@@ -146,7 +146,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -171,7 +171,7 @@ protected:
         size_t kernal_size = 8;
         size_t stride_size = 8;
         std::vector<float> filter_weights_1 =
-            CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[1] * kernal_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * inputShape[1] * kernal_size, -0.2f, 0.2f);
         auto conv1 = ngraph::builder::makeConvolution(reshape1,
                                                       ngPrc,
                                                       {1, kernal_size},
@@ -202,7 +202,7 @@ protected:
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(pool, pattern2, false);
 
         std::vector<float> filter_weights_2 =
-            CommonTestUtils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
+            ov::test::utils::generate_float_numbers(num_out_channels * kernal_size, -0.2f, 0.2f);
         auto conv2 = ngraph::builder::makeConvolution(reshape2,
                                                       ngPrc,
                                                       {1, kernal_size},
@@ -246,7 +246,7 @@ const std::vector<std::vector<size_t>> inputShape = {{1, 1, 1, 32}, {1, 8, 1, 64
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBetweenConvsTest,
                          InsertTransposeBetweenConvs,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape)),
                          InsertTransposeBetweenConvs::getTestCaseName);
@@ -254,7 +254,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBetweenConvsTest,
 INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBetweenConvsWithPoolTest,
                          InsertTransposeBetweenConvsWithPool,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape)),
                          InsertTransposeBetweenConvsWithPool::getTestCaseName);

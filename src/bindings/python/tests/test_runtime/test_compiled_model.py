@@ -8,7 +8,8 @@ import numpy as np
 
 from tests.conftest import model_path
 from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
-from openvino.runtime import Model, ConstOutput, Shape, Core, Tensor
+from openvino import Model, Shape, Core, Tensor
+from openvino.runtime import ConstOutput
 
 test_net_xml, test_net_bin = model_path()
 
