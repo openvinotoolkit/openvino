@@ -93,7 +93,7 @@ class NodeFactory(object):
 
         return node
 
-    def add_extension(self, lib_path: Union[Path, str]):
+    def add_extension(self, lib_path: Union[Path, str]) -> None:
         """Add custom operations from extension library.
 
         Extends operation types available for creation by operations

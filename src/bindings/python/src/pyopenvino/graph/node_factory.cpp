@@ -76,7 +76,9 @@ public:
         // Check for available extensions first, because they may override ops from main opset
         auto ext_it = m_opset_so_extensions.find(op_type_name);
         // No way to instantiate operation without inputs, so if extension operation is found report an error.
-        NGRAPH_CHECK(ext_it == m_opset_so_extensions.end(), "Couldn't create operation of type ", op_type_name,
+        NGRAPH_CHECK(ext_it == m_opset_so_extensions.end(),
+                     "Couldn't create operation of type ",
+                     op_type_name,
                      " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
                      "operations without inputs. Provide at least one input.");
 
