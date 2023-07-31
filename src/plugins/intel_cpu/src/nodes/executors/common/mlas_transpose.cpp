@@ -198,7 +198,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
                 for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
                     uint8_t* output_for_current_writer = output_for_first_writer;
 
-                    for (int64_t w = 0; w < num_writers; ++w) {
+                    for (uint64_t w = 0; w < num_writers; ++w) {
                         memcpy(output_for_current_writer, input_data, bytes_per_write);
                         // skip to output position for next writer
                         output_for_current_writer += (writes_per_writer_per_loop * bytes_per_write);
@@ -258,7 +258,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
                 const uint8_t* input_for_first_reader = input_data;
                 for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
                     const uint8_t* input_for_current_reader = input_for_first_reader;
-                    for (int64_t r = 0; r < num_readers; ++r) {
+                    for (uint64_t r = 0; r < num_readers; ++r) {
                         memcpy(output_data, input_for_current_reader, bytes_per_read);
                         output_data += bytes_per_read;
                         // skip to input position for next reader
