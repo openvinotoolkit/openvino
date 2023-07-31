@@ -114,6 +114,10 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(MVN, ngraph::op::v6)
         NGRAPH_OP(Select, ngraph::op::v1)
         NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
+        NGRAPH_OP(LSTMSequence, ngraph::op::v5)
+        NGRAPH_OP(GRUSequence, ngraph::op::v5)
+        NGRAPH_OP(NonMaxSuppression, ngraph::op::v5)
+        NGRAPH_OP(NonMaxSuppression, ngraph::op::v9)
 #undef NGRAPH_OP
 
         return opset;
