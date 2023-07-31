@@ -646,13 +646,21 @@ bool primitive_inst::update_impl() {
 }
 
 void primitive_inst::do_runtime_skip_reorder() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_skip_reorder) {
+        return;
+    }
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
+            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
             u->update_shape();
             u->update_shape_done_by_other = true;
             if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
                 u->set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as  can_be_optimized" << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
             }
         }
     }
