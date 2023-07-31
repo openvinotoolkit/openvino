@@ -9,6 +9,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include <remote_blob_tests/remote_blob_helpers.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) {
     auto ie = ov::Core();
@@ -28,7 +29,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     std::vector<ov::InferRequest> inf_req_shared = {};
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
-    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
     auto inf_req_regular = exec_net.create_infer_request();
     inf_req_regular.set_tensor(input, fakeImageData);
     // infer using system memory
@@ -75,7 +76,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
         }
     }
 }

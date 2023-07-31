@@ -20,6 +20,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ::testing;
 
@@ -176,7 +177,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     auto inf_req_regular = exec_net.create_infer_request();
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
-    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
 
     inf_req_regular.set_tensor(input, fakeImageData);
 
@@ -325,7 +326,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
         auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
         ASSERT_NO_THROW(output_tensor_regular.data());
         ASSERT_NO_THROW(output_tensor_shared.data());
-        FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+        ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
     }
 }
 
@@ -393,7 +394,7 @@ public:
 
         // regular inference
         auto inf_req_regular = exec_net_regular.create_infer_request();
-        auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+        auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
         inf_req_regular.set_tensor(input, fakeImageData);
 
         inf_req_regular.infer();
@@ -417,7 +418,7 @@ public:
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
         }
 
         if (is_caching_test) {
@@ -452,7 +453,7 @@ public:
 
         // regular inference
         auto inf_req_regular = exec_net_regular.create_infer_request();
-        auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+        auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
         inf_req_regular.set_tensor(input, fakeImageData);
 
         inf_req_regular.infer();
@@ -481,7 +482,7 @@ public:
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare(output_tensor_regular, output_tensor_shared, thr);
         }
 
         if (is_caching_test) {
@@ -516,7 +517,7 @@ public:
 
         // regular inference
         auto inf_req_regular = exec_net_regular.create_infer_request();
-        auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+        auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
         inf_req_regular.set_tensor(input, fakeImageData);
 
         inf_req_regular.infer();
@@ -539,7 +540,7 @@ public:
 
         auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
         auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
-        auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+        auto out_tensor = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
         auto inf_req_shared = exec_net_shared.create_infer_request();
         inf_req_shared.set_tensor(input, gpu_in_tensor);
@@ -576,7 +577,7 @@ public:
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
         }
 
         if (is_caching_test) {
@@ -611,7 +612,7 @@ public:
 
         // regular inference
         auto inf_req_regular = exec_net_regular.create_infer_request();
-        auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+        auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
         inf_req_regular.set_tensor(input, fakeImageData);
 
         inf_req_regular.infer();
@@ -635,7 +636,7 @@ public:
 
         auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
         auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
-        auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+        auto out_tensor = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
         auto inf_req_shared = exec_net_shared.create_infer_request();
         inf_req_shared.set_tensor(input, gpu_in_tensor);
@@ -667,7 +668,7 @@ public:
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
         }
 
         if (is_caching_test) {
@@ -702,7 +703,7 @@ public:
 
         // regular inference
         auto inf_req_regular = exec_net_regular.create_infer_request();
-        auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+        auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
         inf_req_regular.set_tensor(input, fakeImageData);
 
         inf_req_regular.infer();
@@ -726,7 +727,7 @@ public:
 
         auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
         auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
-        auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+        auto out_tensor = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
         auto inf_req_shared = exec_net_shared.create_infer_request();
         inf_req_shared.set_tensor(input, gpu_in_tensor);
@@ -759,7 +760,7 @@ public:
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
             auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+            ov::test::utils::compare(output_tensor_regular, out_tensor, thr);
         }
 
         if (is_caching_test) {
@@ -876,8 +877,8 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image = FuncTestUtils::create_and_fill_tensor(ov::element::i8, {1, feature, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_regular = FuncTestUtils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+    ov::Tensor fake_image = ov::test::utils::create_and_fill_tensor(ov::element::i8, {1, feature, height, width}, 50, 0, 1);
+    ov::Tensor fake_image_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
 
     auto image_ptr = static_cast<uint8_t*>(fake_image.data());
     auto image_ptr_regular = static_cast<float*>(fake_image_regular.data());
@@ -965,7 +966,7 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
     ASSERT_NO_THROW(output_tensor_regular.data());
     ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
-    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+    ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
 
 TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
@@ -977,8 +978,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -1074,7 +1075,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     ASSERT_NO_THROW(output_tensor_regular.data());
     ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
-    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+    ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
 
 TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
@@ -1086,7 +1087,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_yuv = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50);
+    ov::Tensor fake_image_data_yuv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50);
 
     auto ie = ov::Core();
 
@@ -1164,7 +1165,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
     ASSERT_NO_THROW(output_tensor_regular.data());
     ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
-    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+    ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
 
 TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
@@ -1176,8 +1177,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -1273,7 +1274,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     ASSERT_NO_THROW(output_tensor_regular.data());
     ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
-    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+    ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
 
 TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
@@ -1285,8 +1286,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
 
     // ------------------------------------------------------
     // Prepare input data
-    ov::Tensor fake_image_data_y = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
-    ov::Tensor fake_image_data_uv = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
+    ov::Tensor fake_image_data_y = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1);
+    ov::Tensor fake_image_data_uv = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1);
 
     auto ie = ov::Core();
 
@@ -1326,7 +1327,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     auto gpu_in_y_tensor = gpu_context.create_tensor(param_input_y->get_output_element_type(0), fake_image_data_y.get_shape(), shared_input_y_buffer);
     auto gpu_in_uv_tensor = gpu_context.create_tensor(param_input_uv->get_output_element_type(0), fake_image_data_uv.get_shape(), shared_input_uv_buffer);
     auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
-    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+    auto out_tensor = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(param_input_y, gpu_in_y_tensor);
@@ -1359,7 +1360,7 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     ASSERT_NO_THROW(output_tensor_regular.data());
     ASSERT_NO_THROW(out_tensor.data());
     float thr = 0.1f;
-    FuncTestUtils::compare_tensor(out_tensor, output_tensor_regular, thr);
+    ov::test::utils::compare(out_tensor, output_tensor_regular, thr);
 }
 
 class OVRemoteTensorBatched_Test : public ov::test::TestsCommon, public testing::WithParamInterface<size_t> {
@@ -1387,7 +1388,8 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_yuv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_yuv.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height * 3 / 2, width}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_yuv.push_back(ov::test::utils::create_and_fill_tensor(
+            ov::element::u8, {1, 1, height * 3 / 2, width}, 50, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1493,8 +1495,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch; i++) {
-        fake_image_data_y.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
-        fake_image_data_uv.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
+            ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1620,8 +1623,8 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
     std::vector<ov::Tensor> fake_image;
     std::vector<ov::Tensor> fake_image_regular;
     for (size_t i = 0; i < num_batch; i++) {
-        auto tensor_image = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, feature, height, width}, 50, 0, 1, static_cast<int32_t>(i));
-        auto tensor_regular = FuncTestUtils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+        auto tensor_image = ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, feature, height, width}, 50, 0, 1, static_cast<int32_t>(i));
+        auto tensor_regular = ov::test::utils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
         auto image_ptr = static_cast<uint8_t*>(tensor_image.data());
         auto image_ptr_regular = static_cast<float*>(tensor_regular.data());
         // Apply NV12 (Surface) -> Gray conversion for regular blob
@@ -1736,8 +1739,9 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     // Prepare input data
     std::vector<ov::Tensor> fake_image_data_y, fake_image_data_uv;
     for (size_t i = 0; i < num_batch * 2; ++i) {
-        fake_image_data_y.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
-        fake_image_data_uv.push_back(FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_y.push_back(ov::test::utils::create_and_fill_tensor(ov::element::u8, {1, 1, height, width}, 50, 0, 1, static_cast<int32_t>(i)));
+        fake_image_data_uv.push_back(ov::test::utils::create_and_fill_tensor(
+            ov::element::u8, {1, 2, height / 2, width / 2}, 256, 0, 1, static_cast<int32_t>(i)));
     }
 
     auto ie = ov::Core();
@@ -1787,7 +1791,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     }
     cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
     auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
-    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+    auto out_tensor = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), gpu_in_y_tensor);
@@ -1826,7 +1830,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     }
     cl::Buffer shared_output_buffer_new(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
     auto gpu_out_tensor_new = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer_new);
-    auto out_tensor_new = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+    auto out_tensor_new = ov::test::utils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
 
     inf_req_shared.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), gpu_in_y_tensor_new);
     inf_req_shared.set_tensors(*param_input_uv->output(0).get_tensor().get_names().begin(), gpu_in_uv_tensor_new);

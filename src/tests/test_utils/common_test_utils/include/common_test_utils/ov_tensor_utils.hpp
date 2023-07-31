@@ -52,8 +52,8 @@ ov::runtime::Tensor create_and_fill_tensor_consistently(
 void compare(
         const ov::Tensor &expected,
         const ov::Tensor &actual,
-        const double abs_threshold,
-        const double rel_threshold);
+        const double abs_threshold = std::numeric_limits<double>::max(),
+        const double rel_threshold = std::numeric_limits<double>::max());
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

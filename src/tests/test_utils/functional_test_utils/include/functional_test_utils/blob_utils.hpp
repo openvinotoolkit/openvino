@@ -20,7 +20,6 @@
 #include "common_test_utils/test_constants.hpp"
 
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/tensor.hpp"
 #include "ie_ngraph_utils.hpp"
 
 
@@ -263,43 +262,6 @@ compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::v
 }
 
 inline void
-compare_tensor(const ov::Tensor& res_tensor, const ov::Tensor& ref_tensor, float max_diff = 0.01,
-             const std::string& assertDetails = "", bool printData = false) {
-    ASSERT_EQ(res_tensor.get_byte_size(), ref_tensor.get_byte_size()) << "Tensors have different byteSize(): "
-                                                          << res_tensor.get_byte_size() << " and " << ref_tensor.get_byte_size();
-
-    auto res_shape = res_tensor.get_shape();
-    auto res = make_blob_with_precision(
-        {ov::ie::details::convertPrecision(res_tensor.get_element_type()),
-         {res_shape.begin(), res_shape.end()},
-         ov::ie::TensorDesc::getLayoutByRank(res_shape.size())}, res_tensor.data());
-
-    auto ref_shape = ref_tensor.get_shape();
-    auto ref = make_blob_with_precision(
-        {ov::ie::details::convertPrecision(ref_tensor.get_element_type()),
-         {ref_shape.begin(), ref_shape.end()},
-         ov::ie::TensorDesc::getLayoutByRank(ref_shape.size())}, ref_tensor.data());
-
-    ASSERT_EQ(res->getTensorDesc(), ref->getTensorDesc()) << "Blobs have different TensorDesc()";
-
-    switch (res->getTensorDesc().getPrecision()) {
-#define COMPARE_WITH_REF(TYPE) case TYPE: { \
-                                          FuncTestUtils::compareBlobData<TYPE>(res, \
-                                                                                 ref, \
-                                                                                 max_diff, \
-                                                                                 assertDetails, \
-                                                                                 printData); break; }
-        COMPARE_WITH_REF(InferenceEngine::Precision::FP32);
-        COMPARE_WITH_REF(InferenceEngine::Precision::FP16);
-        COMPARE_WITH_REF(InferenceEngine::Precision::I64);
-#undef COMPARE_WITH_REF
-        default:
-            IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
-                               << " is not covered by FuncTestUtils::compareBlobs() method";
-    }
-}
-
-inline void
 compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob::Ptr &ref, float max_diff = 0.01,
              const std::string &assertDetails = "", bool printData = false) {
     ASSERT_EQ(res->byteSize(), ref->byteSize()) << "Blobs have different byteSize(): "
@@ -535,74 +497,6 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     return blob;
 }
 
-inline ov::Tensor create_and_fill_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range = 10,
-        const int32_t start_from = 0,
-        const int32_t resolution = 1,
-        const int seed = 1) {
-    auto tensor = ov::Tensor{element_type, shape};
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(
-        {ov::ie::details::convertPrecision(element_type),
-         {shape.begin(), shape.end()},
-         ov::ie::TensorDesc::getLayoutByRank(shape.size())}, tensor.data());
-    switch (ov::ie::details::convertPrecision(element_type)) {
-#define CASE(X) case X: ov::test::utils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
-        CASE(InferenceEngine::Precision::FP64)
-        CASE(InferenceEngine::Precision::FP32)
-        CASE(InferenceEngine::Precision::FP16)
-        CASE(InferenceEngine::Precision::BF16)
-        CASE(InferenceEngine::Precision::U4)
-        CASE(InferenceEngine::Precision::U8)
-        CASE(InferenceEngine::Precision::U32)
-        CASE(InferenceEngine::Precision::U16)
-        CASE(InferenceEngine::Precision::U64)
-        CASE(InferenceEngine::Precision::I4)
-        CASE(InferenceEngine::Precision::I8)
-        CASE(InferenceEngine::Precision::I16)
-        CASE(InferenceEngine::Precision::I32)
-        CASE(InferenceEngine::Precision::I64)
-        CASE(InferenceEngine::Precision::BIN)
-        CASE(InferenceEngine::Precision::BOOL)
-#undef CASE
-        default:
-            IE_THROW() << "Wrong precision specified: " << element_type;
-    }
-    return tensor;
-}
-
-void inline fill_tensor(ov::Tensor& tensor,
-                        uint32_t range = 10,
-                        int32_t start_from = 0,
-                        const int32_t k = 1,
-                        const int seed = 1) {
-    auto element_type = tensor.get_element_type();
-    switch (element_type) {
-#define CASE(X) case X: ov::test::utils::fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
-#define CASE_FLOAT(X) case X: ov::test::utils::fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
-    CASE_FLOAT(ov::element::f64)
-    CASE_FLOAT(ov::element::f32)
-    CASE_FLOAT(ov::element::f16)
-    CASE_FLOAT(ov::element::bf16)
-    CASE(ov::element::u1)
-    CASE(ov::element::u4)
-    CASE(ov::element::u8)
-    CASE(ov::element::u32)
-    CASE(ov::element::u16)
-    CASE(ov::element::u64)
-    CASE(ov::element::i4)
-    CASE(ov::element::i8)
-    CASE(ov::element::i16)
-    CASE(ov::element::i32)
-    CASE(ov::element::i64)
-#undef CASE
-#undef CASE_FLOAT
-    default:
-        IE_THROW() << "Wrong precision specified: " << element_type;
-    }
-}
-
 inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
     const InferenceEngine::TensorDesc &td,
     const uint32_t range,
@@ -688,19 +582,6 @@ inline void fillInputsBySinValues(dType* data, size_t size) {
     }
 }
 
-template<typename dType>
-inline void fillInputsByCosValues(dType* data, size_t size) {
-    if (std::is_same<dType, float>::value) {
-        for (size_t i = 0; i < size; i++) {
-            data[i] = sin(static_cast<float>(i));
-        }
-    } else if (std::is_same<dType, short>::value) {
-        for (size_t i = 0; i < size; i++) {
-            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
-        }
-    }
-}
-
 inline int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
     if (!mblob) {
@@ -713,20 +594,6 @@ inline int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
     fillInputsBySinValues(lm.as<float*>(), mblob->size());
     return 0;
 }
-
-inline int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
-    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-    if (!mblob) {
-        return -1;
-    }
-    if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
-        return -2;
-    }
-    auto lm = mblob->rwmap();
-    fillInputsByCosValues(lm.as<float*>(), mblob->size());
-    return 0;
-}
-
 
 namespace Bf16TestUtils {
 
