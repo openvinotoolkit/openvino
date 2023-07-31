@@ -407,6 +407,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_snippets_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_snippets_func_tests.xml
+    displayName: 'Snippets Func Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
 
