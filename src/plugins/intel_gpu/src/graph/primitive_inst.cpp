@@ -650,6 +650,8 @@ void primitive_inst::do_runtime_skip_reorder() {
     GPU_DEBUG_IF(debug_config->disable_runtime_skip_reorder) {
         return;
     }
+    if (can_be_optimized())
+        return;
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
