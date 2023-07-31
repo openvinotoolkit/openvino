@@ -652,9 +652,18 @@ void primitive_inst::do_runtime_skip_reorder() {
     }
     if (can_be_optimized())
         return;
+
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
+            auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+            // If current node's output_node is not dynamic, the memory is already allocated at build time
+            auto alloc_type = allocation_type::unknown;
+            if (!get_node().is_dynamic_output_layout(out_port_idx)) {
+                alloc_type = _outputs[out_port_idx]->get_allocation_type();
+            }
+            if (alloc_type == allocation_type::usm_device && u->is_output())
+                continue;
             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
             u->update_shape();
             u->update_shape_done_by_other = true;
