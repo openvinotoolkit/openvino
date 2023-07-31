@@ -86,7 +86,14 @@ public:
     bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
 
     void update_output_memory() override;
-    bool requires_reinterpret() const { return _req_reinterpr; }
+    bool requires_reinterpret() const {
+        if (!get_node().is_dynamic())
+            return _req_reinterpr;
+        if (input_memory().get_layout() != _impl_params->get_output_layout()) {
+            return true;
+        }
+        return _req_reinterpr;
+    }
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
     void load(cldnn::BinaryInputBuffer& ib) override;
