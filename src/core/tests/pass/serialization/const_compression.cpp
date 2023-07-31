@@ -17,7 +17,7 @@ protected:
     std::string m_out_bin_path_1;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path_1 = filePrefix + ".xml";
         m_out_bin_path_1 = filePrefix + ".bin";
     }

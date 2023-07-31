@@ -45,7 +45,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_weightstMinMax=(" << weightsMinMax.first << ".." << weightsMinMax.second << ")";
         result << "_levels=" << levels;
 
@@ -69,7 +69,7 @@ protected:
         auto weights = ngraph::builder::makeConstant<float>(
             ngPrc,
             {outChannels, inputShape[1], 1, kernelSize},
-            CommonTestUtils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
+            ov::test::utils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
                                                     weightsMinMax.first,
                                                     weightsMinMax.second));
         auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.first * 2});
@@ -148,7 +148,7 @@ const std::vector<size_t> levels = {
 INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion,
                          FQFusionWithMultipleWeights,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(weightsMinMax),

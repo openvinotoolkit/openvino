@@ -33,7 +33,7 @@ struct LinuxCpuStreamTypeCase {
     std::vector<int> _max_threads_per_core;
 };
 
-class LinuxCpuStreamTypeTests : public CommonTestUtils::TestsCommon,
+class LinuxCpuStreamTypeTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<LinuxCpuStreamTypeCase>> {
 public:
     void SetUp() override {

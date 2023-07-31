@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "utils/node.hpp"
-
 #include "openvino/op/ops.hpp"
+#include "base_test.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
+using NodeUtilsTest = SubgraphsDumperBaseTest;
 
-TEST(NodeUtilsTest, get_const_ranges) {
+TEST_F(NodeUtilsTest, get_const_ranges) {
     std::vector<float> values = {-1, -2.05, -3.65, 0, 5, 7};
     auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 3}), values);
     auto range = get_const_ranges<float>(const_node);
@@ -20,7 +19,7 @@ TEST(NodeUtilsTest, get_const_ranges) {
     ASSERT_EQ(range, range_ref);
 }
 
-TEST(NodeUtilsTest, get_input_info_by_node) {
+TEST_F(NodeUtilsTest, get_input_info_by_node) {
     std::vector<float> values = {-1, -2.05, -3.65, 0, 5, 7};
     auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 3}), values);
     const_node->set_friendly_name("const_0");
@@ -36,7 +35,7 @@ TEST(NodeUtilsTest, get_input_info_by_node) {
     ASSERT_EQ(ref_test_info, orig_test_info);
 }
 
-TEST(NodeUtilsTest, clone_node) {
+TEST_F(NodeUtilsTest, clone_node) {
     std::vector<float> values(512, 1.f);
     auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 256}), values);
     const_node->set_friendly_name("const_0");
@@ -65,7 +64,7 @@ TEST(NodeUtilsTest, clone_node) {
     }
 }
 
-TEST(NodeUtilsTest, generate_model_by_node) {
+TEST_F(NodeUtilsTest, generate_model_by_node) {
     std::vector<float> values = {-1, -2.05, -3.65, 0, 5, 7};
     auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 3}), values);
     const_node->set_friendly_name("const_0");
@@ -91,6 +90,35 @@ TEST(NodeUtilsTest, generate_model_by_node) {
     ASSERT_TRUE(ov::op::util::is_output(res_0));
     ASSERT_EQ(res_0->get_shape(), ov::Shape({2, 3}));
     ASSERT_EQ(res_0->get_element_type(), ov::element::Type_t::f32);
+}
+
+TEST_F(NodeUtilsTest, get_max_ops_versions) {
+    std::map<std::string, std::string> max_ops_versions;
+    ASSERT_NO_THROW(max_ops_versions = get_max_ops_versions());
+
+    std::vector<float> values = {-1, -2.05, -3.65, 0, 5, 7};
+    auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2, 3}), values);
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({2, 3}));
+    auto add_node_0 = std::make_shared<ov::op::v1::Add>(param, const_node);
+    auto erf_node_0 = std::make_shared<ov::op::v0::Erf>(add_node_0);
+    auto shapeOf_0 = std::make_shared<ov::op::v3::ShapeOf>(erf_node_0);
+
+    ASSERT_EQ(max_ops_versions[add_node_0->get_type_info().name], "1");
+    ASSERT_EQ(max_ops_versions[erf_node_0->get_type_info().name], "1");
+    ASSERT_EQ(max_ops_versions[shapeOf_0->get_type_info().name], "3");
+}
+
+TEST_F(NodeUtilsTest, get_node_priority_by_version) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{1, 3, 16, 16});
+
+    auto one_opset_node = std::make_shared<ov::op::v0::Convert>(param, ov::element::u16);
+    ASSERT_EQ(get_node_priority_by_version(one_opset_node), 3);
+
+    auto max_of_several_opset_node = std::make_shared<ov::op::v3::ShapeOf>(param);
+    ASSERT_EQ(get_node_priority_by_version(max_of_several_opset_node), 3);
+
+    auto min_of_several_opset_node = std::make_shared<ov::op::v0::ShapeOf>(param);
+    ASSERT_EQ(get_node_priority_by_version(min_of_several_opset_node), 1);
 }
 
 }  // namespace

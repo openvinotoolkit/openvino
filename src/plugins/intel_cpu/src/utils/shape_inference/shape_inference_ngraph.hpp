@@ -33,7 +33,7 @@ public:
         return m_shape_infer->get_pads_end();
     }
     port_mask_t get_port_mask() const override {
-        return m_port_mask & m_shape_infer->get_port_mask();
+        return m_port_mask;
     }
 private:
     std::shared_ptr<IStaticShapeInfer> m_shape_infer;

@@ -20,7 +20,7 @@ class ParameterResultCustomBlobTest : public ParameterResultSubgraphTestLegacyAp
         auto inputBlob = inputs.front();
         const size_t elementsCount = inputBlob->size();
         for (size_t i = 0; i < inferIterations; ++i) {
-            CommonTestUtils::fill_data_random<Precision::FP32>(inputBlob, 10, 0, 1, i);
+            ov::test::utils::fill_data_random<Precision::FP32>(inputBlob, 10, 0, 1, i);
             auto inputsInfo = cnnNetwork.getInputsInfo().begin()->second;
             std::string inputName = cnnNetwork.getInputsInfo().begin()->first;
 
@@ -54,7 +54,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
                             ::testing::Combine(
                                 ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ParameterResultSubgraphTestBase::getTestCaseName);
 } // namespace
 
@@ -80,7 +80,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check_Same_Blob, ParameterResultSameBlobTest,
                             ::testing::Combine(
                                 ::testing::Values(ov::test::InputShape{{1, 3, 10, 10}, {{}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ParameterResultSubgraphTestBase::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

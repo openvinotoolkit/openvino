@@ -16,28 +16,32 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    std::vector<std::string> local_cache_dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_local_cache);
-    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
+    std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
     std::vector<std::string> models;
 
-    if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
+    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
         std::cout << msg << std::endl;
-        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
+        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
     }
     try {
         models = find_models(dirs, FLAGS_path_regex);
     } catch (std::runtime_error& e) {
-        std::cout << "Try 'subgraphdumper -h' for more information. \nException: " << e.what() << std::endl;
+        std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
 
     std::vector<std::shared_ptr<ICache>> caches;
     if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
+        std::cout << "[ INFO ] OpCache is enabled!" << std::endl;
         caches.push_back(OpCache::get());
-    } else if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
-        caches.push_back(GraphCache::get());
+    }
+    if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+        // todo: iefode: to check and enable it in CI
+        // std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
+        // caches.push_back(GraphCache::get());
     }
 
     for (auto& cache : caches) {

@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest,
                                             ::testing::ValuesIn(iterationCount),
                                             ::testing::ValuesIn(inShapes),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          MemoryTest::getTestCaseName);
 
 }  // namespace

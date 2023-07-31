@@ -463,7 +463,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blockin
                                               blocking,
                                               nullptr,
                                               ev_ocl);
-    return stream.create_user_event(true);
+    return ev;
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr, bool blocking) {

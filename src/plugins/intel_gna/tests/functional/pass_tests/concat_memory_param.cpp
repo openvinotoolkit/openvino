@@ -41,7 +41,7 @@ public:
         for (auto const& config_item : configuration) {
             result << "_config_item=" << config_item.first << "_" << config_item.second;
         }
-        result << "_input_shape=" << CommonTestUtils::vec2str(input_shape);
+        result << "_input_shape=" << ov::test::utils::vec2str(input_shape);
         return result.str();
     }
 
@@ -51,7 +51,7 @@ protected:
         blob->allocate();
 
         auto* raw_blob_data_ptr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -2.f, 2.f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -2.f, 2.f);
         for (size_t i = 0; i < blob->size(); i++) {
             raw_blob_data_ptr[i] = values[i];
         }
@@ -76,7 +76,7 @@ protected:
         vi.variable_id = "test_variable";
         vi.data_type = ov::element::Type_t::f32;
         const auto var = std::make_shared<ov::op::util::Variable>(vi);
-        std::vector<float> initial_state = CommonTestUtils::generate_float_numbers(in_total_dims_size, -3.f, 3.f);
+        std::vector<float> initial_state = ov::test::utils::generate_float_numbers(in_total_dims_size, -3.f, 3.f);
         auto initial_state_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, input_shape, initial_state);
         auto readValue = std::make_shared<ngraph::opset9::ReadValue>(initial_state_node, var);
 
@@ -87,7 +87,7 @@ protected:
         const auto concat_shape = concat->get_output_shape(0);
         const auto concat_shape_size = ov::shape_size(concat_shape);
 
-        auto etlwise_data = CommonTestUtils::generate_float_numbers(concat_shape_size, -1.f, 1.f);
+        auto etlwise_data = ov::test::utils::generate_float_numbers(concat_shape_size, -1.f, 1.f);
         auto etlwise_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, concat_shape, etlwise_data);
         auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
 
@@ -118,7 +118,7 @@ const std::vector<std::vector<size_t>> shapes{
 INSTANTIATE_TEST_SUITE_P(smoke_concat_memory,
                          ConcatMemoryTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(shapes)),
                          ConcatMemoryTest::getTestCaseName);
