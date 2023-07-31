@@ -11,11 +11,11 @@
 namespace ov {
 namespace intel_cpu {
 
-#if defined(OV_CPU_WITH_MLAS) && (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64))
-#define OV_CPU_INSTANCE_MLAS_ARM(...) \
+#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
+#define OV_CPU_INSTANCE_MLAS_ARM64(...) \
     {__VA_ARGS__},
 #else
-#define OV_CPU_INSTANCE_MLAS_ARM(...)
+#define OV_CPU_INSTANCE_MLAS_ARM64(...)
 #endif
 
 #if defined(OV_CPU_WITH_ACL)

@@ -85,6 +85,7 @@ if(NOT (AARCH64 OR ARM))
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
 
