@@ -236,10 +236,14 @@ std::vector<CPUSpecificParams> filterSpecificParams() {
     return specificParams;
 }
 
-std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
+//For FP32 precision, FC has brgemm avx2 support but Matmul doen't have brgemm avx2.
+//Need to specify tryBrgAVX2 based on test case.
+std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = false) {
     std::vector<CPUSpecificParams> specificParams;
     if (with_cpu_x86_avx512_core()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    } else if (tryBrgAVX2 && with_cpu_x86_avx2()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"});
     }
 
     return specificParams;
@@ -683,7 +687,7 @@ const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::V
 const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+                                             ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 
@@ -884,7 +888,7 @@ const auto fullyConnectedParams2D_Brgemm_nightly = ::testing::Combine(::testing:
 const auto testParams2D_Brgemm_nightly = ::testing::Combine(fullyConnectedParams2D_Brgemm_nightly,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_nightly),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+                                             ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_nightly, MatMulLayerCPUTest::getTestCaseName);
 

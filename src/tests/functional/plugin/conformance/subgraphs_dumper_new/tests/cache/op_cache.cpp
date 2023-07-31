@@ -4,8 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
-
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -15,18 +13,21 @@
 #include "cache/op_cache.hpp"
 #include "utils/node.hpp"
 
+#include "base_test.hpp"
+
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
 // ====================== Operation Cache Functional tests ==============================
 
-class OpCacheFuncTest : public ::testing::Test {
+class OpCacheFuncTest : public SubgraphsDumperBaseTest {
 protected:
     std::shared_ptr<ov::Model> test_model;
     std::string test_artifacts_dir, test_model_name, test_model_path;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
         test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});

@@ -20,6 +20,19 @@ elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
+if(ARM)
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
+else()
+    if(APPLE)
+        # Apple M1 / M2 is assumed
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+        add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
+    else()
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
+    endif()
+endif()
+set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
+
 # enbale mlas for X86 cpus only
 ie_dependent_option(ENABLE_MLAS_FOR_CPU "MLAS GEMM for OpenVINO CPU Plugin" ON "X86 OR X86_64" OFF)
 add_subdirectory(thirdparty)
