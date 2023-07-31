@@ -84,7 +84,7 @@ protected:
 
         auto split_axis = std::make_shared<Constant>(ov::element::u8, ov::Shape{1}, std::vector<uint8_t>{0});
         auto split_slices =
-            std::make_shared<Constant>(ov::element::u32, ov::Shape{2}, std::vector<uint32_t>{m_test_shape[1] - 1, 1});
+            std::make_shared<Constant>(ov::element::u64, ov::Shape{2}, std::vector<uint64_t>{m_test_shape[1] - 1, 1});
         auto split_node = std::make_shared<VariadicSplit>(transpose_node, split_axis, split_slices);
 
         ov::ResultVector results{std::make_shared<Result>(split_node->output(0)),
