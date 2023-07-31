@@ -1,4 +1,4 @@
-# Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
+# Hello Reshape SSD Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
 @sphinxdirective
 
@@ -47,6 +47,11 @@ As a result, the program creates an output image, logging each step in a standar
 
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/hello_reshape_ssd/hello_reshape_ssd.py  
+      :language: python
 
 Running
 #######

@@ -1,4 +1,4 @@
-# Hello Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
+# Hello Classification Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
 @sphinxdirective
 
@@ -53,6 +53,11 @@ How It Works
 At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data, logging each step in a standard output stream.
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/hello_classification/hello_classification.py
+      :language: python
 
 Running
 #######

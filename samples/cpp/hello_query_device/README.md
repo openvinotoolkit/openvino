@@ -34,6 +34,11 @@ How It Works
 
 The sample queries all available OpenVINO™ Runtime devices, prints their supported metrics and plugin configuration parameters.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp 
+      :language: cpp
+
 Building
 ########
 

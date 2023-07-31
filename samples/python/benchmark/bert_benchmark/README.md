@@ -1,4 +1,4 @@
-# Bert Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
+# Bert Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
 
 @sphinxdirective
 
@@ -32,6 +32,11 @@ The sample downloads a model and a tokenizer, export the model to onnx, reads th
 
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
+      :language: python
 
 Running
 ####################

@@ -1,4 +1,4 @@
-# Throughput Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
+# Throughput Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
 
 @sphinxdirective
 
@@ -75,6 +75,10 @@ To run the sample, you need to specify a model:
 
    The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
+      :language: python
 
 Example
 ++++++++++++++++++++

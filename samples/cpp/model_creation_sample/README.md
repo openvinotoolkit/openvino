@@ -74,6 +74,11 @@ At startup, the sample application does the following:
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
+      :language: cpp
+
 Building
 ########
 
