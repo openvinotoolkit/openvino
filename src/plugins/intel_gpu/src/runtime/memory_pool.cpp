@@ -240,8 +240,6 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     }
 }
 
-void memory_pool::clear_pool() { _non_padded_pool.clear(); }
-
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
     // free up _non_padded_pool for this network
     {
