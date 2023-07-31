@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 
-#if defined(ENABLE_MLAS_FOR_CPU) && (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64))
+#if defined(OV_CPU_WITH_MLAS) && (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64))
 #define OV_CPU_INSTANCE_MLAS_ARM(...) \
     {__VA_ARGS__},
 #else

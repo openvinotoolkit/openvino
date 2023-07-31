@@ -33,7 +33,13 @@ else()
 endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
 
-ov_option(ENABLE_MLAS_FOR_CPU "MLAS GEMM for OpenVINO CPU Plugin" ON)
+if(X86 OR X86_64)
+    set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)
+else()
+    set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
+endif()
+ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
