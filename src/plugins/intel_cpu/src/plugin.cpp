@@ -856,7 +856,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     return execNetwork;
 }
-
 }   // namespace intel_cpu
 }   // namespace ov
 
