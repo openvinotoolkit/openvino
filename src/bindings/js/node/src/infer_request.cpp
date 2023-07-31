@@ -12,7 +12,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
                        {InstanceMethod("setInputTensor", &InferRequestWrap::set_input_tensor),
-                        InstanceMethod("infer", &InferRequestWrap::infer),
+                        InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
                         InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                         InstanceMethod("getOutputTensors", &InferRequestWrap::get_output_tensors),
                         InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor)});
@@ -49,11 +49,9 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
     return Napi::Value();
 }
 
-Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
+Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
-    // TO_DO single TensorWrap object
-    // TO_DO TypedArray with Tensor data
     else if (info.Length() == 1 && info[0].IsArray()) {
         infer(info[0].As<Napi::Array>());
     } else if (info.Length() == 1 && info[0].IsObject()) {

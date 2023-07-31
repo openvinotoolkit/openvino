@@ -46,10 +46,8 @@ public:
      */
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
 
-    /** @brief  Infers specified inputs in synchronous mode.
-     * Checks incoming Napi::Value and calls the correct overload
-     */
-    Napi::Value infer(const Napi::CallbackInfo& info);
+    /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
+    Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
 
     /** @brief Infers specified inputs in synchronous mode.
      * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)
