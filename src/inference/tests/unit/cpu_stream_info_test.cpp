@@ -327,12 +327,12 @@ LinuxCpuStreamTypeCase _1sockets_4cores_nobinding = {
         {7, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
     },
     {{8, 4, 0, 4, 0, 0}},
-    {{1, MAIN_CORE_PROC, 8, 0, 0}},
+    {{1, ALL_PROC, 8, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {8},
     {MAIN_CORE_PROC},
     {0},
-    {1},
+    {2},
 };
 LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
     true,
@@ -373,28 +373,6 @@ LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
     },
     {0, 0, 0, 0},
     {1, 1, 1, 1},
-};
-
-LinuxCpuStreamTypeCase _1sockets_4cores_hyperthreading = {
-    false,
-    1,
-    {
-        {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
-        {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
-        {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
-        {5, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
-        {6, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
-        {7, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
-    },
-    {{8, 4, 0, 4, 0, 0}},
-    {{1, ALL_PROC, 8, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}},
-    {STREAM_WITHOUT_PARAM},
-    {8},
-    {ALL_PROC},
-    {0},
-    {2},
 };
 
 LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding = {
@@ -566,7 +544,6 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _2sockets_72cores_binding_9streams,
                                          _1sockets_4cores_nobinding,
                                          _1sockets_4cores_binding,
-                                         _1sockets_4cores_hyperthreading,
                                          _1sockets_12cores_pcore_nobinding,
                                          _1sockets_12cores_pcore_binding,
                                          _1sockets_12cores_ecore_nobinding,
