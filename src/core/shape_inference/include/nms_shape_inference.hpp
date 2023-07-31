@@ -44,7 +44,7 @@ template <class TShape>
 void num_batches(const Node* const op, const std::vector<TShape>& input_shapes) {
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           input_shapes[0][0].same_scheme(input_shapes[1][0]),
+                           input_shapes[0][0].compatible(input_shapes[1][0]),
                            "The first dimension of both 'boxes' and 'scores' must match.");
 }
 
@@ -53,7 +53,7 @@ void num_boxes(const Node* const op, const std::vector<TShape>& input_shapes) {
     NODE_SHAPE_INFER_CHECK(
         op,
         input_shapes,
-        input_shapes[0][1].same_scheme(input_shapes[1][2]),
+        input_shapes[0][1].compatible(input_shapes[1][2]),
         "'boxes' and 'scores' input shapes must match at the second and third dimension respectively. Boxes: ");
 }
 
@@ -110,6 +110,7 @@ std::vector<TRShape> shape_infer(const Node* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     using TDim = typename T::value_type;
+    using namespace ov::util;
 
     const auto& boxes_shape = input_shapes[0];
     const auto& scores_shape = input_shapes[1];
@@ -117,8 +118,8 @@ std::vector<TRShape> shape_infer(const Node* op,
     auto output_shapes = std::vector<TRShape>{TRShape{TDim(-1), 3}};
     if (boxes_shape.rank().is_static()) {
         const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
-        NODE_VALIDATION_CHECK(op, max_out_boxes_per_class != nullptr, "Max output boxes tensor must have data");
-        auto max_out_class_boxes = TDim(max_out_boxes_per_class->front());
+        auto max_out_class_boxes =
+            max_out_boxes_per_class ? TDim(max_out_boxes_per_class->front()) : TDim(dim::inf_bound);
 
         if (scores_shape.rank().is_static()) {
             max_out_class_boxes *= scores_shape[1];
@@ -248,6 +249,7 @@ std::vector<TRShape> shape_infer(const NonMaxSuppression* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     using TDim = typename TRShape::value_type;
     using V = typename TDim::value_type;
+    using namespace ov::util;
     nms::validate::shapes(op, input_shapes);
 
     const auto& boxes_shape = input_shapes[0];
@@ -256,12 +258,12 @@ std::vector<TRShape> shape_infer(const NonMaxSuppression* op,
     auto output_shapes = std::vector<TRShape>{TRShape{TDim(-1), 3}};
     if (boxes_shape.rank().is_static()) {
         const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
-        NODE_VALIDATION_CHECK(op, max_out_boxes_per_class != nullptr, "Max output boxes tensor must have data");
+        const auto max_out_class_boxes = max_out_boxes_per_class ? max_out_boxes_per_class->front() : dim::inf_bound;
 
         const auto& num_boxes = boxes_shape[1];
         auto& selected_boxes = output_shapes[0][0];
         if (num_boxes.is_static()) {
-            selected_boxes = std::min(num_boxes.get_length(), static_cast<V>(max_out_boxes_per_class->front()));
+            selected_boxes = std::min(num_boxes.get_length(), static_cast<V>(max_out_class_boxes));
         }
 
         if (scores_shape.rank().is_static()) {
