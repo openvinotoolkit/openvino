@@ -90,6 +90,8 @@ void PriorBoxLayerTest::SetUp() {
         shape_of_2,
         attributes);
 
+    ov::pass::disable_constant_folding(priorBox);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
     function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
 }
