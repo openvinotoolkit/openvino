@@ -1,4 +1,5 @@
 -c ../../../../constraints.txt
 torch
-torchvision
+torchvision; platform_machine == 'arm' and python_version >= '3.8'
+torchvision; platform_machine != 'arm'
 pillow
