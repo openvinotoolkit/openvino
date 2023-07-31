@@ -653,6 +653,9 @@ void primitive_inst::do_runtime_skip_reorder() {
     if (can_be_optimized())
         return;
 
+    if (_impl_params->fused_desc.size() > 0)
+        return;
+
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
