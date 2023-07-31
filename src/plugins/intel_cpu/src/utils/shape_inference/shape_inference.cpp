@@ -66,6 +66,7 @@
 #include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
+#include "nms_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
@@ -399,6 +400,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset9::Eye, ShapeInferTA, util::bit::mask(0, 1, 3)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset9::GridSample, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset9::IRDFT, ShapeInferTA, util::bit::mask(1, 2)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset9::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset9::RDFT, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset9::ROIAlign, ShapeInferTA, util::bit::mask()),
     // opset8
@@ -435,12 +437,14 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset5::GatherND, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset5::GRUSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset5::LSTMSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset5::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset5::RNNSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset5::BatchNormInference, ShapeInferBase),
     // opset4
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::CTCLoss, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::LSTMCell, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset4::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::Proposal, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::Range, ShapeInferTA, util::bit::mask(0, 1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset4::ReduceL1, ShapeInferTA, util::bit::mask(1)),
@@ -456,6 +460,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::EmbeddingSegmentsSum, ShapeInferTA, util::bit::mask(3)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::ExtractImagePatches, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::GRUCell, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset3::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::ROIAlign, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::ScatterElementsUpdate, ShapeInferTA, util::bit::mask(3)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset3::ShapeOf, ShapeInferTA, util::bit::mask()),
@@ -493,6 +498,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MatMul, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::OneHot, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Pad, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::PriorBox, ShapeInferTA, util::bit::mask(0)),
