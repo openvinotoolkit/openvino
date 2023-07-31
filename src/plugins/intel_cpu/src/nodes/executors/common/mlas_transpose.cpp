@@ -84,6 +84,14 @@ typename std::enable_if<has_mlas_transpose<T>::value, void>::type SimpleTranspos
     }
 }
 
+int64_t MlasTransposeExecutor::calcShapeSize(const Shape& shape, size_t start, size_t end) {
+    int64_t size = 1;
+    for (size_t i = start; i < end; i++) {
+        size *= shape.getDims()[i];
+    }
+    return size;
+}
+
 bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(SizeVector permutations, size_t& from, size_t& to) {
     // if a single axis moved to an outer dimension, the values should be one lower than the index until the slot the
     // axis was moved from, and equal to the index after that.

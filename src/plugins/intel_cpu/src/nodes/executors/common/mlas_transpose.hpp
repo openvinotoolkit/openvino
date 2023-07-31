@@ -19,7 +19,8 @@ public:
 
     impl_desc_type getImplType() const override { return implType; }
 private:
-    bool IsTransposeMovingSingleAxis(InferenceEngine::SizeVector permutations, size_t& from, size_t& to);
+    static int64_t calcShapeSize(const Shape& shape, size_t start, size_t end);
+    static bool IsTransposeMovingSingleAxis(InferenceEngine::SizeVector permutations, size_t& from, size_t& to);
     void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
     void TransposeSingleAxisInwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
 

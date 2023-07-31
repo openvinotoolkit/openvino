@@ -11,22 +11,6 @@ namespace ov {
 namespace intel_cpu {
 
 /**
-* @brief Helper function to calculate the size (number of elements) from the given axis 
-* to the given axis (exclusive)
-* @param shape input shape
-* @param start start axis 
-* @param end end axis 
-* @return number of elements
-*/
-inline int64_t calcShapeSize(Shape shape, size_t start, size_t end) {
-    int64_t size = 1;
-    for (size_t i = start; i < end; i++) {
-        size *= shape.getDims()[i];
-    }
-    return size;
-}
-
-/**
 * @brief ACL handles NHWC specifically, it thinks it is NCHW, so we need to change layout manually:
 * NCHW (0, 1, 2, 3) -> NHWC (0, 2, 3, 1)
 * @param shape shape to convert
