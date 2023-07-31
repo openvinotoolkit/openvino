@@ -581,6 +581,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
 
 #ifdef OV_GLIBC_VERSION_LESS_2_34
         // Static unavailable device in order to avoid loading from different ov::Core the same unavailable plugin
+        // This issue relates to old libc if we load the same library from different threads
         static std::unordered_set<std::string> unavailable_devices;
         static std::unordered_map<std::string, std::mutex> unavailable_plugin_mutex;
 #else
