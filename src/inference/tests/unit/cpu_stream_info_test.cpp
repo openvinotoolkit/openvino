@@ -330,7 +330,7 @@ LinuxCpuStreamTypeCase _1sockets_4cores_nobinding = {
     {{1, ALL_PROC, 8, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {8},
-    {MAIN_CORE_PROC},
+    {ALL_PROC},
     {0},
     {2},
 };
