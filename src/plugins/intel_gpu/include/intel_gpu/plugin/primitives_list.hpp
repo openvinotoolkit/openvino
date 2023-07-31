@@ -253,6 +253,7 @@ REGISTER_FACTORY(v10, IsNaN);
 REGISTER_FACTORY(v10, Unique);
 
 // ------------------------------ Supported v11 ops ----------------------------- //
+REGISTER_FACTORY(v11, Interpolate);
 REGISTER_FACTORY(v11, TopK);
 
 // --------------------------- Supported internal ops --------------------------- //

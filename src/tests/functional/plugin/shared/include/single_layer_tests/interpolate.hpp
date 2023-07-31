@@ -12,4 +12,10 @@ TEST_P(InterpolateLayerTest, CompareWithRefs) {
     Run();
 }
 
+using Interpolate11LayerTest = v11::InterpolateLayerTest;
+
+TEST_P(Interpolate11LayerTest, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions

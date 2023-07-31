@@ -367,6 +367,8 @@ enum class ResampleType {
     CAFFE_BILINEAR_INTERP,
     CUBIC,
     LINEAR_ONNX,
+    BILINEAR_PILLOW,
+    BICUBIC_PILLOW,
 };
 
 enum class CoordinateTransformationMode {
