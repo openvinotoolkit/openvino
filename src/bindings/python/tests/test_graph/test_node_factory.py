@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+from sys import platform
+from openvino.runtime import compile_model, Model
 import openvino.runtime.opset8 as ov
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
@@ -92,3 +94,27 @@ def test_node_factory_validate_missing_arguments():
         pass
     else:
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
+
+def test_extension_added_from_library():
+    # Assume Identity extension is available in openvino_template_extension library
+    factory = NodeFactory()
+    if platform == "win32":
+        library_path="openvino_template_extension.dll"
+    else:
+        library_path="libopenvino_template_extension.so"
+    factory.add_extension(library_path)
+
+    data = ov.parameter([1, 2], dtype=np.float32)
+    identity = factory.create("Identity", data.outputs())
+    model = Model([identity], [data])
+    compiled = compile_model(model)
+    tensor = np.array([[3, 4]], dtype=np.float32)
+    result = compiled(tensor)
+
+    # TODO: There is an issue with life time of objects, free resources explicitly
+    # otherwise segfault will occur
+    del compiled
+    del model
+    del identity
+
+    assert np.array_equal(tensor, result[0])
