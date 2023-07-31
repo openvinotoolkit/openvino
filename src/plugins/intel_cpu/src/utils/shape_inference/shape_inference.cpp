@@ -65,6 +65,7 @@
 #include "lstm_cell_shape_inference.hpp"
 #include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
+#include "matrix_nms_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -410,6 +411,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::DetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::Gather, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::GatherND, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::MatrixNms, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::PriorBox, ShapeInferTA, util::bit::mask(0)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::RandomUniform, ShapeInferTA, util::bit::mask(0, 1, 2)),
