@@ -250,7 +250,7 @@ TSStridedSliceBackward::TSStridedSliceBackward() {
             return false;
         }
 
-        auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(main_node);
+        auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(main_node);f
         if (!strided_slice) {
             return false;
         }
