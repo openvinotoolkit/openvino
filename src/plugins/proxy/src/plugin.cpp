@@ -21,9 +21,16 @@
 #include "plugin.hpp"
 #include "remote_context.hpp"
 
+#ifdef __GLIBC__
+#    include <gnu/libc-version.h>
+#    if __GLIBC_MINOR__ < 34
+#        define OV_GLIBC_VERSION_LESS_2_34
+#    endif
+#endif
+
 namespace {
 
-bool compare_containers(const std::vector<std::string>& c1, const std::vector<std::string> c2) {
+bool compare_containers(const std::vector<std::string>& c1, const std::vector<std::string>& c2) {
     if (c1.size() != c2.size())
         return false;
     for (size_t i = 0; i < c1.size(); i++) {
@@ -33,7 +40,7 @@ bool compare_containers(const std::vector<std::string>& c1, const std::vector<st
     return true;
 }
 
-bool compare_containers(const std::unordered_set<std::string>& c1, const std::unordered_set<std::string> c2) {
+bool compare_containers(const std::unordered_set<std::string>& c1, const std::unordered_set<std::string>& c2) {
     if (c1.size() != c2.size())
         return false;
     for (const auto& val : c1) {
@@ -571,18 +578,26 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         // 2. Use individual fallback priorities to fill each list
         std::vector<DeviceID_t> all_highlevel_devices;
         std::set<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>> unique_devices;
+
+#ifdef OV_GLIBC_VERSION_LESS_2_34
         // Static unavailable device in order to avoid loading from different ov::Core the same unavailable plugin
+        // This issue relates to old libc if we load the same library from different threads
         static std::unordered_set<std::string> unavailable_devices;
         static std::unordered_map<std::string, std::mutex> unavailable_plugin_mutex;
+#else
+        std::unordered_set<std::string> unavailable_devices;
+#endif
         for (const auto& device : m_device_order) {
             // Avoid loading unavailable device for several times
             if (unavailable_devices.count(device))
                 continue;
             std::vector<std::string> supported_device_ids;
             {
+#ifdef OV_GLIBC_VERSION_LESS_2_34
                 std::lock_guard<std::mutex> lock(unavailable_plugin_mutex[device]);
                 if (unavailable_devices.count(device))
                     continue;
+#endif
                 try {
                     supported_device_ids = core->get_property(device, ov::available_devices);
                 } catch (const std::runtime_error&) {
