@@ -302,6 +302,21 @@ bool set_nodes_order(const std::shared_ptr<ov::Model>& model, uint64_t& id) {
     return true;
 }
 
+bool reset_nodes_order(const std::shared_ptr<ov::Model>& model) {
+    for (auto& node : model->get_ordered_ops()) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                const std::shared_ptr<ov::Model>& sub_model =
+                    sub_graph_node->get_function(static_cast<int>(sub_graph_ind));
+                reset_nodes_order(sub_model);
+            }
+        }
+        remove_node_id(node);
+    }
+    return true;
+}
+
 }  // namespace
 
 bool ov::intel_gna::pass::GnaFuseMarkUpNodesOrder::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -312,10 +327,7 @@ bool ov::intel_gna::pass::GnaFuseMarkUpNodesOrder::run_on_model(const std::share
 
 bool ov::intel_gna::pass::GnaFuseCleanUpNodesOrder::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(GnaFuseCleanUpNodesOrder);
-    for (auto& node : m->get_ordered_ops()) {
-        remove_node_id(node);
-    }
-    return false;
+    return reset_nodes_order(m);
 }
 
 ov::intel_gna::pass::FuseConvolutionWithBiasAdd::FuseConvolutionWithBiasAdd() {
