@@ -69,6 +69,15 @@ public:
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
+    class ShapeInfer : public snippets::IShapeInferSnippets {
+        std::vector<std::vector<size_t>> m_layouts{};
+    public:
+        explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
+        IShapeInferSnippets::Result
+        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+    };
+
+
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
     void compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n);

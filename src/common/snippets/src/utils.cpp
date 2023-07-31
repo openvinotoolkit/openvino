@@ -87,16 +87,50 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     return reordered_shape;
 }
 
+IShapeInferSnippets::VectorDims partial_shape_to_vector_dims(const PartialShape& pshape) {
+    IShapeInferSnippets::VectorDims result;
+    result.reserve(pshape.size());
+    for (const auto& d : pshape)
+        result.push_back(d.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : d.get_length());
+    return result;
+}
+
+ov::PartialShape vector_dims_to_partial_shape(const IShapeInferSnippets::VectorDims& vdims) {
+    ov::PartialShape result;
+    result.reserve(vdims.size());
+    for (const auto& v : vdims)
+        result.push_back(v != IShapeInferSnippets::DYNAMIC_DIMENSION ?
+                         Dimension(static_cast<Dimension::value_type>(v)) :
+                         Dimension());
+    return result;
+}
+
 ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
-    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+    const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
 ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
-    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
+    const auto& port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
     return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
+namespace lowered {
+
+std::vector<size_t> get_planar_shape(const std::vector<size_t>& shape, const std::vector<size_t>& layout) {
+    std::vector<size_t> reordered_shape(shape.size());
+    for (size_t i = 0; i < layout.size(); i++)
+        reordered_shape[i] = shape[layout[i]];
+    return reordered_shape;
+}
+std::vector<size_t> get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc) {
+    return get_planar_shape(port_desc.get_shape(), port_desc.get_layout());
+}
+std::vector<size_t> get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port) {
+    return get_port_planar_shape(*expr_port.get_descriptor_ptr());
+}
+
+} // namespace lowered
 } // namespace utils
 } // namespace snippets
 } // namespace ov

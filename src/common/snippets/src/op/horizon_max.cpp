@@ -28,6 +28,14 @@ void HorizonMax::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), new_shape);
 }
 
+IShapeInferSnippets::Result
+HorizonMax::ShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+    auto output_shapes = input_shapes[0].get();
+    if (!output_shapes.empty())
+        output_shapes.back() = 1;
+    return {{output_shapes}, ShapeInferStatus::success};
+}
+
 } // namespace op
 } // namespace snippets
 } // namespace ov

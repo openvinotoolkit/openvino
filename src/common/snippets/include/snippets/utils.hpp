@@ -27,6 +27,8 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
 ov::PartialShape get_port_planar_shape(const Input<Node>& out);
 ov::PartialShape get_port_planar_shape(const Output<Node>& out);
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
+IShapeInferSnippets::VectorDims partial_shape_to_vector_dims(const PartialShape&);
+ov::PartialShape vector_dims_to_partial_shape(const IShapeInferSnippets::VectorDims&);
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
@@ -47,6 +49,13 @@ template <typename T, typename P, typename... Args>
 constexpr bool everyone_is(T val, P item, Args... item_others) {
     return val == item && everyone_is(val, item_others...);
 }
+
+namespace lowered {
+std::vector<size_t> get_planar_shape(const std::vector<size_t>& shape, const std::vector<size_t>& layout);
+std::vector<size_t> get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc);
+std::vector<size_t> get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port);
+
+} // namespace lowered
 } // namespace utils
 } // namespace snippets
 } // namespace ov

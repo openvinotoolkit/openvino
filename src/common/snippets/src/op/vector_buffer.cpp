@@ -25,6 +25,10 @@ void VectorBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(VectorBuffer_validate_and_infer_types);
     set_output_type(0, m_element_type, Shape{1lu});
 }
+IShapeInferSnippets::Result
+VectorBuffer::ShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+    return {{{1}}, ShapeInferStatus::success};
+}
 
 bool VectorBuffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(VectorBuffer_visit_attributes);

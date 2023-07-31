@@ -8,6 +8,7 @@
 
 #include "expression.hpp"
 #include "snippets/target_machine.hpp"
+#include "snippets/lowered/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
@@ -36,7 +37,7 @@ public:
     using constExprReverseIt = container::const_reverse_iterator;
 
     LinearIR() = default;
-    explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
+    LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
 
@@ -96,12 +97,13 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
-    void serialize(const std::string& xml, const std::string& bin);
+    void serialize(const std::string& xml, const std::string& bin) const;
 
     class LoopManager;
     using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
+    const std::shared_ptr<IShapeInferSnippetsFactory>& get_shape_infer_factory() { return m_shape_infer_factory; }
 
 private:
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
@@ -116,6 +118,7 @@ private:
     io_container m_io_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
+    std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
 };
 
 template<typename iterator>

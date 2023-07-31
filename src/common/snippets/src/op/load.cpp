@@ -69,6 +69,21 @@ std::shared_ptr<Node> LoadReshape::clone_with_new_inputs(const OutputVector& new
     check_new_args_count(this, new_args);
     return std::make_shared<LoadReshape>(new_args.at(0), get_count(), get_offset(), m_order);
 }
+LoadReshape::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
+    const auto& loadReshape = ov::as_type_ptr<LoadReshape>(n);
+    OPENVINO_ASSERT(loadReshape, "Got invalid node in LoadReshape::ShapeInfer");
+    m_order = loadReshape->m_order;
+}
+IShapeInferSnippets::Result
+LoadReshape::ShapeInfer::infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
+    const auto& old_shape = input_shapes[0].get();
+    IShapeInferSnippets::VectorDims new_shape;
+    new_shape.reserve(old_shape.size());
+    for (const auto idx : m_order)
+        new_shape.push_back(old_shape[idx]);
+    return {{new_shape}, ShapeInferStatus::success};
+}
 
 }// namespace op
 }// namespace snippets

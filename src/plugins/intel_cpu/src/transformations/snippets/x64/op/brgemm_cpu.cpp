@@ -7,6 +7,7 @@
 #include "snippets/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -178,6 +179,86 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
 size_t BrgemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
+}
+
+BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
+    const auto& brg = ov::as_type_ptr<BrgemmCPU>(n);
+    OPENVINO_ASSERT(brg, "Got invalid node in BrgemmCPU::ShapeInfer");
+
+    const auto brgemm_copy = brg->is_with_data_repacking() ? brg->get_brgemm_copy() : nullptr;
+    auto register_in_layout =  [this](const ov::Input<ov::Node>& in) {
+        m_layouts.emplace_back(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in)->get_layout());
+    };
+
+    register_in_layout(n->input(0));
+    if (brgemm_copy)
+        register_in_layout(brgemm_copy->input(0));
+    else
+        register_in_layout(n->input(1));
+    m_layouts.emplace_back(snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->output(0))->get_layout());
+}
+
+snippets::IShapeInferSnippets::Result
+BrgemmCPU::ShapeInfer::infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
+
+    // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
+    const auto arg0_shape = snippets::utils::lowered::get_planar_shape(input_shapes[0].get(), m_layouts[0]);
+    const auto arg1_shape = snippets::utils::lowered::get_planar_shape(input_shapes[1].get(), m_layouts[1]);
+
+    size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
+
+    // temporary shapes to calculate output shape
+    VectorDims arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
+
+    // one-dimensional tensors unsqueezing is applied to each input independently.
+    if (arg0_rank == 1) {
+        // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+        // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+        // For example {S} will be reshaped to {1, S}.
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
+        arg0_rank = arg0_shape_tmp.size();
+    }
+    if (arg1_rank == 1) {
+        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+        // For example {S} will be reshaped to {S, 1}.
+        arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
+        arg1_rank = arg1_shape_tmp.size();
+    }
+
+    // add 1 to begin to align shape ranks if needed
+    if (arg0_rank < arg1_rank)
+        arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
+    else if (arg0_rank > arg1_rank)
+        arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+
+    size_t max_rank = arg0_shape_tmp.size();
+    VectorDims output_shape(max_rank);
+    for (size_t i = 0; i < max_rank - 2; ++i) {
+        if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
+            output_shape[i] = arg0_shape_tmp[i];
+        } else {
+            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg1_shape_tmp[i];
+            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg0_shape_tmp[i];
+            else
+                OPENVINO_THROW("Incompatible Brgemm batch dimension");
+        }
+    }
+    output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
+    output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
+
+    // removing the temporary axes from originally 1D tensors.
+    if (arg0_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+    }
+    if (arg1_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+    }
+    output_shape = snippets::utils::lowered::get_planar_shape(output_shape, m_layouts[2]);
+    return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 
 } // namespace intel_cpu

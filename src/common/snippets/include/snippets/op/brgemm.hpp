@@ -6,6 +6,7 @@
 
 #include "openvino/op/op.hpp"
 #include "memory_access.hpp"
+#include "snippets/lowered/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {
@@ -37,6 +38,15 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool has_evaluate() const override { return false; }
+
+    class ShapeInfer : public IShapeInferSnippets {
+        std::vector<std::vector<size_t>> m_io_layouts;
+        VectorDims get_reordered_planar_shape(const VectorDims & shape, const std::vector<size_t>& layout);
+    public:
+        explicit ShapeInfer(const std::shared_ptr<Node>& n);
+        IShapeInferSnippets::Result
+        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+    };
 
 protected:
     ov::element::Type get_output_type() const;
