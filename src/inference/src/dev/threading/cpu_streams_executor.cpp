@@ -8,9 +8,9 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <thread>
 #include <vector>
-#include <set>
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
@@ -315,15 +315,17 @@ struct CPUStreamsExecutor::Impl {
         std::vector<int> _cpu_ids;
 #endif
     };
-    // if the thread is created by CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class enumerable_thread_specific, the alias is ThreadLocal,
-    // the limit of ThreadLocal please refer to https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
-    // if the thread is created by customer, the Impl::Stream of the thread will be stored in variable _stream_map, and will be count by thread_local t_stream_count_map
-    // when the customer's thread is destoried, the stream's count will became 1 and local() will reuse one of them, and release others.
+    // if the thread is created by CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class
+    // enumerable_thread_specific, the alias is ThreadLocal, the limit of ThreadLocal please refer to
+    // https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
+    // if the thread is created by customer, the Impl::Stream of the thread will be stored in variable _stream_map, and
+    // will be count by thread_local t_stream_count_map when the customer's thread is destoried, the stream's count will
+    // became 1 and local() will reuse one of them, and release others.
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
     public:
-        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl) :
-            ThreadLocal<std::shared_ptr<Stream>>(callback_construct), _impl(impl) {
-        }
+        CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
+            : ThreadLocal<std::shared_ptr<Stream>>(callback_construct),
+              _impl(impl) {}
         std::shared_ptr<Stream> local() {
             auto id = std::this_thread::get_id();
             auto search = _thread_ids.find(id);
@@ -358,23 +360,25 @@ struct CPUStreamsExecutor::Impl {
         }
 
         void set_thread_ids_map(std::vector<std::thread>& threads) {
-            for (auto& thread: threads) {
+            for (auto& thread : threads) {
                 _thread_ids.insert(thread.get_id());
             }
         }
 
-        private:
-            std::set<std::thread::id> _thread_ids;
-            Impl* _impl;
-            std::map<std::shared_ptr<std::thread::id>, std::shared_ptr<Impl::Stream>> _stream_map;
-            std::mutex _stream_map_mutex;
+    private:
+        std::set<std::thread::id> _thread_ids;
+        Impl* _impl;
+        std::map<std::shared_ptr<std::thread::id>, std::shared_ptr<Impl::Stream>> _stream_map;
+        std::mutex _stream_map_mutex;
     };
 
     explicit Impl(const Config& config)
         : _config{config},
-          _streams([this] {
-              return std::make_shared<Impl::Stream>(this);
-          }, this) {
+          _streams(
+              [this] {
+                  return std::make_shared<Impl::Stream>(this);
+              },
+              this) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         if (_config._streams != 0) {
