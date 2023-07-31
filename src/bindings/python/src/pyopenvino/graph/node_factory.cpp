@@ -73,9 +73,16 @@ public:
     }
 
     std::shared_ptr<ov::Node> create(const std::string op_type_name) {
+        // Check for available extensions first, because they may override ops from main opset
+        auto ext_it = m_opset_so_extensions.find(op_type_name);
+        // No way to instantiate operation without inputs, so if extension operation is found report an error.
+        NGRAPH_CHECK(ext_it == m_opset_so_extensions.end(), "Couldn't create operation of type ", op_type_name,
+                     " from an extension library as no inputs were provided. Currently NodeFactory doesn't support ",
+                     "operations without inputs. Provide at least one input.");
+
         std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 
-        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
+        NGRAPH_CHECK(op_node != nullptr, "Couldn't create operation: ", op_type_name);
         NGRAPH_CHECK(!ov::op::util::is_constant(op_node),
                      "Currently NodeFactory doesn't support Constant node: ",
                      op_type_name);
@@ -86,6 +93,11 @@ public:
     }
 
     void add_extension(const std::string& lib_path) {
+        // Load extension library, seach for operation extensions (derived from ov::BaseOpExtension) and keep
+        // them in m_opset_so_extensions for future use in create methods.
+        // NodeFactory provides a simplified API for node creation withotu involving version of operation.
+        // It means all operations share the same name space and real operation versions (opsets) from extension
+        // library are ignored.
         auto extensions = ov::detail::load_extensions(lib_path);
         for (auto extension : extensions) {
             auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension);

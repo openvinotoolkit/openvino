@@ -108,6 +108,12 @@ class NodeFactory(object):
         OpenVINO opset or from another extension loaded earlier), a new
         operation overrides an old operation.
 
+        Version of an operation is ignored: an operation with a given type and
+        a given version/opset will override operation with the same type but
+        different version/opset in the same NodeFactory instance.
+        Use separate libraries and NodeFactory instances to differentiate
+        versions/opsets.
+
         :param      lib_path:  A path to the library with extension.
         """
         self.factory.add_extension(lib_path)
