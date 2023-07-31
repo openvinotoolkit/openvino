@@ -1,4 +1,4 @@
-# Model Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
+# Model Creation Python Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
 
 @sphinxdirective
 

@@ -57,6 +57,11 @@ The sample compiles a model for a given device, randomly generates input data, p
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
+      :language: python
+      
 Running
 ####################
 
@@ -75,10 +80,6 @@ To run the sample, you need to specify a model:
 
    The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-.. dropdown:: Sample code 
-
-   .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
-      :language: python
 
 Example
 ++++++++++++++++++++

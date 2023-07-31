@@ -1,4 +1,4 @@
-# Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
+# Hello Query Device Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
 @sphinxdirective
 

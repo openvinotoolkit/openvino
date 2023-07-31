@@ -53,6 +53,12 @@ The sample compiles a model for a given device, randomly generates input data, p
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/python/benchmark/sync_benchmark/sync_benchmark.py 
+      :language: python
+
+
 Running
 ####################
 
@@ -70,11 +76,6 @@ To run the sample, you need to specify a model:
    Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
    The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
-
-.. dropdown:: Sample code 
-
-   .. doxygensnippet:: samples/python/benchmark/sync_benchmark/sync_benchmark.py 
-      :language: python
 
 Example
 ++++++++++++++++++++

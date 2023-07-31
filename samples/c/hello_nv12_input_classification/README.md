@@ -49,6 +49,11 @@ Upon the start-up, the sample application reads command-line parameters, loads s
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
+.. dropdown:: Sample code 
+
+   .. doxygensnippet:: samples/c/hello_nv12_input_classification/main.c
+      :language: c
+
 Building
 ########
 
