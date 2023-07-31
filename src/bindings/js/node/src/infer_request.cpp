@@ -57,9 +57,9 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     } else if (info.Length() == 1 && info[0].IsObject()) {
         infer(info[0].As<Napi::Object>());
     } else {
-        reportError(info.Env(), "Infer method takes as an argument an array or an object with tensors.");
+        reportError(info.Env(), "Infer method takes as an argument an array or an object.");
     }
-    return Napi::Value();
+    return get_output_tensors(info);
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
