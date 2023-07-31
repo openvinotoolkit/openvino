@@ -82,7 +82,7 @@ class NodeFactory(object):
             )
             setattr(
                 node,
-            self._normalize_attr_name_setter(attr_name),
+                self._normalize_attr_name_setter(attr_name),
                 partial(NodeFactory._set_node_attr_value, node, attr_name),
             )
 
