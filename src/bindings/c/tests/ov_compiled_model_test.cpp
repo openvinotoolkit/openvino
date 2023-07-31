@@ -173,9 +173,8 @@ TEST_P(ov_compiled_model_test, set_property) {
 
     OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    std::string res(result);
 
-    EXPECT_EQ(target, res);
+    EXPECT_STREQ(target.c_str(), result);
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
