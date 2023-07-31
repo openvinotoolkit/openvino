@@ -5,6 +5,7 @@ import argparse
 import ast
 import logging as log
 import os
+import pathlib
 import re
 from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
@@ -22,84 +23,7 @@ import openvino
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.utils import get_mo_root_dir
-from openvino.tools.ovc.help import get_convert_model_help_specifics, get_to_string_methods_for_params
-
-
-def extension_path_to_str_or_extensions_class(extension):
-    if isinstance(extension, str):
-        return extension
-    elif isinstance(extension, Path):
-        return str(extension)
-    else:
-        # Return unknown object as is.
-        # The type of the object will be checked by frontend.add_extension() method
-        return extension
-
-
-def extensions_to_str_or_extensions_class(extensions):
-    if extensions is None:
-        return None
-    extensions_list = []
-    if isinstance(extensions, str):
-        extensions_list = extensions.split(',')
-    elif isinstance(extensions, list):
-        for ext in extensions:
-            ext = extension_path_to_str_or_extensions_class(ext)
-            extensions_list.append(ext)
-    else:
-        extensions_list = [extension_path_to_str_or_extensions_class(extensions)]
-
-    for ext in extensions_list:
-        if isinstance(ext, str):
-            readable_file_or_dir(ext)
-    return extensions_list
-
-
-def path_to_str(path):
-    if path is None:
-        return None
-    if isinstance(path, str):
-        return path
-    elif isinstance(path, Path):
-        return str(path)
-    else:
-        raise Exception("Incorrect type of {} expected str or Path, got {}".format(path, type(path)))
-
-
-def path_to_str_or_object(value):
-    if value is None or isinstance(value, str):
-        return value
-    elif isinstance(value, Path):
-        return str(value)
-    else:
-        return value
-
-
-def paths_to_str(paths):
-    if paths is None:
-        return None
-    if isinstance(paths, list):
-        paths_str = []
-        for path in paths:
-            paths_str.append(path_to_str(path))
-        return ','.join(paths_str)
-    else:
-        path_to_str(paths)
-
-
-def str_list_to_str(values):
-    if values is None:
-        return None
-    if isinstance(values, str):
-        return values
-    elif isinstance(values, list):
-        for value in values:
-            if not isinstance(value, str):
-                raise Error("Incorrect argument. {} expected to string, got type {}.".format(value, type(value)))
-        return ','.join(values)
-    else:
-        raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
-
+from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 def is_shape_type(value):
     if isinstance(value, PartialShape):
@@ -112,25 +36,6 @@ def is_shape_type(value):
                 return False
         return True
     return False
-
-
-def value_to_str(value, separator):
-    if isinstance(value, np.ndarray):
-        values = []
-        for x in np.nditer(value):
-            values.append(str(x))
-        return "[" + separator.join(values) + "]"
-    if isinstance(value, list):
-        values = []
-        for x in value:
-            if not isinstance(x, numbers.Number):
-                raise Exception("Incorrect value type. Expected numeric value, got {}".format(type(x)))
-            values.append(str(x))
-        return "[" + separator.join(values) + "]"
-    if isinstance(value, bool):
-        return "True" if value else "False"
-    raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
-
 
 def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
@@ -270,23 +175,13 @@ def freeze_placeholder_to_input_cut_info(inputs: list):
 
     return placeholder_values, unnamed_placeholder_values
 
-
-def layout_to_str(layout):
-    if isinstance(layout, str):
-        return layout
-    if isinstance(layout, Layout):
-        return layout.to_string()
-    raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
-                    "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
-
-ParamDescription = namedtuple("ParamData",
-                              ["description", "cli_tool_description", "to_string"])
+ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description"])
 
 
 def get_mo_convert_params():
     mo_convert_docs = openvino.tools.ovc.convert_model.__doc__ # pylint: disable=no-member
     mo_convert_params = {}
-    group = "Framework-agnostic parameters:"    #FIXME: WA for unknown bug in this function
+    group = "Optional parameters:"    #FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
 
     mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
@@ -309,7 +204,7 @@ def get_mo_convert_params():
         param_description = param_description[:group_name_idx]
         param_description = param_description.strip()
 
-        mo_convert_params[group][param_name] = ParamDescription(param_description, "", None)
+        mo_convert_params[group][param_name] = ParamDescription(param_description, "")
 
         mo_convert_docs = mo_convert_docs[param_description_idx:]
 
@@ -317,57 +212,19 @@ def get_mo_convert_params():
             mo_convert_params[group_name] = {}
             group = group_name
 
-    # TODO: remove this when internal converting of params to string is removed <-- DO IT
-    params_converted_to_string = get_to_string_methods_for_params()
-
-    params_with_paths = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
 
     for group_name, param_group in mo_convert_params.items():
         for param_name, d in param_group.items():
-            to_str_method = None
-            if param_name in params_converted_to_string:
-                to_str_method = params_converted_to_string[param_name]
-            elif param_name in params_with_paths:
-                to_str_method = path_to_str
-
             cli_tool_description = None
             if param_name in cli_tool_specific_descriptions:
                 cli_tool_description = cli_tool_specific_descriptions[param_name]
 
             desc = ParamDescription(d.description,
-                                    cli_tool_description,
-                                    to_str_method)
+                                    cli_tool_description)
             mo_convert_params[group_name][param_name] = desc
 
     return mo_convert_params
-
-
-class DeprecatedStoreTrue(argparse.Action):
-    def __init__(self, nargs=0, **kw):
-        super().__init__(nargs=nargs, **kw)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, True)
-
-
-class DeprecatedOptionCommon(argparse.Action):
-    def __call__(self, parser, args, values, option_string):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(args, self.dest, values)
-
-
-class IgnoredAction(argparse.Action):
-    def __init__(self, nargs=0, **kw):
-        super().__init__(nargs=nargs, **kw)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, True)
 
 
 def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name,
@@ -380,15 +237,18 @@ def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name
         elif isinstance(values, list):
             list_of_values = values
         else:
-            raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
+            return values
 
         if not check_existence:
             return [get_absolute_path(path) for path in list_of_values]
 
         for idx, val in enumerate(list_of_values):
+            if not isinstance(val, (str, pathlib.Path)):
+                continue
+
             list_of_values[idx] = val
 
-            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+            error_msg = 'The value for parameter "{}" must be existing file/directory, ' \
                         'but "{}" does not exist.'.format(param_name, val)
             if os.path.exists(val):
                 continue
@@ -403,34 +263,12 @@ def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name
         return [get_absolute_path(path) for path in list_of_values]
 
 
-class CanonicalizePathAction(argparse.Action):
-    """
-    Expand user home directory paths and convert relative-paths to absolute.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existence=False)
-        setattr(namespace, self.dest, list_of_paths)
-
-
-class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
-    """
-    Convert relative to the current and relative to mo root paths to absolute
-    and check specified file or directory existence.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=True, check_existence=True)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
-
-
 class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
+    check_value = canonicalize_and_check_paths
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
@@ -438,44 +276,14 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         setattr(namespace, self.dest, list_of_paths)
 
 
-class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
-    """
-    Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
-    existence.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existence=True)
-        # Extensions paths are needed to be stored as list
-        setattr(namespace, self.dest, list_of_paths)
-
-
-class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values is not None:
-            if isinstance(values, str):
-                if values != "":
-                    super().__call__(parser, namespace, values, option_string)
-                else:
-                    setattr(namespace, self.dest, values)
-
-
-class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
-            option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        super().__call__(parser, namespace, values, option_string)
-
-
-def readable_file(path: str):
+def readable_file_or_object(path: str):
     """
     Check that specified path is a readable file.
     :param path: path to check
     :return: path if the file is readable
     """
+    if not isinstance(path, (str, pathlib.Path)):
+        return path
     if not os.path.isfile(path):
         raise Error('The "{}" is not existing file'.format(path))
     elif not os.access(path, os.R_OK):
@@ -484,12 +292,14 @@ def readable_file(path: str):
         return path
 
 
-def readable_file_or_dir(path: str):
+def readable_file_or_dir_or_object(path: str):
     """
     Check that specified path is a readable file or directory.
     :param path: path to check
     :return: path if the file/directory is readable
     """
+    if not isinstance(path, (str, pathlib.Path)):
+        return path
     if not os.path.isfile(path) and not os.path.isdir(path):
         raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
@@ -498,36 +308,31 @@ def readable_file_or_dir(path: str):
         return path
 
 
-def readable_dirs(paths: str):
-    """
-    Checks that comma separated list of paths are readable directories.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    paths_list = [readable_dir(path) for path in paths.split(',')]
-    return ','.join(paths_list)
-
-
-def readable_dirs_or_empty(paths: str):
-    """
-    Checks that comma separated list of paths are readable directories of if it is empty.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    if paths:
-        return readable_dirs(paths)
-    return paths
-
-
-def readable_dirs_or_files_or_empty(paths: str):
+def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
     """
     Checks that comma separated list of paths are readable directories, files or a provided path is empty.
     :param paths: comma separated list of paths.
     :return: comma separated list of paths.
     """
-    if paths:
-        paths_list = [readable_file_or_dir(path) for path in paths.split(',')]
-        return ','.join(paths_list)
+    paths_list = paths
+    if isinstance(paths, (list, tuple)):
+        paths_list = [readable_file_or_dir_or_object(path) for path in paths]
+    if isinstance(paths, (str, pathlib.Path)):
+        paths_list = [readable_file_or_dir_or_object(path) for path in paths.split(',')]
+
+    return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
+
+def readable_files_or_empty(paths: [str, list, tuple]):
+    """
+    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
+    :param paths: comma separated list of paths.
+    :return: comma separated list of paths.
+    """
+    if isinstance(paths, (list, tuple)):
+        return [readable_file_or_object(path) for path in paths]
+    if isinstance(paths, (str, pathlib.Path)):
+        paths_list = [readable_file_or_object(path) for path in paths.split(',')]
+        return paths_list
     return paths
 
 
@@ -612,10 +417,10 @@ def add_args_by_description(args_group, params_description):
                 args_group.add_argument(
                     cli_param_name, *param_alias,
                     type=str if param_type is None else param_type,
-                    nargs='*' if param_name == 'input_model' else '?',
                     action=action,
                     help=help_text,
-                    default=None if param_name == 'input_model' else signature.parameters[param_name].default)
+                    default=None if param_name == 'input_model' else signature.parameters[param_name].default,
+                    metavar=param_name.upper() if param_name == 'input_model' else None)
             # Other params
             else:
                 additional_params = {}
@@ -633,25 +438,39 @@ def add_args_by_description(args_group, params_description):
                     **additional_params
                 )
 
+class Formatter(argparse.HelpFormatter):
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
+        usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
+        insert_idx = usage.find(self._prog) + len(self._prog)
+        usage = usage[0: insert_idx] + ' INPUT_MODEL ' + usage[insert_idx + 1:]
+        return usage
+
+    def _get_default_metavar_for_optional(self, action):
+        if action.option_strings == ['--compress_to_fp16']:
+            return "True | False"
+        return argparse.HelpFormatter._get_default_metavar_for_optional(self, action)
+
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
-        parser = argparse.ArgumentParser()
-    common_group = parser.add_argument_group('Framework-agnostic parameters')
+        parser = argparse.ArgumentParser(formatter_class=Formatter)
     mo_convert_params = get_mo_convert_params()
-    mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
+    mo_convert_params_common = mo_convert_params['Optional parameters:']
 
     from openvino.tools.ovc.version import VersionChecker
 
     # Command line tool specific params
-    common_group.add_argument('--output_model',
+    parser.add_argument('--output_model',
                               help='This parameter is used to name output .xml/.bin files with converted model.')
-    common_group.add_argument('--compress_to_fp16', type=check_bool, default=True,
-                              help='Compress weights in output IR .xml/bin files to FP16.')
-    common_group.add_argument('--version', action='version',
+    parser.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
+                              help='Compress weights in output OpenVINO model to FP16. '
+                                   'To turn off compression use "--compress_to_fp16=False" command line parameter. '
+                                   'Default value is True.')
+    parser.add_argument('--version', action='version',
                               help='Print ovc version and exit.',
                               version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
-    add_args_by_description(common_group, mo_convert_params_common)
+    add_args_by_description(parser, mo_convert_params_common)
     return parser
 
 
@@ -667,33 +486,7 @@ def get_common_cli_options(model_name):
 
 
 def get_params_with_paths_list():
-    return ['input_model', 'output_model', 'extensions']
-
-
-def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for TF
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
-
-    tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    add_args_by_description(tf_group, mo_convert_params_tf)
-    return parser
-
-
-def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for ONNX
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    return parser
+    return ['input_model', 'output_model', 'extension']
 
 
 def get_all_cli_parser():
@@ -704,11 +497,9 @@ def get_all_cli_parser():
     -------
         ArgumentParser instance
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=Formatter)
 
     get_common_cli_parser(parser=parser)
-    get_tf_cli_parser(parser=parser)
-    get_onnx_cli_parser(parser=parser)
 
     return parser
 
@@ -1169,6 +960,8 @@ def get_absolute_path(path_to_file: str) -> str:
     Returns:
         absolute path of the file
     """
+    if not isinstance(path_to_file, (str, pathlib.Path)):
+        return path_to_file
     file_path = os.path.expanduser(path_to_file)
     if not os.path.isabs(file_path):
         file_path = os.path.join(os.getcwd(), file_path)
@@ -1240,7 +1033,7 @@ def check_bool(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'output_dir', 'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if isinstance(value, list):
         updated_value = []

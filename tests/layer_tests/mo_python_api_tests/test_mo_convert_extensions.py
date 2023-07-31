@@ -102,9 +102,9 @@ class TestExtensions(CommonMOConvertTest):
         return Model([sigmoid], [param], "test")
 
     test_data = [
-        {'params_test': {'extensions': create_custom_extension_leaky_relu_to_relu()},
+        {'params_test': {'extension': create_custom_extension_leaky_relu_to_relu()},
          'ref_graph': create_ref_graph1()},
-        {'params_test': {'extensions': [create_custom_extension_leaky_relu_to_relu(),
+        {'params_test': {'extension': [create_custom_extension_leaky_relu_to_relu(),
                                         create_custom_extension_elu_to_sigmoid()]},
          'ref_graph': create_ref_graph2()}
     ]
