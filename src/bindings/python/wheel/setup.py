@@ -78,6 +78,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "nvidia_gpu_plugin": {
+        "name": "nvidia",
+        "prefix": f"{BUILD_BASE}/libs.nvidia_gpu",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "cpu_plugin": {
         "name": "cpu",
         "prefix": f"{BUILD_BASE}/libs.cpu",
@@ -640,6 +647,9 @@ setup(
     author="Intel(R) Corporation",
     description="OpenVINO(TM) Runtime",
     install_requires=get_install_requires(SCRIPT_DIR.parents[0] / "requirements.txt"),
+    extras_require={
+        'nvidia': get_install_requires(SCRIPT_DIR.parents[0] / "requirements_nvidia.txt"),
+    },
     long_description=get_description(long_description_md),
     long_description_content_type="text/markdown",
     download_url="https://github.com/openvinotoolkit/openvino/releases",
