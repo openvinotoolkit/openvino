@@ -5,7 +5,6 @@
 #pragma once
 
 #include "cache/cache.hpp"
-
 #include "cache/meta/input_info.hpp"
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
