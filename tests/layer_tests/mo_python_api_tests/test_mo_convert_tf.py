@@ -712,6 +712,9 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
+        shape_of_const_fold_test,
+        static_shape_true,
+        static_shape_false,
 
         # TF1
         create_tf_graph,

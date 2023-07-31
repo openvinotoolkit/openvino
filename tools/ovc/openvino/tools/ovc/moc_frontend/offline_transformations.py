@@ -87,11 +87,6 @@ def apply_user_transformations(func: object, transforms: list):
         available_transformations[name](func, **args)
 
 
-def apply_moc_transformations(func: object):
-    from openvino._offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
-    apply_moc_transformations(func, cf=True, smart_reshape=False)
-
-
 def apply_moc_legacy_transformations(func: object, params_with_custom_types: List[str]):
     from openvino._offline_transformations import apply_moc_legacy_transformations  # pylint: disable=import-error,no-name-in-module
     apply_moc_legacy_transformations(func, params_with_custom_types)
