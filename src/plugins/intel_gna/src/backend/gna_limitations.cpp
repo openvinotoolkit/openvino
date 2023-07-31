@@ -762,9 +762,16 @@ bool Limitations::is_transpose_supported(const ov::Shape& shape) {
     return false;
 }
 
-bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed) {
     OPENVINO_ASSERT(node, "Transpose node is empty!");
-    return is_transpose_supported(node->get_input_shape(0));
+    bool result = is_transpose_supported(node->get_input_shape(0));
+    if (is_exception_allowed && !result) {
+        THROW_GNA_EXCEPTION << "topology with layer: " + node->get_friendly_name() +
+                                   ", type: " + node->get_type_name() + ", and input shape: "
+                            << node->get_input_shape(0) << ", and output shape: " << node->get_output_shape(0)
+                            << ") not supported";
+    }
+    return result;
 }
 
 bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
@@ -1016,6 +1023,8 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
         return SupportedElementTypes::IsParameterTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (ov::op::util::is_constant(node)) {
         return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
+    } else if (auto transpose = std::dynamic_pointer_cast<Transpose>(node)) {
+        return is_transpose_supported(transpose, is_exception_allowed);
     } else if (auto conv = std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node)) {
         return is_conv_supported(conv, gna_precision, is_exception_allowed);
     } else if (auto concat = std::dynamic_pointer_cast<Concat>(node)) {
