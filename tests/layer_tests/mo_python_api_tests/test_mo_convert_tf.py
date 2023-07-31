@@ -505,6 +505,18 @@ def two_params_function_reference(shapes, const_value):
     return Model([mul], parameter_list, "test")
 
 
+def two_params_function_reference_fp16_compressed(shapes, const_value):
+    param1 = ov.opset8.parameter(shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(shapes[1], dtype=np.float32)
+    const_value = ov.opset8.constant(const_value, dtype=np.float16)
+    const_decompress = ov.opset8.convert(const_value, np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    add = ov.opset8.add(sigm, param2)
+    mul = ov.opset8.multiply(add, const_decompress)
+    parameter_list = [param1, param2]
+    return Model([mul], parameter_list, "test")
+
+
 def create_keras_layer_with_example_input_1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
     example_input = (np.random.rand(1,2,3).astype(np.float32), np.random.rand(1,2,3).astype(np.float32))
@@ -550,6 +562,22 @@ def create_keras_layer_with_tf_function_call(tmp_dir):
             return sigm * self.var1
     model = LayerModel()
     model_ref = two_params_function_reference([[1, 2], [1, 2]], [[5.0]])
+    return model, model_ref, {'compress_to_fp16': False}
+
+
+def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var1 = tf.Variable(5.0)
+
+        @tf.function(input_signature=[tf.TensorSpec([1, 2], tf.float32), tf.TensorSpec([1, 2], tf.float32)])
+        def __call__(self, input1, input2):
+            sigm = tf.nn.sigmoid(input1) + input2
+            return sigm * self.var1
+    model = LayerModel()
+    model_ref = two_params_function_reference_fp16_compressed([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {}
 
 
@@ -568,7 +596,7 @@ def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
     example_input = [np.random.rand(2, 3).astype(np.float32), np.random.rand(2, 3).astype(np.float32)]
 
     model_ref = two_params_function_reference([[2, 3], [2, 3]], [[5.0]])
-    return model, model_ref, {'example_input': example_input}
+    return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
 def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
@@ -586,7 +614,7 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     example_input = np.random.rand(2, 3).astype(np.float32)
 
     model_ref = single_param_function_reference([2, 3], [[5.0]])
-    return model, model_ref, {'example_input': example_input}
+    return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
 def create_keras_layer_with_string_tensor(tmp_dir):
@@ -631,6 +659,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case3,
         create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
+        create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
@@ -641,7 +670,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf1_wrap_function,
         create_tf_session,
     ]
-
     test_data_legacy = [
         # TF2
         create_keras_model,
@@ -688,7 +716,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         from openvino.runtime import compile_model
         class LayerModel(tf.Module):
             def __init__(self):
@@ -710,7 +738,56 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
-        ov_model = convert_model(keras_model, input_shape=[1])
+        ov_model = convert_model(keras_model, input=[1], share_weights=True)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+        fw_infer1 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer1['Identity:0'], fw_infer1)
+        assert np.array_equal(ov_infer1['Identity:0'], [54., 42., 45.])
+
+        # Change value of variables in original model
+        for val in keras_model.variables:
+            arr = val.value().__array__()
+            arr[0] = 0
+            arr[1] = 1
+            arr[2] = 2
+
+        # Check model inference
+        cmp_model = compile_model(ov_model)
+        ov_infer2 = cmp_model(test_input)
+        fw_infer2 = keras_model(test_input).numpy()
+
+        assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
+
+    def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import compile_model
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input * self.var1 + self.var2
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        # Create TF model with variables
+        keras_model = LayerModel()
+        test_input = np.array(7.).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(keras_model, input=[1], share_weights=False)
         cmp_model = compile_model(ov_model)
 
         # Check model inference
@@ -731,10 +808,9 @@ class TestMoConvertTF(CommonMOConvertTest):
         ov_infer2 = cmp_model(test_input)
         fw_infer2 = keras_model(test_input).numpy()
 
-        assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
-        assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
-
-
+        # Check model inference calculated with old constant values
+        assert not np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [54., 42., 45.])
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
@@ -781,6 +857,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         gc.collect()
 
         # Check model inference
+        cmp_model = compile_model(ov_model)
         ov_infer2 = cmp_model(test_input, ie_device)
 
         feed_dict = {"Input:0": test_input}
@@ -823,7 +900,7 @@ class TestTFLoadByModel(unittest.TestCase):
             return tf_net
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
         from openvino.frontend import FrontEndManager
-        model = GraphIteratorTFGraph(simple_tf_model())
+        model = GraphIteratorTFGraph(simple_tf_model(), True)
         fem = FrontEndManager()
         fe = fem.load_by_model(model)
         assert fe is not None

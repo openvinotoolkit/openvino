@@ -4,19 +4,20 @@
 
 #include "common_test_utils/data_utils.hpp"
 
-#include <cmath>
+#include "debug.h"  // to allow putting vector into exception string stream
 
-#include <debug.h>  // to allow putting vector into exception string stream
-
-#include <ie_blob.h>
-#include <blob_factory.hpp>
+#include "ie_blob.h"
+#include "blob_factory.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "precomp.hpp"
 
 using namespace InferenceEngine::details;
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -325,4 +326,71 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
     fill_data_with_broadcast(tensor, values_tensor);
 }
 
-}  // namespace CommonTestUtils
+template<ov::element::Type_t DT>
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
+                               const int32_t k = 1, const int seed = 1) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    if (DT == ov::element::u4 || DT == ov::element::i4 ||
+        DT == ov::element::u1) {
+        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
+    } else {
+        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
+    }
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start_from, const int32_t k,
+                         const int seed = 1) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    std::default_random_engine random(seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
+
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        auto value = static_cast<float>(distribution(random));
+        value /= static_cast<float>(k);
+        if (DT == ov::element::Type_t::f16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+        } else if (DT == ov::element::Type_t::bf16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
+        } else {
+            rawBlobDataPtr[i] = static_cast<T>(value);
+        }
+    }
+}
+
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range, int32_t start_from,
+                               const int32_t k, const int seed) {
+    auto element_type = tensor.get_element_type();
+
+#define CASE(X) case X: fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
+#define CASE_FLOAT(X) case X: fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
+
+    switch (element_type) {
+        CASE_FLOAT(ov::element::f64)
+        CASE_FLOAT(ov::element::f32)
+        CASE_FLOAT(ov::element::f16)
+        CASE_FLOAT(ov::element::bf16)
+        CASE(ov::element::u1)
+        CASE(ov::element::u4)
+        CASE(ov::element::u8)
+        CASE(ov::element::u32)
+        CASE(ov::element::u16)
+        CASE(ov::element::u64)
+        CASE(ov::element::i4)
+        CASE(ov::element::i8)
+        CASE(ov::element::i16)
+        CASE(ov::element::i32)
+        CASE(ov::element::i64)
+        default:
+            OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+#undef CASE_FLOAT
+}
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

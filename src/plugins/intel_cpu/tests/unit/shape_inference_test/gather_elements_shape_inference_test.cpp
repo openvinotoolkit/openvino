@@ -60,6 +60,6 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_default_constructo
     input_shapes = {StaticShape{300, 3, 10, 2}, StaticShape{300, 3, 10, 33333}};
     output_shapes = {StaticShape{}};
 
-    shape_infer(op.get(), input_shapes, output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
     EXPECT_EQ(output_shapes[0], (StaticShape{300, 3, 10, 33333}));
 }

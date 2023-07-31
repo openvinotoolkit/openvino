@@ -33,8 +33,7 @@ void op::v6::GatherElements::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }
 

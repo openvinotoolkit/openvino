@@ -43,7 +43,7 @@ public:
 protected:
     static const size_t numOfGroups = 2;
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         InputShape inputShapes;
         std::tie(inputShapes) = this->GetParam();
 

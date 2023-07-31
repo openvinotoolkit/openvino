@@ -10,7 +10,7 @@ using testing::Throw;
 
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-const std::vector<std::string>  availableDevsNoID = {"CPU", "GPU", "VPU"};
+const std::vector<std::string> availableDevsNoID = {"CPU", "GPU", "OTHER"};
 using ConfigParams = std::tuple<std::string,                     // Priority devices
                                 std::vector<DeviceInformation>,  // expect metaDevices
                                 bool,                            // if throw exception
@@ -36,8 +36,10 @@ public:
     }
 
     void SetUp() override {
-       ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
-       ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
+        ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*core, get_property(StrEq("GPU.2"), ov::supported_properties.name(), _))
+           .WillByDefault(Throw(ov::Exception("")));
+        ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
                    const ov::AnyMap& config) {
                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
                });
@@ -127,57 +129,62 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{"CPU,GPU,VPU",
+    ConfigParams{"CPU,GPU.2,OTHER",
+                 {{"CPU", {}, -1, "", "CPU_", 0},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
+                 false,
+                 3},
+    ConfigParams{"CPU,GPU,OTHER",
                  {{"CPU", {}, -1, "", "CPU_", 0},
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-                  {"VPU", {}, -1, "", "VPU_", 2}},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
                  false,
                  4},
-    ConfigParams{"VPU,GPU,CPU",
-                 {{"VPU", {}, -1, "", "VPU_", 0},
+    ConfigParams{"OTHER,GPU,CPU",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
                   {"CPU", {}, -1, "", "CPU_", 2}},
                  false,
                  4},
-    ConfigParams{"VPU,GPU,INVALID_DEVICE",
-                 {{"VPU", {}, -1, "", "VPU_", 0},
+    ConfigParams{"OTHER,GPU,INVALID_DEVICE",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
                   {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1}},
                  false,
                  3},
-    ConfigParams{"CPU(1),GPU(2),VPU(4)",
+    ConfigParams{"CPU(1),GPU(2),OTHER(4)",
                  {{"CPU", {}, 1, "", "CPU_", 0},
                   {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
                   {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
-                  {"VPU", {}, 4, "", "VPU_", 2}},
+                  {"OTHER", {}, 4, "", "OTHER_", 2}},
                  false,
                  4},
 
-    ConfigParams{"CPU(-1),GPU,VPU", {}, true, 0},
-    ConfigParams{"CPU(NA),GPU,VPU", {}, true, 0},
+    ConfigParams{"CPU(-1),GPU,OTHER", {}, true, 0},
+    ConfigParams{"CPU(NA),GPU,OTHER", {}, true, 0},
     ConfigParams{"INVALID_DEVICE", {}, false, 0},
     ConfigParams{"INVALID_DEVICE,CPU", {{"CPU", {}, -1, "", "CPU_", 1}}, false, 2},
 
-    ConfigParams{"CPU(3),GPU.1,VPU",
+    ConfigParams{"CPU(3),GPU.1,OTHER",
                  {{"CPU", {}, 3, "", "CPU_", 0},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-                  {"VPU", {}, -1, "", "VPU_", 2}},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
                  false,
                  3},
-    ConfigParams{"VPU,GPU.1,CPU(3)",
-                 {{"VPU", {}, -1, "", "VPU_", 0},
+    ConfigParams{"OTHER,GPU.1,CPU(3)",
+                 {{"OTHER", {}, -1, "", "OTHER_", 0},
                   {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
                   {"CPU", {}, 3, "", "CPU_", 2}},
                  false,
                  3}};
 
 const std::vector<ConfigParams> testConfigsNoID = {
-    ConfigParams{"CPU,GPU,VPU",
+    ConfigParams{"CPU,GPU,OTHER",
                  {{"CPU", {}, -1, "", "CPU_", 0},
                   {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
-                  {"VPU", {}, -1, "", "VPU_", 2}},
+                  {"OTHER", {}, -1, "", "OTHER_", 2}},
                  false,
                  3},
 };

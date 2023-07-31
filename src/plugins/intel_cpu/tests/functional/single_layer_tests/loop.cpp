@@ -43,10 +43,10 @@ public:
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
-            result << "IS=" << CommonTestUtils::partialShape2str({shapes[i].first}) << "_";
+            result << "IS=" << ov::test::utils::partialShape2str({shapes[i].first}) << "_";
             result << "TS=";
             for (const auto& item : shapes[i].second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "types=";
@@ -92,7 +92,7 @@ protected:
         ElementType netType;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
@@ -172,7 +172,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
         for (auto& target : targetStaticShapes)
             target.insert(target.begin(), ngraph::Shape{});
@@ -243,7 +243,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
@@ -314,7 +314,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);

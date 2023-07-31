@@ -9,6 +9,7 @@
 #include "compare.hpp"
 #include "dimension_util.hpp"
 #include "openvino/op/roi_pooling.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -77,8 +78,8 @@ void method_attr(const TROIPooling* op) {
 }  // namespace roi_pooling
 
 namespace v0 {
-template <class TShape>
-std::vector<TShape> shape_infer(const ROIPooling* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ROIPooling* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     using namespace ov::util;
 
@@ -92,19 +93,15 @@ std::vector<TShape> shape_infer(const ROIPooling* op, const std::vector<TShape>&
     roi_pooling::validate::scale_attr(op);
     roi_pooling::validate::method_attr(op);
 
-    TShape out_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& out_shape = output_shapes.front();
     out_shape.reserve(4);
 
     out_shape.emplace_back(rois_shape.rank().is_static() ? rois_shape[0] : dim::inf_bound);
     out_shape.emplace_back(feat_rank.is_static() ? feat_shape[1] : dim::inf_bound);
     std::copy(op->get_output_roi().cbegin(), op->get_output_roi().cend(), std::back_inserter(out_shape));
 
-    return {out_shape};
-}
-
-template <class TShape>
-void shape_infer(const ROIPooling* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

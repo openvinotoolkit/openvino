@@ -19,31 +19,31 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
         {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-           CommonTestUtils::DEVICE_TEMPLATE }}
+           ov::test::utils::DEVICE_TEMPLATE }}
 };
 
 const std::vector<std::map<std::string, std::string>> heteroConfigs = {
-        {{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE }}
+        {{ "TARGET_FALLBACK", ov::test::utils::DEVICE_TEMPLATE }}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                ::testing::Values(ov::test::utils::DEVICE_MULTI),
                                 ::testing::ValuesIn(multiConfigs)),
                         InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                 ::testing::ValuesIn(heteroConfigs)),
                         InferRequestPreprocessTest::getTestCaseName);
 
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessConversionTe
                                 ::testing::ValuesIn(ioLayouts),
                                 ::testing::Bool(),
                                 ::testing::Bool(),
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         InferRequestPreprocessConversionTest::getTestCaseName);
 
