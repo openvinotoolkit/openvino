@@ -218,10 +218,13 @@ device_info init_device_info(const cl::Device& device) {
 
     bool device_uuid_supported = extensions.find("cl_khr_device_uuid ") != std::string::npos;
     if (device_uuid_supported) {
-        static_assert(CL_UUID_SIZE_KHR == device_uuid::max_uuid_size, "");
-        info.uuid.val = device.getInfo<CL_DEVICE_UUID_KHR>();
+        static_assert(CL_UUID_SIZE_KHR == ov::device::UUID::MAX_UUID_SIZE, "");
+        static_assert(CL_LUID_SIZE_KHR == ov::device::LUID::MAX_LUID_SIZE, "");
+        info.luid.luid = device.getInfo<CL_DEVICE_LUID_KHR>();
+        info.uuid.uuid = device.getInfo<CL_DEVICE_UUID_KHR>();
     } else {
-        std::fill_n(std::begin(info.uuid.val), device_uuid::max_uuid_size, 0);
+        std::fill_n(std::begin(info.luid.luid), ov::device::LUID::MAX_LUID_SIZE, 0);
+        std::fill_n(std::begin(info.uuid.uuid), ov::device::UUID::MAX_UUID_SIZE, 0);
     }
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
