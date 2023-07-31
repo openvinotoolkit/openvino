@@ -166,12 +166,16 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    auto time_out = properties.find(ov::auto_batch_timeout.name());
-    if (time_out == properties.end() || properties.size() > 1) {
-        OPENVINO_THROW("The only config that can be changed on the fly for the AutoBatching is the ",
-                       ov::auto_batch_timeout.name());
-    } else {
-        m_time_out = time_out->second.as<std::uint32_t>();
+    for (const auto& property : properties) {
+        if (property.first == ov::auto_batch_timeout.name()) {
+            m_time_out = property.second.as<std::uint32_t>();
+            m_config[ov::auto_batch_timeout.name()] = property.second.as<std::uint32_t>();
+        } else {
+            OPENVINO_THROW("AutoBatching Compiled Model dosen't support property",
+                           property.first,
+                           ". The only property that can be changed on the fly is the ",
+                           ov::auto_batch_timeout.name());
+        }
     }
 }
 
