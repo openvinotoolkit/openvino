@@ -53,7 +53,8 @@ public:
                          op_type_name,
                          " because it doesn't contain output ports. Operation should has at least one output port.");
 
-            return outputs[0].get_node_shared_ptr();
+            auto node = outputs[0].get_node_shared_ptr();
+            return node;
         } else {
             std::shared_ptr<ov::Node> op_node = std::shared_ptr<ov::Node>(m_opset.create(op_type_name));
 

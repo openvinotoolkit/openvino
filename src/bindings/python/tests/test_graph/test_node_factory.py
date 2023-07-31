@@ -96,12 +96,12 @@ def test_node_factory_validate_missing_arguments():
         raise AssertionError("Validation of missing arguments has unexpectedly passed.")
 
 def test_extension_added_from_library():
-    # Assume Identity extension is available in openvino_template_extension library
-    factory = NodeFactory()
     if platform == "win32":
         library_path="openvino_template_extension.dll"
     else:
         library_path="libopenvino_template_extension.so"
+
+    factory = NodeFactory()
     factory.add_extension(library_path)
 
     data = ov.parameter([1, 2], dtype=np.float32)
@@ -112,7 +112,7 @@ def test_extension_added_from_library():
     result = compiled(tensor)
 
     # TODO: There is an issue with life time of objects, free resources explicitly
-    # otherwise segfault will occur
+    # otherwise segfault will occur. Workaround: create factory as a global variable.
     del compiled
     del model
     del identity
