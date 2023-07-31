@@ -262,6 +262,9 @@ void FullyConnected::getSupportedDescriptors() {
         if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
             outputDataType = memory::data_type::f16;
         }
+#if defined(OV_CPU_WITH_ACL)
+        weightsDataType = memory::data_type::f16;
+#endif
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
@@ -716,7 +719,12 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::data_type bdt = outdt;
 
     if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
+    //oneDNN ARM InnerProduct primitive supports only identical in/out data types
+#if defined(OPENVINO_ARCH_X86_64)
         bdt = dnnl::memory::data_type::f32;
+#else
+        bdt = dnnl::memory::data_type::f16;
+#endif
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
         if (withBiases)
