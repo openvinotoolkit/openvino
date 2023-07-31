@@ -402,6 +402,12 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
 
+      - name: Snippets func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
       - name: CPU plugin unit tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh

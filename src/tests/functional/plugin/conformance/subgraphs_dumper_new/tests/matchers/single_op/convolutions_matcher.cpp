@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "matchers/single_op/convolutions.hpp"
 #include "openvino/op/ops.hpp"
+#include "base_test.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
-class ConvolutionMatcherTest : public ::testing::Test {
+class ConvolutionMatcherTest : public SubgraphsDumperBaseTest {
 protected:
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         matcher = ConvolutionsMatcher();
     }
 
