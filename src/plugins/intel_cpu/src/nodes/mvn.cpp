@@ -1859,12 +1859,16 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // ref with float planar and no fusion
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = Precision::FP32;
     }
-
+#endif
+//Output precision has to be equal to input precision in ACL MVN
+#if defined(OV_CPU_WITH_ACL)
+    outputPrecision = inputPrecision;
+#endif
     // TODO [DS]: inplace
     bool canBeInplace = !isDynamicNode() && (inputPrecision.size() == outputPrecision.size()) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&

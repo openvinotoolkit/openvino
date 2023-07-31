@@ -16,6 +16,7 @@ using namespace InferenceEngine;
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
     explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);
+    static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,

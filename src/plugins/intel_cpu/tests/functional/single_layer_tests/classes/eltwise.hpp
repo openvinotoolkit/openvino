@@ -38,7 +38,7 @@ private:
 
 namespace Eltwise {
 
-const ov::AnyMap& additional_config();
+const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
 const std::vector<ov::test::utils::OpType>& opTypes();
