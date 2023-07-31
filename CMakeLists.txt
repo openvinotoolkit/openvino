@@ -24,6 +24,8 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
+set(ENABLE_SYSTEM_TBB OFF)
+
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
