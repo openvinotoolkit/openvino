@@ -84,7 +84,6 @@ private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
-    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
@@ -115,10 +114,15 @@ private:
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;
     void executeMLAS();
+    template <typename SrcType, typename DstType>
     void prepackMLASWeight();
 #endif
 
     bool useWeightsDecompressionImpl = false;
+    dnnl::memory::data_type inputDataType;
+    dnnl::memory::data_type weightsDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
+
     std::vector<float> decompressionSubtract;
     std::vector<float> decompressionMultiply;
 

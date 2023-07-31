@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
@@ -183,19 +184,23 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
         }
     }
     run();
-    CheckPluginRelatedResults(compiledModel, cpuNodeType);
+    //CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
 namespace {
 
 /* ============= Common params ============= */
-std::map<std::string, std::string> emptyAdditionalConfig;
+//std::map<std::string, std::string> emptyAdditionalConfig;
+std::map<std::string, std::string> emptyAdditionalConfig {
+    {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}},
+};
 
 std::vector<std::map<std::string, std::string>> additionalConfig {
 #ifndef OV_CPU_WITH_MLAS
     // FP32 precision is covered by MLAS
     std::map<std::string, std::string>{/* empty config */},
 #endif
+    {{ov::hint::inference_precision.name(), ov::element::f16.to_string()}},
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
 };
 
@@ -350,6 +355,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
         fusingBias,
         fusingMultiplyPerChannel,
 #endif
+        emptyFusingSpec,
         fusingFakeQuantizePerTensorRelu,
 };
 

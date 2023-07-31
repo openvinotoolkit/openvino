@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mlas.h>
 #include <cstddef>
 #include <cstdint>
 
@@ -17,6 +18,7 @@ namespace intel_cpu {
  * @return        bytes of the packing buffer
  */
 size_t mlas_sgemm_pack_get_size(const int64_t N, const int64_t K);
+size_t mlas_half_sgemm_pack_get_size(const int64_t N, const int64_t K, bool float2half);
 
 /**
  * @brief  Packs the contents of matrix B
@@ -29,6 +31,15 @@ size_t mlas_sgemm_pack_get_size(const int64_t N, const int64_t K);
  * @param src     Supplies the address of matrix B
  * @param dst     Supplies pointer to prePacked B buffer
  */
+template<typename SrcType, typename DstType>
+void mlas_sgemm_pack(const char* transb,
+                     const int64_t N,
+                     const int64_t K,
+                     const int64_t ldb,
+                     const SrcType* src,
+                     DstType* dst);
+
+template<>
 void mlas_sgemm_pack(const char* transb,
                      const int64_t N,
                      const int64_t K,
@@ -36,6 +47,21 @@ void mlas_sgemm_pack(const char* transb,
                      const float* src,
                      float* dst);
 
+template<>
+void mlas_sgemm_pack(const char* transb,
+                     const int64_t N,
+                     const int64_t K,
+                     const int64_t ldb,
+                     const float* src,
+                     uint16_t* dst);
+
+template<>
+void mlas_sgemm_pack(const char* transb,
+                     const int64_t N,
+                     const int64_t K,
+                     const int64_t ldb,
+                     const uint16_t* src,
+                     uint16_t* dst);
 /**
  * @brief  SGEMM with planar B matrix
  *
@@ -105,5 +131,20 @@ void mlas_sgemm_compute(const char* transa,
                         const int64_t ldc,
                         const float* bias = nullptr,
                         size_t thread_num = 0);
+
+void mlas_half_sgemm_compute(const int64_t M,
+                             const int64_t N,
+                             const int64_t K,
+                             const float alpha,
+                             const uint16_t* A,
+                             const int64_t lda,
+                             const uint16_t* B,
+                             const int64_t ldb,
+                             const float beta,
+                             uint16_t* C,
+                             const int64_t ldc,
+                             const uint16_t* bias,
+                             size_t thread_num = 0);
+
 }  // namespace intel_cpu
 }  // namespace ov

@@ -28,10 +28,12 @@
 #include "common/cpu_convert.h"
 #include "shape_inference/custom/fullyconnected.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #ifdef OV_CPU_WITH_MLAS
+#include "mlas.h"
 #include "mlas/sgemm.hpp"
 #endif
 
@@ -192,13 +194,13 @@ void FullyConnected::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
-    auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
+    inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
-    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
+    weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
 
     withBiases = getOriginalInputsNumber() == 3;
 
@@ -217,7 +219,9 @@ void FullyConnected::getSupportedDescriptors() {
             outputDataType = memory::data_type::bf16;
         }
     } else if (inputDataType == memory::data_type::f16) {
-#if defined(OV_CPU_WITH_ACL)
+#if defined(OV_CPU_WITH_MLAS) && defined(OV_CPU_WITH_ACL)
+        outputDataType = weightsDataType = memory::data_type::f16;
+#elif defined(OV_CPU_WITH_ACL)
         // acl fc does not support precisions conversion
         outputDataType = weightsDataType = memory::data_type::f16;
 #else
@@ -243,12 +247,14 @@ void FullyConnected::getSupportedDescriptors() {
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
-#if defined(OV_CPU_WITH_MLAS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+#if defined(OV_CPU_WITH_MLAS)
     // MLAS doesn't support post-ops fusing and only supports FP32. INT8 is not enabled yet
     // Disable MLAS when FC could fuse post-ops
     useMlas = !useSparseWeights && !useWeightsDecompressionImpl &&
-              (inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32) &&
-              fusedWith.empty();
+        ((inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32) ||
+         (inputDataType == memory::data_type::f16 && weightsDataType == memory::data_type::f16) ||
+         (inputDataType == memory::data_type::f16 && weightsDataType == memory::data_type::f32)) &&
+        fusedWith.empty();
     auto wgtDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
     // MLAS cannot support weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
     if (useMlas && wgtDims.size() > 2) {
@@ -286,6 +292,7 @@ void FullyConnected::getSupportedDescriptors() {
 }
 
 #ifdef OV_CPU_WITH_MLAS
+template <typename SrcType, typename DstType>
 void FullyConnected::prepackMLASWeight() {
     auto prepareMLASWeight = [&](const int64_t N, const int64_t K) {
         if (!getParentEdgeAt(WEIGHTS_ID)->getParent()->isConstant())
@@ -293,15 +300,28 @@ void FullyConnected::prepackMLASWeight() {
         auto weightsMem = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
         if (!weightsMem)
             IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
-        auto packedBsize = mlas_sgemm_pack_get_size(N, K);
+        const bool float2half = std::is_same<SrcType, float>::value && std::is_same<DstType, uint16_t>::value;
+        auto packedBsize = std::is_same<DstType, float>::value ? mlas_sgemm_pack_get_size(N, K) : mlas_half_sgemm_pack_get_size(N, K, float2half);
+        if (packedBsize == 0) {
+            if (weightsNonTransposed)
+                return weightsMem;
+            const SrcType* weightPtr = reinterpret_cast<const SrcType*>(weightsMem->getData());
+            MemoryPtr _ptr_transpose =
+                std::make_shared<Memory>(getEngine(),
+                                         intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{weightsMem->getSize()}));
+            DstType* transposedSrc = reinterpret_cast<DstType*>(_ptr_transpose->getData());
+            MlasTranspose(reinterpret_cast<const uint16_t*>(weightPtr), reinterpret_cast<uint16_t*>(transposedSrc), N, K);
+
+            return _ptr_transpose;
+        }
         MemoryPtr ptr;
         auto create = [&]() {
-            float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
+            const SrcType* weightPtr = reinterpret_cast<const SrcType*>(weightsMem->getData());
             size_t ldb = weightsNonTransposed ? N : K;
             MemoryPtr _ptr =
                 std::make_shared<Memory>(getEngine(),
                                          intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
-            float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
+            DstType* prepackedDst = reinterpret_cast<DstType*>(_ptr->getData());
             mlas_sgemm_pack(weightsNonTransposed ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
@@ -333,7 +353,12 @@ void FullyConnected::createPrimitive() {
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
         Node::createPrimitive();
-        prepackMLASWeight();
+        if (inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32)
+            prepackMLASWeight<float, float>();
+        else if (inputDataType == memory::data_type::f16 && weightsDataType == memory::data_type::f32)
+            prepackMLASWeight<float, uint16_t>();
+        else if (inputDataType == memory::data_type::f16 && weightsDataType == memory::data_type::f16)
+            prepackMLASWeight<uint16_t, uint16_t>();
         return;
     }
 #endif
@@ -509,24 +534,43 @@ void FullyConnected::prepareParams() {
 void FullyConnected::executeMLAS() {
     const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    const auto weightstPr = mlasPackedPtr ? mlasPackedPtr : getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
     const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
     int64_t lda = K;
-    int64_t ldb = K;
+    int64_t ldb = N;
     int64_t ldc = N;
-    mlas_sgemm_compute("N",
-                       "N",
-                       M,
-                       N,
-                       K,
-                       1.0f,
-                       reinterpret_cast<float*>(src0MemPtr->getData()),
-                       lda,
-                       reinterpret_cast<float*>(mlasPackedPtr->getData()),
-                       ldb,
-                       0.0f,
-                       reinterpret_cast<float*>(dstMemPtr->getData()),
-                       ldc,
-                       withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
+
+    if (inputDataType == memory::data_type::f16) {
+        // if (mlasPackedPtr)
+        //     ldb = 0; // must be set to 0 if prepacked
+        mlas_half_sgemm_compute(M,
+                                N,
+                                K,
+                                1.0f,
+                                reinterpret_cast<const uint16_t*>(src0MemPtr->getData()),
+                                lda,
+                                reinterpret_cast<const uint16_t*>(weightstPr->getData()),
+                                ldb,
+                                0.0f,
+                                reinterpret_cast<uint16_t*>(dstMemPtr->getData()),
+                                ldc,
+                                withBiases ? reinterpret_cast<const uint16_t*>(biasMemPtr->getData()) : nullptr);
+    } else {
+        mlas_sgemm_compute("N",
+                           "N",
+                           M,
+                           N,
+                           K,
+                           1.0f,
+                           reinterpret_cast<float*>(src0MemPtr->getData()),
+                           lda,
+                           reinterpret_cast<float*>(mlasPackedPtr->getData()),
+                           ldb,
+                           0.0f,
+                           reinterpret_cast<float*>(dstMemPtr->getData()),
+                           ldc,
+                           withBiases ? reinterpret_cast<float*>(biasMemPtr->getData()) : nullptr);
+    }
 }
 
 #endif
@@ -776,14 +820,13 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (useMlas) {
         auto dataPrecision = getOriginalInputPrecisionAtPort(0);
         if (withBiases) {
-            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                            {LayoutType::ncsp, dataPrecision},
-                            {LayoutType::ncsp, dataPrecision}},
-                            {{LayoutType::ncsp, dataPrecision}},
-                            impl_desc_type::gemm_mlas);
+            addSupportedPrimDesc(
+                {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, dataPrecision}},
+                {{LayoutType::ncsp, dataPrecision}},
+                impl_desc_type::gemm_mlas);
         } else {
-            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                {LayoutType::ncsp, dataPrecision}},
+            addSupportedPrimDesc(
+                {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, dataPrecision}},
                 {{LayoutType::ncsp, dataPrecision}},
                 impl_desc_type::gemm_mlas);
         }
@@ -895,7 +938,9 @@ void FullyConnected::initOptimalPrimitiveDescriptor() {
     auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
     auto config = selectedPD->getConfig();
     weightDescIP = config.inConfs[1].getMemDesc();
-    config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
+    // config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
+    config.inConfs[1].setMemDesc(
+        selectedParentPD->getConfig().outConfs[0].getMemDesc()->cloneWithNewPrecision(DnnlExtensionUtils::DataTypeToIEPrecision(weightsDataType)));
     selectedPD->setConfig(config);
 }
 
