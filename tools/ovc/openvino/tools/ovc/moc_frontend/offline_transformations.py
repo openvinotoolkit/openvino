@@ -99,23 +99,3 @@ def compress_model(func: object):
 def apply_fused_names_cleanup(func: object):
     from openvino._offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
     apply_fused_names_cleanup(func)
-
-
-def apply_offline_transformations(func: Model, argv: argparse.Namespace):
-    from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
-
-    # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
-    apply_preprocessing(ov_function=func, argv=argv)
-
-    apply_moc_transformations(func)
-
-    params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
-    apply_moc_legacy_transformations(func, params_with_custom_types)
-
-    if "compress_to_fp16" in argv and argv.compress_to_fp16:
-        compress_model(func)
-
-    apply_fused_names_cleanup(func)
-
-    return func
-
