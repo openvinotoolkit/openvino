@@ -2021,6 +2021,28 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support BF16 precision on this target.";
     }
 
+#if defined(OV_CPU_WITH_ACL)
+    Precision forcedPrec;
+    //ACL implementation supports only identical precisions on inputs/outputs so they are aligned it to highest one
+    if (AclEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+                if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                    forcedPrec = getOriginalInputPrecisionAtPort(i);
+                }
+            }
+        }
+        if (!forcedPrec.is_float()) {
+            forcedPrec = Precision::FP32;
+        }
+    } else {
+        forcedPrec = Precision::FP32;
+    }
+    for (size_t i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = forcedPrec;
+    }
+    outputPrecision = forcedPrec;
+#else
     auto filterPrecision = [&](Precision& prc) {
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
@@ -2039,6 +2061,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
     }
     outputPrecision = filterPrecision(outputPrecision);
+#endif
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
