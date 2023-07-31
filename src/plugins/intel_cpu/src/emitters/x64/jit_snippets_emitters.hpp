@@ -35,8 +35,7 @@ struct jit_snippets_call_args {
 };
 
 struct jit_snippets_compile_args {
-    std::vector<size_t> master_shape{};
-    size_t tile_rank = 0;
+    size_t parallel_executor_ndims = 1;
 };
 ///
 /// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
@@ -94,6 +93,7 @@ private:
 
     jit_snippets_compile_args jcp;
     std::vector<size_t> gp_regs_pool;
+    std::vector<size_t> master_shape;
     size_t num_inputs;
     size_t num_outputs;
     size_t num_unique_buffers;

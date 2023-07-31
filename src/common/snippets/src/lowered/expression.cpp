@@ -112,6 +112,7 @@ ExpressionPort Expression::get_output_port(size_t i) {
 }
 
 void Expression::updateShapes() {
+    OPENVINO_ASSERT(m_shapeInference, "Attempt to UpdateShapes without initialized shapeInference");
     IShapeInferSnippets::Result result;
     try {
         std::vector<VectorDimsRef> input_shapes;
@@ -121,11 +122,10 @@ void Expression::updateShapes() {
 
         input_shapes.reserve(in_connectors.size());
         for (size_t i = 0; i < in_connectors.size(); i++) {
-            const auto& src_port = in_connectors[i]->get_source();
-            const auto i_shape = src_port.get_descriptor_ptr()->get_shape();
-            // todo: do we really need to store the same shape twice in parent's out_port_desc and this in_port_descs
-            in_descriptors[i]->set_shape(i_shape);
-            input_shapes.emplace_back(i_shape);
+            const auto& src_port_desc = in_connectors[i]->get_source().get_descriptor_ptr();
+            in_descriptors[i]->set_shape(src_port_desc->get_shape());
+            // Note that input_shape is a reference, so we should always bind it to an object with a longer lifetime
+            input_shapes.emplace_back(in_descriptors[i]->get_shape());
         }
 
         result = m_shapeInference->infer(input_shapes);
@@ -133,6 +133,8 @@ void Expression::updateShapes() {
     catch (const std::exception& exp) {
         OPENVINO_THROW("Shape inference of " + (get_node()->get_friendly_name()) + " failed: " + exp.what());
     }
+    OPENVINO_ASSERT(result.status == ShapeInferStatus::success,
+                    "Shape inference of " + (get_node()->get_friendly_name()) + " didn't return success status");
     const auto& out_descriptors = get_output_port_descriptors();
     OPENVINO_ASSERT(result.dims.size() == out_descriptors.size(), "shapeInference call returned invalid number of output shapes");
     for (size_t i = 0; i < out_descriptors.size(); i++)

@@ -124,6 +124,8 @@ public:
     void set_generator(std::shared_ptr<ov::snippets::Generator> generator);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
     void set_virtual_port_count(const size_t count);
+    void set_min_jit_work_amount(const size_t jit_work_amount);
+    void set_min_parallel_work_amount(const size_t parallel_work_amount);
 
     void print() const;
 
@@ -178,32 +180,20 @@ private:
         // True if body has operations that don't support plugin-side domain optimizations
         // (e.g. Transpose, Softmax, MatMul in general doesn't support dimensions collapsing)
         bool m_has_domain_sensitive_ops = false;
+        // Minimal advised work amount for parallel execution.
+        // Set by a backend, typically equals to the number of threads available on the machine.
+        size_t m_min_parallel_work_amount = 8;
+        // Minimal advised work amount every JIT kernel should process during one execution call
+        // Set by a backend, should be large enough to compensate for the kernel call overheads
+        size_t m_min_jit_work_amount = 256;
     } config;
-
-    class ShapeInferSnippetsNode : public IShapeInferSnippets {
-    public:
-        const Result& get_last_result() {return m_last_result; }
-    protected:
-        Result m_last_result{{}, ShapeInferStatus::success};
-    };
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
     class NgraphShapeInfer : public ShapeInferSnippetsNode {
         std::shared_ptr<ov::Model> m_ngraph_body;
-        ParameterVector m_parameters;
-        ResultVector m_results;
     public:
         explicit NgraphShapeInfer(const std::shared_ptr<ov::Model>& body);
-        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
-    };
-    class LIRShapeInfer : public ShapeInferSnippetsNode {
-        using IOExpression = lowered::IOExpression;
-        std::shared_ptr<lowered::LinearIR> m_lir_body;
-        std::vector<std::shared_ptr<IOExpression>> m_param_exprs;
-        std::vector<std::shared_ptr<IOExpression>> m_result_exprs;
-    public:
-        explicit LIRShapeInfer(const std::shared_ptr<lowered::LinearIR>& body);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 };
