@@ -142,14 +142,40 @@ public:
 };
 #endif // __linux__
 
+#if defined(OV_CPU_WITH_ACL)
+std::mutex Engine::SchedulerGuard::mutex;
+std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+
+Engine::SchedulerGuard::SchedulerGuard() {
+#if IE_THREAD == IE_THREAD_SEQ
+        arm_compute::Scheduler::set(arm_compute::Scheduler::Type::CPP);
+#else
+        arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
+#endif
+}
+
+std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
+    if (scheduler_guard_ptr == nullptr) {
+        SchedulerGuard::ptr = scheduler_guard_ptr = std::make_shared<SchedulerGuard>();
+    }
+    return scheduler_guard_ptr;
+}
+
+Engine::SchedulerGuard::~SchedulerGuard() {
+    std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
+    arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
+}
+#endif
+
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
 #if defined(OV_CPU_WITH_ACL)
-    acl_scheduler = std::make_unique<ACLScheduler>();
-    arm_compute::Scheduler::set(acl_scheduler);
+    scheduler_guard = SchedulerGuard::instance();
 #endif
 }
 
@@ -830,6 +856,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     return execNetwork;
 }
+
 }   // namespace intel_cpu
 }   // namespace ov
 
