@@ -20,6 +20,16 @@ def get_pytorch_decoder(model, example_inputs, args):
         log.error("PyTorch frontend loading failed")
         raise e
     inputs = prepare_torch_inputs(example_inputs, args.get("input"), allow_none=True)
+    try:
+        import nncf
+        from nncf.torch.nncf_network import NNCFNetwork
+        from packaging import version
+
+        if isinstance(model, NNCFNetwork):
+            if version.parse(nncf.__version__) < version.parse("2.6"):
+                model = model.strip()
+    except:
+        pass
     decoder = TorchScriptPythonDecoder(model, example_input=inputs)
     args['input_model'] = decoder
     args["example_input"] = inputs
