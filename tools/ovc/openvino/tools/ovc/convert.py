@@ -12,8 +12,7 @@ from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 
-#TODO: Why names InputCutInfo and InputInfo are different
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
+InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 
 
 def convert_model(

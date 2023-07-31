@@ -443,7 +443,7 @@ class Formatter(argparse.HelpFormatter):
         usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
         usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
         insert_idx = usage.find(self._prog) + len(self._prog)
-        usage = usage[0: insert_idx] + ' INPUT_MODEL ' + usage[insert_idx + 1:]
+        usage = usage[0: insert_idx] + ' INPUT_MODEL... ' + usage[insert_idx + 1:]
         return usage
 
     def _get_default_metavar_for_optional(self, action):
@@ -473,12 +473,20 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     add_args_by_description(parser, mo_convert_params_common)
     return parser
 
+def input_model_details(model):
+    if isinstance(model, (list, tuple)) and len(model) == 1:
+        model = model[0]
+    if isinstance(model, (str, pathlib.Path)):
+        return model
+    return type(model)
 
-def get_common_cli_options(model_name):
+
+def get_common_cli_options(argv, is_python_api_used):
     d = OrderedDict()
-    d['input_model'] = '- Path to the Input Model'
-    d['output_dir'] = ['- Path for generated IR', lambda x: x if x != '.' else os.getcwd()]    # TODO: Consider removing
-    d['output_model'] = ['- IR output name', lambda x: x if x else model_name]
+    d['input_model'] = ['- Path to the Input Model', input_model_details]
+    if not is_python_api_used:
+        model_name = get_model_name_from_args(argv)
+        d['output_model'] = ['- IR output name', lambda _: model_name]
     d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
@@ -818,31 +826,6 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
-#TODO: Should be removed?
-def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
-    """
-    Parses parse_freeze_placeholder_values string.
-    :param argv_freeze_placeholder_with_value: string information on freezing placeholders
-    :return: dictionary where key is node name, value is node value.
-    """
-    placeholder_values = {}
-    if argv_freeze_placeholder_with_value is not None:
-        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
-            plh_with_value = plh_with_value.split('->')
-            if len(plh_with_value) != 2:
-                raise Error("Wrong replacement syntax. Use \"freeze_placeholder_with_value\" "
-                            "\"node1_name->value1,node2_name->value2\"")
-            node_name = plh_with_value[0]
-            value = plh_with_value[1]
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            if '[' in value.strip(' '):
-                value = value.replace('[', '').replace(']', '').split(' ')
-            placeholder_values[node_name] = value
-    return placeholder_values
-
-
 def get_freeze_placeholder_values(argv_input: str):
     """
     Parses values for placeholder freezing and input node names
@@ -942,13 +925,28 @@ def get_model_name(path_input_model: str) -> str:
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
+    output_dir = os.getcwd()
     if hasattr(argv, 'output_model') and argv.output_model:
         model_name = argv.output_model
-    else:
-        model_name = argv.input_model
-        if isinstance(model_name, (tuple, list)) and len(model_name) > 0:
-            model_name = model_name[0]
-    return model_name
+
+        if not os.path.isdir(argv.output_model):
+            if not model_name.endswith('.xml'):
+                model_name += '.xml'
+            return model_name
+        else:
+            if not os.access(argv.output_model, os.W_OK):
+                raise Error('The directory "{}" is not writable'.format(argv.output_model))
+            output_dir = argv.output_model
+
+    input_model = argv.input_model
+    if isinstance(input_model, (tuple, list)) and len(input_model) > 0:
+        input_model = input_model[0]
+
+    if not isinstance(input_model, (str, pathlib.Path)):
+        return output_dir
+
+    input_model_name = os.path.splitext(os.path.split(input_model)[1])[0]
+    return os.path.join(output_dir, input_model_name + ".xml")
 
 
 def get_absolute_path(path_to_file: str) -> str:
@@ -1033,7 +1031,7 @@ def check_bool(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'output_dir', 'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if isinstance(value, list):
         updated_value = []
