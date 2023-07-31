@@ -648,7 +648,7 @@ setup(
     description="OpenVINO(TM) Runtime",
     install_requires=get_install_requires(SCRIPT_DIR.parents[0] / "requirements.txt"),
     extras_require={
-        'nvidia': get_install_requires(SCRIPT_DIR.parents[0] / "requirements_nvidia.txt"),
+        "nvidia": get_install_requires(SCRIPT_DIR.parents[0] / "requirements_nvidia.txt"),
     },
     long_description=get_description(long_description_md),
     long_description_content_type="text/markdown",
