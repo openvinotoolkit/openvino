@@ -459,6 +459,41 @@ void Graph::ResolveEdgeConflicts() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
+    auto tryReuseReorder = [&](EdgePtr& edge) {
+        bool reused = false;
+        NodePtr parent = edge->getParent();
+        NodePtr child = edge->getChild();
+
+        // check parent whether has reorder child
+        const auto parentEdges = parent->getChildEdgesAtPort(edge->getInputNum());
+        const auto childPortConfig = &child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[edge->getOutputNum()];
+        const auto childReorderDesc = childPortConfig->getMemDesc()->as<BlockedMemoryDesc>();
+        for (size_t n = 0; n < parentEdges.size(); n++) {
+            auto siblingEdge = parentEdges[n];
+            if (siblingEdge == edge)
+                continue;
+            const auto siblingReorder = siblingEdge->getChild();
+            if (siblingReorder->getType() != Type::Reorder)
+                continue;
+            const auto siblingReorderPortConfig = &siblingReorder->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0];
+            const auto siblingReorderDesc = siblingReorderPortConfig->getMemDesc()->as<BlockedMemoryDesc>();
+            if (siblingReorderDesc->isCompatible(*childReorderDesc, BlockedMemoryDesc::FULL_MASK) &&
+                childPortConfig->inPlace() == -1 &&
+                siblingReorderPortConfig->inPlace() == -1) {
+                edge->drop();
+                reused = true;
+
+                EdgePtr newEdge(new Edge(siblingReorder, child, 0, edge->getOutputNum()));
+                child->parentEdges.push_back(newEdge);
+                siblingReorder->childEdges.push_back(newEdge);
+                graphEdges.push_back(newEdge);
+                break;
+            }
+        }
+
+        return reused;
+    };
+
     auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
         i--;
@@ -494,7 +529,8 @@ void Graph::ResolveEdgeConflicts() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
+                if (!tryReuseReorder(edge))
+                    insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
             }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {

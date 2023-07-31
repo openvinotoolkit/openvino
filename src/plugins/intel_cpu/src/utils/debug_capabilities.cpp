@@ -12,6 +12,7 @@
 #include "debug_capabilities.h"
 #include "node.h"
 #include "edge.h"
+#include "graph.h"
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
@@ -275,22 +276,23 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     comma = "";
     for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
         // find the Parent edge connecting to port
+        os << comma;
+        const char * sep2 = "";
         for (const auto & e : node.getParentEdges()) {
             auto edge = e.lock();
             if (!edge) continue;
             if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
-            os << comma;
-            os << node_id(*edge->getParent());
+            os << sep2 << node_id(*edge->getParent());
             auto ptr = edge->getMemoryPtr();
             if (ptr) {
                 os << "_" << ptr->getData();
             }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
-            comma = ",";
-            break;
+            sep2 = "|"; // show all edges at single port(usually indicating bugs)
         }
+        comma = ",";
     }
 
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
@@ -368,7 +370,19 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     return os;
 }
 
-class OstreamAttributeVisitor : public ov::AttributeVisitor {
+// print to console in textualized form with well-defined syntax is an efficient way to
+// investigate a complex data struture like CPU internal graph, much more easier than
+// following pointers one-by-one and print content of each entity in debugging tools.
+std::ostream & operator<<(std::ostream & os, const Graph& g) {
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    for (auto &graphNode : g.GetNodes()) {
+        std::cout << *graphNode << std::endl;
+    }
+    os << "};" << std::endl;
+    return os;
+}
+
+class OstreamAttributeVisitor : public ngraph::AttributeVisitor {
     std::ostream & os;
 
 public:

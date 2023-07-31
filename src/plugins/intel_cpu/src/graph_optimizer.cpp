@@ -2453,7 +2453,6 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
     auto isSuitableChildNode = [](NodePtr node) {
         return node->getType() == Type::Reorder
-                && node->getChildEdges().size() == 1
                 && !node->isDynamicNode();   // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
     };
 
@@ -2535,6 +2534,9 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
         auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
 
+        // pp => transpose0 => reorder0 => cc0, cc1, ...
+        // Note: pp is abbrev of parentParentNode
+        //       cc0, cc1, ... are childChildNodes of same parent reorder node.
         auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
         remEdge->drop();
         auto& edges = graph.GetEdges();
@@ -2559,6 +2561,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
+        // after parentNode & childNode was dropped, the subgraph was broken to two pieces
+        //      pp => cc0,cc1, ...
         auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
         auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
 
@@ -2616,6 +2620,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto reorderNode = graph.InsertReorder(edge, reorderlayerName, *reorderInDesc, *reorderOutDesc, isOptimized, srcPerm);
 
         // case 2
+        auto finalReorder = reorderNode;
         if (inPrec != outPrec) {
             auto reorderInDesc2 = reorderOutDesc;
             auto reorderOutDesc2 = outDesc;
@@ -2623,7 +2628,37 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
             std::string reorderLayerName2 = reorderNode->getName() + "_" +
                                     Reorder::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
 
-            graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
+            finalReorder = graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
+        }
+        // Graph::InsertReorder() only insert one reorder into one edge:
+        // all other children cc1,... still connect to pp directly:
+        //      pp => reorder1 => [reorder2] => cc0
+        //         => cc1, ...
+        // now we the rest of them to the final reorder too:
+        //      pp => reorder1 => [reorder2] => cc0,cc1,...
+        for (auto& ce : childEdges) {
+            // skip cc0
+            if (edge->getChild() == ce->getChild() && edge->getOutputNum() == ce->getOutputNum())
+                continue;
+
+            EdgePtr pp2cc;
+            for (auto &cce : parentParentNode->getChildEdges()) {
+                if (cce.lock()->getChild() == ce->getChild()) {
+                    pp2cc = cce.lock();
+                    break;
+                }
+            }
+            if (!pp2cc)
+                continue;
+
+            // drop old edge
+            pp2cc->drop();
+
+            // connect to final reorder
+            EdgePtr new_edge(new Edge(finalReorder, pp2cc->getChild(), 0, pp2cc->getOutputNum()));
+            graph.GetEdges().push_back(new_edge);
+            new_edge->getChild()->parentEdges.push_back(new_edge);
+            new_edge->getParent()->childEdges.push_back(new_edge);
         }
     };
 
