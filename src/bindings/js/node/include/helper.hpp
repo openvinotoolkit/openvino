@@ -136,5 +136,7 @@ ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& inf
 
     } else if (value.IsObject()) {
         return value_to_tensor(value.As<Napi::Object>());
+    } else {
+        throw std::invalid_argument(std::string("Cannot create a tensor from the passed Napi::Value." ));
     }
 }
