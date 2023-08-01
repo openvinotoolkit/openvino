@@ -9,10 +9,9 @@
 
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "engines_util/execute_tools.hpp"
-#include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/node.hpp"
@@ -66,6 +65,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "sequnce_generator.hpp"
+#include "utils/eval_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
