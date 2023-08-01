@@ -14,7 +14,7 @@
 
 .. _troubleshooting guide for install:
 
- This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
+This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
 
 .. _install_for_prc:
 
@@ -180,9 +180,9 @@
 
 .. dropdown:: Check if required external dependencies are installed (for pre-2022.2 releases)
 
-For OpenVINO releases prior to 2022.2:
+   For OpenVINO releases prior to 2022.2:
 
-   - If you are using Ubuntu or RHEL 8 systems, and installed OpenVINO Runtime via the archive file, APT, or YUM repository, and then decided to :doc:`install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`, make sure that you **Install External Software Dependencies** first by following the steps in the corresponding installation pages.
-   - For C++ developers with Windows systems, make sure that Microsoft Visual Studio 2019 with MSBuild and CMake 3.14 or higher (64-bit) are installed. While installing Microsoft Visual Studio 2019, make sure that you have selected **Desktop development with C++** in the **Workloads** tab. If not, launch the installer again to select that option. For more information on modifying the installation options for Microsoft Visual Studio, see its `official support page <https://docs.microsoft.com/en-us/visualstudio/install/modify-visual-studio?view=vs-2019>`__ .
+      - If you are using Ubuntu or RHEL 8 systems, and installed OpenVINO Runtime via the archive file, APT, or YUM repository, and then decided to :doc:`install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`, make sure that you **Install External Software Dependencies** first by following the steps in the corresponding installation pages.
+      - For C++ developers with Windows systems, make sure that Microsoft Visual Studio 2019 with MSBuild and CMake 3.14 or higher (64-bit) are installed. While installing Microsoft Visual Studio 2019, make sure that you have selected **Desktop development with C++** in the **Workloads** tab. If not, launch the installer again to select that option. For more information on modifying the installation options for Microsoft Visual Studio, see its `official support page <https://docs.microsoft.com/en-us/visualstudio/install/modify-visual-studio?view=vs-2019>`__ .
 
 @endsphinxdirective
