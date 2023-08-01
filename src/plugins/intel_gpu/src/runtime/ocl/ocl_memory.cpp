@@ -136,7 +136,7 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* host_ptr, bool blocking) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) {
+dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
     dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
@@ -463,7 +463,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr, bool blockin
                                               blocking,
                                               nullptr,
                                               ev_ocl);
-    return stream.create_user_event(true);
+    return ev;
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr, bool blocking) {
@@ -482,7 +482,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr, bool blocking) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) {
+dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);

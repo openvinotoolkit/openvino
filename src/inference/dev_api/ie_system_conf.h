@@ -95,6 +95,13 @@ using ov::with_cpu_x86_avx;
 using ov::with_cpu_x86_avx2;
 
 /**
+ * @brief      Checks whether CPU supports AVX2_VNNI capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is AVX2_VNNI instructions are available, `false` otherwise
+ */
+using ov::with_cpu_x86_avx2_vnni;
+
+/**
  * @brief      Checks whether CPU supports AVX 512 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is AVX512F (foundation) instructions are available, `false` otherwise
