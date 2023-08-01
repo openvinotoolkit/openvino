@@ -167,6 +167,7 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Constructs a tensor constant with the supplied data
     ///
     /// \param type The element type of the tensor constant.
@@ -179,6 +180,7 @@ public:
         m_data = data;
         constructor_validate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Constant(const Constant& other);
     Constant(const Constant& other, const Shape& new_shape);
