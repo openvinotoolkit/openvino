@@ -60,6 +60,7 @@
 #include "group_convolution_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
+#include "i420_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
@@ -68,6 +69,7 @@
 #include "matrix_nms_shape_inference.hpp"
 #include "max_pool_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
+#include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
@@ -208,7 +210,6 @@ public:
             }
         }
         local_op = op->clone_with_new_inputs(new_inputs);
-
         local_op->validate_and_infer_types();
 
         output_shapes.resize(local_op->get_output_size());
@@ -411,8 +412,12 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::DetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::Gather, ShapeInferTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::GatherND, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::I420toBGR, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::I420toRGB, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::MatrixNms, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::NV12toBGR, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset8::NV12toRGB, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::PriorBox, ShapeInferTA, util::bit::mask(0)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::RandomUniform, ShapeInferTA, util::bit::mask(0, 1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset8::Slice, ShapeInferTA, util::bit::mask(1, 2, 3, 4)),
