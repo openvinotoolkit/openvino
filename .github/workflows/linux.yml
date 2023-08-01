@@ -742,8 +742,6 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - uses: actions/checkout@v3
-
       - name: Cache Tests Execution Time
         id: tests-functional-cpu-cache
         uses: actions/cache@v3
@@ -769,5 +767,5 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
             ${{ github.workspace }}/logs
-            ${{ github.workspace }}/test_cache.lst
+            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
