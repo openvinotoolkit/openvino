@@ -25,7 +25,7 @@ const auto params_4D = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::Values(emptyFusingSpec));
 
@@ -41,7 +41,7 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec));
 
@@ -57,7 +57,7 @@ const auto params_5D = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
         ::testing::Values(emptyFusingSpec));
 
@@ -73,7 +73,7 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::Values(emptyCPUSpec),
         ::testing::Values(emptyFusingSpec));
 
@@ -89,7 +89,7 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Constant_mode())),
         ::testing::Values(emptyFusingSpec));
 
@@ -105,7 +105,7 @@ const auto params_4D_1D_parameter_mode = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D_Parameter_mode())),
         ::testing::Values(emptyFusingSpec));
 
@@ -121,7 +121,7 @@ const auto params_5D_1D_constant = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_constant())),
         ::testing::Values(emptyFusingSpec));
 
@@ -137,7 +137,7 @@ const auto params_5D_1D_parameter = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D_parameter())),
         ::testing::Values(emptyFusingSpec));
 
@@ -153,7 +153,7 @@ const auto params_4D_dyn_const = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::Values(emptyFusingSpec));
 
@@ -169,7 +169,7 @@ const auto params_4D_dyn_param = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
         ::testing::Values(emptyFusingSpec));
 
@@ -185,7 +185,7 @@ const auto params_5D_dyn_const = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
         ::testing::Values(emptyFusingSpec));
 
@@ -201,7 +201,7 @@ const auto params_5D_dyn_param = ::testing::Combine(
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
-                ::testing::Values(additional_config())),
+                ::testing::ValuesIn(additional_config())),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D())),
         ::testing::Values(emptyFusingSpec));
 
