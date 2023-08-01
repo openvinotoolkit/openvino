@@ -6,7 +6,7 @@ import numpy as np
 import onnx
 import onnx.mapping
 
-from tests.test_onnx.utils import run_node
+from tests.tests_python.utils import run_node
 
 
 def test_random_uniform():

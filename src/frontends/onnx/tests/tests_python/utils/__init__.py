@@ -11,8 +11,8 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 
 import tests
 from tests.runtime import get_runtime
-from tests.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
-from tests.test_onnx.utils.onnx_helpers import import_onnx_model
+from tests.tests_python.utils.onnx_backend import OpenVinoOnnxBackend
+from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 
 def run_node(onnx_node, data_inputs, **kwargs):

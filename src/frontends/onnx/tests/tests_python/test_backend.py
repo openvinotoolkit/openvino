@@ -22,7 +22,8 @@ from tests import (
     xfail_issue_38724,
     xfail_issue_38734,
     xfail_issue_38735,
-    xfail_issue_39658,
+    skip_issue_39658,
+    skip_issue_39658,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_45180,
@@ -62,7 +63,7 @@ from tests import (
     xfail_issue_101965,
     xfail_issue_113506,
 )
-from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
+from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -113,7 +114,7 @@ globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
     (
-        xfail_issue_39658,
+        skip_issue_39658,
         "OnnxBackendNodeModelTest.test_tile_cpu",
     ),
     (

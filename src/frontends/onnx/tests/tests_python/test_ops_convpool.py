@@ -9,7 +9,7 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from onnx.onnx_cpp2py_export.checker import ValidationError
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests.tests_python.utils import get_node_model, import_onnx_model, run_model, run_node
 
 
 @pytest.fixture()
