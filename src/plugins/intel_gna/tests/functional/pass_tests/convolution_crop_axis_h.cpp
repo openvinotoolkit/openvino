@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_CIS=" << CommonTestUtils::vec2str(cropInputShape);
+        result << "_CIS=" << ov::test::utils::vec2str(cropInputShape);
         return result.str();
     }
 
@@ -67,9 +67,9 @@ protected:
         constexpr auto c_index_in_nchw = 1;
         constexpr auto h_index_in_nchw = 2;
         const auto weights_size = ngraph::shape_size(filterSize) * numOutChannels * inputShape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
+        auto weights_values = ov::test::utils::generate_float_numbers(weights_size, -0.2f, 0.2f);
         const auto weights2_size = ngraph::shape_size(filterSize) * numOutChannels * numOutChannels;
-        auto weights2_values = CommonTestUtils::generate_float_numbers(weights2_size, -0.2f, 0.2f);
+        auto weights2_values = ov::test::utils::generate_float_numbers(weights2_size, -0.2f, 0.2f);
 
         auto convolution_node = ngraph::builder::makeConvolution(input_reshape,
                                                                  ngPrc,
@@ -129,7 +129,7 @@ const std::vector<std::vector<size_t>> input_shapes{
 INSTANTIATE_TEST_SUITE_P(smoke_crop_after_conv,
                          CropAfterConvolutionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes)),
                          CropAfterConvolutionTest::getTestCaseName);

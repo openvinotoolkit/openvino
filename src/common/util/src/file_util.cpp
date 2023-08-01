@@ -87,7 +87,7 @@ std::string ov::util::get_directory(const std::string& s) {
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
+        rc = s.substr(0, pos ? pos : 1);
         return rc;
     }
     // Windows-style separator
@@ -621,6 +621,11 @@ std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
 }
 
 void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary) {
+    save_binary(path, reinterpret_cast<const char*>(&binary[0]), binary.size());
+    return;
+}
+
+void ov::util::save_binary(const std::string& path, const char* binary, size_t bin_size) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* filename = widefilename.c_str();
@@ -629,7 +634,7 @@ void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary)
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&binary[0]), binary.size());
+        out_file.write(binary, bin_size);
     } else {
         throw std::runtime_error("Could not save binary to " + path);
     }
