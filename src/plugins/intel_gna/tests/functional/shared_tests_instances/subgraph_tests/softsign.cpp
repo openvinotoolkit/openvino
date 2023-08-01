@@ -24,7 +24,7 @@ std::vector<std::vector<size_t>> input_shapes =
 INSTANTIATE_TEST_SUITE_P(smoke_Softsign,
                          SoftsignTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes)),
                          SoftsignTest::getTestCaseName);

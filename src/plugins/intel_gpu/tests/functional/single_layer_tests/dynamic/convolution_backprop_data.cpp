@@ -55,27 +55,27 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "PRC=" << prec << "_";
-        result << "K=" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
-        result << "OP=" << CommonTestUtils::vec2str(outPadding) << "_";
+        result << "K=" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S=" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
+        result << "OP=" << ov::test::utils::vec2str(outPadding) << "_";
         result << "O=" << convOutChannels << "_";
         result << "AP=" << padType << "_";
         result << "OUT_SH=" << outShapeType << "_";
         result << "OUT_D=";
         for (const auto& data : outShapeData) {
             result << "(";
-            result << CommonTestUtils::vec2str(data);
+            result << ov::test::utils::vec2str(data);
             result << ")_";
         }
         result << "config=(";
@@ -295,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_FP32, DeconvolutionLayerGPUTest
         convParams_ExplicitPadding_2D,
         ::testing::ValuesIn(dyn_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     DeconvolutionLayerGPUTest::getTestCaseName);
 
@@ -330,7 +330,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_OutputShape_FP32, Deconvolution
             ::testing::ValuesIn(emptyOutputPadding)),
         ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
         ::testing::Values(ElementType::f32),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     DeconvolutionLayerGPUTest::getTestCaseName);
 

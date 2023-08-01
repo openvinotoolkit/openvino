@@ -20,7 +20,7 @@ MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, I
     if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
     if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
     if (_model_path != "") {
-        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt) });
+        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, model_priority) });
     }
     if (!_input_info.empty()) {
         input_info = _input_info;
@@ -123,8 +123,8 @@ std::map<std::string, ModelInfo> MetaInfo::get_model_info() {
 }
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
-    auto pos = model_path.rfind(CommonTestUtils::FileSeparator);
-    auto model_name = CommonTestUtils::replaceExt(model_path.substr(pos + 1), "");
+    auto pos = model_path.rfind(ov::test::utils::FileSeparator);
+    auto model_name = ov::test::utils::replaceExt(model_path.substr(pos + 1), "");
     return model_name;
 }
 

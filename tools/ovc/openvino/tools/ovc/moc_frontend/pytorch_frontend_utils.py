@@ -15,10 +15,21 @@ from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
 
 def get_pytorch_decoder(model, example_inputs, args):
     try:
-        from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
+    try:
+        import nncf
+        from nncf.torch.nncf_network import NNCFNetwork
+        from packaging import version
+
+        if isinstance(model, NNCFNetwork):
+            if version.parse(nncf.__version__) <= version.parse("2.6"):
+                raise RuntimeError(
+                    "NNCF models produced by nncf<2.6 are not supported directly. Please export to ONNX first.")
+    except:
+        pass
     inputs = prepare_torch_inputs(example_inputs, args.get("input"), allow_none=True)
     decoder = TorchScriptPythonDecoder(model, example_input=inputs)
     args['input_model'] = decoder
@@ -56,7 +67,7 @@ def get_value_from_list_or_dict(container, name, idx):
 
 def extract_input_info_from_example(args, inputs):
     try:
-        from openvino.frontend.pytorch.decoder import pt_to_ov_type_map # pylint: disable=no-name-in-module,import-error
+        from openvino.frontend.pytorch.utils import pt_to_ov_type_map # pylint: disable=no-name-in-module,import-error
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e

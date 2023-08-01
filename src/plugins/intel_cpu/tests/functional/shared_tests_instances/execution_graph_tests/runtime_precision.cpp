@@ -27,6 +27,6 @@ const std::vector<RuntimePrecisionSpecificParams> params = {
 INSTANTIATE_TEST_SUITE_P(smoke_ExecGraph, ExecGraphRuntimePrecision,
                         ::testing::Combine(
                                 ::testing::ValuesIn(params),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ExecGraphRuntimePrecision::getTestCaseName);
 }  // namespace

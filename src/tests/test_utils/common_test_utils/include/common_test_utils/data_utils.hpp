@@ -17,7 +17,9 @@
 #include "ngraph/type/float16.hpp"
 
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -261,41 +263,8 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
  * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
-template<ov::element::Type_t DT>
-void inline fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
-                               const int32_t k = 1, const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    if (DT == ov::element::u4 || DT == ov::element::i4 ||
-        DT == ov::element::u1) {
-        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
-    } else {
-        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
-    }
-}
-
-template<ov::element::Type_t DT>
-void inline
-fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start_from, const int32_t k,
-                         const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        if (DT == ov::element::Type_t::f16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (DT == ov::element::Type_t::bf16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
-    }
-}
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
+                               const int32_t k = 1, const int seed = 1);
 
 /** @brief Fill blob with random data.
  *
@@ -506,4 +475,15 @@ inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+
+// openvino_contrib and vpu repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::ie_abs;
+using ov::test::utils::generate_float_numbers;
+using ov::test::utils::fill_data_roi;
+} // namespace CommonTestUtils

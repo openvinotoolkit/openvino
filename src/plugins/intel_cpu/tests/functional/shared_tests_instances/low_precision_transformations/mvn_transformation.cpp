@@ -24,7 +24,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MVNTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputAndQuantizationShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(reductionAxes),
         ::testing::ValuesIn(normalizeVariance)),
     MVNTransformation::getTestCaseName);

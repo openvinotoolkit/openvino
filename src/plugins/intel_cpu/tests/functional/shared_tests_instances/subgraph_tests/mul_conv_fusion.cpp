@@ -31,7 +31,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_fprop_1d),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_fprop_2d{
@@ -52,7 +52,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_fprop_2d),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_fprop_2d_kernel_same_as_input{
@@ -79,7 +79,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_fprop_2d_kernel_same_as_input),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_conv_bprop{
@@ -99,7 +99,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_conv_bprop),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_group_conv{
@@ -120,7 +120,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_group_conv),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_group_conv_kernel_same_as_input{
@@ -147,7 +147,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_group_conv_kernel_same_as_input),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> const_shapes_group_conv_bprop{
@@ -168,7 +168,7 @@ namespace {
                                     ::testing::ValuesIn(const_shapes_group_conv_bprop),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(false), // Positive test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> negative_const_shapes{
@@ -187,7 +187,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeConvolutionBackpropData_2D, MulConvFusion,
@@ -198,7 +198,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolution_2D, MulConvFusion,
@@ -209,7 +209,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolutionBackpropData_2D, MulConvFusion,
@@ -220,7 +220,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     const std::vector<ngraph::Shape> negative_const_shapes_kernel_same_as_input{
@@ -247,7 +247,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes_kernel_same_as_input),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_NegativeGroupConvolutionBackpropData_2D_kernel_same_as_input, MulConvFusion,
@@ -258,7 +258,7 @@ namespace {
                                     ::testing::ValuesIn(negative_const_shapes_kernel_same_as_input),
                                     ::testing::ValuesIn(types),
                                     ::testing::Values(true), // Negative test
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MulConvFusion::getTestCaseName);
 
 }  // namespace

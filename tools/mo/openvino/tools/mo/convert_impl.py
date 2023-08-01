@@ -530,8 +530,8 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-            
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"
         except Exception as e:
@@ -802,7 +802,7 @@ def update_args_for_saved_model_dir(args: dict):
             'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    
+
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
         args['saved_model_dir'] = args['input_model']
         args['input_model'] = None

@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronTopKROIs_static, Experimenta
                                  ::testing::ValuesIn(staticInputShape),
                                  ::testing::ValuesIn(maxRois),
                                  ::testing::Values(ElementType::f32),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExperimentalDetectronTopKROIsLayerTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicInputShape = {
@@ -50,6 +50,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_dynamic, ExperimentalDetectronTop
                                  ::testing::ValuesIn(dynamicInputShape),
                                  ::testing::ValuesIn(maxRois),
                                  ::testing::Values(ElementType::f32),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ExperimentalDetectronTopKROIsLayerTest::getTestCaseName);
 } // namespace
