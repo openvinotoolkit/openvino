@@ -15,7 +15,7 @@ You can perform native compilation of the OpenVINO Runtime for Raspberry Pi, whi
   sudo apt-get update
   sudo apt-get install -y git cmake scons build-essential
   ```
-2. Clone the repositories:
+2. Clone the repository:
 ```
 git clone --recurse-submodules --single-branch --branch=master https://github.com/openvinotoolkit/openvino.git 
 ```
