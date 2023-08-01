@@ -656,8 +656,9 @@ def shape_of_const_fold_test(temp_dir):
 
     # Ref model
     param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
-    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
-    mul = ov.opset8.multiply(mul_const, param1)
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float16)
+    cast = ov.opset8.convert(mul_const, np.float32)
+    mul = ov.opset8.multiply(cast, param1)
 
     parameter_list = [param1]
     model_ref = Model([mul], parameter_list, "test")
