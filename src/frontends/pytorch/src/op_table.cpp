@@ -109,6 +109,7 @@ OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
+OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pow);
@@ -236,6 +237,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_poolnd>},
+        {"aten::broadcast_to", op::translate_expand},
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bitwise_not", op::translate_bitwise_not},
@@ -360,6 +362,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::numel", op::translate_numel},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
+        {"aten::outer", op::translate_outer},
         {"aten::pad", op::translate_pad},
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
