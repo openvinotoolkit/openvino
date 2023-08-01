@@ -216,7 +216,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input, 
     const auto& input_shape = input->getShape();
     const auto& input_dims = input_shape.getDims();
 
-    const auto element_size = dnnl::memory::data_type_size(input->getDataType());
+    const auto element_size = input->getDesc().getPrecision().size();
     const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
     auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
 
@@ -294,8 +294,13 @@ bool MlasTransposeExecutor::init(const TransposeParams &transposeParams,
 bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp)) {
+    if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) ||
+        !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
+        return false;
+    }
+    if (!one_of(srcDescs[0]->getPrecision().size(), 1, 2, 4, 8)) {
+        DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
         return false;
     }
     return true;
