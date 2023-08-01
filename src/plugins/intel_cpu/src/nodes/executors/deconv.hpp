@@ -13,46 +13,14 @@
 namespace ov {
 namespace intel_cpu {
 
-struct DeconvKey {
-    DnnlMemoryDescCPtr inp0;
-    DnnlMemoryDescCPtr inp1;
-    DnnlMemoryDescCPtr bias;
-    DnnlMemoryDescCPtr out;
-
-    std::vector<ptrdiff_t> stride;
-    std::vector<ptrdiff_t> dilation;
-    ov::CoordinateDiff paddingL;
-    ov::CoordinateDiff paddingR;
-
-    bool isInt8;
-
-    dnnl::primitive_attr attr;
-    impl_desc_type implType;
-
-    size_t hash() const;
-    bool operator==(const DeconvKey& rhs) const;
-};
-
-// Defines way to add epsilon: inside sqrt or outside.
 struct DeconvAttrs {
-    bool withBiases = false;
     std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     ov::CoordinateDiff outputPadding;
-    std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims int8WeightDims;
-    VectorDims expectedBiasDims;
-    bool withGroups = false;
-    bool isDW = false;
-    bool isInt8 = false;
-    bool autoPad = false;
-    bool externOutShape = false;
-    size_t groupNum = 1;
-    size_t IC;
-    size_t OC;
+    bool withBiasesParam = false;
 };
 
 class DeconvExecutor {

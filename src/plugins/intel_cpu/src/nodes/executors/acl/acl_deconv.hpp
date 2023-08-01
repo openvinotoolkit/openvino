@@ -64,7 +64,7 @@ public:
             return false;
         }
 
-        if (deconvAttrs.withBiases && srcDescs[2]->getPrecision() != srcDescs[0]->getPrecision()) {
+        if (deconvAttrs.withBiasesParam && srcDescs[2]->getPrecision() != srcDescs[0]->getPrecision()) {
             DEBUG_LOG("AclDeconvExecutor does not support precisions:",
                       " src[2]=", srcDescs[2]->getPrecision());
             return false;
@@ -83,7 +83,7 @@ public:
             return false;
         }
 
-        if (deconvAttrs.withBiases &&
+        if (deconvAttrs.withBiasesParam &&
             !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
               srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
               srcDescs[2]->hasLayoutType(LayoutType::ncsp) &&
@@ -109,7 +109,7 @@ public:
 
         VectorDims biasDims;
         arm_compute::TensorInfo biasTensorInfo;
-        if (deconvAttrs.withBiases) {
+        if (deconvAttrs.withBiasesParam) {
             biasDims = srcDescs[2]->getShape().getStaticDims();
             //bias presicion is I32 but ACL requests bias precision as input ones
             biasTensorInfo = arm_compute::TensorInfo(shapeCast(biasDims), 1,
@@ -150,7 +150,7 @@ public:
 
         arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
                                                                                  &weiTensorInfo,
-                                                                                 deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                                 deconvAttrs.withBiasesParam ? &biasTensorInfo : nullptr,
                                                                                  &dstTensorInfo,
                                                                                  deconv_info);
         if (!status) {

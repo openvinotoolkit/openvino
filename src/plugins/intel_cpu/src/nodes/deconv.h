@@ -85,6 +85,18 @@ private:
     // since backward one uses the reference to it as a hint
     std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
+    bool withGroups = false;
+    bool isDW = false;
+    bool isInt8 = false;
+    bool autoPad = false;
+    bool externOutShape = false;
+    size_t groupNum = 1;
+    size_t IC = 0;
+    size_t OC = 0;
+    std::vector<int32_t> lastOutputSpatialDims;
+    VectorDims int8WeightDims;
+    VectorDims expectedBiasDims {};
+
     bool useACL = false;
     DeconvAttrs deconvAttrs;
 
@@ -101,6 +113,7 @@ private:
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
+    bool withBiases = false;
     size_t biasPort;
 
     std::string errorPrefix;

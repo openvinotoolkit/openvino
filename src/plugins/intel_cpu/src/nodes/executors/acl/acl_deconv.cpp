@@ -26,7 +26,8 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
 
     VectorDims biasDims;
     TensorInfo biasTensorInfo;
-    if (deconvAttrs.withBiases) {
+
+    if (deconvAttrs.withBiasesParam) {
         biasDims = srcDescs[2]->getShape().getStaticDims();
         //bias presicion is I32 but ACL requests bias precision as input ones
         biasTensorInfo = TensorInfo(shapeCast(biasDims), 1,
@@ -50,7 +51,7 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
     arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
                                                                              &weiTensorInfo,
-                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                             deconvAttrs.withBiasesParam ? &biasTensorInfo : nullptr,
                                                                              &dstTensorInfo,
                                                                              deconv_info);
     if (!status) {
@@ -61,11 +62,11 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     weiTensor.allocator()->init(weiTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
-    if (deconvAttrs.withBiases)
+    if (deconvAttrs.withBiasesParam)
         biasTensor.allocator()->init(biasTensorInfo);
 
     deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
-    deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiases ? &biasTensor : nullptr, &dstTensor, deconv_info);
+    deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info);
 
     return true;
 }
@@ -106,14 +107,14 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
     weiTensor.allocator()->import_memory(weiBuffer.data());
-    if (deconvAttrs.withBiases)
+    if (deconvAttrs.withBiasesParam)
         biasTensor.allocator()->import_memory(src[2]->getData());
     deconv->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
     weiTensor.allocator()->free();
-    if (deconvAttrs.withBiases)
+    if (deconvAttrs.withBiasesParam)
         biasTensor.allocator()->free();
 }
 
