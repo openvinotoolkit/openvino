@@ -659,6 +659,9 @@ void primitive_inst::do_runtime_skip_reorder() {
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
+            // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
+            if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
+                continue;
             auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
             // If current node's output_node is not dynamic, the memory is already allocated at build time
             auto alloc_type = allocation_type::unknown;
@@ -685,8 +688,9 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
         return;
     }
-    if (update_shape_done_by_other)
+    if (update_shape_done_by_other) {
         return;
+    }
     if (get_users().size() != 1) return;
 
     auto concat_inst = _network.get_primitive(get_users().front()->id());
