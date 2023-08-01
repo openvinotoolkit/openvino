@@ -164,17 +164,11 @@ TEST_P(ov_compiled_model_test, set_property) {
     char* result = nullptr;
 
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    EXPECT_NE(nullptr, result);
-
-    std::string target(result);
-    int tmp = std::stoi(target);
-    tmp += 1;
-    target = std::to_string(tmp);
-
-    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, target.c_str()));
+    EXPECT_STREQ("1000", result);  // default value from /src/plugins/auto_batch/src/plugin.cpp
+    OV_EXPECT_OK(ov_compiled_model_set_property(compiled_model, key, "2000"));
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
 
-    EXPECT_STREQ(target.c_str(), result);
+    EXPECT_STREQ("2000", result);
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
