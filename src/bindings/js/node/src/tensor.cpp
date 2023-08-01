@@ -9,21 +9,16 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     if (info.Length() != 3 && info.Length() != 0)  // default contructor takes 0 args
         reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
     else if (info.Length() == 3) {
-        if (!info[2].IsTypedArray() || (info[2].As<Napi::TypedArray>().TypedArrayType() != napi_float32_array)) {
-            reportError(info.Env(), "Third argument of a tensor must be of type Float32Array.");
+        if (!info[2].IsTypedArray()) {
+            reportError(info.Env(), "Third argument of a tensor must be of type TypedArray.");
             return;
         }
         try {
-            auto arr = info[2].As<Napi::Float32Array>();
-            auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
-            auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
-            ov::Shape shape = ov::Shape(shape_vec);
-            ov::Tensor tensor = ov::Tensor(type, shape);
-            if (tensor.get_byte_size() == arr.ByteLength())
-                std::memcpy(tensor.data(), arr.Data(), arr.ByteLength());
-            else
-                reportError(info.Env(), "Shape and Float32Array size mismatch");
-            this->_tensor = tensor;
+            const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+            const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
+            const auto& shape = ov::Shape(shape_vec); 
+            const auto data = info[2].As<Napi::TypedArray>();           
+            this->_tensor = cast_to_tensor(data, shape, type);
 
         } catch (std::invalid_argument& e) {
             reportError(info.Env(), std::string("Invalid tensor argument. ") + e.what());

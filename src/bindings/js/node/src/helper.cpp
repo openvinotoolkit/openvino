@@ -173,8 +173,23 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor value_to_tensor(Napi::Object obj) {
+ov::Tensor cast_to_tensor(Napi::Object obj) {
     // Check of object type
     auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();
+}
+
+ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const ov::element::Type_t& type) {
+    if (data.TypedArrayType() == napi_float32_array) {
+        auto arr = data.As<Napi::Float32Array>();
+        auto tensor = ov::Tensor(type, shape);
+        if (tensor.get_byte_size() == arr.ByteLength()) {
+            std::memcpy(tensor.data(), arr.Data(), arr.ByteLength());
+        } else {
+            throw std::invalid_argument("Shape and TypedArray size mismatch");
+        }
+        return tensor;
+    } else {
+        throw std::invalid_argument("Invalid type of TypedArray.");
+    }
 }
