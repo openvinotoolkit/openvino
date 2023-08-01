@@ -313,7 +313,7 @@ void memory_pool::dump(uint32_t net_id) {
             GPU_DEBUG_COUT << "   -- " << user._id << std::endl;
         }
     }
-    std::cout << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
+    GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
     for (auto mem : _padded_pool) {
         GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << std::endl;
         for (auto record : mem.second) {
