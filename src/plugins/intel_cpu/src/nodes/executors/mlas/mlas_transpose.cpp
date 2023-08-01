@@ -299,7 +299,7 @@ bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeP
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
-    if (!one_of(srcDescs[0]->getPrecision().size(), 1, 2, 4, 8)) {
+    if (!one_of(srcDescs[0]->getPrecision().size(), 1u, 2u, 4u, 8u)) {
         DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
         return false;
     }
