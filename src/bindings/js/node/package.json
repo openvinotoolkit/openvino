@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "license": "Apache-2.0",
-  "main": "dist/index.js",
-  "types": "./types/index.d.ts",
+  "main": "build/Release/ov_node_addon.node",
+  "types": "@types/openvino-node-addon.d.ts",
   "scripts": {
     "build": "node-gyp build",
     "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}",
@@ -30,8 +30,5 @@
   "engines": {
     "node": ">=18.16.0"
   },
-  "gypfile": true,
-  "engines": {
-    "node": ">=18.16.0"
-  }
+  "gypfile": true
 }
