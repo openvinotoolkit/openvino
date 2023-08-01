@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
@@ -49,8 +49,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
+                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,

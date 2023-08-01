@@ -28,16 +28,16 @@ void DetectionOutputBase::validate_base(const DetectionOutputBase::AttributesBas
     auto box_logits_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           box_logits_et.is_real(),
-                          "Box logits' data type must be floating point. Got " + box_logits_et.get_type_name());
+                          "Box logits' data type must be floating point. Got " + box_logits_et.to_string());
     auto class_preds_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           class_preds_et == box_logits_et,
                           "Class predictions' data type must be the same as box logits type (" +
-                              box_logits_et.get_type_name() + "). Got " + class_preds_et.get_type_name());
+                              box_logits_et.to_string() + "). Got " + class_preds_et.to_string());
     auto proposals_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           proposals_et.is_real(),
-                          "Proposals' data type must be floating point. Got " + proposals_et.get_type_name());
+                          "Proposals' data type must be floating point. Got " + proposals_et.to_string());
 
     if (get_input_size() == 5) {
         auto aux_class_preds_et = get_input_element_type(3);
@@ -45,12 +45,12 @@ void DetectionOutputBase::validate_base(const DetectionOutputBase::AttributesBas
                               aux_class_preds_et == class_preds_et,
                               "Additional class predictions' data type must be the same as class "
                               "predictions data type (" +
-                                  class_preds_et.get_type_name() + "). Got " + aux_class_preds_et.get_type_name());
+                                  class_preds_et.to_string() + "). Got " + aux_class_preds_et.to_string());
         auto aux_box_preds_et = get_input_element_type(4);
         NODE_VALIDATION_CHECK(this,
                               aux_box_preds_et == box_logits_et,
                               "Additional box predictions' data type must be the same as box logits data type (" +
-                                  box_logits_et.get_type_name() + "). Got " + aux_box_preds_et.get_type_name());
+                                  box_logits_et.to_string() + "). Got " + aux_box_preds_et.to_string());
     }
 }
 

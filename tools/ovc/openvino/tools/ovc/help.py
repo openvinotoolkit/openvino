@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 def get_convert_model_help_specifics():
-    from openvino.tools.ovc.cli_parser import CanonicalizePathCheckExistenceAction, CanonicalizeExtensionsPathCheckExistenceAction, \
-        readable_file_or_dir, readable_dirs_or_files_or_empty
+    from openvino.tools.ovc.cli_parser import CanonicalizePathCheckExistenceAction, readable_dirs_or_files_or_empty, readable_files_or_empty
     from openvino.tools.ovc.version import VersionChecker
     return {
         'input_model':
@@ -12,7 +11,7 @@ def get_convert_model_help_specifics():
                  'Use openvino.convert_model in Python to convert models from Pytorch.'
                  '',
              'action': CanonicalizePathCheckExistenceAction,
-             'type': readable_file_or_dir,
+             'type': readable_dirs_or_files_or_empty,
              'aliases': {}},
         'input_shape':
             {'description':
@@ -73,7 +72,7 @@ def get_convert_model_help_specifics():
                  'transform "MakeStateful[param_res_names= {\'input_name_1\':'
                  '\'output_name_1\',\'input_name_2\':\'output_name_2\'}]\" \n'
                  'Available transformations: "LowLatency2", "MakeStateful", "Pruning"'},
-        'extensions':
+        'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
                  '(.so or .dll) with extensions. For the legacy MO path '
@@ -81,21 +80,10 @@ def get_convert_model_help_specifics():
                  'comma-separated list of directories with extensions '
                  'are supported. To disable all extensions including '
                  'those that are placed at the default location, pass an empty string.',
-             'action': CanonicalizeExtensionsPathCheckExistenceAction,
-             'type': readable_dirs_or_files_or_empty},
+             'action': CanonicalizePathCheckExistenceAction,
+             'type': readable_files_or_empty},
         'version':
             {'action': 'version',
             #FIXME: Why the following is not accessible from arg parser?
              'version': 'OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version())},
-    }
-
-
-# TODO: remove this when internal converting of params to string is removed <-- DO IT
-def get_to_string_methods_for_params():
-    from openvino.tools.ovc.cli_parser import path_to_str_or_object, str_list_to_str, extensions_to_str_or_extensions_class
-    return {
-        'input_model': path_to_str_or_object,
-        'output': str_list_to_str,
-        'extensions': extensions_to_str_or_extensions_class,
-        'saved_model_tags': str_list_to_str
     }

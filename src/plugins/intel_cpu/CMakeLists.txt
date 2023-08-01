@@ -20,6 +20,21 @@ elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
+if(ARM)
+    set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
+else()
+    if(APPLE)
+        # Apple M1 / M2 is assumed
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
+        add_definitions(-DOV_CPU_ARM_ENABLE_FP16)
+    else()
+        set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8a)
+    endif()
+endif()
+set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
+
+# enbale mlas for X86 cpus only
+ie_dependent_option(ENABLE_MLAS_FOR_CPU "MLAS GEMM for OpenVINO CPU Plugin" ON "X86 OR X86_64" OFF)
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -64,6 +79,10 @@ if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*)
 endif()
 
+if (NOT ENABLE_MLAS_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
+endif()
+
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
 list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
 list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
@@ -94,8 +113,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE dnnl
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+if (ENABLE_MLAS_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE mlas)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    add_definitions(-DOV_CPU_WITH_MLAS)
+endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -133,6 +156,10 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    
+    if(ENABLE_MLAS_FOR_CPU)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    endif()
 
     set_ie_threading_interface_for(${TARGET_NAME}_obj)
 

@@ -175,7 +175,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
 #endif // OPENVINO_ARCH_X86_64
-        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::FP16 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);

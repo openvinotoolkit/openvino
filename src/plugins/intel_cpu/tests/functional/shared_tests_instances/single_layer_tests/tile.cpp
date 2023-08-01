@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Tile, TileLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(inputShapes),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         TileLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_PrecTransformation, TileLayerTest,
@@ -60,7 +60,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PrecTransformation, TileLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(inputShapes[0]),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         TileLayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> repeats6D = {
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Tile6d, TileLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 4, 3, 1, 3, 1})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         TileLayerTest::getTestCaseName);
 
 }  // namespace

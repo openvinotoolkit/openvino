@@ -40,7 +40,7 @@ namespace {
                             /* start_value */ testing::Values<int64_t>(0),
                             /* data_shape */ testing::ValuesIn(inputs_0),
                             /* data_prc */ testing::ValuesIn(netPrecisions),
-                            /* device */ testing::Values<std::string>(CommonTestUtils::DEVICE_GPU),
+                            /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                             /* configuration */ testing::Values<std::map<std::string, std::string>>(netConfigurations)),
                             StaticShapeLoopTest::getTestCaseName);
 
@@ -62,7 +62,7 @@ namespace {
                             /* start_value */ testing::Values<int64_t>(0),
                             /* data_shape */ testing::ValuesIn(inputs_1),
                             /* data_prc */ testing::ValuesIn(netPrecisions),
-                            /* device */ testing::Values<std::string>(CommonTestUtils::DEVICE_GPU),
+                            /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                             /* configuration */ testing::Values<std::map<std::string, std::string>>(netConfigurations)),
                             StaticShapeLoopTest::getTestCaseName);
 
@@ -84,7 +84,7 @@ namespace {
                             /* start_value */ testing::Values<int64_t>(0),
                             /* data_shape */ testing::ValuesIn(inputs_2),
                             /* data_prc */ testing::ValuesIn(netPrecisions),
-                            /* device */ testing::Values<std::string>(CommonTestUtils::DEVICE_GPU),
+                            /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                             /* configuration */ testing::Values<std::map<std::string, std::string>>(netConfigurations)),
                             StaticShapeLoopTest::getTestCaseName);
 
@@ -106,7 +106,7 @@ namespace {
                             /* start_value */ testing::Values<int64_t>(0),
                             /* data_shape */ testing::ValuesIn(inputs_no_auto_concat),
                             /* data_prc */ testing::ValuesIn(netPrecisions),
-                            /* device */ testing::Values<std::string>(CommonTestUtils::DEVICE_GPU),
+                            /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                             /* configuration */ testing::Values<std::map<std::string, std::string>>(netConfigurations)),
                             StaticShapeLoopTest::getTestCaseName);
 
@@ -133,7 +133,7 @@ namespace {
                             /* start_value */ testing::Values<int64_t>(0),
                             /* data_shape */ testing::ValuesIn(inputs_dynamic_exit),
                             /* data_prc */ testing::ValuesIn(netPrecisions),
-                            /* device */ testing::Values<std::string>(CommonTestUtils::DEVICE_GPU),
+                            /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                             /* configuration */ testing::Values<std::map<std::string, std::string>>(netConfigurations)),
                             StaticShapeLoopTest::getTestCaseName);
 
