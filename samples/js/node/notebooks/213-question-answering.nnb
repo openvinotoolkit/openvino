@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
+                "const {\n  exp,\n  sum,\n  tril,\n  triu,\n  argMax,\n  reshape,\n  getShape,\n  downloadFile,\n  extractValues,\n  matrixMultiplication,\n} = require('../helpers.js');\nconst tokens = require('./tokens_bert.js');\nconst { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },
@@ -74,12 +74,6 @@
                             "mime": "application/vnd.code.notebook.stdout",
                             "value": [
                                 "=== Model Inputs:",
-                                "input_ids",
-                                "attention_mask",
-                                "token_type_ids",
-                                "position_ids",
-                                "=== Model Outputs:",
-                                "output_s",
                                 "output_e",
                                 ""
                             ]
@@ -186,8 +180,8 @@
                                 "Context: Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.",
                                 "Question: What is the term for a task that generally lends itself to being solved by a computer?",
                                 "Answer: A computational problem",
-                                "Score: 0.5169314246438148",
-                                "Time: 0.100610685s",
+                                "Score: 0.5520997552420539",
+                                "Time: 0.057562715s",
                                 ""
                             ]
                         }

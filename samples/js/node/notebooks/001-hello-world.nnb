@@ -17,7 +17,7 @@
         {
             "language": "javascript",
             "source": [
-                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n// Later user would be able to download ov_node_addon using npm\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');  "
+                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { getImageData, displayImage, downloadFile } = require('../helpers.js');\n// Later user would be able to download ov_node_addon using npm\n\nconst { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },

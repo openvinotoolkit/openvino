@@ -1,5 +1,5 @@
-const ov = require(
-  '../node_modules/openvinojs-node/build/Release/ov_node_addon.node');
+const { addon: ov } = require('openvinojs-node');
+
 const fs = require('fs');
 const cv2 = require('opencv.js');
 const {
