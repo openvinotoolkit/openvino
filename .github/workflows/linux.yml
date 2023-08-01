@@ -777,5 +777,8 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ github.workspace }}/logs
+            ${{ github.workspace }}/test_cache.lst
           if-no-files-found: 'error'
