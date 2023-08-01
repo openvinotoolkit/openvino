@@ -416,7 +416,7 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
     {
         auto input = std::make_shared<v0::Parameter>(element::f32, input_shape);
 
-        auto shapeof1 = std::make_shared<v0::ShapeOf>(input);
+        auto shapeof1 = std::make_shared<v3::ShapeOf>(input, element::i64);
         auto shapeof2_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
 
         auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);

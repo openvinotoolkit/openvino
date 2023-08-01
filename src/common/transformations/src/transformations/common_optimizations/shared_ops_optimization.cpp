@@ -36,6 +36,10 @@ bool type_in_rules(const rules_t& rules, Node::type_info_t& type) {
     return false;
 }
 
+bool greater_type_info(const ov::Node* lhs, const ov::Node* rhs) {
+    return lhs->get_type_info() > rhs->get_type_info();
+}
+
 bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rules) {
     bool rewritten = false;
 
@@ -61,9 +65,11 @@ bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rul
                 }
             }
             for (auto& item : type_to_node) {
-                const auto& shared_nodes = item.second;
+                auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
+                // give higher priority for nodes of later versions to become root nodes
+                std::sort(shared_nodes.begin(), shared_nodes.end(), greater_type_info);
                 const auto& ops_type = item.first;
                 const auto& are_equal = rules.at(ops_type);
 
