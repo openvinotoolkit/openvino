@@ -180,16 +180,17 @@ ov::Tensor cast_to_tensor(Napi::Object obj) {
 }
 
 ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const ov::element::Type_t& type) {
-    if (data.TypedArrayType() == napi_float32_array) {
-        auto arr = data.As<Napi::Float32Array>();
-        auto tensor = ov::Tensor(type, shape);
-        if (tensor.get_byte_size() == arr.ByteLength()) {
-            std::memcpy(tensor.data(), arr.Data(), arr.ByteLength());
-        } else {
-            throw std::invalid_argument("Shape and TypedArray size mismatch");
-        }
-        return tensor;
-    } else {
-        throw std::invalid_argument("Invalid type of TypedArray.");
+    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
+    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
+    if (data.ByteOffset() != 0) {
+        throw std::invalid_argument("TypedArray.byteOffset has to be equal to zero.");
     }
+    auto array_buffer = data.ArrayBuffer();
+    auto tensor = ov::Tensor(type, shape);
+    if (tensor.get_byte_size() == array_buffer.ByteLength()) {
+        std::memcpy(tensor.data(), array_buffer.Data(), array_buffer.ByteLength());
+    } else {
+        throw std::invalid_argument("Memory allocated using shape and element::type mismatch passed data's size");
+    }
+    return tensor;
 }

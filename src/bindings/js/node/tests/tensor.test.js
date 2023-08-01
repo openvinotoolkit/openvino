@@ -6,7 +6,6 @@ test('Test for number of arguments in tensor', () => {
 
 describe('Tensor data', () => {
 
-    // Add tests for different types of TypedArray
     test('Set tensor data with Float32Array', () => {
         const data = Float32Array.from({length: 150528}, () => Math.random() ); //fill with random data
         var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], data);
@@ -31,7 +30,7 @@ describe('Tensor data', () => {
         const view = new Float32Array(buffer);
         const data = Float32Array.from({length: 150528}, () => Math.random() );
         view.set(data);
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], view)).toThrow('Invalid tensor argument. Shape and TypedArray size mismatch');
+        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], view)).toThrow('Invalid tensor argument. Memory allocated using shape and element::type mismatch passed data\'s size');
     });
 
     test('Expect Javascript to throw error when Arraybuffer is too small', () => {
