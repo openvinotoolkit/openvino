@@ -1806,6 +1806,11 @@ void Graph::EnforceInferencePrecision() {
             if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
                 continue;
 
+            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            const auto &child = node->getChildEdgesAtPort(i)[0]->getChild();
+            if (child->getType() == Type::Range && node->getType() == Type::Convert)
+                continue;
+
             node->setOriginalOutputPrecisionAtPort(i, inferPrec);
         }
     }
