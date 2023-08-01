@@ -10,14 +10,6 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-struct ACLDeconvTensorInfo {
-    TensorInfo srcTensorInfo;
-    TensorInfo weiTensorInfo;
-    TensorInfo biasTensorInfo;
-    TensorInfo dstTensorInfo;
-    PadStrideInfo deconv_info;
-};
-
 ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) {

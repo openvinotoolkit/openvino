@@ -12,6 +12,18 @@
 namespace ov {
 namespace intel_cpu {
 
+struct ACLDeconvTensorInfo {
+    arm_compute::TensorInfo srcTensorInfo;
+    arm_compute::TensorInfo weiTensorInfo;
+    arm_compute::TensorInfo biasTensorInfo;
+    arm_compute::TensorInfo dstTensorInfo;
+    arm_compute::PadStrideInfo deconv_info;
+};
+
+ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
+                                       const std::vector<MemoryDescPtr>& srcDescs,
+                                       const std::vector<MemoryDescPtr>& dstDescs);
+
 class AclDeconvExecutor : public DeconvExecutor {
 public:
     explicit AclDeconvExecutor(const ExecutorContext::CPtr context);
