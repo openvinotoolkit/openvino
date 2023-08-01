@@ -177,6 +177,8 @@ void parse_processor_info_win(const char* base_ptr,
                     _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
                     _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group;
                     _cpu_mapping_table[list[m] + base_proc][CPU_MAP_USED_FLAG] = CPU_BLOCKED;
+                    _processors--;
+                    _cores--;
                 }
                 group++;
             } else if (1 == list_len) {
