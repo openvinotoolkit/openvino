@@ -8,7 +8,7 @@ import pytest
 
 from tests import xfail_issue_99962
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import (
+from tests.tests_python.utils import (
     run_node,
     import_onnx_model,
 )
