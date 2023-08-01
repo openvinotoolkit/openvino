@@ -63,8 +63,11 @@ TEST(kernel_impl_params_relevance, weights_layout) {
     auto fc_inst = std::dynamic_pointer_cast<fully_connected_inst>(inst);
     ASSERT_TRUE(fc_inst != nullptr);
 
-    // 6. Requset instance's weights memory, compare it with original weights buffer and check
+    // 6. The weight memory of fc node is reordered at build time for fully_connected_gpu_bf_tiled kernel
+    ASSERT_EQ(fc_inst->get_node().get_dependency(1).get_output_layout().format, format::os_iyx_osv16);
+
+    // 7. Requset instance's weights memory, compare it with original weights buffer and check
     //    if original layout is used (required for `fully_connected_gpu_bfyx_ref` kernel)
     auto used_weights_memory = fc_inst->weights_memory()->get_layout();
-    ASSERT_EQ(weights_data->get_layout(), used_weights_memory);
+    ASSERT_EQ(weights_data->get_layout().compatible(used_weights_memory), true);
 }

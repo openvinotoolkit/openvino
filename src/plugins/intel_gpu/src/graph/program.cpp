@@ -157,6 +157,7 @@ program::program(engine& engine_ref,
       _config(config),
       _task_executor(task_executor),
       processing_order(),
+      is_internal(is_internal),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
@@ -181,7 +182,8 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(task_executor),
-      processing_order() {
+      processing_order(),
+      is_internal(is_internal) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
