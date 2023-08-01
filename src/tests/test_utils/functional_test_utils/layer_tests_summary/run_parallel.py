@@ -48,6 +48,7 @@ def parse_arguments():
     working_dir_num_help = "Working dir"
     process_timeout_help = "Process timeout in s"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
+    split_unit_help = "Split by test or suite"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
@@ -55,6 +56,7 @@ def parse_arguments():
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
+    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="test")
     return parser.parse_args()
 
 def get_test_command_line_args():
@@ -81,7 +83,7 @@ def get_device_by_args(args: list):
             break
     return device
 
-# Class to read test cache    
+# Class to read test cache
 class TestStructure:
     _name = ""
     _time = 0
@@ -146,7 +148,7 @@ class TaskManager:
             # logger.warning(f"Impossible to kill process {pid} with error: {err}")
             pass
 
-    
+
     def __find_free_process(self):
         while True:
             for pid in range(len(self._process_list)):
@@ -183,8 +185,8 @@ class TaskManager:
             self._timers[pid] = datetime.datetime.now()
         self._idx += 1
         return True
-    
-    def compelete_all_processes(self):        
+
+    def compelete_all_processes(self):
         while len(self._process_list) > 0:
             for pid in range(len(self._process_list)):
                 try:
@@ -203,7 +205,7 @@ class TaskManager:
         return self._idx
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, is_parallel_devices=False):
+    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, split_unit: str, is_parallel_devices=False):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
@@ -218,13 +220,14 @@ class TestParallelRunner:
         if not os.path.exists(head):
             os.mkdir(head)
         self._is_save_cache = True
+        self._split_unit = split_unit
         self._disabled_tests = list()
         self._total_test_cnt = 0
         self._device = get_device_by_args(self._command.split())
         self._available_devices = [self._device] if not self._device is None else []
         if has_python_api and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
-            
+
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -243,7 +246,7 @@ class TestParallelRunner:
                     buf = file_utils.prepare_filelist(input_path, ["*.xml"])
                     self._conformance_ir_filelists.append(buf)
                     buf += ","
-                argument = buf 
+                argument = buf
             else:
                 is_input_folder = False
                 command += f" "
@@ -283,13 +286,15 @@ class TestParallelRunner:
                     continue
                 if not ' ' in test_name:
                     test_suite = test_name
+                    if (self._split_unit == "suite") :
+                    	test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*')
                     continue
                 pos = test_name.find('#')
                 if pos > 0 or test_suite != "":
                     real_test_name = test_suite + (test_name[2:pos-2] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
-                    else:
+                    elif (self._split_unit == "test") :
                         test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
             test_list_file.close()
         os.remove(test_list_file_name)
@@ -297,7 +302,9 @@ class TestParallelRunner:
         if len(test_list) == 0:
             logger.warning(f"Look like there are not tests to run! Please check the filters!")
             exit(0)
-        return test_list
+        # remove duplicates
+        test_set = [*set(test_list)]
+        return test_set
 
     def __get_test_list_by_cache(self):
         test_list_cache = list()
@@ -340,7 +347,7 @@ class TestParallelRunner:
             if proved_test_list[i]._time == -1:
                 idx = i
                 break
-        
+
         # Run crashed tests in a separed thread
         if idx < len(proved_test_list):
             while proved_test_list[idx]._time == -1:
@@ -404,15 +411,15 @@ class TestParallelRunner:
             self._total_test_cnt += cnt
             # logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
-            
+
     def __get_filters(self):
         if not os.path.isfile(self._exec_file_path):
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
-        
+
         test_list_runtime = self.__get_test_list_by_runtime()
         test_list_cache = self.__get_test_list_by_cache()
-        
+
         cached_test_list, runtime_test_list = self.__generate_test_lists(test_list_cache, test_list_runtime)
 
         if len(cached_test_list) > 0:
@@ -424,7 +431,7 @@ class TestParallelRunner:
             runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
-        
+
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
         commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
         tmp_log_dir = os.path.join(self._working_dir, "temp")
@@ -477,7 +484,7 @@ class TestParallelRunner:
         if len(self._available_devices) > 1:
             logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
         t_start = datetime.datetime.now()
-        
+
         filters_cache, filters_runtime = self.__get_filters()
 
         worker_cnt = 0
@@ -673,7 +680,7 @@ class TestParallelRunner:
                                 xml_file = correct_ir
                                 bin_file = prefix + constants.BIN_EXTENSION
                                 meta_file = prefix + constants.META_EXTENSION
-                                
+
                                 failed_ir_xml = xml_file.replace(head, failed_ir_dir)
                                 failed_ir_bin = bin_file.replace(head, failed_ir_dir)
                                 failed_ir_meta = meta_file.replace(head, failed_ir_dir)
@@ -738,9 +745,10 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --cache_path={args.cache_path}")
     logger.info(f"[ARGUMENTS] --workers={args.workers}")
     logger.info(f"[ARGUMENTS] --parallel_devices={args.parallel_devices}")
+    logger.info(f"[ARGUMENTS] --split_unit={args.split_unit}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.parallel_devices)
+    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.parallel_devices)
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
