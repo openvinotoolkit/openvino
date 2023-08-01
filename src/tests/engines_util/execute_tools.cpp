@@ -14,28 +14,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace ov {
-TestOpMultiOut::TestOpMultiOut(const Output<Node>& output_1, const Output<Node>& output_2) : Op({output_1, output_2}) {
-    validate_and_infer_types();
-}
-
-void TestOpMultiOut::validate_and_infer_types() {
-    set_output_size(2);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-    set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
-}
-
-std::shared_ptr<Node> TestOpMultiOut::clone_with_new_inputs(const OutputVector& new_args) const {
-    return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
-}
-
-bool TestOpMultiOut::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
-    inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());
-    return true;
-};
-}  // namespace ov
-
 // This function traverses the vector of ops and verifies that each op's dependencies (its inputs)
 // is located earlier in the vector. That is enough to be valid
 bool validate_list(const vector<shared_ptr<Node>>& nodes) {
