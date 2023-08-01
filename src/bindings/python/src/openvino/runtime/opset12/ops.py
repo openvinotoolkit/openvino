@@ -15,7 +15,6 @@ from openvino.runtime.utils.types import (
     as_node,
 )
 
-_get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 _get_node_factory_opset12 = partial(_get_node_factory, "opset12")
 
 
