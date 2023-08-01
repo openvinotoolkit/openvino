@@ -125,10 +125,10 @@ template <typename KeyType>
 ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key) {
     if (value.IsTypedArray()) {
         const auto arr = value.As<Napi::Float32Array>();
-        auto input = get_request_tensor(infer_request, key);
+        const auto input = get_request_tensor(infer_request, key);
         const auto& shape = input.get_shape();
         const auto& type = input.get_element_type();
-        ov::Tensor tensor = ov::Tensor(type, shape);
+        auto tensor = ov::Tensor(type, shape);
         if (tensor.get_byte_size() == arr.ByteLength())
             std::memcpy(tensor.data(), arr.Data(), arr.ByteLength());
 

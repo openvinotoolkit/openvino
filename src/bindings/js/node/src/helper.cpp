@@ -8,7 +8,7 @@
 #include "tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
-    static std::vector<std::string> supported_element_types = {"i8"
+    static const std::vector<std::string> supported_element_types = {"i8"
                                                                "u8",
                                                                "i16",
                                                                "u16",
@@ -136,8 +136,8 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
     if (!acceptableType(elem, acceptable_types))
         throw std::invalid_argument(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
     const std::string type = elem.ToString();
-    auto et = get_supported_types();
-    if (std::find(et.begin(), et.end(), type) == et.end())
+    const auto& types = get_supported_types();
+    if (std::find(types.begin(), types.end(), type) == types.end())
         throw std::invalid_argument(std::string("Cannot create ov::element::Type"));
 
     return static_cast<ov::element::Type_t>(ov::element::Type(type));
