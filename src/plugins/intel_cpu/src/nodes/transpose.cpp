@@ -154,7 +154,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
         }
         auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams, srcMemoryDescs, dstMemoryDescs, transpose_context);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, factory});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::undef, factory});
     };
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
@@ -241,6 +241,7 @@ void Transpose::prepareParams() {
                                                                                                   {srcDesc},
                                                                                                   {dstDesc},
                                                                                                   attr);
+        selectedPD->setImplementationType(jitExec->getImplType());
         return jitExec;
     };
 
