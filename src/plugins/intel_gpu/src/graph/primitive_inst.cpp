@@ -590,12 +590,12 @@ bool primitive_inst::update_impl() {
         }
         if (!cached_impl) {
             if (_dynamic_impl) {
-                auto use_async_compilation = [&]() {
+                auto use_async_compilation = [&updated_params_no_dyn_pad]() {
                     GPU_DEBUG_GET_INSTANCE(debug_config);
                     GPU_DEBUG_IF(debug_config->disable_async_compilation) {
                         return false;
                     }
-                    return true;
+                    return updated_params_no_dyn_pad.desc->type_string().compare("fully_connected") == 0;
                 };
                 if (use_async_compilation()) {
                     auto& compilation_context = get_network().get_program()->get_compilation_context();
@@ -611,10 +611,12 @@ bool primitive_inst::update_impl() {
                                 return;
                         }
 
-                        auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                         if (!can_be_optimized()) {
-                            auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
-                            impl->set_kernels(kernels);
+                            auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                            if (impl->get_kernels_source().size() > 0) {
+                                auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
+                                impl->set_kernels(kernels);
+                            }
                             cache.add(updated_params_no_dyn_pad, impl->clone());
                         }
                     });

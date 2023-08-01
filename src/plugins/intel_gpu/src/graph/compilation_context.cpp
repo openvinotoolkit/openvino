@@ -13,7 +13,7 @@ namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
     CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
-        _task_executor_config._streams = 4;
+        _task_executor_config._streams = 1;
         _task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(_task_executor_config);
     }
 
