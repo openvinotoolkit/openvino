@@ -303,8 +303,6 @@ def test_unload_plugin(device):
 
 
 @pytest.mark.template_plugin()
-@pytest.mark.skip(reason="Sporadically failed on mac with error:  Cannot add extension."
-                         "Cannot find entry point to the extension library")
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)
