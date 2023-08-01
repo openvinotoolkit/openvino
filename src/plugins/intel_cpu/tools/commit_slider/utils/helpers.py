@@ -101,10 +101,10 @@ def absolutizePaths(cfg):
         path = cfg[item]
         path = os.path.abspath(path)
         cfg[item] = path
-    if "preprocess" in cfg["runConfig"]:
+    if "preprocess" in cfg["runConfig"] and "file" in cfg["runConfig"]["preprocess"]:
         prepFile = cfg["runConfig"]["preprocess"]["file"]
         prepFile = os.path.abspath(prepFile)
-        cfg["runConfig"]["preprocommArgcess"]["file"] = prepFile
+        cfg["runConfig"]["preprocess"]["file"] = prepFile
     if "envVars" in cfg:
         updatedEnvVars = []
         for env in cfg["envVars"]:
@@ -176,7 +176,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     "utils.preprocess.{pp}".format(pp=prePrName)
                 )
                 preProcess = getattr(mod, prePrName)
-                preProcess(cfgData)
+                preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
