@@ -88,7 +88,7 @@ public:
     void update_output_memory() override;
     bool requires_reinterpret() const {
         if (input_memory().get_layout() != _impl_params->get_output_layout()) {
-            return true;
+            _req_reinterpr = true;
         }
         return _req_reinterpr;
     }
