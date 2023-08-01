@@ -4,6 +4,7 @@
 
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/concat.hpp>
+#include <openvino/op/convert.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/gather_elements.hpp>
 #include <openvino/op/reshape.hpp>
@@ -166,6 +167,15 @@ bool gathers_are_equal(const Node* lhs, const Node* rhs) {
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
+bool converts_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_convert = as_type<const v0::Convert>(lhs);
+    const auto r_convert = as_type<const v0::Convert>(rhs);
+    if (!l_convert || !r_convert)
+        return false;
+    return l_convert->get_destination_type() == r_convert->get_destination_type() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
 #define RECORD_NO_ATTRIBUTES(operation) \
@@ -182,6 +192,7 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),
+        RECORD(v0::Convert, converts_are_equal),
         RECORD(v6::GatherElements, gather_elements_are_equal),
         RECORD(v1::Reshape, reshapes_are_equal),
         RECORD(op::util::ShapeOfBase, shapeof_are_equal),

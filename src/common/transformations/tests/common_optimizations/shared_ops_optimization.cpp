@@ -299,18 +299,14 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTest) {
         auto shapeof2_i64 = std::make_shared<v3::ShapeOf>(input, element::i64);
 
         auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof4_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof6_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof7_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
 
         OutputVector inputs_of_concat{shapeof1_i32_convert,
                                       shapeof2_i64,
-                                      shapeof3_i32_convert,
-                                      shapeof4_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
                                       shapeof2_i64,
-                                      shapeof6_i32_convert,
-                                      shapeof7_i32_convert};
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert};
 
         auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
         model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
@@ -376,16 +372,12 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestI32Only) {
         auto shapeof1_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
 
         auto shapeof1_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof2_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof4_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
-        auto shapeof5_i32_convert = std::make_shared<v0::Convert>(shapeof1_i32, element::i64);
 
         OutputVector inputs_of_concat{shapeof1_i32_convert,
-                                      shapeof2_i32_convert,
-                                      shapeof3_i32_convert,
-                                      shapeof4_i32_convert,
-                                      shapeof5_i32_convert};
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert,
+                                      shapeof1_i32_convert};
 
         auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
         model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
@@ -428,16 +420,14 @@ TEST_F(SharedTransformationTestsF, SharedShapeOfTestMixed) {
         auto shapeof2_i32 = std::make_shared<v3::ShapeOf>(input, element::i32);
 
         auto shapeof3_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);
-        auto shapeof6_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);
-        auto shapeof7_i32_convert = std::make_shared<v0::Convert>(shapeof2_i32, element::i64);
 
         OutputVector inputs_of_concat{shapeof1,
                                       shapeof1,
                                       shapeof3_i32_convert,
                                       shapeof1,
                                       shapeof1,
-                                      shapeof6_i32_convert,
-                                      shapeof7_i32_convert};
+                                      shapeof3_i32_convert,
+                                      shapeof3_i32_convert};
 
         auto concat = std::make_shared<v0::Concat>(inputs_of_concat, 0);
         model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
