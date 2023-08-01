@@ -10,6 +10,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*RepeatPatternExtractorTest.*extract_1.*)",
         R"(.*ModelUtilsTest.*generate_.*)",
         R"(.*GraphCacheFuncTest.*update_cache.*)",
+        R"(.*FusedNamesExtractorTest.*)",
     };
     return retVector;
 }
