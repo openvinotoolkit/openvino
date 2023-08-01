@@ -76,6 +76,7 @@ protected:
 }  // namespace runtime
 }  // namespace ngraph
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ov {
 template <>
 class NGRAPH_API AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>
@@ -85,5 +86,6 @@ public:
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>");
 };
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 }  // namespace ov

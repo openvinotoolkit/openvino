@@ -355,6 +355,7 @@ TEST_F(TypePropEyeV9Test, default_ctor) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
     auto op = make_op();
     op->set_out_type(element::i32);

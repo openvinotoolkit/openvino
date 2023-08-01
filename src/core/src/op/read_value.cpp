@@ -97,8 +97,8 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
 
     // initial value (inputs[0]) is not supported, use zeros
     auto zero_const = make_shared<v0::Constant>(inputs[0]->get_element_type(), inputs[0]->get_shape(), 0);
-    auto zero_tensor = make_shared<HostTensor>(zero_const);
     OPENVINO_SUPPRESS_DEPRECATED_START
+    auto zero_tensor = make_shared<HostTensor>(zero_const);
     const auto& input_tensor = use_context ? var_value->second->get_value() : zero_tensor;
     OPENVINO_SUPPRESS_DEPRECATED_END
     outputs[0]->set_unary(input_tensor);

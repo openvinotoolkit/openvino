@@ -100,11 +100,13 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
     auto output_type = shape_of_node->get_output_element_type(0);
     if (partial_shape.is_static()) {
         auto arg_shape = shape_of_input.get_shape();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto result_tensor = make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
         if (evaluate_shape_of(result_tensor, make_shared<HostTensor>(output_type, partial_shape))) {
             replacement = make_shared<op::Constant>(result_tensor);
             return true;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return false;
     }
     return false;

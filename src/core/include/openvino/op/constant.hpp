@@ -38,7 +38,9 @@ public:
 
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
+    OPENVINO_SUPPRESS_DEPRECATED_START
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// \brief Initialize a constant from ov::Tensor
     /// \param tensor The ov::Tensor with data
@@ -782,7 +784,9 @@ private:
 
     element::Type m_element_type;
     Shape m_shape{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;

@@ -680,7 +680,6 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
                         const EvaluationContext& evaluationContext) const {
     return evaluate(output_values, input_values);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -711,7 +710,6 @@ protected:
 };
 
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (ov::util::is_dynamic_shape(t.get_shape())) {
@@ -719,7 +717,6 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
@@ -750,9 +747,7 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     if (sts)
         update_output_tensors(output_values, output);
     return sts;
@@ -764,14 +759,13 @@ bool ov::Node::evaluate(ov::TensorVector& output_values,
     // Call evaluate for old implementation with EvaluationContext
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     if (sts)
         update_output_tensors(output_values, output);
     // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
     return sts ? sts : evaluate(output_values, input_values);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
     const auto& inputs = input_values();
