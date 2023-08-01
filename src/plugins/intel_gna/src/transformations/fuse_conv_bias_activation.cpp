@@ -24,7 +24,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "ops/gna_convolution.hpp"
 #include "rt_info/gna_node_id.hpp"
 
