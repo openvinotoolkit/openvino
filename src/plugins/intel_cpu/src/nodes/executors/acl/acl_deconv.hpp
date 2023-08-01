@@ -36,6 +36,8 @@ private:
     arm_compute::Tensor biasTensor;
     arm_compute::Tensor dstTensor;
     std::unique_ptr<arm_compute::NEDeconvolutionLayer> deconv = nullptr;
+
+    std::vector<float> weiBuffer;
 };
 
 class AclDeconvExecutorBuilder : public DeconvExecutorBuilder {

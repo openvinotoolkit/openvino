@@ -1220,7 +1220,8 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
 
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
+                // ACL expected equal precision
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
         config.outConfs[0].setMemDesc(
                 creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
@@ -1239,6 +1240,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
     };
+    pushDesc(LayoutType::nspc);
     pushDesc(LayoutType::ncsp);
 }
 

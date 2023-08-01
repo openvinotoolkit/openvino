@@ -33,9 +33,8 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
 
     if (deconvAttrs.withBiasesParam) {
         biasDims = srcDescs[2]->getShape().getStaticDims();
-        //bias presicion is I32 but ACL requests bias precision as input ones
         biasTensorInfo = TensorInfo(shapeCast(biasDims), 1,
-                                    precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[2]));
+                                    precisionToAclDataType(srcDescs[2]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[2]));
     }
 
     TensorInfo srcTensorInfo = TensorInfo(shapeCast(srcDims), 1,
@@ -91,6 +90,11 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
     deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info);
 
+    // weights tensor shape is changed because ACL expects [O, I, H, W] tensor while OV uses [I, O, H, W] tensor
+     weiBuffer = std::vector<float>(srcDescs[1]->getShape().getStaticDims()[0] *
+                                    srcDescs[1]->getShape().getStaticDims()[1] *
+                                    srcDescs[1]->getShape().getStaticDims()[2] *
+                                    srcDescs[1]->getShape().getStaticDims()[3]);
     return true;
 }
 
@@ -119,11 +123,6 @@ static void transpose_to_1023(const MemoryCPtr& srcMemPtr, std::vector<float>& d
 }
 
 void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
-    //weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
-    std::vector<float> weiBuffer(src[1]->getStaticDims()[0] *
-                                 src[1]->getStaticDims()[1] *
-                                 src[1]->getStaticDims()[2] *
-                                 src[1]->getStaticDims()[3]);
     // TODO: Remove transpose from exec
     transpose_to_1023(src[1], weiBuffer);
 
