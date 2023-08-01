@@ -302,7 +302,7 @@ def test_unload_plugin(device):
     core.unload_plugin(device)
 
 
-@pytest.mark.template_plugin()
+@pytest.mark.template_extension()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)
