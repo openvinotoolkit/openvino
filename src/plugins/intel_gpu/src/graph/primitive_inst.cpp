@@ -1180,7 +1180,6 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
                                 uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, memory* curr_memory, bool runtime_alloc) {
-
     auto layout = impl_params.get_output_layout(idx);
     OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
