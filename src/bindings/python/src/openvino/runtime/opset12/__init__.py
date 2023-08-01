@@ -120,7 +120,7 @@ from openvino.runtime.opset8.ops import prior_box
 from openvino.runtime.opset1.ops import prior_box_clustered
 from openvino.runtime.opset1.ops import psroi_pooling
 from openvino.runtime.opset4.ops import proposal
-from openvino.runtime.opset1.ops import range
+from openvino.runtime.opset4.ops import range
 from openvino.runtime.opset8.ops import random_uniform
 from openvino.runtime.opset9.ops import rdft
 from openvino.runtime.opset3.ops import read_value
