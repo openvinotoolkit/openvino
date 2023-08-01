@@ -49,6 +49,7 @@ def parse_arguments():
     process_timeout_help = "Process timeout in s"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
     split_unit_help = "Split by test or suite"
+    repeat_help = "Number of times to repeat failed and interrupted tests"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
@@ -56,7 +57,9 @@ def parse_arguments():
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
-    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="test")
+    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="")
+    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=0)
+
     return parser.parse_args()
 
 def get_test_command_line_args():
@@ -205,7 +208,7 @@ class TaskManager:
         return self._idx
 
 class TestParallelRunner:
-    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, split_unit: str, is_parallel_devices=False):
+    def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path, split_unit: str, repeat_failed: int, is_parallel_devices=False):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
         self._conformance_ir_filelists = list()
@@ -221,6 +224,13 @@ class TestParallelRunner:
             os.mkdir(head)
         self._is_save_cache = True
         self._split_unit = split_unit
+        # if argument is not set and cash is absent we need to split tests by suites to speed up generation of the new cash
+        if (not self._split_unit) :
+            if (os.path.isfile(self._cache_path)) :
+                self._split_unit = "test"
+            else :
+                self._split_unit = "suite"
+        self._repeat_failed = repeat_failed
         self._disabled_tests = list()
         self._total_test_cnt = 0
         self._device = get_device_by_args(self._command.split())
@@ -287,7 +297,7 @@ class TestParallelRunner:
                 if not ' ' in test_name:
                     test_suite = test_name
                     if (self._split_unit == "suite") :
-                    	test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*')
+                        test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*')
                     continue
                 pos = test_name.find('#')
                 if pos > 0 or test_suite != "":
@@ -498,12 +508,13 @@ class TestParallelRunner:
             logger.info(f"Execute jobs taken from runtime")
             worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
         not_runned_test_filter, interapted_tests = self.__find_not_runned_tests()
-        if len(not_runned_test_filter) > 0:
-            logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
-            worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
-        if len(interapted_tests) > 0:
-            logger.info(f"Execute interapted {len(interapted_tests)} tests")
-            worker_cnt += self.__execute_tests(interapted_tests, worker_cnt)
+        if (self._repeat_failed > 0) :
+            if len(not_runned_test_filter) > 0:
+                logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
+                worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
+            if len(interapted_tests) > 0:
+                logger.info(f"Execute interapted {len(interapted_tests)} tests")
+                worker_cnt += self.__execute_tests(interapted_tests, worker_cnt)
 
         t_end = datetime.datetime.now()
         total_seconds = (t_end - t_start).total_seconds()
@@ -746,9 +757,10 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --workers={args.workers}")
     logger.info(f"[ARGUMENTS] --parallel_devices={args.parallel_devices}")
     logger.info(f"[ARGUMENTS] --split_unit={args.split_unit}")
+    logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.parallel_devices)
+    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.repeat_failed, args.parallel_devices)
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
