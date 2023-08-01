@@ -4,10 +4,14 @@
 
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/concat.hpp>
+#include <openvino/op/gather.hpp>
 #include <openvino/op/gather_elements.hpp>
 #include <openvino/op/reshape.hpp>
+#include <openvino/op/shape_of.hpp>
 #include <openvino/op/slice.hpp>
+#include <openvino/op/squeeze.hpp>
 #include <openvino/op/tile.hpp>
+#include <openvino/op/unsqueeze.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
 
@@ -17,8 +21,21 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-bool shared_node_optimization(const shared_ptr<Model>& model,
-                              const unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)>& rules) {
+using rules_t = unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)>;
+
+bool type_in_rules(const rules_t& rules, Node::type_info_t& type) {
+    if (rules.count(type))
+        return true;
+    for (const auto& item : rules) {
+        if (type.is_castable(item.first)) {
+            type = item.first;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rules) {
     bool rewritten = false;
 
     for (const auto& op : model->get_ordered_ops()) {
@@ -35,9 +52,12 @@ bool shared_node_optimization(const shared_ptr<Model>& model,
                 continue;  // nothing to optimize
             unordered_map<Node::type_info_t, vector<Node*>> type_to_node;
             for (const auto& input : target_inputs) {
-                auto node = input.get_node();
-                if (node && rules.count(node->get_type_info()))
-                    type_to_node[node->get_type_info()].push_back(node);
+                if (auto node = input.get_node()) {
+                    auto type = node->get_type_info();
+                    if (type_in_rules(rules, type)) {
+                        type_to_node[type].push_back(node);
+                    }
+                }
             }
             for (auto& item : type_to_node) {
                 const auto& shared_nodes = item.second;
@@ -122,20 +142,50 @@ bool reshapes_are_equal(const Node* lhs, const Node* rhs) {
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
+bool shapeof_are_equal(const Node* lhs, const Node* rhs) {
+    auto lhs_output_et = element::i64, rhs_output_et = element::i64;
+    if (const auto shape = as_type<const v3::ShapeOf>(lhs)) {
+        lhs_output_et = shape->get_output_type();
+    } else if (!as_type<const v0::ShapeOf>(lhs)) {
+        return false;
+    }
+    if (const auto shape = as_type<const v3::ShapeOf>(rhs)) {
+        rhs_output_et = shape->get_output_type();
+    } else if (!as_type<const v0::ShapeOf>(rhs)) {
+        return false;
+    }
+    return lhs_output_et == rhs_output_et && inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
+bool gathers_are_equal(const Node* lhs, const Node* rhs) {
+    const auto l_gather = as_type<const op::util::GatherBase>(lhs);
+    const auto r_gather = as_type<const op::util::GatherBase>(rhs);
+    if (!l_gather || !r_gather)
+        return false;
+    return l_gather->get_batch_dims() == r_gather->get_batch_dims() &&
+           inputs_from_same_source_or_equal_constants(lhs, rhs);
+}
+
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
+#define RECORD_NO_ATTRIBUTES(operation) \
+    { operation::get_type_info_static(), inputs_from_same_source_or_equal_constants }
 #define RECORD(operation, func) \
     { operation::get_type_info_static(), func }
 
-    const unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)> rules = {
+    const rules_t rules = {
         // no attributes
-        RECORD(v8::Slice, inputs_from_same_source_or_equal_constants),
-        RECORD(v0::Tile, inputs_from_same_source_or_equal_constants),
+        RECORD_NO_ATTRIBUTES(v8::Slice),
+        RECORD_NO_ATTRIBUTES(v0::Squeeze),
+        RECORD_NO_ATTRIBUTES(v0::Tile),
+        RECORD_NO_ATTRIBUTES(v0::Unsqueeze),
 
         // with attributes
         RECORD(v0::Concat, concats_are_equal),
         RECORD(v6::GatherElements, gather_elements_are_equal),
         RECORD(v1::Reshape, reshapes_are_equal),
+        RECORD(op::util::ShapeOfBase, shapeof_are_equal),
+        RECORD(op::util::GatherBase, gathers_are_equal),
 
     };  // TODO: use visit_attributes to uniformly perform attributes check in the future and get rid of rules table
     return shared_node_optimization(model, rules);
