@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/distributed.hpp"
+#include "openvino/core/distributed.hpp"
 
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"

@@ -5,7 +5,6 @@
 #include "ngraph/node.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
@@ -14,20 +13,16 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/result.hpp"
-#include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "shape_util.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 #include "tensor_conversion_util.hpp"
 
 using namespace std;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace {
 static const char node_idx_out_of_range_txt[] = "node index is out of range";
@@ -155,10 +150,10 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     }
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        NGRAPH_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
                                                   ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return clone;
 }
@@ -385,8 +380,8 @@ void ov::Node::clear_control_dependents() {
     }
 }
 
-const ngraph::op::AutoBroadcastSpec& ov::Node::get_autob() const {
-    static ngraph::op::AutoBroadcastSpec s_spec;
+const ov::op::AutoBroadcastSpec& ov::Node::get_autob() const {
+    static ov::op::AutoBroadcastSpec s_spec;
     return s_spec;
 }
 
@@ -541,7 +536,7 @@ const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
     return args;
 }
 
-bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
+bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,
                            const Output<Node>& graph_value) {
     if (pattern_value.get_index() != graph_value.get_index() ||
@@ -553,7 +548,7 @@ bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
     return match_node(matcher, graph_value);
 }
 
-bool ov::Node::match_node(ngraph::pattern::Matcher* matcher, const Output<Node>& graph_value) {
+bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value) {
     matcher->add_node(graph_value);
     // Check if a type of a given node, which produces graph_value, matches the type of `this` node
     // or `this` node type is an ancestor of that node type. It is not the exact matching, types of
@@ -807,7 +802,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
     if (!all_constants)
         return false;
@@ -816,7 +811,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector input_tensors;
     for (const auto& input : input_values) {
         nodes.push_back(input.get_node_shared_ptr());
-        auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
         auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
         input_tensors.push_back(tensor);
@@ -830,8 +825,8 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
-            copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
+            output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
+            ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
         return true;
     }
