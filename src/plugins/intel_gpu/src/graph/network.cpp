@@ -758,6 +758,7 @@ void network::reset_execution(bool wait) {
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
+    GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
     primitive_inst = find_primitive(id);
@@ -900,6 +901,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+    GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
     p_inst = find_primitive(id);
@@ -970,7 +972,7 @@ std::string network::get_primitive_info(const primitive_id& id) const {
 bool network::is_cpu_impl(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
-    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
+    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology ",
                                "doesn't contain primitive with requested id: ", id);
 
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;

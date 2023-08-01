@@ -311,8 +311,8 @@ void Graph::Replicate(const CNNNetwork &network) {
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (!one_of(child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()),
-                Precision::BF16, Precision::FP16) &&
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+            if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
