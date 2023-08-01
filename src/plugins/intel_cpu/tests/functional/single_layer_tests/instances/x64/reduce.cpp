@@ -111,6 +111,8 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
         ngraph::helpers::ReductionType::L2,
 };
 
+// This custom subgraph is used to test post-ops fusing case with U8/I8 precision on output,
+// since Transpose prevents dequantization part to be fused back into Reduce
 const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
