@@ -33,13 +33,9 @@ class MlasTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
-        return true;
-    }
+                     const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<MlasTransposeExecutor>(context);
-    }
+    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override;
 };
 
 } // namespace intel_cpu

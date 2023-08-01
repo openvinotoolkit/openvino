@@ -153,7 +153,7 @@ bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(SizeVector permutations,
 void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to) {
     const auto& input_shape = input->getShape();
     const auto& input_dims = input_shape.getDims();
-    const auto element_size = dnnl::memory::data_type_size(input->getDataType());
+    const auto element_size = input->getDesc().getPrecision().size();
 
     const auto* input_data = reinterpret_cast<const uint8_t*>(input->getData());
     auto* output_data = reinterpret_cast<uint8_t*>(output->getData());
@@ -288,11 +288,21 @@ bool MlasTransposeExecutor::init(const TransposeParams &transposeParams,
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
     }
+    return true;
+}
+
+bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
+                                               const std::vector<MemoryDescPtr>& srcDescs,
+                                               const std::vector<MemoryDescPtr>& dstDescs) const {
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
     return true;
+}
+
+TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorContext::CPtr context) const {
+    return std::make_shared<MlasTransposeExecutor>(context);
 }
 
 }   // namespace intel_cpu
