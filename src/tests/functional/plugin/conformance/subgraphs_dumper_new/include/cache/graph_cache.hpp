@@ -19,7 +19,7 @@ class GraphCache : public ICache {
 public:
     void update_cache(const std::shared_ptr<ov::Model>& model,
                       const std::string& model_meta_data,
-                      bool extract_body = true) override;
+                      bool extract_body) override;
     void serialize_cache() override;
 
     static std::shared_ptr<GraphCache>& get() {
@@ -52,7 +52,8 @@ protected:
     }
 
     void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
-                      const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt);
+                      const std::map<std::string, InputInfo>& input_info, const std::string& extractor_name,
+                      size_t model_op_cnt);
 };
 
 }  // namespace subgraph_dumper

@@ -62,9 +62,10 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
     return model_map;
 }
 
-std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
+ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
-               std::unordered_set<std::string>& checked_ops) {
+               std::unordered_set<std::string>& checked_ops,
+               const std::string& extractor_name) {
     if (nodes.size() < 2) {
         throw std::runtime_error("Incorrect node number to create model");
     }
@@ -84,7 +85,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             }
         }
     }
-    return { std::make_shared<ov::Model>(results), input_info };
+    return { std::make_shared<ov::Model>(results), input_info, extractor_name };
 }
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,

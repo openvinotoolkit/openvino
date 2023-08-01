@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -26,15 +29,15 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
         return;
     }
     while (!extracted_patterns.empty()) {
-        auto it = extracted_patterns.begin();
-        update_cache(it->first, model_meta_data, it->second, model_total_op);
+        auto it = *extracted_patterns.begin();
+        update_cache(std::get<0>(it), model_meta_data, std::get<1>(it), std::get<2>(it), model_total_op);
         extracted_patterns.pop_front();
     }
     return;
 }
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
-                              const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt) {
+                              const std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     for (const auto& cached_model : m_graph_cache) {
         if (m_manager.match(cached_model.first, extracted_model)) {
@@ -43,11 +46,11 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
         }
     }
     if (model_to_update == nullptr) {
-        auto meta = MetaInfo(model_path, input_info, model_op_cnt);
+        auto meta = MetaInfo(model_path, input_info, model_op_cnt, extractor_name);
         m_graph_cache.insert({ extracted_model, meta });
         return;
     }
-    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt);
+    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt, extractor_name);
     auto cached_model_size = model_to_update->get_graph_size();
     auto pattern_model_size = extracted_model->get_graph_size();
     if (pattern_model_size < cached_model_size) {
@@ -59,7 +62,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 
 void GraphCache::serialize_cache() {
     for (const auto& cache_item : m_graph_cache) {
-        serialize_model(cache_item, "subgraph");
+        auto rel_dir = ov::util::path_join({ "subgraph", cache_item.second.get_any_extractor() });
+        serialize_model(cache_item, rel_dir);
     }
 }
 

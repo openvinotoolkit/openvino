@@ -67,9 +67,10 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir);
 
-std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
+ExtractedPattern
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
-               std::unordered_set<std::string>& checked_ops);
+               std::unordered_set<std::string>& checked_ops,
+               const std::string& extractor_name);
 
 }  // namespace subgraph_dumper
 }  // namespace tools

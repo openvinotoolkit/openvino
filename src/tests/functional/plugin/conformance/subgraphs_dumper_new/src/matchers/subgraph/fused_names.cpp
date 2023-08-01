@@ -44,7 +44,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
         if (!compiled_op_name.count(op_name)) {
             try {
                 std::cout << "DEBUG: " << nodes.size() << std::endl;
-                matched_patterns.push_back(generate_model(nodes, checked_ops));
+                matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
             } catch(std::exception& e) {
                 // std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
             }
@@ -74,7 +74,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
     }
     try {
         std::cout << "DEBUG: " << nodes.size() << std::endl;
-        matched_patterns.push_back(generate_model(nodes, checked_ops));
+        matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
     } catch(std::exception& e) {
         // std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
     }

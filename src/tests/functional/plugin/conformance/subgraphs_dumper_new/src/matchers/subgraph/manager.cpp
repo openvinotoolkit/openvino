@@ -20,6 +20,7 @@ std::list<ExtractedPattern>
 ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model, bool is_extract_body) {
     std::list<ExtractedPattern> result;
     for (const auto &it : m_extractors) {
+        it.second->set_extractor_name(it.first);
         auto extracted_patterns = it.second->extract(model, is_extract_body);
         result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
     }
