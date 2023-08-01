@@ -104,7 +104,6 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
         float result = 0.f;
         OPENVINO_ASSERT(ov::op::util::get_single_value(indices_constant, result),
                         "Unsupported indices node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-            OPENVINO_ASSERT("Unsupported axes node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         // Set tensors for crop shape and offset
         InferenceEngine::SizeVector start_offset(input_shape.size());
