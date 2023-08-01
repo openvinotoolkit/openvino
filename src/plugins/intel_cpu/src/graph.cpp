@@ -1778,7 +1778,10 @@ void Graph::EnforceInferencePrecision() {
             }
 
             for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                const auto &child = node->getChildEdgesAtPort(i)[0]->getChild();
+                // exclude Convert before Range since it may cause precision loss when integter type to BF16.
+                if (!(child->getType() == Type::Range && node->getType() == Type::Convert) &&
+                    node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalOutputPrecisionAtPort(i, inferPrec);
             }
         }
