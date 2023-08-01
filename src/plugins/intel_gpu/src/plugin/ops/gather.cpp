@@ -103,7 +103,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
         auto indices_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(indices_node);
         float result = 0.f;
         if (!ov::op::util::get_single_value(indices_constant, result))
-            IE_THROW() << "Unsupported axes node in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            OPENVINO_ASSERT("Unsupported axes node in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         // Set tensors for crop shape and offset
         InferenceEngine::SizeVector start_offset(input_shape.size());

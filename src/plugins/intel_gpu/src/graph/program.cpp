@@ -155,7 +155,7 @@ program::program(engine& engine_ref,
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
