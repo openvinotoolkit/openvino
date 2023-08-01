@@ -8,10 +8,6 @@
                  of OpenVINO™ on your system.
 
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
 .. _troubleshooting guide for install:
 
 This guide provides general troubleshooting steps and solutions to possible issues that can be encountered while installing and configuring OpenVINO™.
