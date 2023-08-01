@@ -1002,7 +1002,10 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
     // Reuse intermediate buffer like output buffer.
-    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
+    // Currently, get_memory from pool with reuse is time consuming. So disable reuse memory for internal buffer until we have a better reuse mechanism
+    bool reuse_internal_buf = _node->is_dynamic() ? false : true;
+    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, reuse_internal_buf, reset);
+
     GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
         << " " << ret_mem->buffer_ptr() << std::endl;
     return ret_mem;
