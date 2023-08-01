@@ -87,10 +87,11 @@ public:
 
     void update_output_memory() override;
     bool requires_reinterpret() const {
+        auto req_reinterpr = _req_reinterpr;
         if (input_memory().get_layout() != _impl_params->get_output_layout()) {
-            _req_reinterpr = true;
+            req_reinterpr = true;
         }
-        return _req_reinterpr;
+        return req_reinterpr;
     }
 
     void save(cldnn::BinaryOutputBuffer& ob) const override;
