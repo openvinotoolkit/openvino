@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Sequence, Any
 import numpy as np
 
-from tests.test_onnx.utils import OpenVinoOnnxBackend
-from tests.test_onnx.utils.model_importer import ModelImportRunner
+from tests.tests_python.utils import OpenVinoOnnxBackend
+from tests.tests_python.utils.model_importer import ModelImportRunner
 
 from tests import (
     xfail_issue_67415,

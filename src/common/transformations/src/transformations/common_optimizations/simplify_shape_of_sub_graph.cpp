@@ -290,8 +290,8 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     Manager manager;
     manager.set_per_pass_validation(false);
 
-    REGISTER_PASS(manager, EliminateGatherUnsqueeze)
     REGISTER_PASS(manager, SharedOpOptimization)
+    REGISTER_PASS(manager, EliminateGatherUnsqueeze)
     REGISTER_PASS(manager, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.
