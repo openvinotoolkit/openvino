@@ -64,11 +64,12 @@ protected:
     std::string test_model_path, test_model_name;
     std::map<std::string, InputInfo> test_in_info;
     std::map<std::string, ModelInfo> test_model_info;
-    std::string test_artifacts_dir;
+    std::string test_artifacts_dir, test_extractor_name;
 
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_path = "test_model_path.xml";
+        test_extractor_name = "test_extractor";
         test_model_name = ov::test::utils::replaceExt(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
         test_model_info = {{ test_model_name, ModelInfo(test_model_path, 5) }};
@@ -86,7 +87,8 @@ TEST_F(MetaInfoFuncTest, constructor) {
     ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name));
     ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info));
     ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 2));
-    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3));
+    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 1, test_extractor_name));
+    ASSERT_NO_THROW(auto meta = MetaInfo(test_model_name, test_in_info, 3, 5, test_extractor_name, 5));
 }
 
 TEST_F(MetaInfoFuncTest, get_input_info) {
@@ -101,9 +103,15 @@ TEST_F(MetaInfoFuncTest, get_model_info) {
     ASSERT_EQ(test_meta.get_model_info(), test_model_info);
 }
 
+TEST_F(MetaInfoFuncTest, get_any_extractor) {
+    auto test_meta = MetaInfo(test_model_path, test_in_info, 5, 3, test_extractor_name);
+    ASSERT_NO_THROW(test_meta.get_any_extractor());
+    ASSERT_EQ(test_meta.get_any_extractor(), test_extractor_name);
+}
+
 TEST_F(MetaInfoFuncTest, update) {
     std::map<std::string, InputInfo> test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
-    auto test_meta = MetaInfo(test_model_name, test_in_info);
+    auto test_meta = MetaInfo(test_model_name, test_in_info, 1, 1, test_extractor_name);
     std::map<std::string, InputInfo> test_input_info_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
     std::string test_model_1 = "test_model_1";
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
@@ -111,6 +119,7 @@ TEST_F(MetaInfoFuncTest, update) {
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_1", InputInfo() }}));
     ASSERT_ANY_THROW(test_meta.update(test_model_path_1, {{ "test_in_0", InputInfo(0, 1, false) }}));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1));
+    ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 1, 2, "test_extractor_1"));
     ASSERT_NO_THROW(test_meta.update(test_model_path_1, test_input_info_1, 2));
 }
 
@@ -135,6 +144,7 @@ protected:
 
 TEST_F(MetaInfoUnitTest, serialize) {
     std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    this->extractors = { "extractor_0", "extractor_1" };
     this->serialize(seriliazation_path);
     ASSERT_TRUE(ov::util::file_exists(seriliazation_path));
 
@@ -170,6 +180,14 @@ TEST_F(MetaInfoUnitTest, serialize) {
             ASSERT_EQ(input_info[in_xml].ranges.max, max_xml);
         }
     }
+    {
+        auto extractors_node = doc.child("meta_info").child("extractors");
+        std::unordered_set<std::string> xml_extractors;
+        for (const auto& in_info_xml : extractors_node.children()) {
+            xml_extractors.insert(std::string(in_info_xml.attribute("name").value()));
+        }
+        ASSERT_EQ(xml_extractors, this->extractors);
+    }
 }
 
 TEST_F(MetaInfoUnitTest, update) {
@@ -185,9 +203,11 @@ TEST_F(MetaInfoUnitTest, update) {
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 2);
     test_model_path_1 = ov::util::path_join({ "path", "to", "test", test_model_1 + ".xml"});
-    this->update(test_model_path_1, test_meta_1);
+    this->update(test_model_path_1, test_meta_1, 0, 1, "test_extractor");
     ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 2);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
+    ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
+    ASSERT_EQ(this->extractors, std::unordered_set<std::string>({"test_extractor"}));
 }
 
 TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
@@ -202,6 +222,12 @@ TEST_F(MetaInfoUnitTest, get_graph_priority) {
     ASSERT_NO_THROW(this->get_abs_graph_priority());
     ASSERT_NO_THROW(this->get_graph_priority());
     ASSERT_TRUE(this->get_graph_priority() >= 0 && this->get_graph_priority() <= 1);
+}
+
+TEST_F(MetaInfoUnitTest, get_any_extractor) {
+    auto meta = MetaInfo(test_model_name, test_in_info, 1, 1, "test_extractor");
+    ASSERT_NO_THROW(meta.get_any_extractor());
+    ASSERT_EQ(meta.get_any_extractor(), "test_extractor");
 }
 
 }  // namespace

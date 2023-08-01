@@ -11,14 +11,13 @@ namespace subgraph_dumper {
 inline std::unordered_map<std::string, std::shared_ptr<ov::Node>>
 update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> model_map;
-    std::shared_ptr<ov::Node> cloned_op = nullptr;
 
     for (const auto& op : nodes) {
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
             ov::op::util::is_output(op)) {
             continue;
         }
-        cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));
+        auto cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));
         model_map.insert({ op->get_friendly_name(), cloned_op });
     }
 
@@ -28,7 +27,7 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
             continue;
         }
         auto op_name = op->get_friendly_name();
-        cloned_op = model_map[op->get_friendly_name()];
+        auto cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
         ov::OutputVector in_out_vector(inputs_size);
         int filled_input_idx = -1;

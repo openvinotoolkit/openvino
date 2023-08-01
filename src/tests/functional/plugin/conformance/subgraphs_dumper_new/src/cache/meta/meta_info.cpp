@@ -16,12 +16,12 @@ unsigned long MetaInfo::MIN_MODEL_PRIORITY = std::numeric_limits<unsigned long>:
 unsigned long MetaInfo::MAX_MODEL_PRIORITY = std::numeric_limits<unsigned long>::min();
 
 MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info,
-                   size_t _total_op_cnt, const std::string& extractor, size_t model_priority) {
+                   size_t _total_op_cnt, size_t _this_op_cnt, const std::string& extractor, size_t model_priority) {
     unsigned long tmp_graph_priority = _total_op_cnt * model_priority;
     if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
     if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
     if (_model_path != "") {
-        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, model_priority) });
+        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, _this_op_cnt, model_priority) });
     }
     if (!_input_info.empty()) {
         input_info = _input_info;
@@ -90,6 +90,7 @@ void MetaInfo::serialize(const std::string& serialization_path) {
 void MetaInfo::update(const std::string& _model_path,
                       const std::map<std::string, InputInfo>& _input_info,
                       size_t _total_op_cnt,
+                      size_t _this_op_cnt,
                       const std::string& extractor,
                       const std::vector<std::string>& ignored_inputs) {
     if (input_info.size() != _input_info.size()) {
@@ -101,7 +102,7 @@ void MetaInfo::update(const std::string& _model_path,
             model_info.at(model_name).model_paths.insert(_model_path);
             model_info.at(model_name).total_op_cnt += _total_op_cnt;
         }
-        model_info.at(model_name).this_op_cnt++;
+        model_info.at(model_name).this_op_cnt += _this_op_cnt;
     } else {
         model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }

@@ -52,7 +52,7 @@ protected:
     }
 
     void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
-                      const std::map<std::string, InputInfo>& input_info, const std::string& extractor_name,
+                      std::map<std::string, InputInfo>& input_info, const std::string& extractor_name,
                       size_t model_op_cnt);
 };
 

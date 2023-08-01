@@ -37,7 +37,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 }
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
-                              const std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
+                              std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     for (const auto& cached_model : m_graph_cache) {
         if (m_manager.match(cached_model.first, extracted_model)) {
@@ -45,12 +45,46 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
             break;
         }
     }
+
+    auto this_op_cnt = extracted_model->get_ops().size() -
+        extracted_model->get_parameters().size() - extracted_model->get_results().size();
     if (model_to_update == nullptr) {
-        auto meta = MetaInfo(model_path, input_info, model_op_cnt, extractor_name);
+        auto meta = MetaInfo(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
         m_graph_cache.insert({ extracted_model, meta });
         return;
+    } else {
+        bool is_update_required = false;
+        auto cached_in_info = m_graph_cache[model_to_update].get_input_info();
+        for (const auto& in_info : cached_in_info) {
+            if (!input_info.count(in_info.first)) {
+                is_update_required = true;
+                break;
+            }
+        }
+        if (is_update_required) {
+            // align matched model names
+            auto cached_model_ops = model_to_update->get_ordered_ops();
+            auto extracted_model_ops = extracted_model->get_ordered_ops();
+            size_t ordered_ops_size = extracted_model_ops.size();
+            if (ordered_ops_size != cached_model_ops.size()) {
+                throw std::runtime_error("Matched models are different!");
+            }
+            for (size_t i = 0; i < ordered_ops_size; ++i) {
+                if (extracted_model_ops[i]->get_type_info() != cached_model_ops[i]->get_type_info()) {
+                    throw std::runtime_error("Matched models are different!");
+                }
+                auto extracted_op_name = extracted_model_ops[i]->get_friendly_name();
+                auto cached_op_name = cached_model_ops[i]->get_friendly_name();
+                if (cached_in_info.count(cached_op_name)) {
+                    auto in_info = input_info[extracted_op_name];
+                    input_info.erase(extracted_op_name);
+                    input_info.insert({ cached_op_name, in_info });
+                }
+                extracted_model_ops[i]->set_friendly_name(cached_op_name);
+            }
+        }
     }
-    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt, extractor_name);
+    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
     auto cached_model_size = model_to_update->get_graph_size();
     auto pattern_model_size = extracted_model->get_graph_size();
     if (pattern_model_size < cached_model_size) {

@@ -13,10 +13,11 @@ namespace subgraph_dumper {
 
 class MetaInfo {
 public:
-    MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {}, size_t total_op_cnt = 1, const std::string& extractor = "", size_t model_priority = 1);
+    MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {},
+             size_t total_op_cnt = 1, size_t this_op_cnt = 1, const std::string& extractor = "", size_t model_priority = 1);
     void serialize(const std::string& serialization_path);
     void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt = 1,
-                const std::string& extractor = "", const std::vector<std::string>& ignored_inputs = {});
+                size_t _this_op_cnt = 1, const std::string& extractor = "", const std::vector<std::string>& ignored_inputs = {});
     std::map<std::string, InputInfo> get_input_info();
     std::map<std::string, ModelInfo> get_model_info();
     std::string get_any_extractor() const { return *extractors.begin(); }

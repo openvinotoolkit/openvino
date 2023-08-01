@@ -10,8 +10,11 @@ namespace subgraph_dumper {
 std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
     std::map<std::string, InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        InputInfo in_info;
         std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
+        if (!ov::op::util::is_parameter(input_node) && !ov::op::util::is_constant(input_node)) {
+            continue;
+        }
+        InputInfo in_info;
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
             if (ov::shape_size(input_node->get_output_shape(0)) == 0)
@@ -80,9 +83,7 @@ std::map<std::string, InputInfo> get_input_info_by_node(const std::shared_ptr<ov
                 break;
             }}
         }
-        if (ov::op::util::is_parameter(input_node) || ov::op::util::is_constant(input_node)) {
-            input_info.insert({ input_name, in_info });
-        }
+        input_info.insert({ input_name, in_info });
     }
     return input_info;
 }
@@ -125,7 +126,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         inputs[i] = param;
     }
     if (!has_parameters && !is_copy_const_node) {
-        auto cloned_node = clone_node(node, true, true);
+        auto cloned_node = clone_node(node, true, true, node_name);
         // std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0), cloned_node->get_input_partial_shape(0));

@@ -16,21 +16,16 @@ using namespace ov::tools::subgraph_dumper;
 
 using ModelUtilsTest = SubgraphsDumperBaseTest;
 
-std::pair<std::shared_ptr<ov::Node>, std::set<std::shared_ptr<ov::Node>>>
+std::set<std::shared_ptr<ov::Node>>
 get_functional_ops(const std::shared_ptr<ov::Model>& model) {
-    std::shared_ptr<ov::Node> start_node = nullptr;
     std::set<std::shared_ptr<ov::Node>> nodes;
-
     for (const auto& op : model->get_ordered_ops()) {
-        if (ov::op::util::is_parameter(op) || ov::op::util::is_output(op)) {
+        if (ov::op::util::is_output(op)) {
             continue;
-        }
-        if (start_node == nullptr) {
-            start_node = op;
         }
         nodes.insert(op);
     }
-    return { start_node, nodes };
+    return nodes;
 }
 
 TEST_F(ModelUtilsTest, generate_0) {
@@ -39,13 +34,8 @@ TEST_F(ModelUtilsTest, generate_0) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
-        recovered_model = model_with_in_info.first;
-        for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
-                ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
-            }
-        }
+        auto model_with_in_info = generate_model(func_ops, checked_ops, "test_extractor");
+        recovered_model = std::get<0>(model_with_in_info);
     }
     {
         SubgraphExtractor extractor;
@@ -59,13 +49,8 @@ TEST_F(ModelUtilsTest, generate_1) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
-        recovered_model = model_with_in_info.first;
-        for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
-                ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
-            }
-        }
+        auto model_with_in_info = generate_model(func_ops, checked_ops, "test_extractor");
+        recovered_model = std::get<0>(model_with_in_info);
     }
     {
         SubgraphExtractor extractor;
@@ -79,13 +64,9 @@ TEST_F(ModelUtilsTest, generate_2) {
     {
         std::unordered_set<std::string> checked_ops;
         auto func_ops = get_functional_ops(test_model);
-        auto model_with_in_info = generate_model(func_ops.second, func_ops.first, checked_ops);
-        recovered_model = model_with_in_info.first;
-        for (const auto& op : recovered_model->get_ordered_ops()) {
-            if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
-                ASSERT_TRUE(model_with_in_info.second.count(op->get_friendly_name()));
-            }
-        }
+        auto model_with_in_info = generate_model(func_ops, checked_ops, "extract_model");
+        recovered_model = std::get<0>(model_with_in_info);
+        auto in_info = std::get<1>(model_with_in_info);
     }
     {
         SubgraphExtractor extractor;

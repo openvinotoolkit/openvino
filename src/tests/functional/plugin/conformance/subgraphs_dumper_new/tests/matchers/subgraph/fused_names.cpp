@@ -26,23 +26,22 @@ protected:
         {
             auto compiled_names = extract_compiled_model_names(model);
             std::vector<size_t> op_cnt;
+            size_t current_op_cnt = 0;
             for (const auto& op : model->get_ordered_ops()) {
                 if (this->is_node_to_skip(op)) {
-                    op_cnt.push_back(1);
                     continue;
                 }
                 auto op_name = op->get_friendly_name();
                 if (!compiled_names.count(op_name)) {
-                    op_cnt.push_back(1);
-                } else if (op_cnt.size() > 0) {
-                    ++op_cnt[op_cnt.size() - 1];
+                    ++current_op_cnt;
+                } else {
+                    if (current_op_cnt > 1) {
+                        op_cnt.push_back(current_op_cnt);
+                    }
+                    current_op_cnt = 0;
                 }
             }
-            for (const auto& cnt : op_cnt) {
-                if (cnt > 1) {
-                    ++graph_cnt;
-                }
-            }
+            graph_cnt = op_cnt.size();
         }
         auto models = this->extract(model);
         return models.size() == graph_cnt;
