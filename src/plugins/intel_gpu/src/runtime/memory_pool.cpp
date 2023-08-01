@@ -223,7 +223,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset) {
-    if (reusable_across_network) {
+    bool do_reuse = reusable_across_network;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
+        do_reuse = false;
+    }
+    if (do_reuse) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
@@ -299,22 +304,22 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
 
 void memory_pool::dump(uint32_t net_id) {
-    std::cout << "Dump memory pool of network " << net_id << std::endl;
-    std::cout << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
+    GPU_DEBUG_COUT << "Dump memory pool of network " << net_id << std::endl;
+    GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
     for (auto mem : _non_padded_pool) {
-        std::cout << mem.second._memory->buffer_ptr() << " (size: " << mem.first << ", type: " << mem.second._type
+        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << mem.first << ", type: " << mem.second._type
                   << ")'s users: " << std::endl;
         for (auto user : mem.second._users) {
-            std::cout << "   -- " << user._id << std::endl;
+            GPU_DEBUG_COUT << "   -- " << user._id << std::endl;
         }
     }
     std::cout << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
     for (auto mem : _padded_pool) {
-        std::cout << " layout: " << mem.first.to_short_string() << std::endl;
+        GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << std::endl;
         for (auto record : mem.second) {
-            std::cout << "    " << record._memory->buffer_ptr() << ", type: " << record._type << ", users : " << std::endl;
+            GPU_DEBUG_COUT << "    " << record._memory->buffer_ptr() << ", type: " << record._type << ", users : " << std::endl;
             for (auto user : record._users) {
-                std::cout << "    --- " << user._id << std::endl;
+                GPU_DEBUG_COUT << "    --- " << user._id << std::endl;
             }
         }
     }

@@ -1004,10 +1004,16 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     // Reuse intermediate buffer like output buffer.
     // Currently, get_memory from pool with reuse is time consuming. So disable reuse memory for internal buffer until we have a better reuse mechanism
     bool reuse_internal_buf = _node->is_dynamic() ? false : true;
-    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, reuse_internal_buf, reset);
+    auto ret_mem = _network.get_memory_pool().get_memory(layout,
+                                                         _node->id(),
+                                                         _network.get_id(),
+                                                         _node->get_memory_dependencies(),
+                                                         alloc_type,
+                                                         reuse_internal_buf,
+                                                         reset);
 
     GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
-        << " " << ret_mem->buffer_ptr() << std::endl;
+                  << " " << ret_mem->buffer_ptr() << std::endl;
     return ret_mem;
 }
 
@@ -1190,10 +1196,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
-        reusable_across_network = false;
-    }
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
