@@ -92,11 +92,10 @@ RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model,
         }
         for (size_t i = 0; i < start_node_idx.size(); ++i) {
             try {
-                to_cache.push_back(
-                    generate_model(nodes[i], ordered_ops[start_node_idx[i]], checked_ops));
+                to_cache.push_back(generate_model(nodes[i], checked_ops));
                 nodes[i].clear();
             } catch(std::exception& e) {
-                std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
+                // std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
             }
         }
         if (is_extract_body) {

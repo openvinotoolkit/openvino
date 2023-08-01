@@ -9,8 +9,7 @@ namespace tools {
 namespace subgraph_dumper {
 
 inline std::unordered_map<std::string, std::shared_ptr<ov::Node>>
-update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
-             const std::shared_ptr<ov::Node>& start_node) {
+update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
     std::unordered_map<std::string, std::shared_ptr<ov::Node>> model_map;
     std::shared_ptr<ov::Node> cloned_op = nullptr;
 
@@ -54,10 +53,7 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
                 }
             }
         }
-        // todo: iefode: check this code
-        if (filled_input_idx < 0 && op_name != start_node->get_friendly_name()) {
-            model_map.erase(op_name);
-        } else if (filled_input_idx >= 0) {
+        if (filled_input_idx >= 0) {
             auto name = cloned_op->get_friendly_name();
             model_map[op_name] = cloned_op->clone_with_new_inputs(in_out_vector);
             model_map[op_name]->set_friendly_name(name);
@@ -68,12 +64,11 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes,
 
 std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
-               const std::shared_ptr<ov::Node>& start_node,
                std::unordered_set<std::string>& checked_ops) {
     if (nodes.size() < 2) {
         throw std::runtime_error("Incorrect node number to create model");
     }
-    auto model_map = update_nodes(nodes, start_node);
+    auto model_map = update_nodes(nodes);
     if (model_map.size() < 2) {
         throw std::runtime_error("Incorrect node number to create model");
     }

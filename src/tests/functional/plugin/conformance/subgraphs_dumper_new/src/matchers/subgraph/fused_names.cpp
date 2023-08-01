@@ -34,16 +34,22 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
     std::list<ExtractedPattern> matched_patterns;
     std::unordered_set<std::string> checked_ops;
     std::set<std::shared_ptr<ov::Node>> nodes;
-    std::shared_ptr<ov::Node> start_node = nullptr;
+    // std::shared_ptr<ov::Node> start_node = nullptr;
     for (const auto& op : model->get_ordered_ops()) {
         auto op_name = op->get_friendly_name();
         if (is_node_to_skip(op) || checked_ops.count(op_name)) {
             continue;
         }
-        if (start_node == nullptr) {
-            start_node = op;
-        }
         nodes.insert(op);
+        if (!compiled_op_name.count(op_name)) {
+            try {
+                std::cout << "DEBUG: " << nodes.size() << std::endl;
+                matched_patterns.push_back(generate_model(nodes, checked_ops));
+            } catch(std::exception& e) {
+                // std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+            }
+            nodes.clear();
+        }
         if (is_extract_body) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
                 auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
@@ -65,20 +71,12 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
                 }
             }
         }
-        if (!compiled_op_name.count(op_name)) {
-            try {
-                matched_patterns.push_back(generate_model(nodes, start_node, checked_ops));
-            } catch(std::exception& e) {
-                std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
-            }
-            start_node = nullptr;
-            nodes.clear();
-        }
     }
     try {
-        matched_patterns.push_back(generate_model(nodes, start_node, checked_ops));
+        std::cout << "DEBUG: " << nodes.size() << std::endl;
+        matched_patterns.push_back(generate_model(nodes, checked_ops));
     } catch(std::exception& e) {
-        std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
+        // std::cout << "[ ERROR ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
     }
     return matched_patterns;
 }

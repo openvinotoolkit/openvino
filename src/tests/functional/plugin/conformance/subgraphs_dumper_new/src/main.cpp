@@ -39,9 +39,8 @@ int main(int argc, char *argv[]) {
         caches.push_back(OpCache::get());
     }
     if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
-        // todo: iefode: to check and enable it in CI
-        // std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
-        // caches.push_back(GraphCache::get());
+        std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
+        caches.push_back(GraphCache::get());
     }
 
     for (auto& cache : caches) {

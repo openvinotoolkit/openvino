@@ -33,9 +33,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\.pb)"),
 #endif
-#ifdef ENABLE_OV_IR_FRONTEND
+// #ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-#endif
+// #endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
@@ -69,7 +69,6 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
 
 std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>
 generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
-               const std::shared_ptr<ov::Node>& start_node,
                std::unordered_set<std::string>& checked_ops);
 
 }  // namespace subgraph_dumper
