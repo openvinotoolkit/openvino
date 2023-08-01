@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "openvino/op/abs.hpp"
 #include "openvino/op/parameter.hpp"
 
 #include "matchers/single_op/manager.hpp"
 #include "matchers/single_op/single_op.hpp"
+
+#include "base_test.hpp"
 
 namespace {
 
@@ -16,13 +16,14 @@ using namespace ov::tools::subgraph_dumper;
 
 // ======================= MatcherManager Unit tests =======================
 class MatchersManagerTest : public MatchersManager,
-                            public ::testing::Test {
+                            public SubgraphsDumperBaseTest {
 protected:
     MatchersManager::MatchersMap test_map;
     std::shared_ptr<ov::op::v0::Abs> test_abs;
     std::shared_ptr<ov::op::v0::Parameter> test_parameter;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         test_map = {
             { "test_matcher", SingleOpMatcher::Ptr(new SingleOpMatcher) },
         };
