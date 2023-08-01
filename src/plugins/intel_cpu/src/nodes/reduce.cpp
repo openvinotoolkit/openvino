@@ -2154,7 +2154,7 @@ void Reduce::createPrimitive() {
 
     auto reduce_jcp = jcp;
     reduce_jcp.dst_dt = fuse_low_precision ? DnnlExtensionUtils::IEPrecisionToDataType(intermediate_prec) : jcp.dst_dt;
-    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
+    reduce_jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
     create_reduce_kernel(reduce_kernel, reduce_jcp);
 
     // set_use_aux_kernel being false means this is a dynamic case, and prepareParams() hasn't been invoked yet.
@@ -2255,7 +2255,7 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr) {
 }
 
 void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
@@ -2472,7 +2472,7 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     for (size_t ib = 0; ib < IB; ib++) {
@@ -2552,7 +2552,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     auto reduceSkipPadding = [&](const uint8_t *in_ptr_ncd, uint8_t *out_ptr_ncd, size_t ic) {
@@ -2720,10 +2720,10 @@ inline void Reduce::reduce_kernel_restore() {
     }
 }
 
-inline void Reduce::output_info_reassign(uint8_t *out_ptr) {
+inline void Reduce::output_info_reassign(uint8_t **out_ptr) {
     if (fuse_low_precision) {
-        tmp_ptr = out_ptr;
-        out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
+        tmp_ptr = *out_ptr;
+        *out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
         tmp_prec = output_prec;
         output_prec = intermediate_prec;
         tmp_data_size = dst_data_size;

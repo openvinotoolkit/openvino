@@ -117,7 +117,7 @@ private:
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
     inline void reduce_kernel_reassign();
     inline void reduce_kernel_restore();
-    inline void output_info_reassign(uint8_t *out_ptr);
+    inline void output_info_reassign(uint8_t **out_ptr);
     inline void output_info_restore(uint8_t **out_ptr);
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
     inline void create_hybrid_working_memory();
