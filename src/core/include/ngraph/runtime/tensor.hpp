@@ -24,6 +24,7 @@
 
 namespace ngraph {
 namespace runtime {
+NGRAPH_SUPPRESS_DEPRECATED_START
 class NGRAPH_API NGRAPH_API_DEPRECATED Tensor {
 protected:
     Tensor(const std::shared_ptr<ngraph::descriptor::Tensor>& descriptor) : m_descriptor(descriptor), m_stale(true) {}
@@ -66,5 +67,6 @@ protected:
     std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
     bool m_stale;
 };
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace runtime
 }  // namespace ngraph

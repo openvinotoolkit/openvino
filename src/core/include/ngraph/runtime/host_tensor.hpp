@@ -22,6 +22,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ov {
 class Node;
 namespace op {
@@ -122,3 +123,4 @@ protected:
 };
 }  // namespace runtime
 }  // namespace ngraph
+NGRAPH_SUPPRESS_DEPRECATED_END

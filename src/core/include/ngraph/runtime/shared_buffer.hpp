@@ -20,6 +20,7 @@
 
 namespace ngraph {
 namespace runtime {
+NGRAPH_SUPPRESS_DEPRECATED_START
 /// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
 template <typename T>
 class NGRAPH_API_DEPRECATED SharedBuffer : public ngraph::runtime::AlignedBuffer {
@@ -39,5 +40,6 @@ public:
 private:
     T _shared_object;
 };
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace runtime
 }  // namespace ngraph

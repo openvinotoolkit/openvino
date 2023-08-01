@@ -241,7 +241,9 @@ public:
 
     /// \brief Return data size in bytes
     size_t get_byte_size() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return m_data->size();
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -363,7 +365,9 @@ public:
     }
 
     const void* get_data_ptr() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <typename T>
     const T* get_data_ptr() const {
@@ -604,7 +608,9 @@ private:
     void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <element::Type_t ET>
