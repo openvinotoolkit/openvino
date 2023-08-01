@@ -256,6 +256,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     return result;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 std::shared_ptr<ov::Model> clone_model(const ov::Model& func) {
     std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> nm;
     return clone_model(func, nm);
@@ -265,6 +266,7 @@ std::shared_ptr<ov::Model> clone_model(const ov::Model& func,
                                        std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
     return ov::clone_ov_model(func, node_map);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2) {
     if (!(op::util::is_constant(n1) && op::util::is_constant(n2))) {
