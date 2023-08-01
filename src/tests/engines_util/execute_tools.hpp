@@ -13,22 +13,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-class TestOpMultiOut : public op::Op {
-public:
-    OPENVINO_OP("TestOpMultiOut");
-    TestOpMultiOut() = default;
-
-    TestOpMultiOut(const Output<Node>& output_1, const Output<Node>& output_2);
-    void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-};
-}  // namespace ov
-
 bool validate_list(const std::vector<std::shared_ptr<ov::Node>>& nodes);
 std::shared_ptr<ov::Model> make_test_graph();
 
