@@ -83,6 +83,7 @@ void op::v6::ReadValue::revalidate_and_infer_types() {
     Node::revalidate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs,
                                  const EvaluationContext& evaluation_context) const {
@@ -107,6 +108,7 @@ bool op::v6::ReadValue::evaluate(const HostTensorVector& outputs,
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v6::ReadValue::has_evaluate() const {
     OV_OP_SCOPE(v6_ReadValue_has_evaluate);

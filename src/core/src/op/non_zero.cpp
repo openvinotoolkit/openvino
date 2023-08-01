@@ -80,6 +80,7 @@ shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace nonzero {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUT_ET>

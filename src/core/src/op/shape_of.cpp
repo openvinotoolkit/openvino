@@ -50,6 +50,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace shape_of {
 namespace {
 template <element::Type_t ET>
