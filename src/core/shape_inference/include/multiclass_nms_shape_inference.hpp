@@ -107,8 +107,9 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
             }
 
             selected_boxes *= num_images;
-            if (selected_boxes.is_static() && !static_output) {
-                selected_boxes = TDim(0, selected_boxes.get_max_length());
+            if (std::is_same<PartialShape, TShape>::value) {
+                selected_boxes =
+                    static_output ? TDim(selected_boxes.get_max_length()) : TDim(0, selected_boxes.get_max_length());
             }
             output_shapes[1][0] = selected_boxes;
             output_shapes[2][0] = has_rois_num ? rois_num_shape[0] : boxes_shape[0];
