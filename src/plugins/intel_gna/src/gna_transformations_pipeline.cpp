@@ -305,9 +305,6 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
     }
 
-    if (fake_quantized)
-        passes->registerPass<SubstituteSoftSignPass>();
-
     // fake quantisation aware passes
     passes->registerPass<FuseFQIntoWeightsPass>();
     passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();

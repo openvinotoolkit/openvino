@@ -114,7 +114,6 @@ static void SumBlobs(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
 static const char identityLayersCounterName[] = "identityLayerCounter";
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
 static const char copyLayersCounter[] = "numCopyLayers";
-static const char softSignLayersCounter[] = "numSoftSignLayers";
 
 /**
  * @brief helper injections of diagonal layer with certain value
@@ -473,120 +472,6 @@ void ReorderMaxPoolPass::run() {
     }
 }
 
-void SubstituteSoftSignPass::run() {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteSoftSignPass");
-    /* detecting following pattern
-     * irv7 model:          irv10 model:
-     * a layer                  a layer
-     * |  \                     |  \
-     * abs  \                   abs  \
-     * |     |                  |     |
-     * |     |                  add   |
-     * |     |                  |     |
-     * power |                  power |
-     *  \   /                    \   /
-     *    mul                      mul
-     */
-
-    auto hasNChildren = [](CNNLayerPtr l, size_t N) {
-        if (l->outData.size() != 1)
-            return false;
-        if (getInputTo(l->outData.front()).size() != N)
-            return false;
-        return true;
-    };
-    auto getNthChild = [](CNNLayerPtr l, int N) {
-        auto first = getInputTo(l->outData.front()).begin();
-        auto last = getInputTo(l->outData.front()).end();
-        IE_ASSERT(first != last);
-        IE_ASSERT(N <= std::distance(first, last));
-        std::advance(first, N);
-        return first->second;
-    };
-    for (auto& l : *pLayers) {
-        if (!hasNChildren(l, 2))
-            continue;
-        auto mul = getNthChild(l, 0);
-        auto abs = getNthChild(l, 1);
-
-        bool cont = true;
-        if (LayerInfo(mul).isEltwiseMul() && LayerInfo(abs).isAbs()) {
-            cont = false;
-        }
-        if (cont && LayerInfo(abs).isEltwiseMul() && LayerInfo(mul).isAbs()) {
-            std::swap(mul, abs);
-            cont = false;
-        }
-        if (cont)
-            continue;
-        if (!hasNChildren(abs, 1))
-            continue;
-        auto addition = getNthChild(abs, 0);
-        InferenceEngine::CNNLayerPtr power = nullptr;
-
-        if (!LayerInfo(addition).isPower())
-            continue;
-        auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
-
-        // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
-        if (!AreFpEq(powerLayer->scale, 1.0f) || !AreFpEq(powerLayer->offset, 1.0f) ||
-            !AreFpEq(std::abs(powerLayer->power), 1.0f))
-            continue;
-        // power == -1, offset = 1, scale = 1
-        if (AreFpEq(powerLayer->power, -1.0f)) {
-            std::swap(addition, power);
-        } else {  // power = 1, offset = 1, scale - 1
-            power = getNthChild(addition, 0);
-            if (!LayerInfo(power).isPower())
-                continue;
-            auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
-            // layer after addition must have power of -1, offset of 0 and scale of 1
-            if (!AreFpEq(powerLayer_1->power, -1.0f) || !AreFpEq(powerLayer_1->offset, 0.0f) ||
-                !AreFpEq(powerLayer_1->scale, 1.0f))
-                continue;
-        }
-
-        if (!hasNChildren(power, 1))
-            continue;
-        auto mulSame = getNthChild(power, 0);
-        if (mulSame != mul)
-            continue;
-
-        // pattern matched - lets substitute
-        log::debug() << "SoftSign subgraph found consits of: \n"
-                     << "\t" << abs->name << "\n";
-        if (addition != nullptr)
-            log::debug() << "\t" << addition->name << "\n";
-        log::debug() << "\t" << mul->name << "\n" << std::endl;
-
-        // creating softsign layer
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
-        auto layerName =
-            std::string("Synthetic_SoftSign_") + std::to_string(getPassManager()->getIntVar(softSignLayersCounter)++);
-
-        CNNLayerPtr activationLayer =
-            std::make_shared<GenericLayer>(LayerParams({layerName, "SoftSign", Precision::FP32}));
-        IE_ASSERT(activationLayer != nullptr);
-        auto activationLayerWithQuant =
-            quantized ? InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) : activationLayer;
-
-        auto mulData = mul->outData;
-
-        // rebind outdata of mull to be outdata of softsign
-        for (auto&& data : mulData) {
-            getCreatorLayer(data) = activationLayerWithQuant;
-            data->setName("softsign_data_" + std::to_string(getPassManager()->getIntVar(softSignLayersCounter)));
-            activationLayerWithQuant->outData.push_back(data);
-        }
-
-        // making connection l->softsign
-        getInputTo(l->outData.front()).clear();
-        getInputTo(l->outData.front())[layerName] = activationLayerWithQuant;
-
-        // making back connection softsign->mul
-        activationLayerWithQuant->insData.push_back(l->outData.front());
-    }
-}
 void SubstitutePReluPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstitutePReluPass");
     auto getScale = [](CNNLayer* layer) {

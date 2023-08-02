@@ -100,11 +100,6 @@ DECL_PASS(RemovePermutationsNHWCToNCHW);
 DECL_PASS(SubstitutePRelu);
 
 /**
- * brief @search for specific patter in the graph (5 layers are replaced by single one)
- */
-DECL_PASS(SubstituteSoftSign);
-
-/**
  * brief split ofver channels for Elementwise-layer to avoid GNA-HW limitation of 65 elements per eltwise
  */
 DECL_PASS(EltwiseSplitOverChannels);
