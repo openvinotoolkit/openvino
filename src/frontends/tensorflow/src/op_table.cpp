@@ -233,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
         {"Shape", CreatorFunction(translate_shape_op)},
+        {"ShapeN", CreatorFunction(translate_shape_op)},
         {"Size", CreatorFunction(translate_size_op)},
         {"Slice", CreatorFunction(translate_slice_op)},
         {"Snapshot", CreatorFunction(translate_identity_op)},
