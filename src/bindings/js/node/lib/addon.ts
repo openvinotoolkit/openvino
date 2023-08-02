@@ -1,5 +1,5 @@
 interface Core {
-  compileModel(): CompiledModel;
+  compileModel(model: Model, device: string): CompiledModel;
   readModelAsync(): Promise<CompiledModel>;
   readModel(modelPath: string, binPath?: string): Model;
 }
