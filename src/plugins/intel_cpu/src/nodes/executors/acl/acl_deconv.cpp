@@ -198,7 +198,10 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,
 
     // After stride=8 up-sampling in ACL Deconvolution layer slower than reference
     if (deconv_info.stride().first >= 8 || deconv_info.stride().second >= 8) return false;
-    if (!one_of(deconvAttrs.dilation.at(1), 0, 1) || !one_of(deconvAttrs.dilation.at(0), 0, 1)) return false;
+
+    unsigned int dilation_x = (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
+    unsigned int dilation_y = deconvAttrs.dilation.at(0);
+    if (!one_of(dilation_x, 0, 1) || !one_of(dilation_y, 0, 1)) return false;
 
     size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDescs[0]->getShape().getDims()[2] : srcDescs[0]->getShape().getDims()[1];
     size_t in_w = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDescs[0]->getShape().getDims()[3] : srcDescs[0]->getShape().getDims()[2];
