@@ -299,6 +299,7 @@ private:
     template <typename T>
     std::vector<T> get_external_data() const {
         const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<ngraph::runtime::AlignedBuffer> buffer = nullptr;
         if (m_enable_mmap) {
             buffer = ext_data.load_external_mmap_data(m_model_dir);
@@ -306,6 +307,7 @@ private:
             buffer = ext_data.load_external_data(m_model_dir);
         }
         return std::vector<T>(buffer->get_ptr<char>(), buffer->get_ptr<char>() + buffer->size());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     const void* get_data_ptr() const {
