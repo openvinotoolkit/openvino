@@ -42,6 +42,7 @@ shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v4::SoftPlus>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace softplus {
 namespace {
 template <element::Type_t ET>

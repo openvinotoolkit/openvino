@@ -26,7 +26,6 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
-using namespace ngraph;
 
 void ngraph::dump(ostream& out, const void* _data, size_t _size) {
     auto flags = out.flags();
@@ -110,27 +109,27 @@ size_t ngraph::round_up(size_t size, size_t alignment) {
     return size + alignment - remainder;
 }
 
-size_t stopwatch::get_call_count() const {
+size_t ngraph::stopwatch::get_call_count() const {
     return m_total_count;
 }
 
-size_t stopwatch::get_seconds() const {
+size_t ngraph::stopwatch::get_seconds() const {
     return chrono::duration_cast<chrono::seconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_milliseconds() const {
+size_t ngraph::stopwatch::get_milliseconds() const {
     return chrono::duration_cast<chrono::milliseconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_microseconds() const {
+size_t ngraph::stopwatch::get_microseconds() const {
     return chrono::duration_cast<chrono::microseconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_nanoseconds() const {
+size_t ngraph::stopwatch::get_nanoseconds() const {
     return get_timer_value().count();
 }
 
-chrono::nanoseconds stopwatch::get_timer_value() const {
+chrono::nanoseconds ngraph::stopwatch::get_timer_value() const {
     if (m_active) {
         return (m_clock.now() - m_start_time);
     } else {
@@ -138,19 +137,19 @@ chrono::nanoseconds stopwatch::get_timer_value() const {
     }
 }
 
-size_t stopwatch::get_total_seconds() const {
+size_t ngraph::stopwatch::get_total_seconds() const {
     return chrono::duration_cast<chrono::seconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_milliseconds() const {
+size_t ngraph::stopwatch::get_total_milliseconds() const {
     return chrono::duration_cast<chrono::milliseconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_microseconds() const {
+size_t ngraph::stopwatch::get_total_microseconds() const {
     return chrono::duration_cast<chrono::microseconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_nanoseconds() const {
+size_t ngraph::stopwatch::get_total_nanoseconds() const {
     return m_total_time.count();
 }
 
@@ -209,25 +208,25 @@ std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv) {
     for (auto n : nv) {
         names.push_back(n->get_name());
     }
-    os << vector_to_string(names);
+    os << ngraph::vector_to_string(names);
     return os;
 }
 
-AxisVector ngraph::get_default_order(const Shape& shape) {
+ngraph::AxisVector ngraph::get_default_order(const Shape& shape) {
     return get_default_order(shape.size());
 }
 
-AxisVector ngraph::get_default_order(const PartialShape& shape) {
+ngraph::AxisVector ngraph::get_default_order(const PartialShape& shape) {
     return get_default_order(shape.rank());
 }
 
-AxisVector ngraph::get_default_order(size_t rank) {
+ngraph::AxisVector ngraph::get_default_order(size_t rank) {
     AxisVector default_order(rank);
     std::iota(begin(default_order), end(default_order), 0);
     return default_order;
 }
 
-AxisVector ngraph::get_default_order(const Rank& rank) {
+ngraph::AxisVector ngraph::get_default_order(const Rank& rank) {
     NGRAPH_CHECK(rank.is_static(), "Can not calculate default order for dynamic rank");
 
     AxisVector default_order(rank.get_length());
@@ -281,71 +280,71 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
     }
 }
 
-vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv) {
+vector<float> read_float_vector(shared_ptr<ngraph::runtime::Tensor> tv) {
     vector<float> float_vec;
-    element::Type element_type = tv->get_element_type();
+    ngraph::element::Type element_type = tv->get_element_type();
 
-    if (element_type == element::boolean) {
+    if (element_type == ngraph::element::boolean) {
         vector<char> vec = read_vector<char>(tv);
         // Changed from vector ctor to explicit for loop to add static_cast
         // This silences MSVC warnings
         for (char value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::bf16) {
-        vector<bfloat16> vec = read_vector<bfloat16>(tv);
-        float_vec = bfloat16::to_float_vector(vec);
-    } else if (element_type == element::f16) {
-        vector<float16> vec = read_vector<float16>(tv);
-        for (float16 value : vec) {
+    } else if (element_type == ngraph::element::bf16) {
+        vector<ngraph::bfloat16> vec = read_vector<ngraph::bfloat16>(tv);
+        float_vec = ngraph::bfloat16::to_float_vector(vec);
+    } else if (element_type == ngraph::element::f16) {
+        vector<ngraph::float16> vec = read_vector<ngraph::float16>(tv);
+        for (ngraph::float16 value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::f32) {
+    } else if (element_type == ngraph::element::f32) {
         vector<float> vec = read_vector<float>(tv);
         for (float value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::f64) {
+    } else if (element_type == ngraph::element::f64) {
         vector<double> vec = read_vector<double>(tv);
         for (double value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::i8) {
+    } else if (element_type == ngraph::element::i8) {
         vector<int8_t> vec = read_vector<int8_t>(tv);
         for (int8_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::i16) {
+    } else if (element_type == ngraph::element::i16) {
         vector<int16_t> vec = read_vector<int16_t>(tv);
         for (int16_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::i32) {
+    } else if (element_type == ngraph::element::i32) {
         vector<int32_t> vec = read_vector<int32_t>(tv);
         for (int32_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::i64) {
+    } else if (element_type == ngraph::element::i64) {
         vector<int64_t> vec = read_vector<int64_t>(tv);
         for (int64_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::u8) {
+    } else if (element_type == ngraph::element::u8) {
         vector<uint8_t> vec = read_vector<uint8_t>(tv);
         for (uint8_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::u16) {
+    } else if (element_type == ngraph::element::u16) {
         vector<uint16_t> vec = read_vector<uint16_t>(tv);
         for (uint16_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::u32) {
+    } else if (element_type == ngraph::element::u32) {
         vector<uint32_t> vec = read_vector<uint32_t>(tv);
         for (uint32_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    } else if (element_type == element::u64) {
+    } else if (element_type == ngraph::element::u64) {
         vector<uint64_t> vec = read_vector<uint64_t>(tv);
         for (uint64_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
@@ -357,71 +356,71 @@ vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv) {
     return float_vec;
 }
 
-vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv) {
+vector<int64_t> read_index_vector(shared_ptr<ngraph::runtime::Tensor> tv) {
     vector<int64_t> index_vec;
-    element::Type element_type = tv->get_element_type();
+    ngraph::element::Type element_type = tv->get_element_type();
 
-    if (element_type == element::boolean) {
+    if (element_type == ngraph::element::boolean) {
         vector<char> vec = read_vector<char>(tv);
         // Changed from vector ctor to explicit for loop to add static_cast
         // This silences MSVC warnings
         for (char value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::bf16) {
-        vector<bfloat16> vec = read_vector<bfloat16>(tv);
-        vector<float> float_vec = bfloat16::to_float_vector(vec);
+    } else if (element_type == ngraph::element::bf16) {
+        vector<ngraph::bfloat16> vec = read_vector<ngraph::bfloat16>(tv);
+        vector<float> float_vec = ngraph::bfloat16::to_float_vector(vec);
         for (float value : float_vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::f16) {
-        vector<float16> vec = read_vector<float16>(tv);
-        for (float16 value : vec) {
+    } else if (element_type == ngraph::element::f16) {
+        vector<ngraph::float16> vec = read_vector<ngraph::float16>(tv);
+        for (ngraph::float16 value : vec) {
             index_vec.push_back(static_cast<int64_t>(static_cast<float>(value)));
         }
-    } else if (element_type == element::f32) {
+    } else if (element_type == ngraph::element::f32) {
         vector<float> vec = read_vector<float>(tv);
         for (float value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::f64) {
+    } else if (element_type == ngraph::element::f64) {
         vector<double> vec = read_vector<double>(tv);
         for (double value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::i8) {
+    } else if (element_type == ngraph::element::i8) {
         vector<int8_t> vec = read_vector<int8_t>(tv);
         for (int8_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::i16) {
+    } else if (element_type == ngraph::element::i16) {
         vector<int16_t> vec = read_vector<int16_t>(tv);
         for (int16_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::i32) {
+    } else if (element_type == ngraph::element::i32) {
         vector<int32_t> vec = read_vector<int32_t>(tv);
         for (int32_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::i64) {
+    } else if (element_type == ngraph::element::i64) {
         index_vec = read_vector<int64_t>(tv);
-    } else if (element_type == element::u8) {
+    } else if (element_type == ngraph::element::u8) {
         vector<uint8_t> vec = read_vector<uint8_t>(tv);
         for (uint8_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::u16) {
+    } else if (element_type == ngraph::element::u16) {
         vector<uint16_t> vec = read_vector<uint16_t>(tv);
         for (uint16_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::u32) {
+    } else if (element_type == ngraph::element::u32) {
         vector<uint32_t> vec = read_vector<uint32_t>(tv);
         for (uint32_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    } else if (element_type == element::u64) {
+    } else if (element_type == ngraph::element::u64) {
         vector<uint64_t> vec = read_vector<uint64_t>(tv);
         for (uint64_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
