@@ -1,6 +1,5 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC ModelWrap
@@ -31,8 +30,10 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript Model class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Model class.
+
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Model class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
@@ -50,7 +51,7 @@ public:
 
     Napi::Value infer(const Napi::CallbackInfo& info);
 
-    /// @return Napi::String containing a model name.
+    /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
     std::string get_name();
     std::shared_ptr<ov::Model> get_model();

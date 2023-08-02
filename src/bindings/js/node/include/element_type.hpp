@@ -1,7 +1,10 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 #include <napi.h>
 
 #include "helper.hpp"
 
-/// \brief Creates JS object to represent C++ enum class Type_t with possible element types
+/** \brief Creates JS object to represent C++ enum class Type_t with possible element types */
 Napi::Value enumElementType(const Napi::CallbackInfo& info);

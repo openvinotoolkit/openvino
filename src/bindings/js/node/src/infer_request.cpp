@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "infer_request.hpp"
 
 #include "node_output.hpp"
@@ -9,7 +12,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "InferRequest",
                        {InstanceMethod("setInputTensor", &InferRequestWrap::set_input_tensor),
-                        InstanceMethod("infer", &InferRequestWrap::infer),
+                        InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
                         InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                         InstanceMethod("getOutputTensors", &InferRequestWrap::get_output_tensors),
                         InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor)});
@@ -39,38 +42,49 @@ Napi::Object InferRequestWrap::Wrap(Napi::Env env, ov::InferRequest infer_reques
 }
 
 Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
-    auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+    auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
     ov::Tensor t = tensorWrap->get_tensor();
 
     _infer_request.set_input_tensor(t);
     return Napi::Value();
 }
 
-Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
+Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
     if (info.Length() == 0)
         _infer_request.infer();
-    else if (info.Length() == 1 && info[0].IsObject()) {
-        const auto inputs = info[0].As<Napi::Object>();
-        auto keys = inputs.GetPropertyNames();
-
-        for (size_t i = 0; i < keys.Length(); i++) {
-            auto tensor_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            auto tensor_obj = inputs.Get(tensor_name).As<Napi::Object>();
-
-            auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(tensor_obj);
-            auto tensor = tensorWrap->get_tensor();
-
-            _infer_request.set_tensor(tensor_name, tensor);
-        }
-        _infer_request.infer();
+    else if (info.Length() == 1 && info[0].IsArray()) {
+        infer(info[0].As<Napi::Array>());
+    } else if (info.Length() == 1 && info[0].IsObject()) {
+        infer(info[0].As<Napi::Object>());
     } else {
-        reportError(info.Env(), "Inference error.");
+        reportError(info.Env(), "Infer method takes as an argument an array or an object.");
     }
-    return Napi::Value();
+    return get_output_tensors(info);
+}
+
+void InferRequestWrap::infer(const Napi::Array& inputs) {
+    for (size_t i = 0; i < inputs.Length(); ++i) {
+        auto tensor = value_to_tensor(inputs[i], _infer_request, i);
+        _infer_request.set_input_tensor(i, tensor);
+    }
+    _infer_request.infer();
+}
+
+void InferRequestWrap::infer(const Napi::Object& inputs) {
+    auto keys = inputs.GetPropertyNames();
+
+    for (size_t i = 0; i < keys.Length(); ++i) {
+        auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+        auto value = inputs.Get(input_name);
+        auto tensor = value_to_tensor(value, _infer_request, input_name);
+
+        _infer_request.set_tensor(input_name, tensor);
+    }
+    _infer_request.infer();
 }
 
 Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
-    auto* outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
+    auto outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
     ov::Output<const ov::Node> output = outputWrap->get_output();
 
     ov::Tensor tensor = _infer_request.get_tensor(output);

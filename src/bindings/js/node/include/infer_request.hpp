@@ -1,14 +1,11 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC InferRequestWrap
- *
  * @file src/InferRequestWrap.hpp
  */
 #pragma once
-
 #include <napi.h>
 
 #include <openvino/runtime/infer_request.hpp>
@@ -26,8 +23,10 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript InferRequest class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript InferRequest class.
+
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript InferRequest class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_infer_request(const ov::InferRequest& infer_request);
@@ -46,8 +45,19 @@ public:
      * @param info[0] Javascript Tensor object.
      */
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
-    /// @brief  Infers specified input in synchronous mode.
-    Napi::Value infer(const Napi::CallbackInfo& info);
+
+    /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
+    Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
+
+    /** @brief Infers specified inputs in synchronous mode.
+     * @param inputs  An object with a collection of pairs key (input_name) and a value (tensor, tensor's data)
+     */
+    void infer(const Napi::Object& inputs);
+
+    /** @brief Infers specified inputs in synchronous mode.
+     * @param inputs  An Array with values (tensors, tensors' data)
+     */
+    void infer(const Napi::Array& inputs);
 
     /**
      * @brief Gets an input/output tensor for inference.
@@ -57,10 +67,10 @@ public:
      */
     Napi::Value get_tensor(const Napi::CallbackInfo& info);
 
-    /// @return A Javascript output tensor for the model. If model has several outputs, an error occurs.
+    /** @return A Javascript output tensor for the model. If model has several outputs, an error occurs. */
     Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
 
-    /// @return A Javascript object with model outputs.
+    /** @return A Javascript object with model outputs. */
     Napi::Value get_output_tensors(const Napi::CallbackInfo& info);
 
 private:

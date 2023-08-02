@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "shape.hpp"
 
 Shape::Shape(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Shape>(info) {
@@ -6,7 +9,7 @@ Shape::Shape(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Shape>(info) {
     else if (info.Length() == 2) {
         auto dim = info[0].As<Napi::Number>().Int32Value();
         auto data_array = info[1].As<Napi::Uint32Array>();
-        for (int i = 0; i < dim; i++)
+        for (int i = 0; i < dim; ++i)
             this->_shape.push_back(data_array[i]);
     }
 }
@@ -41,7 +44,7 @@ Napi::Object Shape::Wrap(Napi::Env env, ov::Shape shape) {
 
 Napi::Value Shape::get_data(const Napi::CallbackInfo& info) {
     auto arr = Napi::Array::New(info.Env(), _shape.size());
-    for (size_t i = 0; i < _shape.size(); i++)
+    for (size_t i = 0; i < _shape.size(); ++i)
         arr[i] = _shape[i];
 
     return arr;

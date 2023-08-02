@@ -1,10 +1,8 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC TensorWrap
- *
  * @file src/TensorWrap.hpp
  */
 #pragma once
@@ -31,14 +29,17 @@ public:
      * @throw Exception if params are of invalid type.
      */
     TensorWrap(const Napi::CallbackInfo& info);
+
     /**
      * @brief Defines a Javascript Tensor class with constructor, static and instance properties and methods.
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Tensor class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Tensor class.
+    
+    /** @brief This method is called during initialization of OpenVino native add-on. 
+     * It exports JavaScript Tensor class. 
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     ov::Tensor get_tensor();
@@ -58,9 +59,9 @@ public:
      */
     Napi::Value get_data(const Napi::CallbackInfo& info);
 
-    /// @return A Javascript Shape object containing a tensor shape.
+    /** @return A Javascript Shape object containing a tensor shape. */
     Napi::Value get_shape(const Napi::CallbackInfo& info);
-    /// @return Napi::String containing ov::element type.
+    /** @return Napi::String containing ov::element type. */
     Napi::Value get_precision(const Napi::CallbackInfo& info);
 
 private:

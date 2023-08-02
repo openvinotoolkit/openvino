@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "pre_post_process_wrap.hpp"
 
 #include <iostream>
@@ -8,7 +11,7 @@ PrePostProcessorWrap::PrePostProcessorWrap(const Napi::CallbackInfo& info)
         reportError(info.Env(), "Invalid number of arguments for PrePostProcessor constructor.");
     else {
         Napi::Object obj = info[0].ToObject();
-        auto* m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
+        auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(obj);
         _ppp = std::unique_ptr<ov::preprocess::PrePostProcessor>(new ov::preprocess::PrePostProcessor(m->get_model()));
     }
 }

@@ -1,6 +1,5 @@
-// Copyright (C) ?
-//
-//
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
 /**
  * @brief This is a header file for the NAPI POC CompiledModelWrap
@@ -26,8 +25,9 @@ public:
      * @return Napi::Function representing the constructor function for the Javascript CompiledModel class.
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript CompiledModel class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript CompiledModel class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     /**
@@ -38,7 +38,7 @@ public:
      */
     static Napi::Object Wrap(Napi::Env env, ov::CompiledModel compiled_model);
 
-    /// @return A Javascript InferRequest
+    /** @return A Javascript InferRequest */
     Napi::Value create_infer_request(const Napi::CallbackInfo& info);
 
     /**

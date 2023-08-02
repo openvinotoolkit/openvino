@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "node_output.hpp"
 
 #include "shape.hpp"
@@ -47,7 +50,7 @@ Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 Napi::Value Output<ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
     auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); i++)
+    for (size_t i = 0; i < shape.size(); ++i)
         arr[i] = shape[i];
 
     return arr;
@@ -113,7 +116,7 @@ Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
 Napi::Value Output<const ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
     auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); i++)
+    for (size_t i = 0; i < shape.size(); ++i)
         arr[i] = shape[i];
 
     return arr;

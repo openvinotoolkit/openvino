@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "model_wrap.hpp"
 
 #include "node_output.hpp"
@@ -93,7 +96,7 @@ Napi::Value ModelWrap::compile_model(const Napi::CallbackInfo& info) {
 Napi::Value ModelWrap::infer(const Napi::CallbackInfo& info) {
     ov::InferRequest _infer_request = _compiled_model.create_infer_request();
 
-    auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+    auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
     ov::Tensor t = tensorWrap->get_tensor();
     _infer_request.set_input_tensor(t);
 

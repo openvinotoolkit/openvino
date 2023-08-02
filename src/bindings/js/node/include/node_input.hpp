@@ -1,5 +1,7 @@
-#pragma once
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 
+#pragma once
 #include <napi.h>
 
 #include <openvino/core/node_input.hpp>
@@ -7,7 +9,7 @@
 template <class NodeType>
 class Input : public Napi::ObjectWrap<Input<NodeType>> {};
 
-template<>
+template <>
 class Input<ov::Node> : public Napi::ObjectWrap<Input<ov::Node>> {
 public:
     Input(const Napi::CallbackInfo& info);
@@ -19,8 +21,9 @@ public:
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Input class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Input class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_input(const std::shared_ptr<ov::Input<ov::Node>>& input);
@@ -28,14 +31,14 @@ public:
     static Napi::Object Wrap(Napi::Env env, std::shared_ptr<ov::Input<ov::Node>> input);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
-    
+
     Napi::Value get_shape_data(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Input<ov::Node>> _input;
 };
 
-template<>
+template <>
 class Input<const ov::Node> : public Napi::ObjectWrap<Input<const ov::Node>> {
 public:
     Input(const Napi::CallbackInfo& info);
@@ -47,8 +50,9 @@ public:
      */
     static Napi::Function GetClassConstructor(Napi::Env env);
 
-    /// @brief This method is called during initialization of OpenVino native add-on.
-    /// It exports JavaScript Input class.
+    /** @brief This method is called during initialization of OpenVino native add-on.
+     * It exports JavaScript Input class.
+     */
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     void set_input(const std::shared_ptr<ov::Input<const ov::Node>>& input);
@@ -56,7 +60,7 @@ public:
     static Napi::Object Wrap(Napi::Env env, std::shared_ptr<ov::Input<const ov::Node>> input);
 
     Napi::Value get_shape(const Napi::CallbackInfo& info);
-    
+
     Napi::Value get_shape_data(const Napi::CallbackInfo& info);
 
 private:

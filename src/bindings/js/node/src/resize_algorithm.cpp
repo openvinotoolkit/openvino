@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "resize_algorithm.hpp"
 
 #include <iostream>
@@ -15,7 +18,7 @@ Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
       "RESIZE_NEAREST"
     };
 
-    for (std::string& algorithm: resizeAlgorithms) {
+    for (auto& algorithm: resizeAlgorithms) {
       pds.push_back(
         Napi::PropertyDescriptor::Value(
           algorithm,
