@@ -114,12 +114,12 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
-        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin.tgz"
+		# Roll back to tbb2020
+                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "0a56f73baaa40d72e06949ea6d593ae63a19f7580ce71c08287c1f59d2e5b988"
+                SHA256 "e7a38f68059fb36de8b59d40b283a849f26275e34a58d2acadfdb84d49e31b9b"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
