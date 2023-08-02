@@ -6,6 +6,7 @@
 
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "openvino/util/file_util.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -68,26 +69,10 @@ compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_
 template <typename T>
 typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
 compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tensor, const size_t tolerance_bits) {
-    std::vector<T> expected(expected_tensor.get_size());
-    ov::Tensor expected_view(expected_tensor.get_element_type(), expected_tensor.get_shape(), expected.data());
-    expected_tensor.copy_to(expected_view);
+    auto expected_tensor_converted = ov::test::utils::make_tensor_with_precision_convert(expected_tensor, ov::element::f64);
+    auto result_tensor_converted = ov::test::utils::make_tensor_with_precision_convert(result_tensor, ov::element::f64);
 
-    std::vector<T> result(result_tensor.get_size());
-    ov::Tensor result_view(result_tensor.get_element_type(), result_tensor.get_shape(), result.data());
-    result_tensor.copy_to(result_view);
-
-    // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
-    std::vector<double> expected_double(expected.size());
-    std::vector<double> result_double(result.size());
-
-    NGRAPH_CHECK(expected.size() == result.size(), "Number of expected and computed results don't match");
-
-    for (size_t i = 0; i < expected.size(); ++i) {
-        expected_double[i] = static_cast<double>(expected[i]);
-        result_double[i] = static_cast<double>(result[i]);
-    }
-
-    return ov::test::utils::all_close_f(expected_double, result_double, static_cast<int>(tolerance_bits));
+    return ov::test::utils::all_close_f(expected_tensor_converted, result_tensor_converted, static_cast<int>(tolerance_bits));
 }
 };  // namespace
 

@@ -96,18 +96,14 @@ public:
 
     template <typename T>
     void add_input_from_file(const Shape& shape, const std::string& basepath, const std::string& filename) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto filepath = ov::util::path_join({basepath, filename});
         add_input_from_file<T>(shape, filepath);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
     void add_input_from_file(const std::string& basepath, const std::string& filename) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto filepath = ov::util::path_join({basepath, filename});
         add_input_from_file<T>(filepath);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
