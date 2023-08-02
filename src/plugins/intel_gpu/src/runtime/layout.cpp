@@ -215,7 +215,7 @@ std::string layout::to_short_string() const {
     dump_shape(s, size);
 
     if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
-        s << ":dyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string();
+        s << ":dyn_pad_dims";
     } else {
         if (data_padding)
             s << ":pad";

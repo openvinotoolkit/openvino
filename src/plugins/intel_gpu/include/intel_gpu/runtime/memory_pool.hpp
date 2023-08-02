@@ -126,6 +126,12 @@ public:
                                              allocation_type type);
     void clear_pool_for_network(uint32_t network_id);
     void release_memory(memory* memory, const primitive_id& id, uint32_t network_id);
+
+    size_t get_non_padded_pool_size() {
+        return _non_padded_pool.size();
+    }
+
+    void dump(uint32_t id);
 };
 
 }  // namespace cldnn

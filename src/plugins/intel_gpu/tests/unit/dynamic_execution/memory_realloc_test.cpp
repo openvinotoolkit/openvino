@@ -131,7 +131,10 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         out_size_1  = output_x_1 * output_b_1,
         output_x_2  = 10, output_b_2  = 4,
         input_x_2   = 10, input_b_2  = 4,
-        out_size_2  = output_x_2 * output_b_2;
+        out_size_2  = output_x_2 * output_b_2,
+        output_x_3  = 10, output_b_3  = 16,
+        input_x_3   = 10, input_b_3  = 16,
+        out_size_3  = output_x_3 * output_b_3;
 
     cldnn::engine& engine = get_test_engine();
 
@@ -196,6 +199,29 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
             ASSERT_EQ(internal_mems_1[i]->get_allocation_type(), allocation_type::usm_device);
         }
     }
+    // Third run
+    float out_buffer_3[out_size_3];
+    std::vector<float> in_b_3(out_size_3, 2.0f);
+    std::vector<float> expected_buffer_3(out_size_3, 0.1f);
+    cldnn::memory::ptr input_3 = engine.allocate_memory({ data_types::f32, format::bfyx, {input_b_3, 1, input_x_3, 1}});
+    set_values(input_3, in_b_3);
+    network.set_input_data("input", input_3);
+    auto outputs_3 = network.execute();
+    auto output_mem_3 = outputs_3.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_mem_3, get_test_stream());
+    for (uint32_t i = 0; i < out_size_3; i++) {
+        out_buffer_3[i] = output_ptr_3[i];
+    }
+    compare_out_buffer_with_expected(out_buffer_3, expected_buffer_3, out_size_3);
+    auto internal_mems_3 = network.get_primitive("softmax")->get_intermediates_memories();
+    for (size_t i = 0; i < internal_mems_3.size(); ++i) {
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(internal_mems_3[i]->get_allocation_type(), allocation_type::usm_device);
+        }
+    }
+    auto& pool = network.get_memory_pool();
+    // check if previously allocated internal buffer is released
+    ASSERT_EQ(pool.get_non_padded_pool_size(), 3);
 }
 
 TEST(dyn_shape_mem_test, igpu_shape_infer_dep_mem_type) {

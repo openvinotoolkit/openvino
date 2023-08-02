@@ -133,6 +133,26 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     return false;
 }
 
+static memory::ptr get_memory_from_pool(engine& _engine,
+                                uint32_t net_id,
+                                memory_pool& pool,
+                                const program_node& _node,
+                                const layout& layout,
+                                allocation_type type,
+                                bool reusable_across_network,
+                                bool reset = true,
+                                memory* curr_memory = nullptr) {
+    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
+                    "[GPU] Can't allocate output for dynamic layout without upper bound");
+    // Use layout with max tensor for dynamic shape with upper bound
+    if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        if (curr_memory != nullptr)
+            pool.release_memory(curr_memory, _node.id(), net_id);
+        return pool.get_memory(layout, _node.id(), net_id, _node.get_memory_dependencies(), type, reusable_across_network, reset);
+    }
+    return pool.get_memory(layout, type, reset);
+}
+
 std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
     if (!need_weights_reorder())
         return nullptr;
@@ -1002,9 +1022,19 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
     // Reuse intermediate buffer like output buffer.
-    auto ret_mem = _network.get_memory_pool().get_memory(layout, _node->id(), _network.get_id(), _node->get_memory_dependencies(), alloc_type, true, reset);
+    bool reuse_internal_buf = true;
+    auto ret_mem =
+        get_memory_from_pool(_network.get_engine(),
+                             _network.get_id(),
+                             _network.get_memory_pool(),
+                             *_node,
+                             layout,
+                             alloc_type,
+                             reuse_internal_buf,
+                             reset,
+                             _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
     GPU_DEBUG_LOG << " [" << _network.get_id() << ":" << _node->id() << ": internal buf " << idx << "] " << alloc_type
-        << " " << ret_mem->buffer_ptr() << std::endl;
+                  << " " << ret_mem->buffer_ptr() << std::endl;
     return ret_mem;
 }
 
@@ -1016,7 +1046,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
         return;
 
     // allocate intermediate memory for the updated layout of buffer
-    std::vector<memory::cptr> intermediates_memory;
+    std::vector<memory::ptr> intermediates_memory;
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
         if (ibuf_layouts[i].get_linear_size() == 0)
             continue;
@@ -1150,18 +1180,6 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
                                 uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, memory* curr_memory, bool runtime_alloc) {
-    auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
-            allocation_type type, bool reusable_across_network, bool reset = true, memory* curr_memory = nullptr) {
-        OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
-        // Use layout with max tensor for dynamic shape with upper bound
-        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
-            if (curr_memory != nullptr)
-                pool.release_memory(curr_memory, id, net_id);
-            return pool.get_memory(layout, id, net_id, dependencies, type, reusable_across_network, reset);
-        }
-        return pool.get_memory(layout, type, reset);
-    };
-
     auto layout = impl_params.get_output_layout(idx);
     OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
@@ -1187,10 +1205,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
-        reusable_across_network = false;
-    }
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
@@ -1213,9 +1227,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 _engine.supports_allocation(allocation_type::usm_device))
                 alloc_type = allocation_type::usm_device;
             return get_memory_from_pool(_engine,
+                                        net_id,
+                                        pool,
+                                        _node,
                                         layout,
-                                        _node.id(),
-                                        _node.get_memory_dependencies(),
                                         alloc_type,
                                         false,
                                         reset,
@@ -1231,9 +1246,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
+                                    net_id,
+                                    pool,
+                                    _node,
                                     layout,
-                                    _node.id(),
-                                    _node.get_memory_dependencies(),
                                     alloc_type,
                                     reusable_across_network,
                                     reset,
