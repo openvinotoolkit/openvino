@@ -18,18 +18,18 @@
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.pytorch/adaptive_avg_pooling2d_nchw.onnx"));
 
@@ -54,9 +54,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_nchw) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_chw) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_adaptive_avg_pooling2d_chw) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.pytorch/adaptive_avg_pooling2d_chw.onnx"));
 

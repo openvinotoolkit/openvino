@@ -83,7 +83,7 @@ std::string ExecGraphRuntimePrecision::getTestCaseName(testing::TestParamInfo<Ex
 
     std::ostringstream result;
     result << "Function=" << specificParams.makeFunction(specificParams.inputPrecisions)->get_friendly_name() << "_";
-    result << "InPrcs=" << CommonTestUtils::vec2str(specificParams.inputPrecisions) << "_";
+    result << "InPrcs=" << ov::test::utils::vec2str(specificParams.inputPrecisions) << "_";
     result << "targetDevice=" << targetDevice;
 
     return result.str();

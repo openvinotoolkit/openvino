@@ -35,7 +35,7 @@ void MatMulActAddTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {{ 1, inputSize }});
 
     auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { outFormShapes[1], inputSize },
-        CommonTestUtils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
+        ov::test::utils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
 
     auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
 

@@ -70,6 +70,7 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <transformations/common_optimizations/mvn_fusion.hpp>
 #include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
@@ -90,6 +91,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/convert_shapeof3.hpp>
+#include <transformations/op_conversions/convert_topk11_downgrade.hpp>
 
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
@@ -192,9 +194,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
 
-        // fuse softmax patterns so that they will not be marked as precision sensitive in ConvertPrecision
+        // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
-        // decompose MVNs that sre not supported in GPU, so the they will be marked as precision sensitive in ConvertPrecision
+        manager.register_pass<ov::pass::MVNFusion>();
+        // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
         manager.register_pass<ov::pass::BroadcastTransition>();
 
@@ -442,6 +445,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertShapeOf3>();
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
+        pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 

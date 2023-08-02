@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_multioutput_eltwise_identity,
                          MultioutputEltwiseReshapeEltwise,
                          ::testing::Combine(::testing::ValuesIn(inputs),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          MultioutputEltwiseReshapeEltwise::getTestCaseName);
 }  // namespace

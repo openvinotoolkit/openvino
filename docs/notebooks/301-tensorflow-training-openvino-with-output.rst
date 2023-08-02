@@ -900,9 +900,8 @@ OpenVINO Inference Engine Setup
     ie = Core()
     
     # Neural Compute Stick
-    # compile the model for the CPU (you can choose manually CPU, GPU, MYRIAD etc.)
+    # compile the model for the CPU (you can choose manually CPU, GPU, etc.)
     # or let the engine choose the best available device (AUTO)
-    # compiled_model = ie.compile_model(model=model, device_name="MYRIAD")
     compiled_model = ie.compile_model(model=ir_model, device_name="CPU")
     
     del ir_model

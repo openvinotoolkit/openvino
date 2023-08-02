@@ -5,6 +5,7 @@ import argparse
 import ast
 import logging as log
 import os
+import pathlib
 import re
 from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
@@ -21,91 +22,8 @@ from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type # pyli
 import openvino
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.utils import refer_to_faq_msg, get_mo_root_dir
-from openvino.tools.ovc.help import get_convert_model_help_specifics, get_to_string_methods_for_params
-
-
-def extension_path_to_str_or_extensions_class(extension):
-    if isinstance(extension, str):
-        return extension
-    elif isinstance(extension, Path):
-        return str(extension)
-    else:
-        # Return unknown object as is.
-        # The type of the object will be checked by frontend.add_extension() method
-        return extension
-
-
-def transformations_config_to_str(value):
-    if value is None:
-        return value
-    return extension_path_to_str_or_extensions_class(value)
-
-
-def extensions_to_str_or_extensions_class(extensions):
-    if extensions is None:
-        return None
-    extensions_list = []
-    if isinstance(extensions, str):
-        extensions_list = extensions.split(',')
-    elif isinstance(extensions, list):
-        for ext in extensions:
-            ext = extension_path_to_str_or_extensions_class(ext)
-            extensions_list.append(ext)
-    else:
-        extensions_list = [extension_path_to_str_or_extensions_class(extensions)]
-
-    for ext in extensions_list:
-        if isinstance(ext, str):
-            readable_file_or_dir(ext)
-    return extensions_list
-
-
-def path_to_str(path):
-    if path is None:
-        return None
-    if isinstance(path, str):
-        return path
-    elif isinstance(path, Path):
-        return str(path)
-    else:
-        raise Exception("Incorrect type of {} expected str or Path, got {}".format(path, type(path)))
-
-
-def path_to_str_or_object(value):
-    if value is None or isinstance(value, str):
-        return value
-    elif isinstance(value, Path):
-        return str(value)
-    else:
-        return value
-
-
-def paths_to_str(paths):
-    if paths is None:
-        return None
-    if isinstance(paths, list):
-        paths_str = []
-        for path in paths:
-            paths_str.append(path_to_str(path))
-        return ','.join(paths_str)
-    else:
-        path_to_str(paths)
-
-
-def str_list_to_str(values):
-    if values is None:
-        return None
-    if isinstance(values, str):
-        return values
-    elif isinstance(values, list):
-        for value in values:
-            if not isinstance(value, str):
-                raise Error("Incorrect argument. {} expected to string, got type {}.".format(value, type(value)))
-        return ','.join(values)
-    else:
-        raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
-
+from openvino.tools.ovc.utils import get_mo_root_dir
+from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 def is_shape_type(value):
     if isinstance(value, PartialShape):
@@ -119,25 +37,6 @@ def is_shape_type(value):
         return True
     return False
 
-
-def value_to_str(value, separator):
-    if isinstance(value, np.ndarray):
-        values = []
-        for x in np.nditer(value):
-            values.append(str(x))
-        return "[" + separator.join(values) + "]"
-    if isinstance(value, list):
-        values = []
-        for x in value:
-            if not isinstance(x, numbers.Number):
-                raise Exception("Incorrect value type. Expected numeric value, got {}".format(type(x)))
-            values.append(str(x))
-        return "[" + separator.join(values) + "]"
-    if isinstance(value, bool):
-        return "True" if value else "False"
-    raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
-
-
 def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
     Parses parameters of single input to InputCutInfo.
@@ -148,14 +47,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
         # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(node_name,
+        return openvino.tools.ovc.InputCutInfo(node_name,
                                               PartialShape(shape) if shape is not None else None,
                                               data_type,
                                               value)
-    if isinstance(input, openvino.runtime.InputCutInfo): # pylint: disable=no-member
+    if isinstance(input, openvino.tools.ovc.InputCutInfo): # pylint: disable=no-member
         # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(input.name,
+        return openvino.tools.ovc.InputCutInfo(input.name,
                                               PartialShape(input.shape) if input.shape is not None else None,
                                               input.type,
                                               input.value)
@@ -186,18 +85,18 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
         # pylint: disable=no-member
-        return openvino.runtime.InputCutInfo(name,
+        return openvino.tools.ovc.InputCutInfo(name,
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
     # Case when only type is set
     if isinstance(input, (type, Type)):
-        return openvino.runtime.InputCutInfo(None, None, input, None) # pylint: disable=no-member
+        return openvino.tools.ovc.InputCutInfo(None, None, input, None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected openvino.runtime.InputCutInfo "
+    raise Exception("Unexpected object provided for input. Expected openvino.tools.ovc.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
@@ -217,13 +116,13 @@ def input_to_input_cut_info(input: [str, tuple, list]):
             # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
             # pylint: disable=no-member
-            inputs.append(openvino.runtime.InputCutInfo(node_name,
+            inputs.append(openvino.tools.ovc.InputCutInfo(node_name,
                                                          PartialShape(shape) if shape is not None else None,
                                                          data_type,
                                                          value))
         return inputs
     # pylint: disable=no-member
-    if isinstance(input, openvino.runtime.InputCutInfo):
+    if isinstance(input, openvino.tools.ovc.InputCutInfo):
         # Wrap to list and return
         return [input]
     if isinstance(input, tuple):
@@ -245,60 +144,15 @@ def input_to_input_cut_info(input: [str, tuple, list]):
     return [single_input_to_input_cut_info(input)]
 
 
-def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, tuple], inputs: list):
+def freeze_placeholder_to_input_cut_info(inputs: list):
     """
-    Parses 'input_shape' to list of PartialShape and updates 'inputs'.
-    :param input_shape: input shapes passed by user
-    :param inputs: list of InputCutInfo with information from 'input' parameter
-    """
-    if input_shape is None:
-        return
-    if isinstance(input_shape, str):
-        # Split input_shape to list of string
-        input_shape = split_shapes(input_shape)
-    if isinstance(input_shape, (Shape, PartialShape)):
-        # Whap single shape to list
-        input_shape = [input_shape]
-    if isinstance(input_shape, (list, tuple)):
-        # Check case when single shape is passed as list or tuple
-        if len(input_shape) > 0 and isinstance(input_shape[0], (int, Dimension)):
-            input_shape = [input_shape]
-
-        if len(inputs) > 0 and len(input_shape) > 0:
-            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in \"input\" parameter " \
-                    "and \"input_shapes\". \"input\" has {} items, \"input_shape\" has {} item.".format(len(inputs), len(input_shape))
-
-        # Update inputs with information from 'input_shape'
-        if len(inputs) > 0:
-            for idx, shape in enumerate(input_shape):
-                shape = PartialShape(shape)
-                assert inputs[idx].shape is None, "Shape was set in both \"input\" and in \"input_shape\" parameter." \
-                                                  "Please use either \"input\" or \"input_shape\" for shape setting."
-                # pylint: disable=no-member
-                inputs[idx] = openvino.runtime.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
-
-        else:
-            for shape in input_shape:
-                # pylint: disable=no-member
-                inputs.append(openvino.runtime.InputCutInfo(None, PartialShape(shape), None, None))
-        return
-
-    raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
-                    "Got {}".format(type(input_shape)))
-
-
-def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str, inputs: list):
-    """
-    Parses 'argv_freeze_placeholder_with_value' to dictionary and collects unnamed inputs from 'inputs' to list.
-    :param argv_freeze_placeholder_with_value: string set by user.
-    As it was planned to be deprecated no Python analogs were made.
+    Parses freezing parts from input list.
     :param inputs: list of InputCutInfo with information from 'input' parameter
     :returns (placeholder_values, unnamed_placeholder_values), where
     placeholder_values - dictionary where key is node name, value is node value,
     unnamed_placeholder_values - list with unnamed node values
     """
-    # Parse argv_freeze_placeholder_with_value to dictionary with names and values
-    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
+    placeholder_values = {}
     unnamed_placeholder_values = []
 
     # Collect values for freezing from 'inputs'
@@ -321,185 +175,13 @@ def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str
 
     return placeholder_values, unnamed_placeholder_values
 
-
-def mean_scale_value_to_str(value):
-    # default empty value
-    if isinstance(value, tuple) and len(value) == 0:
-        return value
-
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        values_str = []
-        for op_name, val in value.items():
-            if not isinstance(op_name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + value_to_str(val, ","))
-        return ",".join(values_str)
-    if isinstance(value, list) or isinstance(value, tuple):
-        list_of_lists = False
-        for val in value:
-            if isinstance(val, list) or isinstance(val, tuple):
-                list_of_lists = True
-                break
-        if list_of_lists:
-            values_str = []
-            for val in value:
-                values_str.append(value_to_str(val, ","))
-            return ",".join(values_str)
-        else:
-            return value_to_str(value, ",")
-    return value_to_str(value, ",")
-
-
-def layout_to_str(layout):
-    if isinstance(layout, str):
-        return layout
-    if isinstance(layout, Layout):
-        return layout.to_string()
-    raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
-                    "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
-
-
-def source_target_layout_to_str(value):
-    # default empty value
-    if isinstance(value, tuple) and len(value) == 0:
-        return value
-
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        values_str = []
-        for op_name, layout in value.items():
-            if not isinstance(op_name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layout_to_str(layout) + ")")
-        return ",".join(values_str)
-
-    return layout_to_str(value)
-
-
-def layoutmap_to_str(value):
-    if isinstance(value, str):
-        return value
-    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
-        assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
-        source_layout = layout_to_str(value.source_layout)
-        if value.target_layout is not None:
-            target_layout = layout_to_str(value.target_layout)
-            source_layout += "->" + target_layout
-        return source_layout
-    return layout_to_str(value)
-
-
-def layout_param_to_str(value):
-    # default empty value
-    if isinstance(value, tuple) and len(value) == 0:
-        return value
-
-    if isinstance(value, str):
-        return value
-
-    if isinstance(value, dict):
-        values_str = []
-        for op_name, layout in value.items():
-            if not isinstance(op_name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
-            values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
-        return ",".join(values_str)
-    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
-        return layoutmap_to_str(value)
-    if isinstance(value, list) or isinstance(value, tuple):
-        values_str = []
-        for layout in value:
-            values_str.append(layoutmap_to_str(layout))
-        return ",".join(values_str)
-
-    return layoutmap_to_str(value)
-
-
-def batch_to_int(value):
-    if value is None or isinstance(value, int):
-        return value
-    if isinstance(value, Dimension):
-        if not value.is_static:
-            # TODO: Ticket 88676
-            raise Exception("Dynamic batch for \"batch\" parameter is not supported.")
-        else:
-            return value.get_length()
-    raise Exception("Incorrect batch value. Expected int, got {}.".format(type(value)))
-
-
-def transform_param_value_to_str(value):
-    # This function supports parsing of parameters of MakeStateful, LowLatency2, Pruning.
-    # If available transforms list is extended this method should be extended for new transforms.
-    if isinstance(value, str):
-        return value
-    if isinstance(value, bool):
-        return str(value)
-    if isinstance(value, dict):
-        # param_res_names dictionary for MakeStateful transform
-        values_str = []
-        for input_name, output_name in value.items():
-            assert isinstance(input_name, str), "Incorrect input name. " \
-                                                "Expected string, got {}".format(type(input_name))
-            assert isinstance(output_name, str), "Incorrect output name. " \
-                                                 "Expected string, got {}".format(type(output_name))
-            values_str.append("\'{}\':\'{}\'".format(input_name, output_name))
-        return "{" + ','.join(values_str) + "}"
-    raise Exception("Unknown parameter type.")
-
-
-def transform_to_str(value):
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
-
-    if isinstance(value, str):
-        return value
-
-    if isinstance(value, tuple):
-        assert 1 <= len(value) <= 2, "Incorrect definition of transformation in transform argument: " \
-                                     "expected two elements in tuple, provided {}. " \
-                                     "Supported transforms are: {}".format(
-            len(value),
-            list(get_available_transformations().keys()))
-        transform_name = value[0]
-        assert isinstance(transform_name, str), "Incorrect transform name type. " \
-                                                "Expected string, got {}".format(type(transform_name))
-        if len(value) == 2:
-            params = value[1]
-            assert isinstance(params, dict), "Incorrect transform params type. " \
-                                             "Expected dictionary, got {}".format(type(params))
-            params_str_list = []
-            for param_name, val in params.items():
-                assert isinstance(param_name, str), "Incorrect transform parameter name type. " \
-                                                    "Expected string, got {}".format(type(param_name))
-                val_str = transform_param_value_to_str(val)
-                params_str_list.append(param_name + "=" + val_str)
-            transform_name += '[' + ','.join(params_str_list) + ']'
-        return transform_name
-    raise Exception("Incorrect transform type. Expected tuple with transform name and "
-                    "dictionary with transform parameters. Got object of type {}".format(type(value)))
-
-
-def transform_param_to_str(value):
-    if value is None or isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        transforms_str = []
-        for transform in value:
-            transforms_str.append(transform_to_str(transform))
-        return ','.join(transforms_str)
-    return transform_to_str(value)
-
-
-ParamDescription = namedtuple("ParamData",
-                              ["description", "cli_tool_description", "to_string"])
+ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description"])
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.runtime.convert_model.__doc__ # pylint: disable=no-member
+    mo_convert_docs = openvino.tools.ovc.convert_model.__doc__ # pylint: disable=no-member
     mo_convert_params = {}
-    group = "Optional parameters:"
+    group = "Optional parameters:"    #FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
 
     mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
@@ -522,7 +204,7 @@ def get_mo_convert_params():
         param_description = param_description[:group_name_idx]
         param_description = param_description.strip()
 
-        mo_convert_params[group][param_name] = ParamDescription(param_description, "", None)
+        mo_convert_params[group][param_name] = ParamDescription(param_description, "")
 
         mo_convert_docs = mo_convert_docs[param_description_idx:]
 
@@ -530,62 +212,22 @@ def get_mo_convert_params():
             mo_convert_params[group_name] = {}
             group = group_name
 
-    # TODO: remove this when internal converting of params to string is removed
-    params_converted_to_string = get_to_string_methods_for_params()
-
-    params_with_paths = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
 
     for group_name, param_group in mo_convert_params.items():
         for param_name, d in param_group.items():
-            to_str_method = None
-            if param_name in params_converted_to_string:
-                to_str_method = params_converted_to_string[param_name]
-            elif param_name in params_with_paths:
-                to_str_method = path_to_str
-
             cli_tool_description = None
             if param_name in cli_tool_specific_descriptions:
                 cli_tool_description = cli_tool_specific_descriptions[param_name]
 
             desc = ParamDescription(d.description,
-                                    cli_tool_description,
-                                    to_str_method)
+                                    cli_tool_description)
             mo_convert_params[group_name][param_name] = desc
 
     return mo_convert_params
 
 
-class DeprecatedStoreTrue(argparse.Action):
-    def __init__(self, nargs=0, **kw):
-        super().__init__(nargs=nargs, **kw)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-        if 'fusing' in option_string:
-            dep_msg += 'Please use --finegrain_fusing cli option instead'
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, True)
-
-
-class DeprecatedOptionCommon(argparse.Action):
-    def __call__(self, parser, args, values, option_string):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(args, self.dest, values)
-
-
-class IgnoredAction(argparse.Action):
-    def __init__(self, nargs=0, **kw):
-        super().__init__(nargs=nargs, **kw)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, True)
-
-
-def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
+def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name,
                                  try_mo_root=False, check_existence=True) -> List[str]:
     if values is not None:
         list_of_values = list()
@@ -595,15 +237,18 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         elif isinstance(values, list):
             list_of_values = values
         else:
-            raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
+            return values
 
         if not check_existence:
             return [get_absolute_path(path) for path in list_of_values]
 
         for idx, val in enumerate(list_of_values):
+            if not isinstance(val, (str, pathlib.Path)):
+                continue
+
             list_of_values[idx] = val
 
-            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+            error_msg = 'The value for parameter "{}" must be existing file/directory, ' \
                         'but "{}" does not exist.'.format(param_name, val)
             if os.path.exists(val):
                 continue
@@ -618,79 +263,27 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         return [get_absolute_path(path) for path in list_of_values]
 
 
-class CanonicalizePathAction(argparse.Action):
-    """
-    Expand user home directory paths and convert relative-paths to absolute.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existence=False)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
-
-
-class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
-    """
-    Convert relative to the current and relative to mo root paths to absolute
-    and check specified file or directory existence.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=True, check_existence=True)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
-
-
 class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
+    check_value = canonicalize_and_check_paths
 
     def __call__(self, parser, namespace, values, option_string=None):
         list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
                                                      try_mo_root=False, check_existence=True)
-        setattr(namespace, self.dest, ','.join(list_of_paths))
-
-
-class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
-    """
-    Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
-    existence.
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existence=True)
-        # Extensions paths are needed to be stored as list
         setattr(namespace, self.dest, list_of_paths)
 
 
-class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values is not None:
-            if isinstance(values, str):
-                if values != "":
-                    super().__call__(parser, namespace, values, option_string)
-                else:
-                    setattr(namespace, self.dest, values)
-
-
-class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
-    def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
-            option_string)
-        log.error(dep_msg, extra={'is_warning': True})
-        super().__call__(parser, namespace, values, option_string)
-
-
-def readable_file(path: str):
+def readable_file_or_object(path: str):
     """
     Check that specified path is a readable file.
     :param path: path to check
     :return: path if the file is readable
     """
+    if not isinstance(path, (str, pathlib.Path)):
+        return path
     if not os.path.isfile(path):
         raise Error('The "{}" is not existing file'.format(path))
     elif not os.access(path, os.R_OK):
@@ -699,12 +292,14 @@ def readable_file(path: str):
         return path
 
 
-def readable_file_or_dir(path: str):
+def readable_file_or_dir_or_object(path: str):
     """
     Check that specified path is a readable file or directory.
     :param path: path to check
     :return: path if the file/directory is readable
     """
+    if not isinstance(path, (str, pathlib.Path)):
+        return path
     if not os.path.isfile(path) and not os.path.isdir(path):
         raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
@@ -713,36 +308,31 @@ def readable_file_or_dir(path: str):
         return path
 
 
-def readable_dirs(paths: str):
-    """
-    Checks that comma separated list of paths are readable directories.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    paths_list = [readable_dir(path) for path in paths.split(',')]
-    return ','.join(paths_list)
-
-
-def readable_dirs_or_empty(paths: str):
-    """
-    Checks that comma separated list of paths are readable directories of if it is empty.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    if paths:
-        return readable_dirs(paths)
-    return paths
-
-
-def readable_dirs_or_files_or_empty(paths: str):
+def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
     """
     Checks that comma separated list of paths are readable directories, files or a provided path is empty.
     :param paths: comma separated list of paths.
     :return: comma separated list of paths.
     """
-    if paths:
-        paths_list = [readable_file_or_dir(path) for path in paths.split(',')]
-        return ','.join(paths_list)
+    paths_list = paths
+    if isinstance(paths, (list, tuple)):
+        paths_list = [readable_file_or_dir_or_object(path) for path in paths]
+    if isinstance(paths, (str, pathlib.Path)):
+        paths_list = [readable_file_or_dir_or_object(path) for path in paths.split(',')]
+
+    return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
+
+def readable_files_or_empty(paths: [str, list, tuple]):
+    """
+    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
+    :param paths: comma separated list of paths.
+    :return: comma separated list of paths.
+    """
+    if isinstance(paths, (list, tuple)):
+        return [readable_file_or_object(path) for path in paths]
+    if isinstance(paths, (str, pathlib.Path)):
+        paths_list = [readable_file_or_object(path) for path in paths.split(',')]
+        return paths_list
     return paths
 
 
@@ -791,13 +381,17 @@ def writable_dir(path: str):
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.runtime.convert_model) # pylint: disable=no-member
+    signature = inspect.signature(openvino.tools.ovc.convert_model) # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
-        if param_name == 'help':
+        if param_name in ['share_weights', 'example_input']:
             continue
-        cli_param_name = "--"+param_name
+        if param_name == 'input_model':
+            # input_model is not a normal key for a tool, it will collect all untagged keys
+            cli_param_name = param_name
+        else:
+            cli_param_name = '--' + param_name
         if cli_param_name not in args_group._option_string_actions:
             # Get parameter specifics
             param_specifics = cli_tool_specific_descriptions[param_name] if param_name in \
@@ -806,7 +400,7 @@ def add_args_by_description(args_group, params_description):
                 else param_description.description
             action = param_specifics['action'] if 'action' in param_specifics else None
             param_type = param_specifics['type'] if 'type' in param_specifics else None
-            param_alias = param_specifics['aliases'] if 'aliases' in param_specifics else {}
+            param_alias = param_specifics['aliases'] if 'aliases' in param_specifics and param_name != 'input_model' else {}
             param_version = param_specifics['version'] if 'version' in param_specifics else None
             param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
 
@@ -814,9 +408,7 @@ def add_args_by_description(args_group, params_description):
             if signature.parameters[param_name].annotation == bool and param_name != 'version':
                 args_group.add_argument(
                     cli_param_name, *param_alias,
-                    type=check_bool if param_type is None else param_type,
-                    nargs="?",
-                    const=True,
+                    action='store_true',
                     help=help_text,
                     default=signature.parameters[param_name].default)
             # File paths common setting
@@ -827,7 +419,8 @@ def add_args_by_description(args_group, params_description):
                     type=str if param_type is None else param_type,
                     action=action,
                     help=help_text,
-                    default=signature.parameters[param_name].default)
+                    default=None if param_name == 'input_model' else signature.parameters[param_name].default,
+                    metavar=param_name.upper() if param_name == 'input_model' else None)
             # Other params
             else:
                 additional_params = {}
@@ -845,230 +438,55 @@ def add_args_by_description(args_group, params_description):
                     **additional_params
                 )
 
+class Formatter(argparse.HelpFormatter):
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
+        usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
+        insert_idx = usage.find(self._prog) + len(self._prog)
+        usage = usage[0: insert_idx] + ' INPUT_MODEL ' + usage[insert_idx + 1:]
+        return usage
+
+    def _get_default_metavar_for_optional(self, action):
+        if action.option_strings == ['--compress_to_fp16']:
+            return "True | False"
+        return argparse.HelpFormatter._get_default_metavar_for_optional(self, action)
+
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
-        parser = argparse.ArgumentParser()
-    common_group = parser.add_argument_group('Framework-agnostic parameters')
+        parser = argparse.ArgumentParser(formatter_class=Formatter)
     mo_convert_params = get_mo_convert_params()
-    mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
+    mo_convert_params_common = mo_convert_params['Optional parameters:']
+
+    from openvino.tools.ovc.version import VersionChecker
 
     # Command line tool specific params
-    common_group.add_argument('--model_name', '-n',
-                              help='Model_name parameter passed to the final create_ir transform. ' +
-                                   'This parameter is used to name ' +
-                                   'a network in a generated IR and output .xml/.bin files.')
-    common_group.add_argument('--output_dir', '-o',
-                              help='Directory that stores the generated IR. ' +
-                                   'By default, it is the directory from where the Model Conversion is launched.',
-                              default=get_absolute_path('.'),
-                              action=CanonicalizePathAction,
-                              type=writable_dir)
-
-    # Deprecated params
-    common_group.add_argument('--freeze_placeholder_with_value',
-                              help='Replaces input layer with constant node with '
-                                   'provided value, for example: "node_name->True". '
-                                   'It will be DEPRECATED in future releases. '
-                                   'Use "input" option to specify a value for freezing.',
-                              default=None)
-    common_group.add_argument('--static_shape',
-                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
-                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
-                                   'the OpenVINO Runtime API in runtime may fail for such an IR.',
-                              action='store_true', default=False)
-    common_group.add_argument("--use_new_frontend",
-                              help='Force the usage of new Frontend for model conversion into IR. '
-                                   'The new Frontend is C++ based and is available for ONNX* and PaddlePaddle* models. '
-                                   'Model Conversion API uses new Frontend for ONNX* and PaddlePaddle* by default that means '
-                                   '`use_new_frontend` and `use_legacy_frontend` options are not specified.',
-                              action='store_true', default=False)
-    common_group.add_argument("--use_legacy_frontend",
-                              help='Force the usage of legacy Frontend for model conversion into IR. '
-                                   'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
-                                   'Caffe*, and Kaldi* models.',
-                              action='store_true', default=False)
-    add_args_by_description(common_group, mo_convert_params_common)
+    parser.add_argument('--output_model',
+                              help='This parameter is used to name output .xml/.bin files with converted model.')
+    parser.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
+                              help='Compress weights in output OpenVINO model to FP16. '
+                                   'To turn off compression use "--compress_to_fp16=False" command line parameter. '
+                                   'Default value is True.')
+    parser.add_argument('--version', action='version',
+                              help='Print ovc version and exit.',
+                              version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
+    add_args_by_description(parser, mo_convert_params_common)
     return parser
 
 
 def get_common_cli_options(model_name):
     d = OrderedDict()
     d['input_model'] = '- Path to the Input Model'
-    d['output_dir'] = ['- Path for generated IR', lambda x: x if x != '.' else os.getcwd()]
-    d['model_name'] = ['- IR output name', lambda x: x if x else model_name]
+    d['output_dir'] = ['- Path for generated IR', lambda x: x if x != '.' else os.getcwd()]    # TODO: Consider removing
+    d['output_model'] = ['- IR output name', lambda x: x if x else model_name]
     d['log_level'] = '- Log level'
-    d['batch'] = ['- Batch', lambda x: x if x else 'Not specified, inherited from the model']
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
-    d['input_shape'] = ['- Input shapes', lambda x: x if x else 'Not specified, inherited from the model']
-    d['source_layout'] = ['- Source layout', lambda x: x if x else 'Not specified']
-    d['target_layout'] = ['- Target layout', lambda x: x if x else 'Not specified']
-    d['layout'] = ['- Layout', lambda x: x if x else 'Not specified']
-    d['mean_values'] = ['- Mean values', lambda x: x if x else 'Not specified']
-    d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
-    d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
-    d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
-    d['reverse_input_channels'] = '- Reverse input channels'
-    d['static_shape'] = '- Enable IR generation for fixed input shape'
-    d['transformations_config'] = '- Use the transformations config file'
     return d
-
-
-def get_advanced_cli_options():
-    d = OrderedDict()
-    d['use_legacy_frontend'] = '- Force the usage of legacy Frontend for model conversion into IR'
-    d['use_new_frontend'] = '- Force the usage of new Frontend for model conversion into IR'
-    return d
-
-
-def get_caffe_cli_options():
-    d = {
-        'input_proto': ['- Path to the Input prototxt', lambda x: x],
-        'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
-        'k': '- Path to CustomLayersMapping.xml',
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
-
-
-def get_tf_cli_options():
-    d = {
-        'input_model_is_text': '- Input model in text protobuf format',
-        'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
-        'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
-                                                           'Object Detection API',
-        'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
-        'tensorboard_logdir': '- Path to model dump for TensorBoard'
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
-
-
-def get_mxnet_cli_options():
-    d = {
-        'input_symbol': '- Deploy-ready symbol file',
-        'nd_prefix_name': '- Prefix name for args.nd and argx.nd files',
-        'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
-        'save_params_from_nd': '- Enable saving built parameters file from .nd files',
-        'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0',
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
-
-
-def get_kaldi_cli_options():
-    d = {
-        'counts': '- A file name with full path to the counts file or empty string if you want to use counts from model',
-        'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
-        'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
-
-
-def get_onnx_cli_options():
-    d = {
-    }
-
-    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
 
 def get_params_with_paths_list():
-    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
-            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
-            'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
-            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
-            'tensorflow_object_detection_api_pipeline_config',
-            'transformations_config']
-
-
-def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for Caffe*
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
-    caffe_group = parser.add_argument_group('Caffe*-specific parameters')
-    mo_convert_params_caffe = get_mo_convert_params()['Caffe*-specific parameters:']
-    add_args_by_description(caffe_group, mo_convert_params_caffe)
-    return parser
-
-
-def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for TF
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-    mo_convert_params_tf = get_mo_convert_params()['TensorFlow*-specific parameters:']
-
-    tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
-    add_args_by_description(tf_group, mo_convert_params_tf)
-    return parser
-
-
-def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for MXNet*
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
-    mx_group = parser.add_argument_group('MXNet-specific parameters')
-    mo_convert_params_mxnet = get_mo_convert_params()['MXNet-specific parameters:']
-    add_args_by_description(mx_group, mo_convert_params_mxnet)
-
-    return parser
-
-
-def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for MXNet*
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
-    kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
-    mo_convert_params_kaldi = get_mo_convert_params()['Kaldi-specific parameters:']
-    add_args_by_description(kaldi_group, mo_convert_params_kaldi)
-    return parser
-
-
-def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
-    """
-    Specifies cli arguments for Model Conversion for ONNX
-
-    Returns
-    -------
-        ArgumentParser instance
-    """
-    if not parser:
-        parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        get_common_cli_parser(parser=parser)
-
-    return parser
+    return ['input_model', 'output_model', 'extension']
 
 
 def get_all_cli_parser():
@@ -1079,16 +497,9 @@ def get_all_cli_parser():
     -------
         ArgumentParser instance
     """
-    parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-    mo_convert_params_optional = get_mo_convert_params()['Optional parameters:']
-    add_args_by_description(parser, mo_convert_params_optional)
+    parser = argparse.ArgumentParser(formatter_class=Formatter)
 
     get_common_cli_parser(parser=parser)
-    get_tf_cli_parser(parser=parser)
-    get_caffe_cli_parser(parser=parser)
-    get_mxnet_cli_parser(parser=parser)
-    get_kaldi_cli_parser(parser=parser)
-    get_onnx_cli_parser(parser=parser)
 
     return parser
 
@@ -1224,7 +635,7 @@ def parse_input_value(input_value: str):
     if shape is not None and value is not None and partial_shape_prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
-    return node_name, shape, value, data_type
+    return node_name if node_name else None, shape, value, data_type
 
 
 def split_str_avoiding_square_brackets(s: str) -> list:
@@ -1407,6 +818,7 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
+#TODO: Should be removed?
 def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
     """
     Parses parse_freeze_placeholder_values string.
@@ -1431,7 +843,7 @@ def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value: str):
     return placeholder_values
 
 
-def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
+def get_freeze_placeholder_values(argv_input: str):
     """
     Parses values for placeholder freezing and input node names
 
@@ -1440,16 +852,13 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     argv_input
         string with a list of input layers: either an empty string, or strings separated with comma.
         'node_name1[shape1]->value1,node_name2[shape2]->value2,...'
-    argv_freeze_placeholder_with_value
-        string with a list of input shapes: either an empty string, or tuples separated with comma.
-        'placeholder_name1->value1, placeholder_name2->value2,...'
 
     Returns
     -------
         parsed placeholders with values for freezing
         input nodes cleaned from shape info
     """
-    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
+    placeholder_values = {}
     input_node_names = None
 
     if argv_input is not None:
@@ -1493,208 +902,6 @@ def split_inputs(input_str):
     return inputs
 
 
-
-def split_shapes(argv_input_shape: str):
-    range_reg = r'([0-9]*\.\.[0-9]*)'
-    first_digit_reg = r'([0-9 ]*|-1|\?|{})'.format(range_reg)
-    next_digits_reg = r'(,{})*'.format(first_digit_reg)
-    tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
-                                                  first_digit_reg, next_digits_reg)
-
-    full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
-    if not re.match(full_reg, argv_input_shape):
-        raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-    return re.findall(r'[(\[]([0-9,\.\? -]*)[)\]]', argv_input_shape)
-
-def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
-    """
-    Parses input layers names and input shapes from the cli and returns the parsed object.
-    All shapes are specified only through one command line option either "input" or "input_shape".
-
-    Parameters
-    ----------
-    argv_input
-        string with a list of input layers: either an empty string, or strings separated with comma.
-        E.g. 'inp1,inp2', 'node_name1[shape1]->value1,node_name2[shape2]->value2'
-    argv_input_shape
-        string with a list of input shapes: either an empty string, or tuples separated with comma.
-        E.g. '[1,2],[3,4]'.
-        Only positive integers are accepted.
-        '?' marks dynamic dimension.
-        Partial shape is specified with ellipsis. E.g. '[1..10,2,3]'
-    argv_batch
-        integer that overrides batch size in input shape
-
-    Returns
-    -------
-        parsed shapes in form of {'name of input':tuple} if names of inputs are provided with shapes
-        parsed shapes in form of {'name of input':None} if names of inputs are provided without shapes
-        tuple if only one shape is provided and no input name
-        None if neither shape nor input were provided
-    """
-    if argv_input_shape and argv_batch:
-        raise Error("Both \"input_shape\" and \"batch\" were provided. Please provide only one of them. " +
-                    refer_to_faq_msg(56))
-
-    # attempt to extract shapes from "input" parameters
-    placeholder_shapes = dict()
-    placeholder_data_types = dict()
-    are_shapes_specified_through_input = False
-    inputs_list = list()
-    if argv_input:
-        for input_value in split_inputs(argv_input):
-            node_name, shape, _, data_type = parse_input_value(input_value)
-            placeholder_shapes[node_name] = shape
-            inputs_list.append(node_name)
-            if data_type is not None:
-                placeholder_data_types[node_name] = data_type
-            if shape is not None:
-                are_shapes_specified_through_input = True
-
-    if argv_input_shape and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both \"input\" and \"input_shape\" command-line parameters, but only one "
-                    "parameter is allowed.")
-
-    if argv_batch and are_shapes_specified_through_input:
-        raise Error("Shapes are specified using both \"input\" and \"batch\" command-line parameters, but only one "
-                    "parameter is allowed.")
-
-    if are_shapes_specified_through_input:
-        return inputs_list, placeholder_shapes, placeholder_data_types
-
-    shapes = list()
-    inputs = list()
-    inputs_list = list()
-    placeholder_shapes = None
-
-
-    if argv_input_shape:
-        shapes = split_shapes(argv_input_shape)
-
-    if argv_input:
-        inputs = split_inputs(argv_input)
-    inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
-
-    # check number of shapes with no input provided
-    if argv_input_shape and not argv_input:
-        placeholder_shapes = [PartialShape(shape) for shape in shapes]
-        if len(placeholder_shapes) == 1:
-            placeholder_shapes = PartialShape(placeholder_shapes[0])
-    # check if number of shapes does not match number of passed inputs
-    elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
-        # clean inputs from values for freezing
-        inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
-        placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: PartialShape(x) if x is not None else None, shapes)))
-        for inp in inputs:
-            if '->' not in inp:
-                inputs_list.append(inp)
-                continue
-            shape = placeholder_shapes[inp.split('->')[0]]
-            inputs_list.append(inp.split('->')[0])
-
-            if shape is None:
-                continue
-            for dim in shape:
-                if isinstance(dim, Dimension) and not dim.is_static:
-                    raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
-
-    elif argv_input:
-        raise Error('Please provide each input layers with an input layer shape. ' + refer_to_faq_msg(58))
-
-    return inputs_list, placeholder_shapes, placeholder_data_types
-
-
-def parse_tuple_pairs(argv_values: str):
-    """
-    Gets mean/scale values from the given string parameter
-    Parameters
-    ----------
-    argv_values
-        string with a specified input name and  list of mean values: either an empty string, or a tuple
-        in a form [] or ().
-        E.g. 'data(1,2,3)' means 1 for the RED channel, 2 for the GREEN channel, 3 for the BLUE channel for the data
-        input layer, or tuple of values in a form [] or () if input is specified separately, e.g. (1,2,3),[4,5,6].
-
-    Returns
-    -------
-        dictionary with input name and tuple of values or list of values if mean/scale value is specified with input,
-        e.g.:
-        "data(10,20,30),info(11,22,33)" -> { 'data': [10,20,30], 'info': [11,22,33] }
-        "(10,20,30),(11,22,33)" -> [mo_array(10,20,30), mo_array(11,22,33)]
-    """
-    res = {}
-    if not argv_values:
-        return res
-
-    matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
-
-    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets ' \
-                'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
-                'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
-    if not matches:
-        raise Error(error_msg, argv_values)
-
-    name_start_idx = 0
-    name_was_present = False
-    for idx, match in enumerate(matches):
-        input_name = argv_values[name_start_idx:match.start(0)]
-        name_start_idx = match.end(0) + 1
-        tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
-
-        if idx != 0 and (name_was_present ^ bool(input_name)):
-            # if node name firstly was specified and then subsequently not or vice versa
-            # e.g. (255),input[127] or input(255),[127]
-            raise Error(error_msg, argv_values)
-
-        name_was_present = True if input_name != "" else False
-        if name_was_present:
-            res[input_name] = tuple_value
-        else:
-            res[idx] = tuple_value
-
-    if not name_was_present:
-        # return a list instead of a dictionary
-        res = sorted(res.values(), key=lambda v: v[0])
-    return res
-
-
-def get_tuple_values(argv_values: str or tuple, num_exp_values: int = 3, t=float or int):
-    """
-    Gets mean values from the given string parameter
-    Args:
-        argv_values: string with list of mean values: either an empty string, or a tuple in a form [] or ().
-        E.g. '(1,2,3)' means 1 for the RED channel, 2 for the GREEN channel, 4 for the BLUE channel.
-        t: either float or int
-        num_exp_values: number of values in tuple
-
-    Returns:
-        tuple of values
-    """
-
-    digit_reg = r'(-?[0-9. ]+)' if t == float else r'(-?[0-9 ]+)'
-
-    assert num_exp_values > 1, 'Can not parse tuple of size 1'
-    content = r'{0}\s*,{1}\s*{0}'.format(digit_reg, (digit_reg + ',') * (num_exp_values - 2))
-    tuple_reg = r'((\({0}\))|(\[{0}\]))'.format(content)
-
-    if isinstance(argv_values, tuple) and not len(argv_values):
-        return argv_values
-
-    if not len(argv_values) or not re.match(tuple_reg, argv_values):
-        raise Error('Values "{}" cannot be parsed. ' +
-                    refer_to_faq_msg(59), argv_values)
-
-    mean_values_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', argv_values)
-
-    for mean in mean_values_matches:
-        if len(mean.split(',')) != num_exp_values:
-            raise Error('{} channels are expected for given values. ' +
-                        refer_to_faq_msg(60), num_exp_values)
-
-    return mean_values_matches
-
-
 def split_node_in_port(node_id: str):
     """Split node_id in form port:node to separate node and port, where port is converted to int"""
     if isinstance(node_id, str):
@@ -1721,129 +928,6 @@ def split_node_in_port(node_id: str):
     return node_id, None
 
 
-def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
-    """
-    This function takes mean_values and scale_values, checks and processes them into convenient structure
-
-    Parameters
-    ----------
-    mean_values dictionary, contains input name and mean values passed py user (e.g. {data: np.array[102.4, 122.1, 113.9]}),
-    or list containing values (e.g. np.array[102.4, 122.1, 113.9])
-    scale_values dictionary, contains input name and scale values passed py user (e.g. {data: np.array[102.4, 122.1, 113.9]})
-    or list containing values (e.g. np.array[102.4, 122.1, 113.9])
-
-    Returns
-    -------
-    The function returns a dictionary e.g.
-    mean = { 'data': np.array, 'info': np.array }, scale = { 'data': np.array, 'info': np.array }, input = "data, info" ->
-     { 'data': { 'mean': np.array, 'scale': np.array }, 'info': { 'mean': np.array, 'scale': np.array } }
-
-    """
-    res = {}
-    # collect input names
-    if argv_input:
-        inputs = [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
-    else:
-        inputs = []
-        if type(mean_values) is dict:
-            inputs = list(mean_values.keys())
-        if type(scale_values) is dict:
-            for name in scale_values.keys():
-                if name not in inputs:
-                    inputs.append(name)
-
-    # create unified object containing both mean and scale for input
-    if type(mean_values) is dict and type(scale_values) is dict:
-        if not mean_values and not scale_values:
-            return res
-
-        for inp_scale in scale_values.keys():
-            if inp_scale not in inputs:
-                raise Error("Specified scale_values name '{}' do not match to any of inputs: {}. "
-                            "Please set 'scale_values' that correspond to values from input.".format(inp_scale, inputs))
-
-        for inp_mean in mean_values.keys():
-            if inp_mean not in inputs:
-                raise Error("Specified mean_values name '{}' do not match to any of inputs: {}. "
-                            "Please set 'mean_values' that correspond to values from input.".format(inp_mean, inputs))
-
-        for inp in inputs:
-            inp, port = split_node_in_port(inp)
-            if inp in mean_values or inp in scale_values:
-                res.update(
-                    {
-                        inp: {
-                            'mean':
-                                mean_values[inp] if inp in mean_values else None,
-                            'scale':
-                                scale_values[inp] if inp in scale_values else None
-                        }
-                    }
-                )
-        return res
-
-    # user specified input and mean/scale separately - we should return dictionary
-    if inputs:
-        if mean_values and scale_values:
-            if len(inputs) != len(mean_values):
-                raise Error('Numbers of inputs and mean values do not match. ' +
-                            refer_to_faq_msg(61))
-            if len(inputs) != len(scale_values):
-                raise Error('Numbers of inputs and scale values do not match. ' +
-                            refer_to_faq_msg(62))
-
-            data = list(zip(mean_values, scale_values))
-
-            for i in range(len(data)):
-                res.update(
-                    {
-                        inputs[i]: {
-                            'mean':
-                                data[i][0],
-                            'scale':
-                                data[i][1],
-
-                        }
-                    }
-                )
-            return res
-        # only mean value specified
-        if mean_values:
-            data = list(mean_values)
-            for i in range(len(data)):
-                res.update(
-                    {
-                        inputs[i]: {
-                            'mean':
-                                data[i],
-                            'scale':
-                                None
-
-                        }
-                    }
-                )
-            return res
-
-        # only scale value specified
-        if scale_values:
-            data = list(scale_values)
-            for i in range(len(data)):
-                res.update(
-                    {
-                        inputs[i]: {
-                            'mean':
-                                None,
-                            'scale':
-                                data[i]
-
-                        }
-                    }
-                )
-            return res
-    # mean and/or scale are specified without inputs
-    return list(zip_longest(mean_values, scale_values))
-
-
 def get_model_name(path_input_model: str) -> str:
     """
     Deduces model name by a given path to the input model
@@ -1858,19 +942,12 @@ def get_model_name(path_input_model: str) -> str:
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
-    model_name = "<UNKNOWN_NAME>"
-    if hasattr(argv, 'model_name'):
-        if argv.model_name:
-            model_name = argv.model_name
-        elif argv.input_model:
-            model_name = get_model_name(argv.input_model)
-        elif argv.saved_model_dir:
-            model_name = "saved_model"
-        elif argv.input_meta_graph:
-            model_name = get_model_name(argv.input_meta_graph)
-        elif argv.input_symbol:
-            model_name = get_model_name(argv.input_symbol)
-        argv.model_name = model_name
+    if hasattr(argv, 'output_model') and argv.output_model:
+        model_name = argv.output_model
+    else:
+        model_name = argv.input_model
+        if isinstance(model_name, (tuple, list)) and len(model_name) > 0:
+            model_name = model_name[0]
     return model_name
 
 
@@ -1883,6 +960,8 @@ def get_absolute_path(path_to_file: str) -> str:
     Returns:
         absolute path of the file
     """
+    if not isinstance(path_to_file, (str, pathlib.Path)):
+        return path_to_file
     file_path = os.path.expanduser(path_to_file)
     if not os.path.isabs(file_path):
         file_path = os.path.join(os.getcwd(), file_path)
@@ -1930,70 +1009,6 @@ def convert_string_to_real_type(value: str):
     return values[0] if len(values) == 1 else values
 
 
-def parse_transform(transform: str) -> list:
-    transforms = []
-
-    if len(transform) == 0:
-        return transforms
-
-    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
-
-    # Check that all characters were matched otherwise transform key value is invalid
-    key_len = len(transform)
-    for transform in all_transforms:
-        # In regexp we have 4 groups where 1st group - transformation_name,
-        #                                  2nd group - [args],
-        #                                  3rd group - args, <-- nested group
-        #                                  4th group - EOL
-        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
-        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
-        if len(transform) != 4:
-            raise Error("Unexpected transform key structure: {}".format(transform))
-        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
-
-    if key_len != 0:
-        raise Error("Unexpected transform key structure: {}".format(transform))
-
-    for transform in all_transforms:
-        name = transform[0]
-        args = transform[2]
-
-        args_dict = {}
-
-        if len(args) != 0:
-            for arg in args.split(';'):
-                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
-                if not m:
-                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
-
-                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
-
-        transforms.append((name, args_dict))
-
-    return transforms
-
-
-def check_available_transforms(transforms: list):
-    """
-    This function check that transformations specified by user are available.
-    :param transforms: list of user specified transformations
-    :return: raises an Error if transformation is not available
-    """
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
-    available_transforms = get_available_transformations()
-
-    missing_transformations = []
-    for name, _ in transforms:
-        if name not in available_transforms.keys():
-            missing_transformations.append(name)
-
-    if len(missing_transformations) != 0:
-        raise Error('Following transformations ({}) are not available. '
-                    'List with available transformations ({})'.format(','.join(missing_transformations),
-                                                                      ','.join(available_transforms.keys())))
-    return True
-
-
 def check_positive(value):
     try:
         int_value = int(value)
@@ -2018,7 +1033,7 @@ def check_bool(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'output_dir', 'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
     if isinstance(value, list):
         updated_value = []

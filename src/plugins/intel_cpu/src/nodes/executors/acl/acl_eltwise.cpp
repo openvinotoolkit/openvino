@@ -10,6 +10,57 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
+inline VectorDims reshape_sizes(VectorDims dims) {
+    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
+    VectorDims result_dims(MAX_NUM_SHAPE - 1);
+    if (dims.size() >= MAX_NUM_SHAPE) {
+        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+            result_dims[i] = dims[i];
+        }
+        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
+            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
+        }
+    } else {
+        result_dims = dims;
+    }
+    return result_dims;
+}
+
+bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
+    if (one_of(algorithm, Algorithm::EltwiseSqrt,
+                          Algorithm::EltwiseDivide,
+                          Algorithm::EltwiseRelu,
+#ifdef OPENVINO_ARCH_ARM64
+                          Algorithm::EltwiseGeluErf,
+#endif
+                          Algorithm::EltwiseElu,
+                          Algorithm::EltwiseTanh,
+                          Algorithm::EltwiseSigmoid,
+                          Algorithm::EltwiseSoftRelu,
+                          Algorithm::EltwiseClamp,
+                          Algorithm::EltwiseSwish,
+                          Algorithm::EltwisePrelu,
+                          Algorithm::EltwiseHswish,
+                          Algorithm::EltwiseAbs,
+                          Algorithm::EltwiseExp,
+                          Algorithm::EltwiseLog,
+                          Algorithm::EltwiseMaximum,
+                          Algorithm::EltwiseMinimum,
+                          Algorithm::EltwiseSquaredDifference,
+                          Algorithm::EltwiseAdd,
+                          Algorithm::EltwiseSubtract,
+                          Algorithm::EltwiseMultiply,
+                          Algorithm::EltwiseEqual,
+                          Algorithm::EltwiseNotEqual,
+                          Algorithm::EltwiseGreater,
+                          Algorithm::EltwiseGreaterEqual,
+                          Algorithm::EltwiseLess,
+                          Algorithm::EltwiseLessEqual)) {
+        return true;
+    }
+    return false;
+}
+
 bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
@@ -33,7 +84,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseSigmoid:
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
-        case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
+        case Algorithm::EltwiseSwish:
         case Algorithm::EltwisePrelu:
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||

@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphs_dumper)
+set(TARGET_NAME subgraphsDumper)
 
 list(APPEND LIBRARIES
         gflags
         openvino::runtime
-        funcTestUtils
+        func_test_utils
         openvino::pugixml
 )
 
@@ -21,7 +21,7 @@ addIeTargetTest(
             PRIVATE
                 ${LIBRARIES}
         DEPENDENCIES
-            ov_frontends
+            ${DEPENDENCIES}
         ADD_CPPLINT
 )
 

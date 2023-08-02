@@ -21,6 +21,7 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "shape_util.hpp"
+#include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 #include "tensor_conversion_util.hpp"
 
@@ -38,6 +39,15 @@ void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
                                        const Node* node,
                                        const std::string& explanation) {
     throw ov::NodeValidationFailure(make_what(check_loc_info, node_validation_failure_loc_string(node), explanation));
+}
+
+template <>
+void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                       std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                       const std::string& explanation) {
+    throw ov::NodeValidationFailure(make_what(check_loc_info,
+                                              node_validation_failure_loc_string(ctx.first),
+                                              op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
 
 atomic<size_t> ov::Node::m_next_instance_id(0);

@@ -113,12 +113,14 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/extract_reshapes_from_mha.hpp"
 
 // Misc
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
+#include "nodes/rnn.h"
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -201,12 +203,37 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
-    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
+    } else {
+        // MarkDequantizationSubgraph is used even in non-LPT pipeline on X64 platforms
+        // in order to keep compressed u8 MatMul weights with decompression operations as is
+        CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, ov::element::TypeVector{ov::element::u8}, true);
+        CPU_SET_CALLBACK_X64(manager, [](const_node_ptr &node) -> bool {
+            auto get_single_consumer = [](const_node_ptr &node) -> std::shared_ptr<ov::Node> {
+                const auto consumers = node->get_output_target_inputs(0);
+                if (consumers.size() != 1)
+                    return nullptr;
+                return consumers.begin()->get_node()->shared_from_this();
+            };
+
+            auto consumer = get_single_consumer(node);
+            if (!consumer)
+                return true;
+
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return false;
+            } else if (ov::is_type<ov::opset1::Transpose>(consumer)) {
+                consumer = get_single_consumer(consumer);
+                if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+                    return false;
+                }
+            }
+            return true;
+        }, ov::pass::MarkDequantizationSubgraph);
     }
 
     auto get_convert_precisions = []() {
@@ -295,80 +322,19 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::ConvertBatchToSpace, ov::pass::ConvertSpaceToBatch);
 
-    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ov::opset4::RNNCell>(node)) {
-            return rnn_cell->get_clip() == 0.0f;
-        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ov::opset4::GRUCell>(
-                       node)) {
-            return gru_cell->get_clip() == 0.0f
-                && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        } else if (const auto &augru_cell = std::dynamic_pointer_cast<const ov::op::internal::AUGRUCell>(
-                       node)) {
-            return augru_cell->get_clip() == 0.0f
-                && augru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ov::opset4::LSTMCell>(
-                       node)) {
-            return lstm_cell->get_clip() == 0.0f &&
-                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ov::opset1::LSTMCell>(
-                       node)) {
-            return lstm_cell_v1->get_clip() == 0.0f &&
-                lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        }
-        return false;
-    };
-
-    // Sequences supported by the plugin shouldn't be converted to TensorIterator.
-    // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
-    // should always convert to TensorIterator.
-    // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
-    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
-        const auto& data = node->input(0);
-        const auto& data_pshape = data.get_partial_shape();
-        // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
-        // but the sequence is still supported in CPU and doesn't need to be decomposed
-        if (data_pshape.is_dynamic())
-            return true;
-        if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
-            return false;
-        auto max_seq_len = data.get_shape().at(1);
-        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ov::opset6::RNNSequence>(node)) {
-            return rnn_seq->get_clip() == 0.0f &&
-                !ov::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ov::opset6::GRUSequence>(
-                       node)) {
-            return gru_seq->get_clip() == 0.0f &&
-                gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &augru_seq = std::dynamic_pointer_cast<const ov::op::internal::AUGRUSequence>(
-                       node)) {
-            return augru_seq->get_clip() == 0.0f &&
-                augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ov::opset6::LSTMSequence>(
-                       node)) {
-            return lstm_seq->get_clip() == 0.0f &&
-                lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                   max_seq_len);
-        }
-        return false;
-    };
-
     CPU_SET_CALLBACK_COMMON(manager,
-        [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
-            return isSequencePrimitiveSupported(node);
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::ConvertRNNSequenceToTensorIterator,
         ov::pass::ConvertGRUSequenceToTensorIterator,
         ov::pass::ConvertLSTMSequenceToTensorIterator);
 
     CPU_SET_CALLBACK_COMMON(manager,
-        [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-            return isCellPrimitiveSupported(node);
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
@@ -462,6 +428,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             },
             ov::pass::ConvertQuantizeDequantize);
     }
+
+    /* In some cases, during the transformation pipeline, some MatMul nodes can be transformed into other nodes. For example, they can become part of
+       AUGRUCell node (see AUGRUCellFusion pass). In such cases, some constant paths will be unfolded, which can lead to crashes in the plugin. To avoid this,
+       we re-mark decompression converts again and finally do CF for those constant paths that are not inputs to MatMul node */
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
 
     manager.run_passes(model);
 }
@@ -653,50 +626,53 @@ void Transformations::MainSnippets(void) {
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
+        CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
-#if defined(OPENVINO_ARCH_X86_64)
-    auto is_supported_matmul = [onlyFloatSupported](const std::shared_ptr<const ov::Node>& n) {
-        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        if (!matmul)
-            return false;
-        if (matmul->get_input_element_type(1) == ov::element::i8)
-            return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
-        if (matmul->get_input_element_type(0) == ov::element::bf16 &&
-            matmul->get_input_element_type(1) == ov::element::bf16)
-            return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
-        return true;
-    };
-#endif // OPENVINO_ARCH_X86_64
-
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
-        CPU_SET_CALLBACK_X64(snippetsManager,
-            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-                // Tranformation callback is called on MatMul0
-                if (!is_supported_matmul(n))
-                    return true;
-                // Search for MatMul1
-                auto child = n->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                while (!ov::is_type<const ov::op::v0::MatMul>(child)) {
-                    child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-                }
-                if (!is_supported_matmul(child))
-                    return true;
-                const auto pshape = child->get_input_partial_shape(0);
-                const auto shape = pshape.get_shape();
-                const auto parallel_work_amount =
-                        std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-                // Heuristic values:
-                //    parallelism work amount - not enough work amount for parallelism
-                // TODO: The heuristic will be removed after parallelism support on JIT level
-                const auto needed_num_of_threads = 12lu;
-                const auto is_unsupported_parallel_work_amount =
-                        parallel_get_num_threads() / 2 > parallel_work_amount &&
-                        static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
-                        !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.minimal_concurrency);
-                return is_unsupported_parallel_work_amount;
-            },
-            snippets::pass::TokenizeMHASnippets);
+#if defined(OPENVINO_ARCH_X86_64)
+        auto is_supported_matmul = [onlyFloatSupported](const std::shared_ptr<const ov::Node>& n) {
+            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+            if (!matmul)
+                return false;
+            if (matmul->get_input_element_type(1) == ov::element::i8)
+                return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+            if (matmul->get_input_element_type(0) == ov::element::bf16 &&
+                matmul->get_input_element_type(1) == ov::element::bf16)
+                return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+            return true;
+        };
+        auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
+            const auto parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+            // Heuristic values:
+            //    parallelism work amount - not enough work amount for parallelism
+            // TODO: The heuristic will be removed after parallelism support on JIT level
+            const auto needed_num_of_threads = 12lu;
+            const auto is_unsupported_parallel_work_amount =
+                parallel_get_num_threads() / 2 > parallel_work_amount &&
+                static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
+                !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.minimal_concurrency);
+            return is_unsupported_parallel_work_amount;
+        };
+#endif // OPENVINO_ARCH_X86_64
+        CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // Tranformation callback is called on MatMul0
+            if (!is_supported_matmul(n))
+                return true;
+            // Search for MatMul1
+            auto child = n->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            while (!ov::is_type<const ov::op::v0::MatMul>(child)) {
+                child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            }
+            if (!is_supported_matmul(child))
+                return true;
+
+            const auto& shape = child->get_input_shape(0);
+            return is_unsupported_parallel_work_amount(n, shape);
+        }, snippets::pass::TokenizeMHASnippets);
+        CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
+        }, snippets::pass::ExtractReshapesFromMHA);
         CPU_SET_CALLBACK_X64(snippetsManager,
             [](const std::shared_ptr<const ov::Node>& n) -> bool {
                 // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant

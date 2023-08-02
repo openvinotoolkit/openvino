@@ -17,8 +17,8 @@ std::string EltwiseTwoResults::getTestCaseName(testing::TestParamInfo<ov::test::
     std::tie(inputShapes0, inputShapes1, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;

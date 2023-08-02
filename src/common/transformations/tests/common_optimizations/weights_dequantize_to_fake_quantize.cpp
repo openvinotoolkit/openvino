@@ -25,7 +25,7 @@ struct FQ_as_Mul_Sub_dequantize {
 };
 
 class TranslateNewWeightFormatToOldOne
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<FQ_as_Mul_Sub_dequantize, ngraph::element::Type>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;

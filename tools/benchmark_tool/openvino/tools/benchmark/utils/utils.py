@@ -78,10 +78,19 @@ def get_element_type(precision):
 
 
 def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    # TODO: remove warning after 23.3 release
+    warned = False
+    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
     for input_info in app_inputs_info:
         if input_info.mean.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
             preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
         if input_info.scale.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
             preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
 
 

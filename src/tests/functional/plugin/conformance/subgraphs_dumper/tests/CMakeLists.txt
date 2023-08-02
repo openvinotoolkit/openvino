@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME subgraphsDumperTests)
+set(TARGET_NAME subgraphsDumperTests_deprecated)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -14,7 +14,7 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include
         LINK_LIBRARIES
             PRIVATE
-                funcTestUtils
+                func_test_utils
                 openvino::runtime
                 openvino::pugixml
         ADD_CPPLINT

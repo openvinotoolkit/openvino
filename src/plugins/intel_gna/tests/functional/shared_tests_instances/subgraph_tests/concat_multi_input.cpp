@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_concat_multi_input,
                          ConcatMultiInput,
                          ::testing::Combine(::testing::ValuesIn(inShapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConcatMultiInput::getTestCaseName);
 
