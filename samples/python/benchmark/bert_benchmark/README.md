@@ -10,20 +10,29 @@ This sample demonstrates how to estimate performance of a Bert model using Async
 
 The following Python API is used in the application:
 
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Feature                        | API                                             | Description                                  |
-+================================+=================================================+==============================================+
-| OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model. |
-|                                | [openvino.runtime.Core.compile_model]           |                                              |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
-|                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
-|                                | [openvino.runtime.AsyncInferQueue.wait_all]     |                                              |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
+.. tab-set::
+
+   .. tab-item:: Python API 
+
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Feature                        | API                                             | Description                                  |
+      +================================+=================================================+==============================================+
+      | OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model. |
+      |                                | [openvino.runtime.Core.compile_model]           |                                              |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
+      |                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
+      |                                | [openvino.runtime.AsyncInferQueue.wait_all]     |                                              |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+   
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
+         :language: python
 
 How It Works
 ####################
@@ -32,11 +41,6 @@ The sample downloads a model and a tokenizer, export the model to onnx, reads th
 
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-.. dropdown:: Sample code 
-
-   .. doxygensnippet:: samples/python/benchmark/bert_benchmark/bert_benchmark.py
-      :language: python
 
 Running
 ####################

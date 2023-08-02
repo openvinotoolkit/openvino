@@ -10,7 +10,7 @@ This sample demonstrates how to estimate performance of a model using Synchronou
 
 .. tab-set::
 
-   .. tab-item:: Prerequisites 
+   .. tab-item:: Requirements 
 
       +--------------------------------+------------------------------------------------------------------------------------------------+
       | Options                        | Values                                                                                         |

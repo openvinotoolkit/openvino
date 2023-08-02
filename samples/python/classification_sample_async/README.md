@@ -11,31 +11,43 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only 1 input and output are supported.
 
-The following Python API is used in the application:
+.. tab-set::
 
-+--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
-| Feature            | API                                                                                                                                                                                                       | Description               |
-+====================+===========================================================================================================================================================================================================+===========================+
-| Asynchronous Infer | `openvino.runtime.AsyncInferQueue <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html>`__ ,                                                             | Do asynchronous inference |
-|                    | `openvino.runtime.AsyncInferQueue.set_callback <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback>`__ ,  |                           |
-|                    | `openvino.runtime.AsyncInferQueue.start_async <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async>`__ ,    |                           |
-|                    | `openvino.runtime.AsyncInferQueue.wait_all <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all>`__ ,          |                           |
-|                    | `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__                       |                           |
-+--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+      +----------------------------+-----------------------------------------------------------------------------------+
+      | Options                    | Values                                                                            |
+      +============================+===================================================================================+
+      | Validated Models           | :doc:`alexnet <omz_models_model_alexnet>`                                         |
+      +----------------------------+-----------------------------------------------------------------------------------+
+      | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)         |
+      +----------------------------+-----------------------------------------------------------------------------------+
+      | Supported devices          | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`              |
+      +----------------------------+-----------------------------------------------------------------------------------+
+      | Other language realization | :doc:`C++ <openvino_inference_engine_samples_classification_sample_async_README>` |
+      +----------------------------+-----------------------------------------------------------------------------------+
 
-+----------------------------+-----------------------------------------------------------------------------------+
-| Options                    | Values                                                                            |
-+============================+===================================================================================+
-| Validated Models           | :doc:`alexnet <omz_models_model_alexnet>`                                         |
-+----------------------------+-----------------------------------------------------------------------------------+
-| Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)         |
-+----------------------------+-----------------------------------------------------------------------------------+
-| Supported devices          | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`              |
-+----------------------------+-----------------------------------------------------------------------------------+
-| Other language realization | :doc:`C++ <openvino_inference_engine_samples_classification_sample_async_README>` |
-+----------------------------+-----------------------------------------------------------------------------------+
+   .. tab-item:: Python API
+
+      The following Python API is used in the application:
+
+      +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
+      | Feature            | API                                                                                                                                                                                                       | Description               |
+      +====================+===========================================================================================================================================================================================================+===========================+
+      | Asynchronous Infer | `openvino.runtime.AsyncInferQueue <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html>`__ ,                                                             | Do asynchronous inference |
+      |                    | `openvino.runtime.AsyncInferQueue.set_callback <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback>`__ ,  |                           |
+      |                    | `openvino.runtime.AsyncInferQueue.start_async <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async>`__ ,    |                           |
+      |                    | `openvino.runtime.AsyncInferQueue.wait_all <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all>`__ ,          |                           |
+      |                    | `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__                       |                           |
+      +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/python/classification_sample_async/classification_sample_async.py
+         :language: python
+
 
 How It Works
 ############
@@ -44,11 +56,6 @@ At startup, the sample application reads command-line parameters, prepares input
 
 You can see the explicit description of
 each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
-
-.. dropdown:: Sample code 
-
-   .. doxygensnippet:: samples/python/classification_sample_async/classification_sample_async.py
-      :language: python
 
 Running
 #######
