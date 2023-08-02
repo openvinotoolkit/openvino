@@ -91,7 +91,7 @@ bool get_cpu_pinning(bool& input_value,
                            : (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
     }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#    if defined(__APPLE__) || defined(_WIN32)
+#    if defined(__APPLE__)
     result_value = false;
 #    endif
 #endif
