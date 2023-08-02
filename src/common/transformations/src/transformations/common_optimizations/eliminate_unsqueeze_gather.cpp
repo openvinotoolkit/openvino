@@ -88,9 +88,13 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
                                                                    false);
         register_new_node(indices);
         gather->input(1).replace_source_output(indices->output(0));
-        gather->validate_and_infer_types();
         copy_runtime_info({unsqueeze, gather}, {indices, gather});
         replace_output_update_name(unsqueeze->output(0), unsqueeze->input_value(0));
+
+        // in order to have correct shapes for other matchers in the same graph rewrite we revalidate nodes
+        gather->revalidate_and_infer_types();
+        if (pattern_nodes.count(be_label))
+            pattern_nodes.at(be_label)->revalidate_and_infer_types();
         return true;
     };
 
