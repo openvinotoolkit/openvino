@@ -10,6 +10,8 @@ const std::vector<size_t> num_batch{ 1, 4, 8, 16, 32, 64, 128, 256 };
 using namespace AutoBatchingTests;
 
 namespace {
+// TODO: CVS-115961
+#ifndef OPENVINO_ARCH_ARM
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test,
         ::testing::Combine(
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -18,6 +20,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test,
                 ::testing::ValuesIn(num_requests),
                 ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test::getTestCaseName);
+#endif
+
 // TODO: for 22.2 (CVS-68949)
 //INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test_DetectionOutput,
 //                         ::testing::Combine(
