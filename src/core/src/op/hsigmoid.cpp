@@ -29,6 +29,7 @@ shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v5::HSigmoid>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
