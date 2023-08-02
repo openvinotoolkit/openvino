@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ov_test.hpp"
 #include <thread>
+
+#include "ov_test.hpp"
 
 class ov_multithreading_test : public ov_capi_test_base {
     void SetUp() override {
@@ -58,7 +59,7 @@ TEST_P(ov_multithreading_test, get_property) {
             ov_compiled_model_get_property(compiled_model, key, &result);
         },
         10000);
-    
+
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
