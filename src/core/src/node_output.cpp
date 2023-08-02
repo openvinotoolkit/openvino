@@ -71,7 +71,7 @@ void Output<Node>::replace(const Output<Node>& replacement) {
         input.replace_source_output(replacement);
     }
     replacement.get_tensor_ptr()->add_names(get_tensor_ptr()->get_names());
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     // In legacy API we rely on output port tensor name and use it as an input or output name for the model
     // Due to m_name is just a string, and we can't store multiple aliases for single output port we have to
     // handle two situations during replacement:
@@ -89,7 +89,7 @@ void Output<Node>::replace(const Output<Node>& replacement) {
         ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(),
                                                   ov::descriptor::get_ov_tensor_legacy_name(get_tensor()));
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ov::copy_output_runtime_info({*this, replacement}, {replacement});
 }

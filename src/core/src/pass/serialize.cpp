@@ -12,8 +12,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
@@ -439,7 +437,8 @@ public:
                            ov::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
                 special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
-        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        } else if (const auto& a =
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {

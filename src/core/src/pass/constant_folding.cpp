@@ -4,8 +4,7 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
-#include <openvino/cc/pass/itt.hpp>
-
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,8 +12,6 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-
-using namespace std;
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -143,8 +140,8 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         node->get_rt_info()["can_be_folded"] = can_be_folded;
     }
 
-    deque<shared_ptr<Node>> nodes;
-    set<shared_ptr<Node>> visited;
+    std::deque<std::shared_ptr<Node>> nodes;
+    std::set<std::shared_ptr<Node>> visited;
     for (auto& r : model->get_results())
         nodes.push_back(r);
     for (auto& r : model->get_sinks())
