@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include "openvino/runtime/tensor.hpp"
+
 #include "layout.hpp"
 #include "memory_caps.hpp"
 #include "event.hpp"
 #include "engine_configuration.hpp"
-
-#include "ngraph/runtime/host_tensor.hpp"
 
 #include <type_traits>
 
@@ -245,12 +245,6 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
         }
     }
     return out_vecs;
-}
-
-inline std::shared_ptr<ngraph::runtime::HostTensor> make_host_tensor(layout l, void* memory_pointer) {
-    ov::element::Type et = data_type_to_element_type(l.data_type);
-
-    return std::make_shared<ngraph::runtime::HostTensor>(et, l.get_shape(), memory_pointer);
 }
 
 inline ov::Tensor make_tensor(layout l, void* memory_pointer) {

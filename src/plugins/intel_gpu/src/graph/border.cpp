@@ -65,38 +65,38 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     };
 
     auto& memory_deps = impl_param.memory_deps;
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     auto ta = ov::make_tensor_accessor(const_data);
 
     if ((is_begin_mem && memory_deps.count(1)) && (is_end_mem && memory_deps.count(2))) {
         auto pads_begin_mem = memory_deps.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
+        const_data.emplace(1, make_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
 
         auto pads_end_mem = memory_deps.at(2);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.get_stream());
-        const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
+        const_data.emplace(2, make_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
 
         output_shapes = ov::op::shape_infer(&op, input_shapes, ta);
     } else if ((is_begin_mem || is_end_mem) && memory_deps.count(1)) {
         if (is_begin_mem) {
             auto pads_begin_mem = memory_deps.at(1);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.get_stream());
-            const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
+            const_data.emplace(1, make_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
 
             auto pads_end_data = desc->pads_end;
-            auto pads_end_tensor = make_host_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
+            auto pads_end_tensor = make_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
             const_data.emplace(2, pads_end_tensor);
 
             output_shapes = ov::op::shape_infer(&op, input_shapes, ta);
         } else {
             auto pads_begin_data = desc->pads_begin;
-            auto pads_begin_tensor = make_host_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
+            auto pads_begin_tensor = make_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
             const_data.emplace(1, pads_begin_tensor);
 
             auto pads_end_mem = memory_deps.at(1);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.get_stream());
-            const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
+            const_data.emplace(2, make_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
 
             output_shapes = ov::op::shape_infer(&op, input_shapes, ta);
         }
@@ -107,14 +107,14 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
         if (is_begin_mem && desc->pad_mode == ov::op::PadMode::CONSTANT) {
             pads_begin_data = {val, val, val, val};
         }
-        auto pads_begin_tensor = make_host_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
+        auto pads_begin_tensor = make_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
         const_data.emplace(1, pads_begin_tensor);
 
         auto pads_end_data = desc->pads_end;
         if (is_end_mem && desc->pad_mode == ov::op::PadMode::CONSTANT) {
             pads_end_data = {val, val, val, val};
         }
-        auto pads_end_tensor = make_host_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
+        auto pads_end_tensor = make_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
         const_data.emplace(2, pads_end_tensor);
 
         output_shapes = ov::op::shape_infer(&op, input_shapes, ta);
