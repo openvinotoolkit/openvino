@@ -15,8 +15,8 @@ namespace v8 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const AdaptiveAvgPool* op,
                                  const std::vector<TShape>& input_shapes,
-                                 const ITensorAccessor& tensor_acessor = make_tensor_accessor()) {
-    return {pooling::out_shape_infer(op, input_shapes, tensor_acessor)};
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    return {pooling::out_shape_infer(op, input_shapes, tensor_accessor)};
 }
 }  // namespace v8
 }  // namespace op
