@@ -1,6 +1,16 @@
+type SupportedTypedArray =
+  | Int8Array
+  | Uint8Array
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array;
+
 interface Core {
-  compileModel(model: Model, device: string): CompiledModel;
-  readModelAsync(): Promise<Model>;
+  compileModel(): CompiledModel;
+  readModelAsync(): Promise<CompiledModel>;
   readModel(modelPath: string, binPath?: string): Model;
 }
 interface CoreConstructor {
@@ -33,12 +43,13 @@ interface Tensor {
   getData(): number[];
 }
 interface TensorConstructor {
-  // FIXME: does empty constructor use?
-  new(): Tensor;
   // FIXME: now tensorData can be only Float32Array
-  new(type?: element, shape?: number[], tensorData?: number[]): Tensor;
+  new(type: element,
+      shape: number[],
+      tensorData: number[] | SupportedTypedArray): Tensor;
 }
 
+// TODO: remove this object from bindings
 interface Shape {
   data: number[];
   getData(): number[];
@@ -46,8 +57,6 @@ interface Shape {
   getDim(): number;
 }
 interface ShapeConstructor {
-  // FIXME: does empty constructor use?
-  new(): Shape;
   // FIXME: now tensorData can be only Float32Array
   new(dimensions: number, data: number[]): Shape;
 }
@@ -64,19 +73,15 @@ interface InferRequest {
 interface Output {
   anyName: string;
   shape: number[];
-  // Constructor isn't available from JS side
-  // constructor();
   toString(): string;
   getAnyName(): string;
   getShape(): Shape;
-  // FIXME: These methods are not available from JS side for some reason
-  // const ov::Node & ov::Node - the reason
   setNames(names: string[]): void;
   getNames(): string[];
 }
 
 interface PrePostProcessor {
-  // FIXME: should we return this after build() call?
+  // FIXME: should we return PrePostProcessor after build() call?
   build(): PrePostProcessor;
   setInputElementType(idx: number, type: element): PrePostProcessor;
   setInputModelLayout(layout: string[]): PrePostProcessor;
