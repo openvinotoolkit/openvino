@@ -27,6 +27,7 @@ shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Cosh>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace coshop {
 namespace {
 template <element::Type_t ET>
