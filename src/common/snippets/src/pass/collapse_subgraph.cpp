@@ -67,10 +67,12 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
             // Check for Transpose parent is MatMul inside Subgraph
-            if (const auto subgraph = ov::as_type_ptr<op::Subgraph>(parent)) {
-                const auto body = subgraph->body_ptr();
-                const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
-                is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
+            if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
+                if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+                    const auto body = subgraph->body_ptr();
+                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
+                    is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
+                }
             }
 
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));

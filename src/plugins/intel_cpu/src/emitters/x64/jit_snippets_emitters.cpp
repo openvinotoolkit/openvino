@@ -1510,31 +1510,6 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
     }
 }
 
-VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
-
-void VectorBufferEmitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-        emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
-        emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
-        emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
-    } else {
-        IE_THROW() << "Zero emitter doesn't support " << host_isa_;
-    }
-}
-
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void VectorBufferEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-
-    Vmm vmm = Vmm(out[0]);
-    h->uni_vpxor(vmm, vmm, vmm);
-}
-
 FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(n);
@@ -1544,10 +1519,18 @@ FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
 
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
+    if (!is_optimized())
+        push_arg_entry_of("value", fill_value, true);
     prepare_table();
 }
 
 size_t FillEmitter::aux_gprs_count() const {
+    // Optimized version (fill full vector by zero) doesn't need additional register
+    if (is_optimized())
+        return 0;
+    // + 1 reg for table value in full vector case
+    if (is_full_reg())
+        return 1;
     // + 1 reg for temp reg for mask in avx512
     return one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
 }
@@ -1573,6 +1556,25 @@ void FillEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
     Vmm src_vmm = Vmm(in[0]);
     Vmm dst_vmm = Vmm(out[0]);
 
+    if (is_full_reg())
+        fill_full<Vmm>(dst_vmm);
+    else
+        fill_tail<Vmm>(src_vmm, dst_vmm);
+}
+
+template <typename Vmm>
+void FillEmitter::fill_full(const Vmm& dst_vmm) const {
+    // Optimized impl for zero
+    if (is_optimized()) {
+        h->uni_vpxor(dst_vmm, dst_vmm, dst_vmm);
+        return;
+    }
+
+    h->uni_vbroadcastss(dst_vmm, table_val("value"));
+}
+
+template <typename Vmm>
+void FillEmitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
     if (one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core)) {
         uint64_t tail_mask = 1;
         tail_mask = ~((tail_mask << offset) - tail_mask);
@@ -1584,14 +1586,11 @@ void FillEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size
         imm = ~((imm << offset) - imm);  // shift load_num bit
         if (host_isa_ == dnnl::impl::cpu::x64::sse41 && src_vmm.getIdx() != dst_vmm.getIdx()) {
             h->uni_vmovups(dst_vmm, src_vmm);
-            src_vmm = Vmm(dst_vmm.getIdx());
+            h->uni_vblendps(dst_vmm, dst_vmm, table_val("value"), imm);
+        } else {
+            h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
         }
-        h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
     }
-}
-
-void FillEmitter::register_table_entries() {
-    push_arg_entry_of("value", fill_value, true);
 }
 
 }   // namespace intel_cpu

@@ -430,10 +430,26 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
         if (body_results[i]->get_input_element_type(0) != needed_out_type) {
-            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
-            body_results[i]->set_argument(0, convert);
-            body_results[i]->validate_and_infer_types();
+            auto parent_output = body_results[i]->get_input_source_output(0);
+            std::shared_ptr<ov::Node> consumer = body_results[i];
+
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert before Transpose (if there is) on Subgraph outputs
+            const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent_output.get_node_shared_ptr());
+            if (transpose) {
+                OPENVINO_ASSERT(parent_output.get_target_inputs().size() == 1,
+                                "If Result has Transpose on input, this Result must be single consumer of the Transpose");
+                parent_output = transpose->get_input_source_output(0);
+                consumer = transpose;
+            }
+
+            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, needed_out_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            consumer->set_argument(0, convert);
+            consumer->validate_and_infer_types();
+            if (consumer != body_results[i])
+                body_results[i]->validate_and_infer_types();
         }
     }
 
@@ -442,23 +458,37 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto needed_in_type = std::get<2>(inputShapes[i]);
         const auto& parameter = parameters[i];
-        if (parameter->get_element_type() != needed_in_type) {
-            const auto parameter_output = parameter->output(0);
-            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                parameter_output,
-                parameter_output.get_element_type());
-            ov::copy_runtime_info(parameter, convert);
+        const auto original_type = parameter->get_element_type();
+        if (original_type != needed_in_type) {
+            parameter->set_element_type(needed_in_type);
+            parameter->validate_and_infer_types();
 
-            for (const auto input : parameter_output.get_target_inputs()) {
+            auto parent_output = parameter->output(0);
+            auto consumer_inputs = parent_output.get_target_inputs();
+
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert after Transpose (if there is) on Subgraph inputs
+            if (std::any_of(consumer_inputs.cbegin(), consumer_inputs.cend(),
+                [](const ov::Input<ov::Node>& input) { return ov::is_type<ov::op::v1::Transpose>(input.get_node()); })) {
+                OPENVINO_ASSERT(consumer_inputs.size() == 1,
+                                "If Parameter has Transpose on output, this Transpose must be single consumer of the Parameter");
+                const auto transpose = consumer_inputs.begin()->get_node()->shared_from_this();
+                transpose->validate_and_infer_types();
+
+                parent_output = transpose;
+                consumer_inputs = parent_output.get_target_inputs();
+            }
+
+            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, original_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            for (const auto input : consumer_inputs) {
                 const auto& input_node = input.get_node();
                 if (input_node == convert.get()) {
                     continue;
                 }
                 input_node->set_argument(input.get_index(), convert->output(0));
             }
-
-            parameter->set_element_type(needed_in_type);
-            parameter->validate_and_infer_types();
         }
     }
 }

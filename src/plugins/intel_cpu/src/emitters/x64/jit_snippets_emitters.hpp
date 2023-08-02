@@ -455,21 +455,6 @@ private:
     enum class OpType { max, sum };
     OpType m_op_type = OpType::max;
 };
-
-class VectorBufferEmitter : public jit_emitter {
-public:
-    VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-    size_t get_inputs_num() const override {return 0;}
-
-private:
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out) const override;
-
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-};
-
 class FillEmitter : public jit_emitter {
 public:
     FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
@@ -485,8 +470,13 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    template <typename Vmm>
+    void fill_full(const Vmm& vmm_dst) const;
+    template <typename Vmm>
+    void fill_tail(const Vmm& vmm_src, const Vmm& vmm_dst) const;
 
-    void register_table_entries() override;
+    bool is_full_reg() const { return offset == 0; }
+    bool is_optimized() const { return is_full_reg() && fill_value == uint32_t(0x0); }
 
     size_t offset = 0;
     uint32_t fill_value = 0x0;

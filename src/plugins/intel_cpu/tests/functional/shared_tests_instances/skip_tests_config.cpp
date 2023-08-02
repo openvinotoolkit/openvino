@@ -264,6 +264,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

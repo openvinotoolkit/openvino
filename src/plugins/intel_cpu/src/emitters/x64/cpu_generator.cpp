@@ -55,7 +55,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ov::op::v0::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[ov::op::v0::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
-    jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER(VectorBufferEmitter);
+    jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     // jitters[ov::op::v1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
