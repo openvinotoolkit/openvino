@@ -29,6 +29,7 @@ shared_ptr<Node> op::v1::ReduceLogicalOr::clone_with_new_inputs(const OutputVect
     return make_shared<op::v1::ReduceLogicalOr>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_or {
 namespace {
 bool evaluate_reduce_logical_or(const HostTensorPtr& data,
