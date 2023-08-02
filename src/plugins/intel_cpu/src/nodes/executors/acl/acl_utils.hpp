@@ -16,7 +16,7 @@ namespace intel_cpu {
 * @param dims vector of dimensions to squash
 * @return vector of dimensions that complies to ACL
 */
-inline VectorDims reshape_sizes(VectorDims dims) {
+inline VectorDims collapse_dims_to_max_rank(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
     if (dims.size() >= MAX_NUM_SHAPE) {

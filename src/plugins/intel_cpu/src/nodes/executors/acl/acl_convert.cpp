@@ -31,8 +31,8 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
     auto dstDims = dstDesc->getShape().getStaticDims();
     auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDesc);
     auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDesc);
-    auto srcTensorInfo = TensorInfo(shapeCast(reshape_sizes(srcDims)), 1, srcPrecision, srcDataLayout);
-    auto dstTensorInfo = TensorInfo(shapeCast(reshape_sizes(dstDims)), 1, dstPrecision, dstDataLayout);
+    auto srcTensorInfo = TensorInfo(shapeCast(collapse_dims_to_max_rank(srcDims)), 1, srcPrecision, srcDataLayout);
+    auto dstTensorInfo = TensorInfo(shapeCast(collapse_dims_to_max_rank(dstDims)), 1, dstPrecision, dstDataLayout);
     if (isCopyOp) {
         Status s = NECopy::validate(&srcTensorInfo, &dstTensorInfo);
         if (!s) {
