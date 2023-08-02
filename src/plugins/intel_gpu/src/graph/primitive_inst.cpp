@@ -839,6 +839,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
+                if (input->is_input() && queue_type != QueueTypes::out_of_order)
+                    continue;
                 auto id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
