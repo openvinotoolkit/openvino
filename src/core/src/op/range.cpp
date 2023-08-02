@@ -134,6 +134,7 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace rangeop {
 namespace {
 template <element::Type_t ET>

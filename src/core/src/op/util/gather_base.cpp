@@ -61,6 +61,7 @@ void ov::op::util::GatherBase::set_batch_dims(int64_t batch_dims) {
     m_batch_dims = batch_dims;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace gather {
 namespace {
 template <ov::element::Type_t ET>

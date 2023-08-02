@@ -18,6 +18,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace multiclass_nms_impl {
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 using Rectangle = runtime::reference::nms_common::Rectangle;
 using BoxInfo = runtime::reference::nms_common::BoxInfo;

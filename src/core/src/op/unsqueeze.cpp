@@ -45,6 +45,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace op {
 namespace unsqueeze {

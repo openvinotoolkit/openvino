@@ -30,6 +30,7 @@ shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logand {
 namespace {
 template <element::Type_t ET>
