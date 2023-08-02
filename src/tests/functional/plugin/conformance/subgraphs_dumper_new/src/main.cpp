@@ -56,10 +56,6 @@ int main(int argc, char *argv[]) {
         auto tmp_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
         cache_model_status.insert(tmp_cache_model_status.begin(), tmp_cache_model_status.end());
     }
-    for (auto& cache : caches) {
-        cache->set_serialization_dir(FLAGS_output_folder);
-        cache->serialize_cache();
-    }
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }

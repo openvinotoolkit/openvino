@@ -59,30 +59,22 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
     std::map<std::string, InputInfo> input_info;
     std::vector<std::shared_ptr<ov::Node>> nodes_to_remove;
     for (const auto& op : model_map) {
-        // std::cout << op.second->get_friendly_name() << std::endl;
-        // bool has_inputs = op.second->inputs().size();
         checked_ops.insert(op.first);
         auto this_input_info = get_input_info_by_node(op.second);
         input_info.insert(this_input_info.begin(), this_input_info.end());
         for (size_t i = 0; i < op.second->inputs().size(); ++i) {
             auto in_node = op.second->get_input_node_shared_ptr(i);
-            // std::cout << "IN " << in_node-÷>get_friendly_name() << std::endl;
             if (ov::op::util::is_parameter(in_node)) {
                 params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_node));
             }
         }
         for (size_t j = 0; j < op.second->outputs().size(); ++j) {
             if (op.second->output(j).get_target_inputs().empty()) {
-            // if (op.second->output(j).get_target_inputs().empty() && has_inputs) {
                 if (ov::op::util::is_output(op.second)) {
                     results.push_back(std::dynamic_pointer_cast<ov::op::v0::Result>(op.second));
                 } else {
                     results.push_back(std::make_shared<ov::op::v0::Result>(op.second->output(j)));
                 }
-            } else {
-                // for (const auto& out : op.second->output(j).get_target_inputs()) {
-                //     std::cout << "OUT " << out.get_node()->shared_from_this()->get_friendly_name() << std::endl;
-                // }
             }
         }
     }
@@ -148,9 +140,7 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                 try {
                     std::shared_ptr<ov::Model> function = core->read_model(model);
                     try {
-                        for (auto& cache : caches) {
-                            cache->update_cache(function, model, extract_body);
-                        }
+                        cache->update_cache(function, model, extract_body);
                     } catch (std::exception &e) {
                         std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                         model_status = ModelCacheStatus::NOT_FULLY_CACHED;

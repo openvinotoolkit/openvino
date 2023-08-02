@@ -43,7 +43,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
             try {
                 matched_patterns.push_back(generate_model(nodes, checked_ops, extractor_name));
             } catch(std::exception& e) {
-                // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
             }
             nodes.clear();
         } else {

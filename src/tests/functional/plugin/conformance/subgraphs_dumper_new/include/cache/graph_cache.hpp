@@ -35,6 +35,7 @@ public:
     }
 
     void reset_cache() override {
+        m_graph_cache.clear();
         reset();
     };
 
