@@ -200,7 +200,8 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         size_t min_priority(0);
         for (auto&& dev_priority : it->second.as<std::vector<std::string>>()) {
             auto dev_prior = ov::util::split(dev_priority, ':');
-            OPENVINO_ASSERT(dev_prior.size() == 2);
+            OPENVINO_ASSERT(dev_prior.size() == 2,
+                            "Cannot set ov::proxy::device_priorities property. Format is incorrect.");
             auto priority = string_to_size_t(dev_prior[1]);
             if (priority > min_priority)
                 min_priority = priority;
@@ -285,12 +286,15 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         ov::DeviceIDParser parser(it.first);
         if (parser.get_device_name() == pr_parser.get_device_name()) {
             // Add primary device properties to primary device
-            OPENVINO_ASSERT(it.second.is<ov::AnyMap>());
+            OPENVINO_ASSERT(it.second.is<ov::AnyMap>(),
+                            "Internal error. Device properties should be represented as ov::AnyMap.");
             auto dev_map = it.second.as<ov::AnyMap>();
             for (const auto& m_it : dev_map) {
                 // Plugin shouldn't contain the different property for the same key
-                OPENVINO_ASSERT(hw_config.find(m_it.first) == hw_config.end() ||
-                                hw_config.at(m_it.first) == m_it.second);
+                OPENVINO_ASSERT(
+                    hw_config.find(m_it.first) == hw_config.end() || hw_config.at(m_it.first) == m_it.second,
+                    "Error found collisions for property: ",
+                    m_it.first);
                 hw_config[m_it.first] = m_it.second;
             }
             dev_prop_name = it.first;
@@ -495,13 +499,21 @@ std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     if (devices.empty())
         // Return low level device name in case of no devices wasn't found
         return m_device_order.at(0);
-    OPENVINO_ASSERT(devices.size() > idx);
+    OPENVINO_ASSERT(devices.size() > idx,
+                    "Cannot get primary device for index: ",
+                    idx,
+                    ". The total number of found devices is ",
+                    devices.size());
     return devices[idx];
 }
 
 std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     const auto all_devices = get_hidden_devices();
-    OPENVINO_ASSERT(all_devices.size() > idx);
+    OPENVINO_ASSERT(all_devices.size() > idx,
+                    "Cannot get fallback device for index: ",
+                    idx,
+                    ". The total number of found devices is ",
+                    all_devices.size());
     if (all_devices[idx].size() == 1) {
         return all_devices[idx].at(0);
     } else {
@@ -529,7 +541,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
 
     m_hidden_devices.clear();
     const auto core = get_core();
-    OPENVINO_ASSERT(core != nullptr);
+    OPENVINO_ASSERT(core != nullptr, "Internal error! Plugin doesn't have a pointer to ov::Core");
     OPENVINO_ASSERT(
         !m_alias_for.empty(),
         get_device_name(),
@@ -569,7 +581,8 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             std::unordered_map<std::string, std::string> device_to_full_name;
             bool no_uuid;
         } DeviceID_t;
-        OPENVINO_ASSERT(m_device_order.size() == m_alias_for.size());
+        OPENVINO_ASSERT(m_device_order.size() == m_alias_for.size(),
+                        "Internal error! Plugin cannot match device order to devices under the alias");
 
         // 1. Get all available devices
         //   Highlevel devices list contains only unique which:

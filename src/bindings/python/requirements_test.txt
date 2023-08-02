@@ -1,7 +1,5 @@
 -c ./constraints.txt
-protobuf
 numpy
-onnx
 bandit
 black
 flake8
