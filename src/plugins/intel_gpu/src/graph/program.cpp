@@ -543,11 +543,16 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (optimize_data) {
-        apply_opt_pass<prepare_primitive_fusing_through>();
+        const bool enable_primitive_fusing = !cldnn::debug_configuration::get_instance()->disable_primitive_fusing;
+        if (enable_primitive_fusing) {
+            apply_opt_pass<prepare_primitive_fusing_through>();
+        }
 
         apply_opt_pass<pre_replace_deconv>(lo);
 
-        apply_opt_pass<prepare_primitive_fusing>(lo);
+        if (enable_primitive_fusing) {
+            apply_opt_pass<prepare_primitive_fusing>(lo);
+        }
 
         apply_opt_pass<select_preferred_formats>(lo);
 
