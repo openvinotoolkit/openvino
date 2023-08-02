@@ -22,7 +22,7 @@ from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
-    get_mo_convert_params, input_to_input_cut_info, freeze_placeholder_to_input_cut_info
+    get_mo_convert_params, input_to_input_cut_info
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
@@ -287,10 +287,6 @@ def params_parsing(argv: argparse.Namespace):
     argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
     or list of np.types if node names were not set.
 
-    argv.freeze_placeholder_with_value - dictionary where key is node name, value is np.ndarray
-
-    argv.unnamed_freeze_placeholder_with_value - list with np.ndarray
-
     :param argv: MO arguments
     """
     # Parse input to list of InputCutInfo
@@ -307,13 +303,6 @@ def params_parsing(argv: argparse.Namespace):
                                                      "or do not set names for all inputs."
     argv.inputs_list = input_names_list
     argv.input = ','.join(input_names_list)
-
-    # Parse freeze_placeholder_with_value.
-    # values for freezing can be set both by named and unnamed approach if
-    # 'input' was used without names and 'freeze_placeholder_with_value' was used with names.
-    # So named and unnamed values are stored separately.
-    argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value = \
-        freeze_placeholder_to_input_cut_info(inputs)
 
     if len(input_names_list) > 0:
         # Named inputs case
@@ -485,7 +474,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
                 log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
                 log.debug(traceback.format_exc())
-            elif isinstance(e, Error):
+            elif isinstance(e, (Error, OpConversionFailure)):
                 log.error(e)
                 log.debug(traceback.format_exc())
             elif isinstance(e, FrameworkError):

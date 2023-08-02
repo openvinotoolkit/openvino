@@ -5,9 +5,8 @@ import numpy as np
 import os
 import pytest
 from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
-from openvino.tools.ovc import InputCutInfo
-from openvino.tools.mo import LayoutMap
-
+from openvino.tools.mo import LayoutMap, InputCutInfo
+import openvino.runtime as ov
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
 
@@ -144,11 +143,11 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input_shape': "[?,1..3,4..,..5],[?,1..3,4,..5],[?,3,4..,..5]", 'input': 'Input1,Input2,Relu3'}},
         {'params_test': {'input': [InputCutInfo("Relu1", Shape([3, 2]), Type(np.int32)),
                                    InputCutInfo("Relu2", PartialShape([Dimension(3, 10), Dimension(2, -1)]), np.int32),
-                                   InputCutInfo("Relu3", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])]},
+                                   InputCutInfo("Relu3", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])], 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu1[3 2]{i32},Relu2[3..10 2..]{i32},Relu3[3 2]{i32}->[1 2 3 4 5 6]"}},
         {'params_test': {'input': [("Relu1", Shape([3, 2]), Type(np.int32)),
-                                   (np.int32, "Relu2", PartialShape([Dimension(3, 10), Dimension(2, -1)])),
-                                   ([3, 2],"Relu3",  Type(np.int32))]},
+                                   (Type(np.int32), "Relu2", PartialShape([Dimension(3, 10), Dimension(2, -1)])),
+                                   ([3, 2],"Relu3",  Type(np.int32))], 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu1[3 2]{i32},Relu2[3..10 2..]{i32},Relu3[3 2]{i32}"}},
         {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
          'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
@@ -182,11 +181,15 @@ class TestComplexParams(CommonMOConvertTest):
             'params_ref': {'layout': "Input1(nchw->nhwc),Input2(nc??->n??c),Input3(abcd->acdb)"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
-        {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
+        {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+        {'params_test': {'input': {"Input1": PartialShape([2, 3, 4]), "Input2": [2, 3, 4], "Input3":[Dimension(2), Dimension(3), Dimension(4)]}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+        {'params_test': {'input': [Type(np.int32), Type(np.int32), Type(np.int32)]},
          'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
         {'params_test': {'input': [InputCutInfo(shape=[1], type=np.int32, value=[10]),
                                    InputCutInfo(shape=[1], type=np.int32, value=[20]),
-                                   InputCutInfo(shape=[1], type=np.int32, value=[30])]},
+                                   InputCutInfo(shape=[1], type=np.int32, value=[30])], 'use_convert_model_from_mo': True},
          'params_ref': {'input': 'Input1[1]{i32}->[10],Input2[1]{i32}->[20],Input3[1]{i32}->[30]'}}
     ]
 
@@ -255,29 +258,39 @@ class TestComplexParams(CommonMOConvertTest):
 
         # ovc.convert_model with save_model are used, by default save_model compresses to fp16 same as cli tool.
         # Check all args combinations.
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True, 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': True, 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': True}},
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': False},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'compress_to_fp16': False, 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]", 'compress_to_fp16': False}},
 
         {'params_test': {'input_shape': [Dimension(), Dimension(1, 3), 4, Dimension(-1, 5)], 'use_convert_model_from_mo': True,
                          'compress_to_fp16': True},
          'params_ref': {'input_shape': "[?,1..3,4,..5]"}},
-        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
+        {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6]), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
-        {'params_test': {'input': ("Relu", [3, 2], Type(np.int32))},
-         'params_ref': {'input': "Relu[3 2]{i32}"}},
-        {'params_test': {'input': ("Relu", Type(np.int32))},
+        {'params_test': {'input': ("Relu", [3, 2], Type(np.int32)), 'use_convert_model_from_mo': True},
+         'params_ref': {'input': "Relu[3,2]{i32}"}},
+        {'params_test': {'input': {"Input": ([3, 2], ov.Type.i32)}},
+         'params_ref': {'input': "Input[3,2]{i32}"}},
+        {'params_test': {'input': {"Input": ov.Type.i32}},
+         'params_ref': {'input': "Input{i32}"}},
+        {'params_test': {'input': {"Input": [3, 2]}},
+         'params_ref': {'input': "Input[3,2]"}},
+        {'params_test': {'input': (3, 2)},
+         'params_ref': {'input': "Input[3,2]"}},
+        {'params_test': {'input': (3, Dimension(2))},
+         'params_ref': {'input': "Input[3,2]"}},
+        {'params_test': {'input': ("Relu", Type(np.int32)), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu{i32}"}},
-        {'params_test': {'input': ("Relu", [3, 2])},
+        {'params_test': {'input': ("Relu", [3, 2]), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu[3 2]"}},
-        {'params_test': {'input': ("Relu")},
+        {'params_test': {'input': ("Relu"), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Relu"}},
         {'params_test': {'mean_values': [0.5, 1.3, 0.67], 'use_convert_model_from_mo': True, 'compress_to_fp16': True},
          'params_ref': {'mean_values': "[0.5,1.3,0.67]"}},
@@ -300,11 +313,11 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Input[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
          'params_ref': {'input': "Input[?,10]"}},
-        {'params_test': {'input': np.int32},
+        {'params_test': {'input': Type(np.int32)},
          'params_ref': {'input': "Input{i32}"}},
-        {'params_test': {'input': InputCutInfo(shape=[1], type=np.int32, value=[10])},
+        {'params_test': {'input': InputCutInfo(shape=[1], type=np.int32, value=[10]), 'use_convert_model_from_mo': True},
          'params_ref': {'input': "Input[1]{i32}->[10]"}},
-        {'params_test': {'input': (np.int32, [1, 2, 3])},
+        {'params_test': {'input': (Type(np.int32), [1, 2, 3])},
          'params_ref': {'input': "Input[1,2,3]{i32}"}},
         {'params_test': {'input_shape': [Dimension(3, 10), 10, -1], 'use_convert_model_from_mo': True, 'compress_to_fp16': True},
          'params_ref': {'input_shape': '[3..10,10,?]'}},

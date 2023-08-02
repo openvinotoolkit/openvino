@@ -38,6 +38,14 @@ def get_enabled_and_disabled_transforms():
     return enabled_transforms, disabled_transforms
 
 
+def raise_exception_for_input_cut(model_inputs: List[Place], new_inputs: List[dict]):
+    for new_input in new_inputs:
+        node = new_input['node']
+
+        if not any([item.is_equal(node) for item in model_inputs]):
+            raise Exception("Input with name {} is not found among model inputs.".format(new_input['input_name']))
+
+
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
     Load input model and convert it to nGraph function
@@ -62,13 +70,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
     '''
-    argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value)
+    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+        argv.output, {}, moc_front_end.get_name())
 
     def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
@@ -109,6 +116,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     model_inputs = input_model.get_inputs()
     inputs_equal = True
     if user_shapes:
+
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_cut(model_inputs, user_shapes)
+
         inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
@@ -138,7 +149,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                new_output_places_name, {}, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -150,7 +161,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                argv.output, argv.freeze_placeholder_with_value, moc_front_end.get_name())
+                argv.output, {}, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -226,11 +237,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
-    # obtain layout for all inputs
-    layout_values = {}
-    if 'layout_values' in argv and argv.layout_values:
-        layout_values = update_layout_to_dict(model_inputs, argv.layout_values,
-                                              lambda input_place: input_place.get_names())
 
     ov_model = moc_front_end.convert(input_model)
 

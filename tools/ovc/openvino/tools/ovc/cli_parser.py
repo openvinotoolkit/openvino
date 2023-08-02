@@ -3,27 +3,27 @@
 
 import argparse
 import ast
+import inspect
 import logging as log
 import os
 import pathlib
 import re
 from collections import OrderedDict, namedtuple
 from distutils.util import strtobool
-from itertools import zip_longest
-from pathlib import Path
 from operator import xor
 from typing import List, Union
-import numbers
-import inspect
 
 import numpy as np
-from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import PartialShape, Dimension, Shape, Type  # pylint: disable=no-name-in-module,import-error
 
 import openvino
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.utils import get_mo_root_dir
 from openvino.tools.ovc.help import get_convert_model_help_specifics
+from openvino.tools.ovc.utils import get_mo_root_dir
+
+# Helper class for storing input cut information
+_InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 
 def is_shape_type(value):
     if isinstance(value, PartialShape):
@@ -37,7 +37,7 @@ def is_shape_type(value):
         return True
     return False
 
-def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
+def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type]):
     """
     Parses parameters of single input to InputCutInfo.
     :param input: input cut parameters of single input
@@ -45,20 +45,12 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     """
     if isinstance(input, str):
         # Parse params from string
-        node_name, shape, value, data_type = parse_input_value(input)
+        node_name, shape, data_type = parse_input_value(input)
         # pylint: disable=no-member
-        return openvino.tools.ovc.InputCutInfo(node_name,
-                                              PartialShape(shape) if shape is not None else None,
-                                              data_type,
-                                              value)
-    if isinstance(input, openvino.tools.ovc.InputCutInfo): # pylint: disable=no-member
-        # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
-        # pylint: disable=no-member
-        return openvino.tools.ovc.InputCutInfo(input.name,
-                                              PartialShape(input.shape) if input.shape is not None else None,
-                                              input.type,
-                                              input.value)
-    if isinstance(input, (tuple, list, PartialShape)):
+        return _InputCutInfo(node_name,
+                             PartialShape(shape) if shape is not None else None,
+                             data_type)
+    if isinstance(input, (tuple, list)) or is_shape_type(input):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
@@ -73,7 +65,7 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, (type, Type)):
+            elif isinstance(val, Type):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
                 inp_type = val
@@ -85,19 +77,18 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
         # pylint: disable=no-member
-        return openvino.tools.ovc.InputCutInfo(name,
-                                              PartialShape(shape) if shape is not None else None,
-                                              inp_type,
-                                              None)
+        return _InputCutInfo(name,
+                             PartialShape(shape) if shape is not None else None,
+                             inp_type,
+                             None)
     # Case when only type is set
-    if isinstance(input, (type, Type)):
-        return openvino.tools.ovc.InputCutInfo(None, None, input, None) # pylint: disable=no-member
+    if isinstance(input, Type):
+        return _InputCutInfo(None, None, input, None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected openvino.tools.ovc.InputCutInfo "
-                    "or tuple or str. Got {}".format(type(input)))
+    raise Exception("Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(type(input)))
 
 
 def input_to_input_cut_info(input: [str, tuple, list]):
@@ -114,17 +105,12 @@ def input_to_input_cut_info(input: [str, tuple, list]):
         for input_value in split_inputs(input):
 
             # Parse string with parameters for single input
-            node_name, shape, value, data_type = parse_input_value(input_value)
+            node_name, shape, data_type = parse_input_value(input_value)
             # pylint: disable=no-member
-            inputs.append(openvino.tools.ovc.InputCutInfo(node_name,
-                                                         PartialShape(shape) if shape is not None else None,
-                                                         data_type,
-                                                         value))
+            inputs.append(_InputCutInfo(node_name,
+                                        PartialShape(shape) if shape is not None else None,
+                                        data_type))
         return inputs
-    # pylint: disable=no-member
-    if isinstance(input, openvino.tools.ovc.InputCutInfo):
-        # Wrap to list and return
-        return [input]
     if isinstance(input, tuple):
         # Case when input is single shape set in tuple
         if len(input) > 0 and isinstance(input[0], (int, Dimension)):
@@ -140,6 +126,17 @@ def input_to_input_cut_info(input: [str, tuple, list]):
         for inp in input:
             inputs.append(single_input_to_input_cut_info(inp))
         return inputs
+    if isinstance(input, dict):
+        res_list = []
+        for name, value in input.items():
+            if not isinstance(name, str):
+                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(name)))
+            info = single_input_to_input_cut_info(value)
+            if info.name is not None and info.name != name:
+                raise Exception("Incorrect \"input\" dictionary, got different names in key and value. "
+                                "Got operation name {} for key {}".format(info.name, name))
+            res_list.append(_InputCutInfo(name, info.shape, info.type))
+        return res_list
     # Case when single type or value is set, or unknown object
     return [single_input_to_input_cut_info(input)]
 
@@ -538,7 +535,8 @@ def remove_shape_from_input_value(input_value: str):
     :param input_value: string passed as input to the "input" command line parameter
     :return: string without shape specification
     """
-    assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
+    if '->' in input_value:
+        raise Error('Incorrect format of input. Got {}'.format(input_value))
     return re.sub(r'[(\[]([0-9\.?,  -]*)[)\]]', '', input_value)
 
 
@@ -548,8 +546,6 @@ def get_shape_from_input_value(input_value: str):
     :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
-    # remove the tensor value from the input_value first
-    input_value = input_value.split('->')[0]
 
     # parse shape
     shape = re.findall(r'[(\[]([0-9\.\?,  -]*)[)\]]', input_value)
@@ -564,7 +560,7 @@ def get_shape_from_input_value(input_value: str):
         shape = PartialShape([Dimension(dim) for dim in dims])
     else:
         raise Error("Wrong syntax to specify shape. Use \"input\" "
-                    "\"node_name[shape]->value\"")
+                    "\"node_name[shape]\"")
     return shape
 
 
@@ -574,33 +570,7 @@ def get_node_name_with_port_from_input_value(input_value: str):
     :param input_value: string passed as input to the "input" command line parameter
     :return: the corresponding node name with input/output port
     """
-    return remove_shape_from_input_value(remove_data_type_from_input_value(input_value.split('->')[0]))
-
-
-def get_value_from_input_value(input_value: str):
-    """
-    Returns the value from the input value string
-    :param input_value: string passed as input to the "input" command line parameter
-    :return: the corresponding value or None if it is not specified
-    """
-    parts = input_value.split('->')
-    value = None
-    if len(parts) == 2:
-        value = parts[1]
-        if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
-            raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
-        if '[' in value.strip(' '):
-            value = value.replace('[', '').replace(']', '')
-            if ',' in value:
-                value = value.replace(' ', '')
-                value = value.split(',')
-            else:
-                value = value.split(' ')
-        if not isinstance(value, list):
-            value = ast.literal_eval(value)
-    elif len(parts) > 2:
-        raise Error("Wrong syntax to specify value. Use \"input\"=\"node_name[shape]->value\"")
-    return value
+    return remove_shape_from_input_value(remove_data_type_from_input_value(input_value))
 
 
 def partial_shape_prod(shape: [PartialShape, tuple]):
@@ -622,7 +592,7 @@ def parse_input_value(input_value: str):
     ----------
     input_value
         string with a specified node name, shape, value and data_type.
-        E.g. 'node_name:0[4]{fp32}->[1.0 2.0 3.0 4.0]'
+        E.g. 'node_name:0[4]{fp32}'
 
     Returns
     -------
@@ -631,19 +601,9 @@ def parse_input_value(input_value: str):
     """
     data_type = get_data_type_from_input_value(input_value)
     node_name = get_node_name_with_port_from_input_value(input_value)
-    value = get_value_from_input_value(input_value)
     shape = get_shape_from_input_value(input_value)
-    value_size = np.prod(len(value)) if isinstance(value, list) else 1
 
-    if value is not None and shape is not None:
-        for dim in shape:
-            if isinstance(dim, Dimension) and dim.is_dynamic:
-                raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
-
-    if shape is not None and value is not None and partial_shape_prod(shape) != value_size:
-        raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
-                    "value: {}".format(shape, node_name, value_size, value))
-    return node_name if node_name else None, shape, value, data_type
+    return node_name if node_name else None, shape, data_type
 
 
 def split_str_avoiding_square_brackets(s: str) -> list:
@@ -824,40 +784,6 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res
     else:
         return res_list
-
-
-def get_freeze_placeholder_values(argv_input: str):
-    """
-    Parses values for placeholder freezing and input node names
-
-    Parameters
-    ----------
-    argv_input
-        string with a list of input layers: either an empty string, or strings separated with comma.
-        'node_name1[shape1]->value1,node_name2[shape2]->value2,...'
-
-    Returns
-    -------
-        parsed placeholders with values for freezing
-        input nodes cleaned from shape info
-    """
-    placeholder_values = {}
-    input_node_names = None
-
-    if argv_input is not None:
-        input_node_names = ''
-        # walkthrough all input values and save values for freezing
-        for input_value in split_inputs(argv_input):
-            node_name, _, value, _ = parse_input_value(input_value)
-            input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
-            if value is None: # no value is specified for freezing
-                continue
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            placeholder_values[node_name] = value
-
-    return placeholder_values, input_node_names
 
 
 def split_inputs(input_str):
