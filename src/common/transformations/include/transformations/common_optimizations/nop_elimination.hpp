@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateNopBroadcast;
 class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
 class TRANSFORMATIONS_API NopElimination;
+class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
 }  // namespace pass
 }  // namespace ov
@@ -153,4 +154,16 @@ class ov::pass::NopSliceBeforeGatherElements : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("NopSliceBeforeGatherElements", "0");
     NopSliceBeforeGatherElements();
+};
+
+/**
+ * @ingroup ie_transformation_comm on_api
+ * @brief PrepareShapeOpsForEliminationAroundBE works on the subgraph like
+ *  Reshape/Squeeze/Unsqueeze -> BinaryOperation -> Reshape/Squeeze/Unsqueeze
+ *  and prepares it for the following optimizations by moving bottom op up through Binary op
+ */
+class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("PrepareShapeOpsForEliminationAroundBE", "0");
+    PrepareShapeOpsForEliminationAroundBE();
 };
