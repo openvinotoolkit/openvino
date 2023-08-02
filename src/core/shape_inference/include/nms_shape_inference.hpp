@@ -141,11 +141,8 @@ std::vector<TRShape> shape_infer(const Node* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta,
                                  const bool static_output) {
-    // Note: static_output this input make this function to compatible shape_infer function pattern
-    // but it has special usage in GPU plugin to force static output in special condition.
-    // This could be removed as for CPU plugin the using StaticShape force output to be static and GPU
-    // could use in this case ov::Shape but this shape class is not compatible with interface of PartialShape
-    // ans StaticShape.
+    // Note: static_output parameter of this shape_infer is exclusively made for GPU internal needs
+    // To be removed after GPU supports dynamic NMS
     const auto inputs_size = input_shapes.size();
     NODE_VALIDATION_CHECK(op, cmp::Between<size_t>(1, 7)(inputs_size));
     using TDim = typename TRShape::value_type;

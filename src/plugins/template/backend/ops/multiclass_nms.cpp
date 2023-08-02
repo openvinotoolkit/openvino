@@ -5,13 +5,90 @@
 #include "ngraph/runtime/reference/multiclass_nms.hpp"
 
 #include "evaluate_node.hpp"
+#include "evaluates_map.hpp"
+#include "multiclass_nms_shape_inference.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
+
+namespace multiclass_nms {
+using namespace ov;
+
+struct InfoForNMS {
+    Shape selected_outputs_shape;
+    Shape selected_indices_shape;
+    Shape selected_numrois_shape;
+    Shape boxes_shape;
+    Shape scores_shape;
+    Shape roisnum_shape;
+    std::vector<float> boxes_data;
+    std::vector<float> scores_data;
+    std::vector<int64_t> roisnum_data;
+    size_t selected_outputs_shape_size;
+    size_t selected_indices_shape_size;
+    size_t selected_numrois_shape_size;
+};
+
+static std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes, const Shape& boxes_shape) {
+    auto result = get_floats(boxes, boxes_shape);
+    return result;
+}
+
+static std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores, const Shape& scores_shape) {
+    auto result = get_floats(scores, scores_shape);
+    return result;
+}
+
+static std::vector<int64_t> prepare_roisnum_data(const std::shared_ptr<HostTensor>& roisnum,
+                                                 const Shape& roisnum_shape) {
+    auto result = get_integers(roisnum, roisnum_shape);
+    return result;
+}
+
+constexpr size_t boxes_port = 0;
+constexpr size_t scores_port = 1;
+constexpr size_t roisnum_port = 2;
+
+InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBase>& nms,
+                                 const std::vector<std::shared_ptr<HostTensor>>& inputs) {
+    InfoForNMS result;
+
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
+    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
+    if (nms->get_input_size() == 3) {
+        const auto roisnum_ps = inputs[roisnum_port]->get_partial_shape();
+        input_shapes.push_back(roisnum_ps);
+    }
+
+    const auto output_shapes = ov::op::shape_infer(nms.get(), input_shapes);
+
+    result.selected_outputs_shape = output_shapes[0].get_max_shape();
+    result.selected_indices_shape = output_shapes[1].get_max_shape();
+    result.selected_numrois_shape = output_shapes[2].to_shape();
+
+    result.boxes_shape = inputs[boxes_port]->get_shape();
+    result.scores_shape = inputs[scores_port]->get_shape();
+
+    result.boxes_data = prepare_boxes_data(inputs[boxes_port], result.boxes_shape);
+    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
+
+    if (inputs.size() == 3) {
+        result.roisnum_shape = inputs[roisnum_port]->get_shape();
+        result.roisnum_data = prepare_roisnum_data(inputs[roisnum_port], result.roisnum_shape);
+    }
+
+    result.selected_outputs_shape_size = shape_size(result.selected_outputs_shape);
+    result.selected_indices_shape_size = shape_size(result.selected_indices_shape);
+    result.selected_numrois_shape_size = shape_size(result.selected_numrois_shape);
+
+    return result;
+}
+}  // namespace multiclass_nms
 
 template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v8::MulticlassNms>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
-    auto info = ngraph::runtime::reference::multiclass_nms_impl::get_info_for_nms_eval(op, inputs);
+    auto info = multiclass_nms::get_info_for_nms_eval(op, inputs);
 
     std::vector<float> selected_outputs(info.selected_outputs_shape_size);
     std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
@@ -62,7 +139,7 @@ template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v9::MulticlassNms>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
-    auto info = ngraph::runtime::reference::multiclass_nms_impl::get_info_for_nms_eval(op, inputs);
+    auto info = multiclass_nms::get_info_for_nms_eval(op, inputs);
 
     std::vector<float> selected_outputs(info.selected_outputs_shape_size);
     std::vector<int64_t> selected_indices(info.selected_indices_shape_size);
