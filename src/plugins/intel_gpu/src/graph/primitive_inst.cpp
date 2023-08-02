@@ -659,6 +659,8 @@ void primitive_inst::do_runtime_skip_reorder() {
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
+            if (is_input() && u->is_output())
+                continue;
             // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
             if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
                 continue;
