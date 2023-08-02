@@ -794,8 +794,7 @@ void Deconvolution::createPrimitive() {
     if (isInt8) {
         VectorDims inDims, outDims;
         DnnlMemoryDescPtr inDesc;
-        auto wgh_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims),
-                                                memory::data_type::s8, memory::format_tag::any);
+        auto wgh_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(int8WeightDims), memory::data_type::s8, memory::format_tag::any);
         DnnlMemoryDescPtr outDesc;
 
         const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -1026,7 +1025,7 @@ void Deconvolution::prepareParams() {
         if (key.isInt8) {
             primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
             primArgs[DNNL_ARG_WEIGHTS] = internalBlobMemory.front()->getPrimitive();
-            primArgs[DNNL_ARG_DST]= dstMemPtr->getPrimitive();
+            primArgs[DNNL_ARG_DST]=  dstMemPtr->getPrimitive();
             if (withBiases)
                 primArgs[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
         } else {
