@@ -102,13 +102,10 @@ elseif(RISCV64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_riscv_cpu_plugin")
 endif()
 
-set_ie_threading_interface_for(${TARGET_NAME})
-
 ie_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
-                                             openvino::pugixml
                                              inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
@@ -128,6 +125,10 @@ cross_compiled_file(${TARGET_NAME}
         NAME        proposal_exec
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
+
+# system dependencies must go last
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
+set_ie_threading_interface_for(${TARGET_NAME})
 
 # must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
