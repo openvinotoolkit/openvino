@@ -50,7 +50,7 @@ Models with only one input and output are supported.
 
       Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
 
-   .. tab-item:: sample Code
+   .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
          :language: cpp

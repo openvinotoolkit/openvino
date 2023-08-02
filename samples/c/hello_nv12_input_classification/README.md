@@ -48,7 +48,7 @@ Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automa
 
       Basic Inference Engine API is covered by :doc:`Hello Classification C sample <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`.
 
-   .. tab-item:: Sample code
+   .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/c/hello_nv12_input_classification/main.c
          :language: c
