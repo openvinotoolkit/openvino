@@ -1,6 +1,6 @@
 interface Core {
   compileModel(model: Model, device: string): CompiledModel;
-  readModelAsync(): Promise<CompiledModel>;
+  readModelAsync(): Promise<Model>;
   readModel(modelPath: string, binPath?: string): Model;
 }
 interface CoreConstructor {
