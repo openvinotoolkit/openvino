@@ -62,7 +62,7 @@ RUN cmake .. \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_OV_PADDLE_FRONTEND=OFF \
-    -DENABLE_OV_PYTORCH_FRONTEND=OFF \
+    -DENABLE_OV_PYTORCH_FRONTEND=ON \
     -DENABLE_OV_TF_FRONTEND=OFF \
     -DENABLE_OPENVINO_DEBUG=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
@@ -72,5 +72,5 @@ RUN ninja install
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib/intel64:/openvino/dist/runtime/3rdparty/tbb/lib
-ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python:/openvino/tools/mo:${PYTHONPATH}
 CMD tox

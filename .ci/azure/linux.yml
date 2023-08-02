@@ -178,6 +178,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For running TensorFlow frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
+      # For running torchvision -> OpenVINO preprocess converter
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_mxnet.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_caffe.txt
