@@ -13,6 +13,7 @@
 
 #include "common/ref_opt_transpose.hpp"
 #include "common/ref_transpose.hpp"
+#include "mlas/mlas_transpose.hpp"
 #include "x64/jit_transpose.hpp"
 
 #include "onednn/iml_type_mapper.h"
