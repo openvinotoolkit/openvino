@@ -336,7 +336,7 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
             node = decode_name_with_port(input_model, output, framework, IOType.Output)
             if node is None:
                 raise Error("Cannot find location {} in the graph".format(output))
-            _outputs.append({"node": node})
+            _outputs.append({"node": node, "output_name": output})
     return _outputs
 
 

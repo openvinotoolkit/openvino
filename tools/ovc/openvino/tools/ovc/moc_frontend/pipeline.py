@@ -38,12 +38,15 @@ def get_enabled_and_disabled_transforms():
     return enabled_transforms, disabled_transforms
 
 
-def raise_exception_for_input_cut(model_inputs: List[Place], new_inputs: List[dict]):
-    for new_input in new_inputs:
-        node = new_input['node']
+def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], new_nodes: List[dict], is_input: bool):
+    for new_node in new_nodes:
+        node = new_node['node']
 
-        if not any([item.is_equal(node) for item in model_inputs]):
-            raise Exception("Input with name {} is not found among model inputs.".format(new_input['input_name']))
+        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
+            if is_input:
+                raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
+            else:
+                raise Exception("Name {} is not found among model outputs.".format(new_node['output_name']))
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -118,12 +121,15 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     if user_shapes:
 
         # TODO: Remove this line when new 'cut' helper is introduced
-        raise_exception_for_input_cut(model_inputs, user_shapes)
+        raise_exception_for_input_output_cut(model_inputs, user_shapes, True)
 
         inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
+        # TODO: Remove this line when new 'cut' helper is introduced
+        raise_exception_for_input_output_cut(input_model.get_outputs(), outputs, False)
+
         outputs_equal = check_places_are_same(input_model.get_outputs(), outputs)
     log.debug('Inputs are same: {}, outputs are same: {}'.format(
         inputs_equal, outputs_equal))
