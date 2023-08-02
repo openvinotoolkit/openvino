@@ -182,6 +182,7 @@ debug_configuration::debug_configuration()
         , dump_layers_limit_batch(std::numeric_limits<int>::max())
         , dump_layers_raw(0)
         , dump_layers_binary(0)
+        , dump_runtime_memory_pool(0)
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , max_kernels_per_batch(0)
@@ -210,6 +211,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
+    get_gpu_debug_env_var("DumpRuntimeMemoryPool", dump_runtime_memory_pool);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
     std::string dump_layers_str;
     get_gpu_debug_env_var("DumpLayers", dump_layers_str);
