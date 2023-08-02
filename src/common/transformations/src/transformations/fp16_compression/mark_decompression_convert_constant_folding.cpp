@@ -11,6 +11,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 #include "transformations/rt_info/keep_fp16_const.hpp"
 
@@ -22,7 +23,7 @@ pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConst
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
-        if (!is_decompression(node))
+        if (!is_decompression(node) || is_fp16_compression_postponed(node->get_input_node_ptr(0)->get_rt_info()))
             return false;
         enable_constant_folding(node);
         return true;

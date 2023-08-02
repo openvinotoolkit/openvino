@@ -82,11 +82,16 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         auto c_type = const_node->get_element_type();
         std::shared_ptr<ov::Node> new_const;
 
+        bool disable_postponed = false;
+        if (transformation_callback(const_node)) {
+            disable_postponed = true;
+        }
+
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
         if (c_type == ov::element::f32) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed && !disable_postponed);
         } else if (c_type == ov::element::f64) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed && !disable_postponed);
         }
         if (!new_const)  // if out of range > threshold -> then new_const == nullptr
             return false;
@@ -104,7 +109,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             if (out_of_range_proportion >= keep_threshold)
                 return false;
 
-            if (postponed) {
+            if (postponed && !disable_postponed) {
                 new_const = const_node;
             } else {
                 const auto* src_data = const_node->get_data_ptr<float>();
@@ -117,7 +122,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 new_const = compressed_const;
             }
         } else if (c_type == ov::element::f64) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed && !disable_postponed);
         } else {
             return false;
         }
@@ -133,7 +138,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
         ov::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
-        if (postponed) {
+        if (postponed && !disable_postponed) {
             postpone_fp16_compression(new_const->get_rt_info());
             postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
 

@@ -344,4 +344,15 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
 
     return sizes_for_dims;
 }
+
+format format::find_format(std::string order, const std::vector<std::pair<size_t, int>>& block_sizes) {
+    const auto& suited_format = std::find_if(format_traits_map.begin(), format_traits_map.end(),
+                                             [&](const std::pair<cldnn::format::type, cldnn::format_traits>& trait) -> bool {
+                                                 return trait.second.order == order &&
+                                                        trait.second.block_sizes == block_sizes;
+                                             });
+    OPENVINO_ASSERT(suited_format != format_traits_map.end(), "[GPU] Cannot find a format with the specified parameters");
+    return suited_format->first;
+}
+
 }  // namespace cldnn

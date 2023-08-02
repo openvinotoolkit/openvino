@@ -352,6 +352,8 @@ struct format {
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
+    static format find_format(std::string order, const std::vector<std::pair<size_t, int>>& block_sizes);
+
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type

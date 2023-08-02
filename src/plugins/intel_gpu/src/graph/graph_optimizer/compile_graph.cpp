@@ -14,6 +14,7 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "condition_inst.h"
+#include "permute_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -76,6 +77,11 @@ void compile_graph::run(program& p) {
 
         if (node->is_type<condition>() || node->is_type<proposal>())
             can_select_impl = true;
+
+        // Must be optimized by fuse_constant_transposes pass or impl will be chosen in the propagate_constants pass
+        if (node->is_type<permute>() && node->is_constant() && node->get_users().front()->is_type<fully_connected>()) {
+            can_select_impl = false;
+        }
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {

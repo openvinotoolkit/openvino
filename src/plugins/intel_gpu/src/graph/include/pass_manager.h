@@ -256,7 +256,8 @@ private:
 
 class propagate_constants : public base_pass {
 public:
-    propagate_constants() : base_pass("propagate_constants") {}
+    propagate_constants(bool skip_weights_constant_path = false) : base_pass("propagate_constants"),
+                                                                   skip_weights_constant_path(skip_weights_constant_path) {}
 
 private:
     void run(program& p) override;
@@ -268,10 +269,13 @@ private:
     void add_constant(program& prog, program_node& node);
     void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
 
+    bool skip_weights_constant_path;
     bool has_non_trivial_constants = false;
+    size_t constant_weigths_byte_size_threshold = 200000;
     std::list<typed_program_node<data>*> const_inputs;
     std::vector<primitive_id> const_outputs;
     std::set<std::shared_ptr<program_node>> nodes;
+    std::set<primitive_id> weights_path_nodes_id;
 };
 
 class remove_redundant_reorders : public base_pass {
@@ -404,6 +408,23 @@ class build_implementations : public base_pass {
 public:
     build_implementations() : base_pass("build_implementations") {}
     void run(program& p) override;
+};
+
+class reorder_transfer : public base_pass {
+public:
+    reorder_transfer() : base_pass("reorder_transfer") {}
+
+private:
+    void run(program& p) override;
+};
+
+class fuse_constant_transposes : public base_pass {
+public:
+    fuse_constant_transposes() : base_pass("fuse_constant_transposes") {}
+
+private:
+    void run(program& p) override;
+    format convert_weights_format_by_order(format fmt, const std::vector<uint16_t>& order) const;
 };
 
 }  // namespace cldnn

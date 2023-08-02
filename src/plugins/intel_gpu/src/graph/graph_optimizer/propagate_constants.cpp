@@ -19,9 +19,30 @@ using namespace cldnn;
 // ToDo remove friendship relation from  program_node and program
 void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
+
+    std::function<void(const program_node*)> fill_weights_path =
+        [this, &fill_weights_path](const program_node* init_const) {
+        weights_path_nodes_id.emplace(init_const->id());
+        for (const program_node* user : init_const->get_users()) {
+            if (user->is_constant()) {
+                fill_weights_path(user);
+            }
+        }
+    };
+
     for (auto& node : p.get_processing_order()) {
-        if (node->is_constant())
+        if (node->is_constant()) {
+            if (skip_weights_constant_path) {
+                if (weights_path_nodes_id.find(node->id()) != weights_path_nodes_id.end()) {
+                    continue;
+                }
+                if (node->is_type<data>() && node->as<data>().get_primitive()->mem->size() > constant_weigths_byte_size_threshold) { //redo it
+                    fill_weights_path(node);
+                    continue;
+                }
+            }
             handle_constant(p, *node);
+        }
     }
 
     auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
@@ -38,6 +59,8 @@ void propagate_constants::run(program& p) {
         if (!node->is_constant())
             continue;
         if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>()))
+            continue;
+        if (weights_path_nodes_id.find(node->id()) != weights_path_nodes_id.end() && skip_weights_constant_path)
             continue;
 
         auto& users = node->users;

@@ -608,7 +608,17 @@ void program::post_optimize_graph(bool is_internal) {
     reorder_factory rf;
     layout_optimizer lo;
     set_layout_optimizer_attributes(lo);
-    apply_opt_pass<post_optimize_weights>(rf);
+
+    bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
+
+    if (!is_internal) {
+        apply_opt_pass<reorder_transfer>();
+
+        if (optimize_data) {
+            apply_opt_pass<fuse_constant_transposes>();
+        }
+        apply_opt_pass<post_optimize_weights>(rf);
+    }
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
@@ -623,7 +633,7 @@ void program::post_optimize_graph(bool is_internal) {
         apply_opt_pass<propagate_constants>();
     }
 
-    if (_config.get_property(ov::intel_gpu::optimize_data))
+    if (optimize_data)
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update inner program input/output primitive mappings

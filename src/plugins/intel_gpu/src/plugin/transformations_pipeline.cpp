@@ -50,6 +50,7 @@
 
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
@@ -225,9 +226,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
         };
 
+        manager.register_pass<ov::pass::CompressFloatConstants>(true);
+        manager.get_pass_config()->set_callback<ov::pass::CompressFloatConstants>(is_matmul_output);
+
         manager.register_pass<ov::pass::KeepConstAndDecompression>();
+        manager.get_pass_config()->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
+
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
-        pass_config->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
