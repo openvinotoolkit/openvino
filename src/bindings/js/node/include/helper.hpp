@@ -11,7 +11,6 @@
 
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/openvino.hpp>
-#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 
@@ -20,8 +19,6 @@
 typedef enum {
     js_array,
 } js_type;
-
-const std::unordered_map<std::string, ov::element::Type_t> element_type_map;
 
 const std::vector<std::string>& get_supported_types();
 
