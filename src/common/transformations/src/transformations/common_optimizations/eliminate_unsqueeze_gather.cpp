@@ -86,7 +86,9 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         const auto& indices = op::util::make_try_fold<v1::Reshape>(gather->input_value(1),
                                                                    v0::Constant::create(element::i32, {1}, {1}),
                                                                    false);
+        register_new_node(indices);
         gather->input(1).replace_source_output(indices->output(0));
+        gather->validate_and_infer_types();
         copy_runtime_info({unsqueeze, gather}, {indices, gather});
         replace_output_update_name(unsqueeze->output(0), unsqueeze->input_value(0));
         return true;

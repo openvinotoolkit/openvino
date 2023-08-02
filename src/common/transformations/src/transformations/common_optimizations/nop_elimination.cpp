@@ -856,6 +856,7 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
 
         binary->input(0).replace_source_output(lhs_node->output(0));
         binary->input(1).replace_source_output(rhs_node->output(0));
+        binary->validate_and_infer_types();
 
         ov::copy_runtime_info(second_node, lhs_node);
         ov::copy_runtime_info(second_node, rhs_node);
