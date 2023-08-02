@@ -8,12 +8,14 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <chrono>
 
 #include <onednn/dnnl.h>
 #include <dnnl_debug.h>
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/pass.hpp"
 #include "edge.h"
 
 namespace ov {
@@ -45,14 +47,7 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
-
-class PrintableModel {
-public:
-    PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
-    const ov::Model& model;
-    const std::string tag;
-    const std::string prefix;
-};
+class Graph;
 
 template<typename T>
 class PrintableVector {
@@ -92,9 +87,9 @@ public:
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
+std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
-std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
 std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus);
 
@@ -106,8 +101,34 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtyp
 std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
 std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
 
-template<typename T>
-std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
+class DumpModel : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("DumpModel");
+    DumpModel(const std::string& file_name);
+    void dump_cpp_style(std::ostream & os, const std::shared_ptr<ov::Model>& model);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    bool run_on_graph(const ov::intel_cpu::Graph& graph);
+protected:
+    std::string file_name;
+};
+
+#    define DEBUG_DUMP_MODEL_REGISTER_PASS(passManager, dump_file_name) \
+        CPU_REGISTER_PASS_X64(passManager, DumpModel, dump_file_name)
+
+#    define DEBUG_DUMP_MODEL(model_shptr, dump_file_name)     \
+        do {                                                  \
+            ov::intel_cpu::DumpModel dumpper(dump_file_name); \
+            dumpper.run_on_model(model_shptr);                \
+        } while (0)
+
+#    define DEBUG_DUMP_GRAPH(graph, dump_file_name)     \
+        do {                                                  \
+            ov::intel_cpu::DumpModel dumpper(dump_file_name); \
+            dumpper.run_on_graph(graph);                \
+        } while (0)
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
     std::stringstream ss;
     auto N = vec.values.size();
     for (size_t i = 0; i < N; i++) {
@@ -197,6 +218,10 @@ struct EnforceInferPrcDebug {
 };
 
 #else // !CPU_DEBUG_CAPS
+
+#define DEBUG_DUMP_MODEL_REGISTER_PASS(passManager, dump_file_name)
+#define DEBUG_DUMP_MODEL(model, dump_file_name)
+#define DEBUG_DUMP_GRAPH(graph, dump_file_name)
 
 #define CPU_DEBUG_CAP_ENABLE(...)
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
