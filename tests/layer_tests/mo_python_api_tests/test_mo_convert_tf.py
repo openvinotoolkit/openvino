@@ -377,8 +377,8 @@ def create_tf_stateful_partioned_call_net(temp_dir):
 
     param1 = ov.opset8.parameter(data_shape, dtype=np.float32)
     param2 = ov.opset8.parameter(filters_shape, dtype=np.float32)
-    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1], dtype=np.int64))
-    conv = ov.opset11.convolution(param1, transpose2, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
+    reshape = ov.opset8.reshape(param2, np.array([1, 1, 3, 3], dtype=np.int64), True)
+    conv = ov.opset11.convolution(param1, reshape, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
 
     parameter_list = [param1, param2]
     model_ref = Model([conv], parameter_list, "test")
@@ -639,6 +639,85 @@ def create_keras_layer_with_string_tensor(tmp_dir):
 
     return model, model_ref, {}
 
+def shape_of_const_fold_test(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float16)
+    cast = ov.opset8.convert(mul_const, np.float32)
+    mul = ov.opset8.multiply(cast, param1)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {}
+
+
+def static_shape_true(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, param1)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {'use_convert_model_from_mo': True, 'static_shape': True}
+
+def static_shape_false(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    shape_const = ov.opset8.constant([1, 4, 10, 10], dtype=np.int32)
+    reshape = ov.opset8.reshape(param1, shape_const, False)
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, reshape)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {'use_convert_model_from_mo': True, 'static_shape': False}
 
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
@@ -663,6 +742,9 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
+        shape_of_const_fold_test,
+        static_shape_true,
+        static_shape_false,
 
         # TF1
         create_tf_graph,
