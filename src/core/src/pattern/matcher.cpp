@@ -84,7 +84,7 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
     }
 }
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -97,7 +97,7 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
     }
 
     return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
