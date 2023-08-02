@@ -121,5 +121,4 @@ export interface NodeAddon {
 export default
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     require('../build/Release/ov_node_addon.node') as
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     NodeAddon;
