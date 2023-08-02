@@ -207,4 +207,3 @@ TEST(ResolveNameCollisionsTest, FixAllFriendlyNamesMultiSubgraphOp) {
 
     EXPECT_EQ(then_op->get_friendly_name() + "_1", else_op->get_friendly_name());
 }
-

@@ -28,6 +28,7 @@ public:
     ResolveNameCollisions() = default;
     explicit ResolveNameCollisions(bool resolve_all_names) : m_resolve_all_names(resolve_all_names) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
 private:
     bool m_resolve_all_names = false;
 };
