@@ -127,7 +127,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     }
     std::shared_ptr<ov::Node> cloned_node = nullptr;
     if (!has_parameters && !is_copy_const_node && !inputs.empty()) {
-        auto cloned_node = clone_node(node, true, true, node_name);
+        cloned_node = clone_node(node, true, true, node_name);
         // std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0), cloned_node->get_input_partial_shape(0));
@@ -135,8 +135,6 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         param->set_friendly_name(param_name);
         auto node_to_replace = cloned_node->get_input_node_shared_ptr(0);
         ov::replace_node(node_to_replace, param);
-    } else if (inputs.empty()) {
-        cloned_node = node;
     } else {
         cloned_node = node->clone_with_new_inputs(inputs);
         cloned_node->set_friendly_name(node_name);
