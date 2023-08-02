@@ -192,6 +192,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic2D_AsymPad, G
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic2D_SymAutoPad, GroupConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(4),
+                        ::testing::Values(4),
+                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes2D),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic2D_AsymAutoPad, GroupConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{2, 1}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(4),
+                        ::testing::Values(4),
+                        ::testing::ValuesIn({ngraph::op::PadType::SAME_LOWER, ngraph::op::PadType::SAME_UPPER})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes2D),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
 }  // namespace
 
 } // namespace GPULayerTestsDefinitions

@@ -37,6 +37,7 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
     auto dilations = op->get_dilations();
     auto pads_begin = op->get_pads_begin();
     auto pads_end = op->get_pads_end();
+    auto auto_pad = op->get_auto_pad();
 
     if (!op->is_dynamic()) {
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
@@ -55,7 +56,8 @@ static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::o
                                        dilations,
                                        pads_begin,
                                        pads_end,
-                                       weights_have_group_dim);
+                                       weights_have_group_dim,
+                                       auto_pad);
     p.add_primitive(*op, convPrim);
 }
 
