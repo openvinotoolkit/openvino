@@ -45,7 +45,7 @@ jobs:
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -75,9 +75,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo -E ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
-          sudo -E apt update 
+          sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
-          
+
           wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
           unzip ninja-linux.zip
           sudo cp -v ninja /usr/local/bin/
@@ -94,16 +94,16 @@ jobs:
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
-          
+
           # For running Python API tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          
+
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
-          
+
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
-          
+
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
@@ -294,7 +294,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo -E apt update 
+          sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - name: Download OpenVINO package
@@ -402,6 +402,12 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 \
                 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
 
+      - name: Snippets func tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
+
       - name: CPU plugin unit tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -450,6 +456,11 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
+      - name: Hetero Func Tests
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
+
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
@@ -475,7 +486,7 @@ jobs:
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
     steps:
       - name: Create Directories
@@ -494,7 +505,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo -E apt update 
+          sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - uses: actions/setup-python@v4
@@ -568,6 +579,7 @@ jobs:
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \
@@ -705,7 +717,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo -E apt update 
+          sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
       - name: Download OpenVINO package

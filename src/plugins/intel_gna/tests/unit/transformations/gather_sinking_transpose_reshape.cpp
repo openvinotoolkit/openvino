@@ -95,7 +95,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 14, 4});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, 56});
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, -1});
         auto reshape = std::make_shared<Reshape>(tanh0, reshape_const, false);
 
         auto generate_indices = []() -> std::vector<int64_t> {
@@ -121,7 +121,7 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(GatherSinkingTransposeReshape, BackwardSinking) {

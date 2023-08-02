@@ -29,7 +29,7 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft.onnx"));
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
@@ -46,7 +46,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_only_real.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_only_real.onnx"));
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 1},
                                {
@@ -76,7 +76,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_onesided.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_onesided.onnx"));
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(
         Shape{2, 4},
@@ -98,7 +98,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dft_onesided_skip_convert_to_complex.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -121,7 +121,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) 
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_lenght_provided.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -136,7 +136,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_lenght_provided_onesided.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -159,7 +159,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_inverse.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/dft_inverse.onnx"));
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 5, 2}, {0.000000f,  0.000000f, 1.000000f,  0.000000f, 2.000000f,  0.000000f,
                                                 3.000000f,  0.000000f, 4.000000f,  0.000000f, 5.000000f,  0.000000f,
@@ -175,7 +175,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_only_real.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -204,7 +204,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_onesided.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -227,7 +227,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inverse_onesided_real_input.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -237,7 +237,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/dft_inversed_lenght_provided.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -253,7 +253,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/dft_inverse_lenght_provided_onesided.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -275,7 +275,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) 
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_onesided_real_input_no_window_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -316,7 +316,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_def
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_real_input_no_window_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -378,7 +378,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -871,7 +871,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_wind
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length_2) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_default_length_2.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -948,7 +948,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_wind
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_no_window_no_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1345,7 +1345,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_wind
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_given_window_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1429,7 +1429,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_w
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_no_onesided_complex_input_given_window_no_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1486,7 +1486,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_w
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_no_default_length) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/stft_onesided_real_input_given_window_no_default_length.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1531,7 +1531,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_given_window_
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_step) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_non_const_frame_step.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1543,7 +1543,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_fra
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singal_shape) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_dynamic_signal_shape.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1555,7 +1555,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_dynamic_singa
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_frame_length) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_non_const_frame_length.onnx"));
         FAIL() << "Unknown error during STFT import";
@@ -1567,7 +1567,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_const_fra
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_complex_signal_and_onesided) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/stft_onesided_complex_input.onnx"));
         FAIL() << "Unknown error during STFT import";

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "matchers/single_op/single_op.hpp"
 #include "openvino/op/ops.hpp"
+#include "base_test.hpp"
 
 namespace {
 
@@ -13,9 +13,10 @@ using namespace ngraph;
 using ov::element::Type_t;
 using namespace ov::tools::subgraph_dumper;
 
-class MatcherConfigTest : public ::testing::Test {
+class MatcherConfigTest : public SubgraphsDumperBaseTest {
 protected:
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         const auto const1 = std::make_shared<v0::Constant>(Type_t::f32, Shape({5, 5}), 1);
         const auto const2 = std::make_shared<v0::Constant>(Type_t::f32, Shape({5, 5}), 2);
         node = std::make_shared<v1::Add>(const1, const2);

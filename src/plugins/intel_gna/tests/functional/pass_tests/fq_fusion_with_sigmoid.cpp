@@ -91,7 +91,7 @@ std::map<std::string, std::string> additional_config = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion_with_sigmoid,
                          FqFusionWithSigmoidTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(levelFq),
                                             ::testing::ValuesIn(minMaxFq),

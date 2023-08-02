@@ -4,8 +4,6 @@
 
 #include <memory>
 
-#include "gtest/gtest.h"
-
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/openvino.hpp"
@@ -16,9 +14,11 @@
 #include "cache/cache.hpp"
 #include "cache/meta/meta_info.hpp"
 
+#include "base_test.hpp"
+
 namespace {
 
-class ICacheUnitTest : public ::testing::Test,
+class ICacheUnitTest : public SubgraphsDumperBaseTest,
                        public virtual ov::tools::subgraph_dumper::ICache {
 protected:
     std::shared_ptr<ov::Model> test_model;
@@ -27,6 +27,7 @@ protected:
     std::string test_artifacts_dir;
 
     void SetUp() override {
+        SubgraphsDumperBaseTest::SetUp();
         model_name = "test_model";
         test_artifacts_dir = "test_artifacts";
         test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
@@ -45,7 +46,7 @@ protected:
     }
 
     void TearDown() override {
-        CommonTestUtils::removeDir(test_artifacts_dir);
+        ov::test::utils::removeDir(test_artifacts_dir);
     }
 };
 
@@ -68,8 +69,8 @@ TEST_F(ICacheUnitTest, serialize_model) {
     std::pair<std::shared_ptr<ov::Model>, ov::tools::subgraph_dumper::MetaInfo> graph_info({ test_model, test_meta });
     ASSERT_TRUE(this->serialize_model(graph_info, test_artifacts_dir));
     auto xml_path = test_model_path;
-    auto bin_path = CommonTestUtils::replaceExt(test_model_path, "bin");
-    auto meta_path = CommonTestUtils::replaceExt(test_model_path, "meta");
+    auto bin_path = ov::test::utils::replaceExt(test_model_path, "bin");
+    auto meta_path = ov::test::utils::replaceExt(test_model_path, "meta");
     try {
         if (!ov::util::file_exists(xml_path) ||
             !ov::util::file_exists(bin_path)) {
@@ -85,9 +86,9 @@ TEST_F(ICacheUnitTest, serialize_model) {
             throw std::runtime_error("Serialized and runtime model are not equal!");
         }
     } catch(std::exception& e) {
-        CommonTestUtils::removeFile(xml_path);
-        CommonTestUtils::removeFile(bin_path);
-        CommonTestUtils::removeFile(meta_path);
+        ov::test::utils::removeFile(xml_path);
+        ov::test::utils::removeFile(bin_path);
+        ov::test::utils::removeFile(meta_path);
         GTEST_FAIL() << e.what() << std::endl;
     }
 }

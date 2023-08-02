@@ -38,11 +38,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
 
-#if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#include "arm_compute/runtime/CPP/CPPScheduler.h"
-#endif
-
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -147,10 +142,6 @@ Engine::Engine() :
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
-#if defined(OV_CPU_WITH_ACL)
-    acl_scheduler = std::make_unique<ACLScheduler>();
-    arm_compute::Scheduler::set(acl_scheduler);
-#endif
 }
 
 Engine::~Engine() {
@@ -664,7 +655,8 @@ Parameter Engine::GetMetricLegacy(const std::string& name, const std::map<std::s
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
         return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
@@ -717,7 +709,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::supported_properties)::value_type(supportedProperties);
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};        ;
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {

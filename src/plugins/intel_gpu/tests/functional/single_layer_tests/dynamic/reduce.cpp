@@ -45,16 +45,16 @@ public:
 
         result << "IS=";
         for (const auto& shape : inshapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inshapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "axes=";
-        result << CommonTestUtils::vec2str(axes) << "_";
+        result << ov::test::utils::vec2str(axes) << "_";
 
         result << "Precision=" << netType << "_";
         result << "reductionType=" << reductionType << "_";
@@ -179,7 +179,7 @@ const auto reduceSum = ::testing::Combine(
         ::testing::ValuesIn(floatIntPrecisions),
         ::testing::Values(helpers::ReductionType::Sum),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_sum_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceSum, ReduceLayerGPUTest::getTestCaseName);
 
@@ -188,7 +188,7 @@ const auto reduceMin = ::testing::Combine(
         ::testing::ValuesIn(floatIntPrecisions),
         ::testing::Values(helpers::ReductionType::Min),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_min_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMin, ReduceLayerGPUTest::getTestCaseName);
 
@@ -197,7 +197,7 @@ const auto reduceMax = ::testing::Combine(
         ::testing::ValuesIn(floatIntPrecisions),
         ::testing::Values(helpers::ReductionType::Max),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_max_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMax, ReduceLayerGPUTest::getTestCaseName);
 
@@ -206,7 +206,7 @@ const auto reduceL1 = ::testing::Combine(
         ::testing::ValuesIn(floatIntPrecisions),
         ::testing::Values(helpers::ReductionType::L1),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_l1_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL1, ReduceLayerGPUTest::getTestCaseName);
 
@@ -217,7 +217,7 @@ const auto reduceMean = ::testing::Combine(
         ::testing::ValuesIn(floatPrecisions),
         ::testing::Values(helpers::ReductionType::Mean),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_mean_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMean, ReduceLayerGPUTest::getTestCaseName);
 
@@ -226,7 +226,7 @@ const auto reduceProd = ::testing::Combine(
         ::testing::ValuesIn({ElementType::f32}),
         ::testing::Values(helpers::ReductionType::Prod),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_prod_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceProd, ReduceLayerGPUTest::getTestCaseName);
 
@@ -235,7 +235,7 @@ const auto reduceL2 = ::testing::Combine(
         ::testing::ValuesIn(floatPrecisions),
         ::testing::Values(helpers::ReductionType::L2),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_l2_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceL2, ReduceLayerGPUTest::getTestCaseName);
 
@@ -246,7 +246,7 @@ const auto reduceLogicalOr = ::testing::Combine(
         ::testing::Values(ElementType::boolean),
         ::testing::Values(helpers::ReductionType::LogicalOr),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicalor_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalOr, ReduceLayerGPUTest::getTestCaseName);
 
@@ -255,7 +255,7 @@ const auto reduceLogicalAnd = ::testing::Combine(
         ::testing::Values(ElementType::boolean),
         ::testing::Values(helpers::ReductionType::LogicalAnd),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_logicaland_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceLogicalAnd, ReduceLayerGPUTest::getTestCaseName);
 
@@ -350,7 +350,7 @@ const auto reduceMaxWithVariousAxis = ::testing::Combine(
         ::testing::Values(ElementType::f32),
         ::testing::Values(helpers::ReductionType::Max),
         ::testing::ValuesIn(keepDims),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
+        ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_max_withVariousAxis_compareWithRefs_dynamic,
                         ReduceLayerGPUTest, reduceMaxWithVariousAxis, ReduceLayerGPUTest::getTestCaseName);

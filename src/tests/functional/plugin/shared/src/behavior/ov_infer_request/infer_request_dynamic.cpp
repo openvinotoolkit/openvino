@@ -45,7 +45,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     result << "function=" << func->get_friendly_name() << "_";
     result << "inOutShape=(";
     for (const auto& inOutShape : inOutShapes) {
-        result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_" << CommonTestUtils::vec2str(inOutShape.second) << ")";
+        result << "(" << ov::test::utils::vec2str(inOutShape.first) << "_" << ov::test::utils::vec2str(inOutShape.second) << ")";
     }
     result << ")_";
     result << "targetDevice=" << target_device << "_";
@@ -67,7 +67,7 @@ void OVInferRequestDynamicTests::SetUp() {
 
 bool OVInferRequestDynamicTests::checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual) {
     bool result = true;
-    auto net = ie->compile_model(function, CommonTestUtils::DEVICE_TEMPLATE);
+    auto net = ie->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
     ov::InferRequest req;
     req = net.create_infer_request();
     auto tensor = req.get_tensor(function->inputs().back().get_any_name());
