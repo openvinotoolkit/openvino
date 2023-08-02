@@ -2561,7 +2561,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
-        // after parentNode & childNode was dropped, the subgraph was broken to two pieces
+        // after transpose0 & reorder0 were dropped
         //      pp => cc0,cc1, ...
         auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc();
         auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc();
@@ -2633,8 +2633,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         // Graph::InsertReorder() only insert one reorder into one edge:
         // all other children cc1,... still connect to pp directly:
         //      pp => reorder1 => [reorder2] => cc0
-        //         => cc1, ...
-        // now we the rest of them to the final reorder too:
+        //      pp => cc1, ...
+        // now connect the rest of them to the final reorder too:
         //      pp => reorder1 => [reorder2] => cc0,cc1,...
         for (auto& ce : childEdges) {
             // skip cc0

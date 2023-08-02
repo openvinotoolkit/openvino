@@ -370,9 +370,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     return os;
 }
 
-// print to console in textualized form with well-defined syntax is an efficient way to
-// investigate a complex data struture like CPU internal graph, much more easier than
-// following pointers one-by-one and print content of each entity in debugging tools.
+// Print complex data structures in a textualized form to the console is an efficient way to investigate them
 std::ostream & operator<<(std::ostream & os, const Graph& g) {
     os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
     for (auto &graphNode : g.GetNodes()) {
