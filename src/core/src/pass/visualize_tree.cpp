@@ -16,8 +16,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 
-using namespace ov;
-
 /*
  * As we are visualizing the graph, we will make some tweaks to the generated dot file to make
  * routing more tractable for Graphviz as well as (hopefully) more legible for the user.
@@ -101,7 +99,7 @@ using namespace ov;
 class HeightMap {
 public:
     HeightMap() {}
-    HeightMap(std::set<Node*> initials) {
+    HeightMap(std::set<ov::Node*> initials) {
         for (auto& n : initials) {
             m_heights[n] = 0;
         }
@@ -126,11 +124,11 @@ public:
     }
 
 private:
-    std::unordered_map<Node*, int64_t> m_heights;
+    std::unordered_map<ov::Node*, int64_t> m_heights;
 };
 
-static std::string label_edge(const std::shared_ptr<Node>& /* src */,
-                              const std::shared_ptr<Node>& dst,
+static std::string label_edge(const std::shared_ptr<ov::Node>& /* src */,
+                              const std::shared_ptr<ov::Node>& dst,
                               size_t arg_index,
                               int64_t jump_distance) {
     std::stringstream ss;
@@ -167,7 +165,7 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
-bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
     std::unordered_map<Node*, HeightMap> height_maps;
 
@@ -207,14 +205,14 @@ bool pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     return false;
 }
 
-pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
+ov::pass::VisualizeTree::VisualizeTree(const std::string& file_name, node_modifiers_t nm, bool dot_only)
     : m_name{file_name},
       m_node_modifiers{nm},
       m_dot_only(dot_only) {}
 
-void pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
-                                             std::unordered_map<Node*, HeightMap>& height_maps,
-                                             size_t& fake_node_ctr) {
+void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
+                                                 std::unordered_map<Node*, HeightMap>& height_maps,
+                                                 size_t& fake_node_ctr) {
     static const int const_max_elements = ov::util::getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
 
     size_t arg_index = 0;
@@ -271,7 +269,7 @@ void pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
     }
 }
 
-std::string pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
+std::string ov::pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
     std::string rc;
     if (m_nodes_with_attributes.find(node) == m_nodes_with_attributes.end()) {
         m_nodes_with_attributes.insert(node);
@@ -280,7 +278,7 @@ std::string pass::VisualizeTree::add_attributes(std::shared_ptr<Node> node) {
     return rc;
 }
 
-static std::string pretty_partial_shape(const PartialShape& shape) {
+static std::string pretty_partial_shape(const ov::PartialShape& shape) {
     std::stringstream ss;
 
     if (shape.rank().is_dynamic()) {
@@ -368,38 +366,38 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
                              bool allow_obfuscate = false) {
     std::stringstream ss;
     switch (constant->get_output_element_type(0)) {
-    case element::Type_t::undefined:
+    case ov::element::Type_t::undefined:
         ss << "[ undefined value ]";
         break;
-    case element::Type_t::dynamic:
+    case ov::element::Type_t::dynamic:
         ss << "[ dynamic value ]";
         break;
-    case element::Type_t::u1:
+    case ov::element::Type_t::u1:
         ss << "[ u1 value ]";
         break;
-    case element::Type_t::u4:
+    case ov::element::Type_t::u4:
         ss << "[ u4 value ]";
         break;
-    case element::Type_t::i4:
+    case ov::element::Type_t::i4:
         ss << "[ i4 value ]";
         break;
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-    case element::Type_t::f32:
-    case element::Type_t::f64:
+    case ov::element::Type_t::bf16:
+    case ov::element::Type_t::f16:
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::f64:
         ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
         break;
-    case element::Type_t::i8:
-    case element::Type_t::i16:
-    case element::Type_t::i32:
-    case element::Type_t::i64:
+    case ov::element::Type_t::i8:
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::i64:
         ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
         break;
-    case element::Type_t::boolean:
-    case element::Type_t::u8:
-    case element::Type_t::u16:
-    case element::Type_t::u32:
-    case element::Type_t::u64:
+    case ov::element::Type_t::boolean:
+    case ov::element::Type_t::u8:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
         ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
         break;
     }
@@ -430,7 +428,7 @@ static std::string get_bounds_and_label_info(const ov::Output<ov::Node> output) 
     return label.str();
 }
 
-std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
+std::string ov::pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
     ss << "{" << node->get_element_type().to_string() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
@@ -440,7 +438,7 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     return ss.str();
 }
 
-std::string pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) {
+std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) {
     std::vector<std::string> attributes;
     attributes.push_back("shape=box");
 
@@ -514,7 +512,7 @@ std::string pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) {
     return ss.str();
 }
 
-std::string pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
+std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     static const bool nvtmn = ov::util::getenv_bool("OV_VISUALIZE_TREE_MEMBERS_NAME");
     std::string rc = (nvtmn ? std::string("friendly_name: ") : "") + node->get_friendly_name();
     if (node->get_friendly_name() != node->get_name()) {
@@ -572,7 +570,7 @@ std::string pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     return rc;
 }
 
-void pass::VisualizeTree::render() const {
+void ov::pass::VisualizeTree::render() const {
     std::string ext = ov::util::get_file_ext(m_name);
     std::string output_format = ext.substr(1);
     std::string dot_file = m_name;
