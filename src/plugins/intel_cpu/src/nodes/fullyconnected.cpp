@@ -191,11 +191,16 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
     expectedBiasDims = {getInputShapeAtPort(WEIGHTS_ID).getStaticDims()[0]};
 
 #ifdef OV_CPU_WITH_LLMDNN
-    const std::string& pkey = ov::PrimitivesPriority::get_type_info_static();
-    const auto& info = op->get_rt_info();
-    if (info.count(pkey)) {
-        auto primitives_priority_attr = info.at(pkey).as<ov::PrimitivesPriority>().value;
-        if (primitives_priority_attr.find("gemm_llmdnn") == std::string::npos)
+    auto defaultPriorSize = getDefaultImplPriority().size();
+    auto customPriorSize = customImplPriorities.size();
+    // if use custom priority but no llmdnn, disable it
+    if (customPriorSize > defaultPriorSize) {
+        auto end = customImplPriorities.begin() + customPriorSize - defaultPriorSize;
+        auto find = std::find_if(customImplPriorities.begin(), end,
+                                 [](const impl_desc_type impl) {
+                                     return impl == impl_desc_type::gemm_llmdnn;
+                                 });
+        if (find == end)
             stateLLMFc = State_NotUse;
     }
 #endif
