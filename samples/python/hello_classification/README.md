@@ -52,11 +52,11 @@ Models with only 1 input and output are supported.
       |                             | `openvino.preprocess.OutputTensorInfo.set_element_type <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.preprocess.OutputTensorInfo.html#openvino.preprocess.OutputTensorInfo.set_element_type>`__ ,              |                                                                                                                                                                                            |
       |                             | `openvino.preprocess.PrePostProcessor.build <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.preprocess.PrePostProcessor.html#openvino.preprocess.PrePostProcessor.build>`__                                      |                                                                                                                                                                                            |
       +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-      
+
    .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/python/hello_classification/hello_classification.py
-      :language: python
+         :language: python
 
 How It Works
 ############

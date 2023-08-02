@@ -62,7 +62,7 @@ Models with only one input and output are supported.
    .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/cpp/hello_classification/main.cpp 
-      :language: cpp
+         :language: cpp
 
 
 How It Works

@@ -71,7 +71,7 @@ You do not need an XML file to create a model. The API of ov::Model allows creat
    .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
-      :language: cpp
+         :language: cpp
 
 How It Works
 ############

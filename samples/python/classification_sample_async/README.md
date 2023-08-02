@@ -1,4 +1,4 @@
-# Image Classification Async Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
+# Image Classification Async Python Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README}
 
 @sphinxdirective
 
@@ -41,7 +41,7 @@ Models with only 1 input and output are supported.
       |                    | `openvino.runtime.InferRequest.results <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results>`__                       |                           |
       +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------+
 
-      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
 
    .. tab-item:: Sample Code
 

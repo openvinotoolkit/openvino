@@ -55,7 +55,7 @@ The reported results may deviate from what :doc:`benchmark_app <openvino_inferen
    .. tab-item:: Sample Code 
 
       .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp 
-            :language: cpp
+         :language: cpp
 
 How It Works
 ####################

@@ -52,7 +52,7 @@ This sample demonstrates how to estimate performance of a model using Synchronou
    .. tab-item:: Sample Code 
 
       .. doxygensnippet:: samples/python/benchmark/sync_benchmark/sync_benchmark.py 
-      :language: python
+         :language: python
 
 How It Works
 ####################

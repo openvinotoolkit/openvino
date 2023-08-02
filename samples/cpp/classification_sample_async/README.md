@@ -51,7 +51,7 @@ In addition to regular images, the sample also supports single-channel ``ubyte``
    .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/cpp/classification_sample_async/main.cpp 
-      :language: cpp
+         :language: cpp
 
 How It Works
 ############

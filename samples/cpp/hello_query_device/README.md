@@ -38,7 +38,7 @@ This sample demonstrates how to execute an query OpenVINO™ Runtime devices, pr
    .. tab-item:: Sample Code
 
       .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp 
-      :language: cpp
+         :language: cpp
 
 How It Works
 ############

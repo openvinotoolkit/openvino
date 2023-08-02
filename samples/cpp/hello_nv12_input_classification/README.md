@@ -51,7 +51,7 @@ This sample demonstrates how to execute an inference of image classification mod
    .. tab-item:: Sample Code
    
       .. doxygensnippet:: samples/cpp/hello_nv12_input_classification/main.cpp  
-      :language: cpp
+         :language: cpp
 
 How It Works
 ############

@@ -53,7 +53,7 @@ Models with only one input and output are supported.
    .. tab-item:: sample Code
 
       .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
-      :language: cpp
+         :language: cpp
 
 
 How It Works
