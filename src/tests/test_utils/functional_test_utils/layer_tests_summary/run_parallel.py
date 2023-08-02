@@ -306,7 +306,7 @@ class TestParallelRunner:
                     if (self._split_unit == "suite") :
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
-                        else :
+                        elif (test_suite) :
                             test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*')
                     continue
                 pos = test_name.find('#')
