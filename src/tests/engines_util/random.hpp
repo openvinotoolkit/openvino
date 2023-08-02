@@ -12,6 +12,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace test {
 /// \brief A predictable pseudo-random number generator
@@ -47,3 +48,4 @@ protected:
 };
 }  // namespace test
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

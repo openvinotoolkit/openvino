@@ -59,6 +59,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace detail {
 namespace {
 template <element::Type_t ET>
