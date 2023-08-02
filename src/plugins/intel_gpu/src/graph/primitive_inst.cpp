@@ -667,7 +667,7 @@ void primitive_inst::do_runtime_skip_reorder() {
             auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
             // If current node's output_node is not dynamic, the memory is already allocated at build time
             auto alloc_type = allocation_type::unknown;
-            if (!get_node().is_dynamic_output_layout(out_port_idx)) {
+            if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
                 alloc_type = _outputs[out_port_idx]->get_allocation_type();
             }
             if (alloc_type == allocation_type::usm_device && u->is_output())
