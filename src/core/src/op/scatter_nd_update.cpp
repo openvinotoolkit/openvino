@@ -21,6 +21,7 @@ shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVect
                                                 new_args.at(op::util::ScatterNDBase::UPDATES));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter {
 namespace {
 template <element::Type_t ET>

@@ -370,6 +370,7 @@ void non_max_suppression(const float* boxes_data,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void nms_postprocessing(const HostTensorVector& outputs,
                         const ngraph::element::Type output_type,
                         const std::vector<int64_t>& selected_indices,

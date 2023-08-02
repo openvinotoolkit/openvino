@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-bool pattern::op::WrapType::match_value(Matcher* matcher,
-                                        const Output<Node>& pattern_value,
-                                        const Output<Node>& graph_value) {
+bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
+                                                  const Output<Node>& pattern_value,
+                                                  const Output<Node>& graph_value) {
     if (std::any_of(m_wrapped_types.begin(),
                     m_wrapped_types.end(),
                     [&](const NodeTypeInfo& type_info) {
@@ -29,13 +26,13 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
     return false;
 }
 
-NodeTypeInfo pattern::op::WrapType::get_wrapped_type() const {
+ov::NodeTypeInfo ov::pass::pattern::op::WrapType::get_wrapped_type() const {
     if (m_wrapped_types.size() > 1) {
         OPENVINO_THROW("get_wrapped_type() called on WrapType with more than one type");
     }
     return m_wrapped_types.at(0);
 }
 
-const std::vector<NodeTypeInfo>& pattern::op::WrapType::get_wrapped_types() const {
+const std::vector<ov::NodeTypeInfo>& ov::pass::pattern::op::WrapType::get_wrapped_types() const {
     return m_wrapped_types;
 }

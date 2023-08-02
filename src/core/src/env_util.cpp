@@ -4,13 +4,7 @@
 
 #include "ngraph/env_util.hpp"
 
-#include <sstream>
-
-#include "ngraph/log.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
-
-using namespace std;
 
 std::string ngraph::getenv_string(const char* env_var) {
     return ov::util::getenv_string(env_var);

@@ -9,6 +9,7 @@
 #include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace op {
 namespace eye {

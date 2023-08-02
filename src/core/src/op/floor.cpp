@@ -28,6 +28,7 @@ shared_ptr<Node> op::Floor::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Floor>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace floorop {
 namespace {
 // function used by TYPE_CASE

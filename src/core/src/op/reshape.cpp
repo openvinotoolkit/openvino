@@ -19,6 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshapeop {
 namespace {
 bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {

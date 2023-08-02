@@ -7,6 +7,7 @@
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/function.hpp"
 #include "ngraph/runtime/reference/split.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
 namespace runtime {

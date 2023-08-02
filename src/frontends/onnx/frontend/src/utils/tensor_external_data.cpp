@@ -12,6 +12,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace detail {

@@ -31,6 +31,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace notop {
 namespace {
 template <element::Type_t ET>

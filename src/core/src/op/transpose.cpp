@@ -53,6 +53,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[ARG], new_args[ORDER]);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Transpose_evaluate);
 
@@ -77,6 +78,7 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
                                           out_shape);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v1::Transpose::has_evaluate() const {
     OV_OP_SCOPE(v1_Transpose_has_evaluate);

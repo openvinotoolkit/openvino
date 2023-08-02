@@ -64,6 +64,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Split_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -100,6 +101,7 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
     }
     return false;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v1::Split::has_evaluate() const {
     OV_OP_SCOPE(v1_Split_has_evaluate);

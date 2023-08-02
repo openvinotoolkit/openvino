@@ -12,6 +12,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
 using Buffer = std::shared_ptr<ngraph::runtime::SharedBuffer<std::shared_ptr<T>>>;
 /// \brief  Helper class used to load tensor data from external files
@@ -48,6 +49,7 @@ private:
     uint64_t m_data_length = 0;
     std::string m_sha1_digest{};
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace detail
 }  // namespace onnx_import
 }  // namespace ngraph

@@ -29,6 +29,7 @@ shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Tanh>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace tanhop {
 namespace {
 struct Evaluate : ov::element::NoAction<bool> {

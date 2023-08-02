@@ -144,6 +144,7 @@ bool op::v8::Slice::has_evaluate() const {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
     OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
@@ -190,6 +191,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
                                       axes);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 bool slice_input_check(const ov::Node* node) {

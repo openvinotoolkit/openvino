@@ -50,6 +50,7 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
@@ -109,6 +110,7 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     OV_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);

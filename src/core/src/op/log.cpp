@@ -27,6 +27,7 @@ shared_ptr<Node> op::Log::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Log>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logop {
 namespace {
 template <element::Type_t ET>

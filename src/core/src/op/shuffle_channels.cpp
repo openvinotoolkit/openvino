@@ -60,6 +60,7 @@ shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& 
     return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outputs,
                                                     const HostTensorVector& inputs) const {
     const auto arg = inputs[0]->get_data_ptr<const char>();
@@ -78,6 +79,7 @@ bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs, const HostTe
     OV_OP_SCOPE(v0_ShuffleChannels_evaluate);
     return evaluate_shuffle_channels(outputs, inputs);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::ShuffleChannels::has_evaluate() const {
     OV_OP_SCOPE(v0_ShuffleChannels_has_evaluate);

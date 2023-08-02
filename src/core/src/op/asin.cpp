@@ -32,6 +32,7 @@ shared_ptr<Node> op::Asin::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Asin>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace asinop {
 namespace {
 template <element::Type_t ET>

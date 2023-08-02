@@ -10,6 +10,7 @@
 
 #include "element_visitor.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "ov_optional.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
@@ -60,6 +61,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     return out;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 /**
  * \brief Get data from Host tensor as object TResult.
  *
@@ -82,6 +84,7 @@ template <class T, class TResult = std::vector<T>, class UnaryOperation>
 TResult get_tensor_data_as(HostTensor* tv, UnaryOperation&& func) {
     return get_tensor_data_as<T, TResult>(*tv, std::forward<UnaryOperation>(func));
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /**
  * \brief Get data from ov:tensor as object TResult.

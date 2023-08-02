@@ -188,6 +188,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace strided_slice {
 namespace {
 OPENVINO_SUPPRESS_DEPRECATED_START

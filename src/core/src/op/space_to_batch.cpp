@@ -75,6 +75,7 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const {
     if (outputs[0]->get_partial_shape().is_dynamic()) {

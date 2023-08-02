@@ -28,6 +28,7 @@ op::Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace erfop {
 namespace {
 template <element::Type_t ET>

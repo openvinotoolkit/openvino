@@ -16,6 +16,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 template <typename T>
 static inline string to_cpp_string(T value) {

@@ -19,6 +19,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace multiclass_nms_impl {
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace {
 std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape) {

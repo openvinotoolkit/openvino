@@ -8,9 +8,8 @@
 #include <iostream>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace {
 static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";
@@ -30,11 +29,10 @@ ov::PartialShape::PartialShape(const Shape& shape)
       m_dimensions(shape.begin(), shape.end()) {}
 
 ov::PartialShape::PartialShape(const std::string& value) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto val = ngraph::trim(value);
+    auto val = ov::util::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
-    val = ngraph::trim(val);
+    val = ov::util::trim(val);
     if (val == "...") {
         m_rank_is_static = false;
         m_dimensions = std::vector<Dimension>();
@@ -49,7 +47,6 @@ ov::PartialShape::PartialShape(const std::string& value) {
         dims.insert(dims.end(), Dimension(field));
     }
     m_dimensions = dims;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
@@ -125,13 +122,13 @@ ov::Shape ov::PartialShape::get_min_shape() const {
 }
 
 ov::Shape ov::PartialShape::get_shape() const {
-    NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
+    OPENVINO_ASSERT(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
     shape.reserve(rank().get_length());
     for (auto dimension : m_dimensions) {
         auto min_val = dimension.get_interval().get_min_val();
         auto max_val = dimension.get_interval().get_max_val();
-        NGRAPH_CHECK(min_val == max_val, "get_shape() must be called on a static shape");
+        OPENVINO_ASSERT(min_val == max_val, "get_shape() must be called on a static shape");
         shape.push_back(min_val);
     }
     return shape;
@@ -361,7 +358,7 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
         }
     }
     default:
-        NGRAPH_CHECK(false, "Unsupported auto broadcast type: ", autob.m_type);
+        OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
     }
 
     return false;

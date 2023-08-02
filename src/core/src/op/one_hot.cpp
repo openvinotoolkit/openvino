@@ -70,6 +70,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace one_hot {
 namespace {
 template <element::Type_t T>

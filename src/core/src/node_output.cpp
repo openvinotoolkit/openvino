@@ -4,9 +4,8 @@
 
 #include "openvino/core/node_output.hpp"
 
-#include "ngraph/log.hpp"
-#include "ngraph/rt_info.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
@@ -92,7 +91,7 @@ void Output<Node>::replace(const Output<Node>& replacement) {
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 
-    ngraph::copy_output_runtime_info({*this, replacement}, {replacement});
+    ov::copy_output_runtime_info({*this, replacement}, {replacement});
 }
 
 RTMap& Output<Node>::get_rt_info() {

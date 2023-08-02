@@ -12,6 +12,7 @@
 
 using namespace ngraph;
 using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static const size_t alignment = 64;
 

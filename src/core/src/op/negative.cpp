@@ -27,6 +27,7 @@ shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Negative>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace negativeop {
 namespace {
 template <element::Type_t ET>

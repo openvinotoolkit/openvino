@@ -9,6 +9,7 @@
 #include "openvino/util/file_util.hpp"
 #include "shared_utils.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type

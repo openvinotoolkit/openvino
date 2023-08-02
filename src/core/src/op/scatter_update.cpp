@@ -27,6 +27,7 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
     return make_shared<v3::ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_update {
 namespace {
 template <element::Type_t ET>

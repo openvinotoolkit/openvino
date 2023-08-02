@@ -450,6 +450,7 @@ void fft(const float* input_data,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void fft_postprocessing(const HostTensorVector& outputs,
                         const ngraph::element::Type output_type,
                         const std::vector<float>& fft_result) {
@@ -475,6 +476,7 @@ void fft_postprocessing(const HostTensorVector& outputs,
     default:;
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

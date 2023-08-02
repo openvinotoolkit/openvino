@@ -28,6 +28,7 @@ shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace hswish {
 namespace {
 template <element::Type_t ET>

@@ -25,9 +25,6 @@ TEST(int4, tensor_or_constant_size) {
     auto constant = make_shared<op::Constant>(element::i4, Shape{3}, &values[0]);
     EXPECT_EQ(2, constant->get_byte_size());
 
-    ngraph::HostTensor host_tensor(ngraph::element::i4, Shape{3});
-    EXPECT_EQ(constant->get_byte_size(), host_tensor.get_size_in_bytes());
-
     ov::Tensor runtime_tensor(ov::element::i4, ov::Shape{3});
     EXPECT_EQ(constant->get_byte_size(), runtime_tensor.get_byte_size());
 }

@@ -7,6 +7,7 @@
 #include "ngraph/op/if.hpp"
 #include "ngraph/runtime/reference/function.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace runtime {
 namespace reference {

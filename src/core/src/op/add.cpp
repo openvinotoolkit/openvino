@@ -11,6 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace add {
 namespace {
 template <element::Type_t ET>

@@ -17,6 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace minimumop {
 namespace {
 template <element::Type_t ET>

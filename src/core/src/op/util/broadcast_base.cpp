@@ -320,6 +320,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
     return std::make_pair(axes_known, broadcast_axes);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                      const HostTensorPtr& out,
                                                      const AxisSet& broadcast_axes) const {

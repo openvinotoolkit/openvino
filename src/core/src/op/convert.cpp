@@ -39,6 +39,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace convert {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>

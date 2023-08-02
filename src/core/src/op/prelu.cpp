@@ -32,6 +32,7 @@ shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace prelu {
 namespace {
 template <ov::element::Type_t ET>

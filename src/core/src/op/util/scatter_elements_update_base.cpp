@@ -107,6 +107,7 @@ bool op::util::ScatterElementsUpdateBase::evaluate_label(TensorLabelVector& outp
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 int64_t op::util::ScatterElementsUpdateBase::get_normalized_axis(const HostTensorVector& inputs) const {
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
 

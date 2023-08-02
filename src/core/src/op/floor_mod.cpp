@@ -22,6 +22,7 @@ shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new
     return make_shared<FloorMod>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace floor_mod {
 namespace {
 template <element::Type_t ET>

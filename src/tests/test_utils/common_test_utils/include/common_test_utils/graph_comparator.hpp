@@ -945,7 +945,9 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 
