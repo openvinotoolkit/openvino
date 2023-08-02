@@ -50,6 +50,7 @@ public:
 bool validate_list(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 std::shared_ptr<ngraph::Function> make_test_graph();
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
 void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>& data) {
     size_t data_size = data.size() * sizeof(T);
@@ -143,3 +144,4 @@ ngraph::HostTensorPtr make_host_tensor(const ngraph::Shape& shape) {
     random_init(host_tensor.get(), engine);
     return host_tensor;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -23,15 +23,12 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         example_input: Any = None,
-        extensions: [str, pathlib.Path, list, Any] = None,
+        extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
 
         # PaddlePaddle-specific parameters:
         example_output: Any = None,  # TODO: Consider removing
-
-        # TensorFlow*-specific parameters
-        saved_model_tags: [str, list] = None,   # TODO: Consider removing
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -96,7 +93,7 @@ def convert_model(
             For PyTorch it can be torch.Tensor.
             For Tensorflow it can be tf.Tensor or numpy.ndarray.
             For PaddlePaddle it can be Paddle Variable.
-        :param extensions:
+        :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
             objects. For the legacy MO path (if "use_legacy_frontend" is used),
@@ -114,11 +111,6 @@ def convert_model(
     PaddlePaddle-specific parameters:
         :param example_output:
             Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
-
-    TensorFlow*-specific parameters:
-        :param saved_model_tags:
-            Group of tag(s) of the MetaGraphDef to load, in string format, separated
-            by ','. For tag-set contains multiple tags, all tags must be passed in.
 
     Returns:
         openvino.runtime.Model

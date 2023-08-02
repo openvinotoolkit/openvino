@@ -85,6 +85,7 @@ OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
+OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
 OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
@@ -235,6 +236,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_poolnd>},
+        {"aten::broadcast_to", op::translate_expand},
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bitwise_not", op::translate_bitwise_not},
@@ -265,6 +267,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::detach", op::skip_node},
+        {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -449,6 +452,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
         {"prim::ListConstruct", op::translate_list_construct},
+        {"prim::ListUnpack", op::translate_list_unpack},
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
