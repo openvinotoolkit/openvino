@@ -9,8 +9,8 @@ type SupportedTypedArray =
   | Float64Array;
 
 interface Core {
-  compileModel(): CompiledModel;
-  readModelAsync(): Promise<CompiledModel>;
+  compileModel(model: Model, device: string): CompiledModel;
+  readModelAsync(): Promise<Model>;
   readModel(modelPath: string, binPath?: string): Model;
 }
 interface CoreConstructor {
