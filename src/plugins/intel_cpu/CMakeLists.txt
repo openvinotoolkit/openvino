@@ -33,8 +33,17 @@ else()
 endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
 
-# enbale mlas for X86 cpus only
-ie_dependent_option(ENABLE_MLAS_FOR_CPU "MLAS GEMM for OpenVINO CPU Plugin" ON "X86 OR X86_64" OFF)
+if(X86 OR X86_64 OR AARCH64)
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+        set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
+    else()
+        set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)
+    endif()
+else()
+    set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
+endif()
+ie_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -80,6 +89,7 @@ if(NOT (AARCH64 OR ARM))
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
 
