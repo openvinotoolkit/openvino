@@ -14,10 +14,12 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     # Apply transformations
-    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
+    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, \
         apply_moc_legacy_transformations, apply_fused_names_cleanup
 
-    apply_moc_transformations(ngraph_function)
+    from openvino._offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
+    apply_moc_transformations(ngraph_function, cf=argv.static_shape, smart_reshape=True)
+
     from openvino._offline_transformations import compress_quantize_weights_transformation # pylint: disable=no-name-in-module,import-error
     compress_quantize_weights_transformation(ngraph_function)
 

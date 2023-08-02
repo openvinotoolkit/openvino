@@ -236,6 +236,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_poolnd>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_poolnd>},
+        {"aten::broadcast_to", op::translate_expand},
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bitwise_not", op::translate_bitwise_not},

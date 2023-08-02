@@ -526,7 +526,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
+    if (!is_cpu_map_available()) {
+        ApplyPerformanceHints(config, nGraphFunc);
+    }
+
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    conf.readProperties(config);
+    CalculateStreams(conf, nGraphFunc);
+
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -539,19 +550,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (!is_cpu_map_available()) {
-        ApplyPerformanceHints(config, nGraphFunc);
-    }
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-
-    conf.readProperties(config);
-    CalculateStreams(conf, nGraphFunc);
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;

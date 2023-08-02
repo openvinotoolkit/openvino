@@ -9,6 +9,7 @@ namespace intel_cpu {
 
 const std::vector<TransposeExecutorDesc>& getTransposeExecutorsList() {
     static const std::vector<TransposeExecutorDesc> descs = {
+            OV_CPU_INSTANCE_MLAS_ARM64(ExecutorType::Mlas, std::make_shared<MlasTransposeExecutorBuilder>())
             OV_CPU_INSTANCE_COMMON(ExecutorType::Common, std::make_shared<RefOptimizedTransposeExecutorBuilder>())
             OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<ACLTransposeExecutorBuilder>())
             OV_CPU_INSTANCE_X64(ExecutorType::x64, std::make_shared<JitTransposeExecutorBuilder>())
