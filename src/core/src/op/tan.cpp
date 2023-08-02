@@ -30,6 +30,7 @@ shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Tan>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace tanop {
 namespace {
 struct Evaluate : ov::element::NoAction<bool> {
