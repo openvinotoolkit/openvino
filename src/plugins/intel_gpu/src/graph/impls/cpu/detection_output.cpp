@@ -282,6 +282,12 @@ public:
         auto out_ptr = lock.begin();
 
         const auto& args = instance.argument;
+
+        auto confidence_layout = instance.confidence_memory()->get_layout();
+        auto priors_layout = instance.prior_box_memory()->get_layout();
+
+        const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
+        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
         // Per image -> For each label: Pair (score, prior index)
         std::vector<std::map<int, std::vector<std::pair<float, int>>>> final_detections;
         for (int image = 0; image < num_of_images; ++image) {
@@ -290,7 +296,7 @@ public:
             std::map<int, std::vector<int>> indices;
             int num_det = 0;
             if (nms_type == NMSType::CAFFE) {
-                for (int cls = 0; cls < static_cast<int>(args->num_classes); ++cls) {
+                for (int cls = 0; cls < num_classes; ++cls) {
                     if (static_cast<int>(cls) == args->background_label_id) {
                         conf_per_image[cls].clear();
                         continue;  // Skip background class.
@@ -522,9 +528,7 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_caffe(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors) {
-        const int num_classes = instance.argument->num_classes;
-
+                                             const int num_of_priors, const int num_classes) {
         const int num_of_images = static_cast<int>(confidences.size());
         auto input_confidence = instance.confidence_memory();
         const float confidence_threshold = instance.argument->confidence_threshold;
@@ -616,9 +620,8 @@ public:
     template <typename dtype>
     void extract_confidences_per_image_mxnet(stream& stream, const detection_output_inst& instance,
                                              std::vector<std::vector<std::vector<std::pair<float, int>>>>& confidences,
-                                             const int num_of_priors,
+                                             const int num_of_priors, const int num_classes,
                                              std::vector<std::vector<std::pair<float, std::pair<int, int>>>>& scoreIndexPairs) {
-        const int num_classes = instance.argument->num_classes;
         const int background_label_id = instance.argument->background_label_id;
         const int num_of_images = static_cast<int>(confidences.size());
         auto input_confidence = instance.confidence_memory();
@@ -750,11 +753,13 @@ public:
 
         const auto& args = instance.argument;
 
+        auto confidence_layout = instance.confidence_memory()->get_layout();
         auto priors_layout = instance.prior_box_memory()->get_layout();
 
         const int num_of_images = static_cast<int>(bboxes.size());
         const int num_of_priors = priors_layout.spatial(1) / args->prior_info_size;
-        const int num_loc_classes = args->share_location ? 1 : args->num_classes;
+        const int num_classes = (args->num_classes == -1) ? confidence_layout.feature() / num_of_priors : args->num_classes;
+        const int num_loc_classes = args->share_location ? 1 : num_classes;
 
         // Extract locations per image.
         std::vector<std::vector<std::vector<bounding_box>>> locations(
@@ -812,9 +817,9 @@ public:
         }
         // Extract confidences per image.
         if (nms_type == NMSType::CAFFE) {
-            extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors);
+            extract_confidences_per_image_caffe<dtype>(stream, instance, confidences, num_of_priors, num_classes);
         } else {
-            extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, scoreIndexPairs);
+            extract_confidences_per_image_mxnet<dtype>(stream, instance, confidences, num_of_priors, num_classes, scoreIndexPairs);
         }
     }
 
