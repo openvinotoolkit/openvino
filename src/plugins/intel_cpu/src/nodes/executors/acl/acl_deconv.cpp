@@ -201,7 +201,8 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,
 
     unsigned int dilation_x = (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
-    if (!one_of(dilation_x, 0, 1) || !one_of(dilation_y, 0, 1)) return false;
+    if (!one_of(dilation_x, static_cast<unsigned int >(0), static_cast<unsigned int >(1)) ||
+        !one_of(dilation_y, static_cast<unsigned int >(0), static_cast<unsigned int >(1))) return false;
 
     size_t in_h = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDescs[0]->getShape().getDims()[2] : srcDescs[0]->getShape().getDims()[1];
     size_t in_w = srcDescs[0]->hasLayoutType(LayoutType::ncsp) ? srcDescs[0]->getShape().getDims()[3] : srcDescs[0]->getShape().getDims()[2];
