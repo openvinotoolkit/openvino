@@ -109,7 +109,7 @@ protected:
                 attributes_clustered.widths = {86, 13, 57, 39, 68, 34, 142, 50, 23};
                 attributes_clustered.heights = {44, 10, 30, 19, 94, 32, 61, 53, 17};
                 attributes_clustered.variances = {0.1, 0.1, 0.2, 0.2};
-                attributes_clustered.step = 1;
+                attributes_clustered.step = 16;
                 attributes_clustered.step_widths = 1;
                 attributes_clustered.step_heights = 1;
                 attributes_clustered.offset = 0.5;
@@ -128,7 +128,7 @@ protected:
                 attributes_v0.max_size = {300};
                 attributes_v0.aspect_ratio = {2};
                 attributes_v0.variance = {0.1, 0.1, 0.2, 0.2};
-                attributes_v0.step = 1;
+                attributes_v0.step = 16;
                 attributes_v0.offset = 0.5;
                 attributes_v0.clip = false;
                 attributes_v0.flip = true;
@@ -148,7 +148,7 @@ protected:
                 attributes_v8.max_size = {300};
                 attributes_v8.aspect_ratio = {2};
                 attributes_v8.variance = {0.1, 0.1, 0.2, 0.2};
-                attributes_v8.step = 1;
+                attributes_v8.step = 16;
                 attributes_v8.offset = 0.5;
                 attributes_v8.clip = false;
                 attributes_v8.flip = true;

@@ -75,7 +75,6 @@ TEST(priorbox_constant_propagation_test, basic) {
 
     topology topology(input_layout("input1", in_layout_1),
                       input_layout("input2", in_layout_2),
-                      //data("input2", input2_mem),
                       data("bias1", bias_mem),
                       data("bias2", bias_mem),
                       data("scale1", bias_mem),
@@ -107,7 +106,6 @@ TEST(priorbox_constant_propagation_test, basic) {
                       reshape("reshape1", input_info("priorBox1"), input_info("pattern_id1"), false, ov::PartialShape::dynamic(3)),
                       input_layout("input3", in_layout_1),
                       input_layout("input4", in_layout_2),
-                      //data("input4", input2_mem),
                       data("bias3", bias_mem),
                       data("bias4", bias_mem),
                       data("scale2", bias_mem),
