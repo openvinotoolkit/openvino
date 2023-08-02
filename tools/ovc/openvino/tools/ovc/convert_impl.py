@@ -5,6 +5,7 @@ import argparse
 import datetime
 import logging as log
 import os
+import pathlib
 import sys
 import traceback
 from collections import OrderedDict
@@ -23,6 +24,7 @@ from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_typ
 from openvino.tools.ovc.cli_parser import get_available_front_ends, \
     get_common_cli_options, get_model_name_from_args, depersonalize, get_mo_convert_params, \
     input_to_input_cut_info, freeze_placeholder_to_input_cut_info
+from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
 from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
@@ -84,7 +86,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         print_argv(argv, argv.output_model)
 
     params_parsing(argv)
-    argv.output = argv.output.split(',') if argv.output else None
+    argv.output = argv.output.split(',') if isinstance(argv.output, (str, pathlib.Path)) else argv.output
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
@@ -141,7 +143,7 @@ def prepare_ir(argv: argparse.Namespace):
         t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
         moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
         if new_extensions_used(argv):
-            for extension in argv.extensions:
+            for extension in argv.extension:
                 moc_front_end.add_extension(extension)
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model
@@ -213,31 +215,6 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
     return ov_model
 
-
-def args_dict_to_list(cli_parser, **kwargs):
-    # This method is needed to prepare args from convert_model() for args_parse().
-    # The method will not be needed when cli_parser checks are moved from cli_parser to a separate pass.
-    import inspect
-    from openvino.tools.ovc import convert_model
-    signature = inspect.signature(convert_model)
-    result = []
-    for key, value in kwargs.items():
-        if value is None:
-            continue
-        if key in signature.parameters and check_values_equal(signature.parameters[key].default, value):
-            continue
-        if check_values_equal(cli_parser.get_default(key), value):
-            continue
-        # skip parser checking for non str objects
-        if not isinstance(value, (str, bool)):
-            continue
-        result.append('--{}'.format(key))
-        if not isinstance(value, bool):
-            result.append(value)
-
-    return result
-
-
 def get_non_default_params(argv, cli_parser):
     import numbers
     import inspect
@@ -257,19 +234,6 @@ def get_non_default_params(argv, cli_parser):
         if isinstance(value, (str, bool, numbers.Number)):
             non_default_params[arg] = value
     return non_default_params
-
-
-def params_to_string(**kwargs):
-    all_params = {}
-    for key, value in get_mo_convert_params().items():
-        all_params.update(value)
-
-    for key, value in kwargs.items():
-        if key in all_params:
-            param_data = all_params[key]
-            if param_data.to_string is not None:
-                kwargs[key] = param_data.to_string(value)
-    return kwargs
 
 
 def add_line_breaks(text: str, char_num: int, line_break: str):
@@ -393,10 +357,30 @@ def params_parsing(argv: argparse.Namespace):
         extract_input_info_from_example(argv, inputs)
 
 
-def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
-    if len(args) > 0:
-        args_string = params_to_string(**args)
-        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))  # FIXME: input_model_args can be a list
+def args_to_argv(**kwargs):
+    argv = argparse.Namespace()
+    args_specifics = get_convert_model_help_specifics()
+
+    import inspect
+    from openvino.tools.ovc import convert_model
+    signature = inspect.signature(convert_model)
+    for key, value in kwargs.items():
+        if value is None and key in signature.parameters:
+            setattr(argv, key, signature.parameters[key].default)
+            continue
+        if key in args_specifics:
+            param_specifics = args_specifics[key]
+            if 'action' in param_specifics and hasattr(param_specifics['action'], 'check_value'):
+                value = param_specifics['action'].check_value(value, key)
+            if 'type' in param_specifics:
+                value = param_specifics['type'](value)
+        setattr(argv, key, value)
+    return argv
+
+
+def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser, python_api_used):
+    if python_api_used:
+        argv = args_to_argv(**args)
 
         # get list of all available params for convert_model()
         all_params = {}
@@ -404,14 +388,9 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
             all_params.update(value)
 
         # check that there are no unknown params provided
-        for key, value in args_string.items():
-            if key not in argv and key not in all_params.keys():
+        for key, value in args.items():
+            if key not in all_params.keys():
                 raise Error("Unrecognized argument: {}".format(key))
-
-            # Non string params like input_model or extensions are ignored by parse_args()
-            # so we need to set them in argv separately
-            if value is not None and not check_values_equal(getattr(argv, key, None), value):
-                setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
     return argv
@@ -469,7 +448,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
 
-        argv = pack_params_to_args_namespace(args, cli_parser)
+        argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
         argv.framework = model_framework
         argv.is_python_object = inp_model_is_object
 

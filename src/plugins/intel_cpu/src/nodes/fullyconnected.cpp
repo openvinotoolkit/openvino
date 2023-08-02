@@ -25,6 +25,7 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
+#include "common/cpu_convert.h"
 
 #include <string>
 #include <vector>
@@ -262,6 +263,9 @@ void FullyConnected::getSupportedDescriptors() {
         if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
             outputDataType = memory::data_type::f16;
         }
+#if defined(OV_CPU_WITH_ACL)
+        weightsDataType = memory::data_type::f16;
+#endif
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
             // weight has to be s8 for INT8 mode, otherwise fallback to
@@ -661,6 +665,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,
         impl_desc_type::gemm_avx2,
@@ -715,7 +720,12 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::data_type bdt = outdt;
 
     if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
+    //oneDNN ARM InnerProduct primitive supports only identical in/out data types
+#if defined(OPENVINO_ARCH_X86_64)
         bdt = dnnl::memory::data_type::f32;
+#else
+        bdt = dnnl::memory::data_type::f16;
+#endif
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
         if (withBiases)
@@ -833,7 +843,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
-
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
@@ -1075,6 +1084,28 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
+void FullyConnected::fuseDecompressionMultiply(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionMultiply);
+}
+
+void FullyConnected::fuseDecompressionSubtract(const NodePtr& constData) {
+    fuseDecompressionConstant(constData, decompressionSubtract);
+}
+
+void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues) {
+    auto *constInputNode = dynamic_cast<node::Input *>(constData.get());
+    if (!constInputNode) {
+        IE_THROW() << "Cannot cast " << constData->getName() << " to Input";
+    }
+    auto constBlob = constInputNode->getMemoryPtr();
+    const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    decompressionValues.resize(elementsCount);
+    cpu_convert(constBlob->getData(),
+                &decompressionValues[0],
+                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
+                Precision::FP32,
+                elementsCount);
+}
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

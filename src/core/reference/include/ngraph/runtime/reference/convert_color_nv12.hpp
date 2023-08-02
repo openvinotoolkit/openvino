@@ -108,6 +108,7 @@ void color_convert_i420(const T* arg_y,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <ov::element::Type_t ET>
 inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                                const ov::HostTensorVector& outputs,
@@ -203,6 +204,7 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

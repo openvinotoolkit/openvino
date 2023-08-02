@@ -24,7 +24,6 @@ from tests_compatibility import (
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39658,
-    xfail_issue_39662,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_45180,
@@ -118,10 +117,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_39658,
         "OnnxBackendNodeModelTest.test_tile_cpu",
-    ),
-    (
-        xfail_issue_39662,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
     ),
     (
         xfail_issue_38091,

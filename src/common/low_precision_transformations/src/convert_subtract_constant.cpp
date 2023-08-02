@@ -50,6 +50,10 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
         const auto quantizePrecision = weightsConvert->get_input_element_type(0);
         const auto dequantizationPrecision = weightsConvert->get_output_element_type(0);
 
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
         // validation by Convert operation input precisions
         if (!constantPrecisions.empty()) {
             const ngraph::element::Type inputPrecision = quantizePrecision;

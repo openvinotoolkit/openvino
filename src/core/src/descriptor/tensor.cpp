@@ -4,11 +4,9 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include "ngraph/node.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/except.hpp"
-
-using namespace std;
+#include "openvino/core/node.hpp"
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
@@ -28,7 +26,7 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialS
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
-                               ngraph::Node* node,
+                               ov::Node* node,
                                size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
@@ -76,8 +74,8 @@ void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
     if (labels_size == 0) {
         m_value_label.clear();
     } else {
-        NGRAPH_CHECK(m_partial_shape.is_static());
-        NGRAPH_CHECK(shape_size(m_partial_shape.to_shape()) == labels_size);
+        OPENVINO_ASSERT(m_partial_shape.is_static());
+        OPENVINO_ASSERT(shape_size(m_partial_shape.to_shape()) == labels_size);
         m_value_label = value_label;
 
         if (m_rt_info.count("TABLE_OF_EQUIVALENCE")) {
@@ -167,7 +165,7 @@ void ov::descriptor::set_ov_tensor_legacy_name(ov::descriptor::Tensor& tensor, c
     tensor.m_legacy_name = tensor_name;
 }
 
-ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
+std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor::Tensor& tensor) {
     std::string names;
     for (const auto& name : tensor.get_names()) {
         if (!names.empty())

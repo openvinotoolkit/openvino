@@ -1,7 +1,7 @@
 -c ./constraints.txt
 protobuf
-numpy
 onnx
+numpy
 bandit
 black
 flake8

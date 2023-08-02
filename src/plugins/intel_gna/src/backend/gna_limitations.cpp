@@ -680,8 +680,9 @@ constexpr uint32_t Limitations::kMemoryPageSize;
 thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};
 
 Limitations::Limitations(const DeviceVersion& target) {
-    m_use_only_16bit_conv_weights = (target == DeviceVersion::GNA1_0 || target == DeviceVersion::GNA2_0 ||
-                                     target == DeviceVersion::GNA3_0 || target == DeviceVersion::GNA3_1);
+    m_use_only_16bit_conv_weights =
+        (target == DeviceVersion::GNA1_0 || target == DeviceVersion::GNAEmbedded1_0 ||
+         target == DeviceVersion::GNA2_0 || target == DeviceVersion::GNA3_0 || target == DeviceVersion::GNA3_1);
 
     m_mem_alignment = get_memory_alignment_bytes(target);
     m_cnn_validator = cnn2d::AbstractValidator::Create(target);
@@ -698,6 +699,7 @@ size_t Limitations::get_min_batch_to_fit_in_buffer(InferenceEngine::DataPtr inpu
 
 size_t Limitations::get_memory_alignment_bytes(const DeviceVersion& target) const {
     static const std::unordered_map<DeviceVersion, size_t> mem_alignment_map{{DeviceVersion::GNA1_0, 64},
+                                                                             {DeviceVersion::GNAEmbedded1_0, 64},
                                                                              {DeviceVersion::GNA2_0, 64},
                                                                              {DeviceVersion::GNA3_0, 64},
                                                                              {DeviceVersion::GNA3_1, 64},
