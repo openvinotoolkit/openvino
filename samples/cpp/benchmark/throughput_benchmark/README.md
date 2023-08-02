@@ -52,10 +52,10 @@ The reported results may deviate from what :doc:`benchmark_app <openvino_inferen
       |                          | ``ov::Tensor::data``                         |                                              |
       +--------------------------+----------------------------------------------+----------------------------------------------+
 
-      .. tab-item:: Sample Code 
+   .. tab-item:: Sample Code 
 
-         .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp 
-               :language: cpp
+      .. doxygensnippet:: samples/cpp/benchmark/throughput_benchmark/main.cpp 
+            :language: cpp
 
 How It Works
 ####################
