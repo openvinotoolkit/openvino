@@ -280,10 +280,10 @@ TEST(type_prop, generate_proposals_dynamic) {
         if (s.scores_shape.rank().is_static())
             set_shape_labels(s.scores_shape, 40);
 
-        ov::label_t expected_batch_label = s.im_info_shape.rank().is_static()  ? 10
-                                           : s.deltas_shape.rank().is_static() ? 30
-                                           : s.scores_shape.rank().is_static() ? 40
-                                                                               : ov::no_label;
+        ov::label_t expected_batch_label =
+            s.im_info_shape.rank().is_static()
+                ? 10
+                : s.deltas_shape.rank().is_static() ? 30 : s.scores_shape.rank().is_static() ? 40 : ov::no_label;
 
         auto im_info = std::make_shared<op::Parameter>(element::f32, s.im_info_shape);
         auto anchors = std::make_shared<op::Parameter>(element::f32, s.anchors_shape);
