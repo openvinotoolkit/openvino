@@ -8,28 +8,19 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-inline std::unordered_map<std::string, std::shared_ptr<ov::Node>>
+inline std::map<std::string, std::shared_ptr<ov::Node>>
 update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
-    std::unordered_map<std::string, std::shared_ptr<ov::Node>> model_map;
+    std::map<std::string, std::shared_ptr<ov::Node>> model_map;
 
     for (const auto& op : nodes) {
-        if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
-            ov::op::util::is_output(op)) {
-            continue;
-        }
-        auto cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_map.size()));
+        auto cloned_op = clone_node(op, true, false, op->get_friendly_name());
         model_map.insert({ op->get_friendly_name(), cloned_op });
     }
 
     for (const auto& op : nodes) {
-        if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) ||
-            ov::op::util::is_output(op)) {
-            continue;
-        }
         auto op_name = op->get_friendly_name();
         auto cloned_op = model_map[op->get_friendly_name()];
         size_t inputs_size = op->inputs().size();
-        ov::OutputVector in_out_vector(inputs_size);
         int filled_input_idx = -1;
         for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
             auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
@@ -38,10 +29,9 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
                     auto out_in_node = target_input.get_node()->shared_from_this();
                     if (out_in_node == op) {
                         auto in_node_name = in_node->get_friendly_name();
-                        in_out_vector[in_idx] = model_map.count(in_node_name) ?
-                                                model_map.at(in_node_name)->output(in_out_idx) :
-                                                cloned_op->get_input_node_ptr(in_idx)->output(0);
+                        auto node_to_replace = cloned_op->get_input_node_ptr(in_idx)->shared_from_this();
                         if (model_map.count(in_node_name)) {
+                            ov::replace_node(node_to_replace, model_map[in_node_name]);
                             filled_input_idx++;
                         }
                         break;
@@ -51,11 +41,6 @@ update_nodes(const std::set<std::shared_ptr<ov::Node>>& nodes) {
                     break;
                 }
             }
-        }
-        if (filled_input_idx >= 0) {
-            auto name = cloned_op->get_friendly_name();
-            model_map[op_name] = cloned_op->clone_with_new_inputs(in_out_vector);
-            model_map[op_name]->set_friendly_name(name);
         }
     }
     return model_map;
@@ -69,22 +54,39 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
         throw std::runtime_error("Incorrect node number to create model");
     }
     auto model_map = update_nodes(nodes);
-    if (model_map.size() < 2) {
-        throw std::runtime_error("Incorrect node number to create model");
-    }
-    ov::OutputVector results;
+    ov::ParameterVector params;
+    ov::ResultVector results;
     std::map<std::string, InputInfo> input_info;
+    std::vector<std::shared_ptr<ov::Node>> nodes_to_remove;
     for (const auto& op : model_map) {
+        // std::cout << op.second->get_friendly_name() << std::endl;
+        // bool has_inputs = op.second->inputs().size();
         checked_ops.insert(op.first);
         auto this_input_info = get_input_info_by_node(op.second);
         input_info.insert(this_input_info.begin(), this_input_info.end());
+        for (size_t i = 0; i < op.second->inputs().size(); ++i) {
+            auto in_node = op.second->get_input_node_shared_ptr(i);
+            // std::cout << "IN " << in_node-÷>get_friendly_name() << std::endl;
+            if (ov::op::util::is_parameter(in_node)) {
+                params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_node));
+            }
+        }
         for (size_t j = 0; j < op.second->outputs().size(); ++j) {
             if (op.second->output(j).get_target_inputs().empty()) {
-                results.push_back(std::make_shared<ov::op::v0::Result>(op.second->output(j)));
+            // if (op.second->output(j).get_target_inputs().empty() && has_inputs) {
+                if (ov::op::util::is_output(op.second)) {
+                    results.push_back(std::dynamic_pointer_cast<ov::op::v0::Result>(op.second));
+                } else {
+                    results.push_back(std::make_shared<ov::op::v0::Result>(op.second->output(j)));
+                }
+            } else {
+                // for (const auto& out : op.second->output(j).get_target_inputs()) {
+                //     std::cout << "OUT " << out.get_node()->shared_from_this()->get_friendly_name() << std::endl;
+                // }
             }
         }
     }
-    return { std::make_shared<ov::Model>(results), input_info, extractor_name };
+    return { std::make_shared<ov::Model>(results, params), input_info, extractor_name };
 }
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
