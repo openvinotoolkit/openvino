@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "license": "Apache-2.0",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "scripts": {
     "build": "node-gyp build",
@@ -12,26 +12,20 @@
     "postinstall": "npm run build & npm run tsc",
     "lint": "eslint .",
     "rebuild": "node-gyp rebuild",
-    "start": "node index.js",
     "test": "jest",
     "tsc": "tsc"
   },
   "devDependencies": {
-    "@types/node": "^18.15.0",
     "@typescript-eslint/eslint-plugin": "^5.59.1",
     "@typescript-eslint/parser": "^5.59.1",
     "eslint": "^8.39.0",
     "jest": "^28.1.3",
     "node-addon-api": "^3.0.0",
     "node-gyp": "^9.3.0",
-    "openvinojs-common": "file:../common",
     "typescript": "^5.0.4"
   },
   "engines": {
     "node": ">=18.16.0"
   },
-  "gypfile": true,
-  "engines": {
-    "node": ">=18.16.0"
-  }
+  "gypfile": true
 }

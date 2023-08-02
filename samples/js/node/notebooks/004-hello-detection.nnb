@@ -17,7 +17,7 @@
         {
             "language": "typescript",
             "source": [
-                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
+                "const cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\nconst { transform, getImageData, displayArrayAsImage, downloadFile } = require('../helpers.js');\nconst { addon: ov } = require('openvinojs-node'); "
             ],
             "outputs": []
         },
