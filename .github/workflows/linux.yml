@@ -764,5 +764,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
           if-no-files-found: 'error'
