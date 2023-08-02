@@ -86,7 +86,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
             const auto input = node->input(0);
             const auto output = node->output(0);
             const auto kernels = node->input(1);
-           
+
             total_convs++;
             if (kernels.get_partial_shape().is_static()) {
                 const auto& shape = kernels.get_shape();
