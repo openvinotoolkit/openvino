@@ -1172,10 +1172,21 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
+    int64_t curr_iter = -1;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    curr_iter = iteration++;
+#endif
+
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
-    GPU_DEBUG_TRACE << "Start network execution" << std::endl;
+    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
+        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    } else {
+        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    }
 
     std::vector<memory::ptr> in_out_mem;
     auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
@@ -1211,7 +1222,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
 
     set_arguments();
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->list_layers == 1) {
         for (auto& inst : _exec_order) {
             GPU_DEBUG_COUT << inst->id() << std::endl;
@@ -1225,12 +1235,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
         if (!is_internal()) exit(0);
     }
-    int64_t curr_iter = -1;
-#ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_IF(!debug_config->dump_iteration.empty()) {
-        curr_iter = iteration++;
-    }
-#endif
     auto get_iteration_prefix = [](int64_t iter) {
         if (iter < 0)
             return std::string("");
@@ -1435,6 +1439,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
+        get_memory_pool().dump(get_id());
+    }
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

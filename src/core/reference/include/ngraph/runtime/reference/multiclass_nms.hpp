@@ -38,8 +38,10 @@ struct InfoForNMS {
     size_t selected_numrois_shape_size;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBase>& nms,
                                  const std::vector<std::shared_ptr<HostTensor>>& inputs);
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace multiclass_nms_impl
 
 void multiclass_nms(const float* boxes_data,

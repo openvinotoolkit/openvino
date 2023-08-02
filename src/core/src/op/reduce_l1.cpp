@@ -27,6 +27,7 @@ shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_l1 {
 namespace {
 template <element::Type_t ET>
