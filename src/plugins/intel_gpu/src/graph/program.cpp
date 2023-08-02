@@ -543,14 +543,14 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (optimize_data) {
-        const bool enable_primitive_fusing = !cldnn::debug_configuration::get_instance()->disable_primitive_fusing;
-        if (enable_primitive_fusing) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
             apply_opt_pass<prepare_primitive_fusing_through>();
         }
 
         apply_opt_pass<pre_replace_deconv>(lo);
 
-        if (enable_primitive_fusing) {
+        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
             apply_opt_pass<prepare_primitive_fusing>(lo);
         }
 
