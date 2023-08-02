@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/low_latency.hpp"
+#include "openvino/pass/low_latency.hpp"
 
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/cc/pass/itt.hpp>
-#include <openvino/op/util/variable.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/util/log.hpp>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace std;
 
