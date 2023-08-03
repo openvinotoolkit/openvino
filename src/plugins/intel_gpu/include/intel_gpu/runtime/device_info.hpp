@@ -25,11 +25,11 @@ enum class device_type {
     discrete_gpu = 1
 };
 
-/// @brief Defines version of GFX IP
+/// @brief Defines version of GFX IP (update by GMD_ID)
 struct gfx_version {
-    uint16_t major;
-    uint8_t minor;
-    uint8_t revision;
+    uint16_t major;     // architecture
+    uint8_t minor;      // release
+    uint8_t revision;   // revision
     friend bool operator < (const gfx_version& l, const gfx_version& r)  {
         return std::tie(l.major, l.minor, l.revision)
                < std::tie(r.major, r.minor, r.revision); // same order
