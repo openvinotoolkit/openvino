@@ -15,6 +15,7 @@
 #include "permute_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "reorder_inst.h"
 #include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
@@ -644,13 +645,54 @@ bool primitive_inst::update_impl() {
     return true;
 }
 
+void primitive_inst::do_runtime_skip_reorder() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_skip_reorder) {
+        return;
+    }
+    if (can_be_optimized())
+        return;
+
+    if (_impl_params->fused_desc.size() > 0)
+        return;
+
+    // set successive reorder can_be_optimized if layouts are same
+    for (auto u : get_user_insts()) {
+        if (u->get_node().is_type<reorder>()) {
+            if (is_input() && u->is_output())
+                continue;
+            // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
+            if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
+                continue;
+            auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+            // If current node's output_node is not dynamic, the memory is already allocated at build time
+            auto alloc_type = allocation_type::unknown;
+            if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
+                alloc_type = _outputs[out_port_idx]->get_allocation_type();
+            }
+            if (alloc_type == allocation_type::usm_device && u->is_output())
+                continue;
+            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
+            u->update_shape();
+            u->update_shape_done_by_other = true;
+            if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
+                u->set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as  can_be_optimized" << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
+            }
+        }
+    }
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
         return;
     }
-    if (update_shape_done_by_other)
+    if (update_shape_done_by_other) {
         return;
+    }
     if (get_users().size() != 1) return;
 
     auto concat_inst = _network.get_primitive(get_users().front()->id());
@@ -720,6 +762,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
+
+        // Check successor reorder if layouts are same
+        // Need to set can_be_optimized for user reorder at predesescor because
+        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
+        do_runtime_skip_reorder();
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
             auto ev = get_network().get_stream().create_user_event(true);
@@ -792,6 +839,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
+                if (input->is_input() && queue_type != QueueTypes::out_of_order)
+                    continue;
                 auto id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
