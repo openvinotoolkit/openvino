@@ -133,8 +133,8 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 /**
  * @brief Turning on this key disable winograd convoltuion in iGPU.
  * Winograd's algorithm for convolutions can greatly reduce the number of arithmetic operations.
- * However a large reduction in floating point (FP) operations in these algorithmscan result in reduced FP accuracy of the result.
- * Default value is false.
+ * However a large reduction in floating point (FP) operations in these algorithmscan result in reduced FP accuracy of
+ * the result. Default value is false.
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(DISABLE_WINOGRAD_CONVOLUTION);
 
