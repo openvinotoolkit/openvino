@@ -3,7 +3,8 @@
 
 from pathlib import Path
 
-from openvino.runtime import serialize, convert_model
+from openvino.runtime import serialize
+from openvino.tools.ovc import convert_model
 from openvino.tools.mo import convert_model as legacy_convert_model
 from openvino.test_utils import compare_functions
 
@@ -16,7 +17,10 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        if 'use_legacy_frontend' in kwargs:
+        del kwargs['model_name']
+        if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
+            if 'use_convert_model_from_mo' in kwargs:
+                del kwargs['use_convert_model_from_mo']
             model = legacy_convert_model(**kwargs)
         else:
             model = convert_model(**kwargs)

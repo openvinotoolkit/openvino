@@ -9,9 +9,10 @@
 #include <fstream>
 #include <algorithm>
 
-#include <file_utils.h>
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/w_dirent.h"
+#include "file_utils.h"
+#include "gtest/gtest.h"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

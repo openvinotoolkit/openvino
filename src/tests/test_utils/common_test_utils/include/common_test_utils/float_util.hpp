@@ -1,14 +1,10 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
-#include <algorithm>
-#include <bitset>
-#include <cmath>
-#include <limits>
-#include <sstream>
-
-#include "ngraph/ngraph.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ngraph {
 namespace test {
@@ -41,20 +37,20 @@ union DoubleUnion {
     uint64_t i;
 };
 
-std::string bfloat16_to_bits(bfloat16 f);
+std::string bfloat16_to_bits(ov::bfloat16 f);
 
-std::string float16_to_bits(float16 f);
+std::string float16_to_bits(ov::float16 f);
 
 std::string float_to_bits(float f);
 
 std::string double_to_bits(double d);
 
-bfloat16 bits_to_bfloat16(const std::string& s);
+ov::bfloat16 bits_to_bfloat16(const std::string& s);
 
 float bits_to_float(const std::string& s);
 
 double bits_to_double(const std::string& s);
 
-float16 bits_to_float16(const std::string& s);
+ov::float16 bits_to_float16(const std::string& s);
 }  // namespace test
 }  // namespace ngraph

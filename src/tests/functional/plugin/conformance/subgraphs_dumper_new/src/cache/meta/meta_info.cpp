@@ -53,7 +53,7 @@ void MetaInfo::serialize(const std::string& serialization_path) {
             model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
             model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
             for (const auto& model_path : model.second.model_paths) {
-                model_node.append_child("path").append_child(model_path.c_str());
+                model_node.append_child("path").append_child("model").append_attribute("path").set_value(model_path.c_str());
             }
         }
         double graph_priority = get_graph_priority();
@@ -82,7 +82,7 @@ void MetaInfo::update(const std::string& _model_path,
                       size_t _total_op_cnt,
                       const std::vector<std::string>& ignored_inputs) {
     if (input_info.size() != _input_info.size()) {
-        throw std::runtime_error("Uncompatible input info!");
+        throw std::runtime_error("Incompatible input info!");
     }
     std::string model_name = get_model_name_by_path(_model_path);
     if (model_info.find(model_name) != model_info.end()) {

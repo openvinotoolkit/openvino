@@ -3,12 +3,10 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+
+#include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-
-#include <gtest/gtest.h>
-
-#include <chrono>
-#include <thread>
+#include "precomp.hpp"
 
 namespace CommonTestUtils {
 

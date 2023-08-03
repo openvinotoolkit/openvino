@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <queue>
-
-#include "openvino/core/type/element_type_traits.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "precomp.hpp"
 
 namespace ov {
 namespace test {

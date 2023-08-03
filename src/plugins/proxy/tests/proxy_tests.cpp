@@ -66,6 +66,10 @@ void ov::proxy::tests::ProxyTests::SetUp() {
     }
 }
 
+void ov::proxy::tests::ProxyTests::TearDown() {
+    CommonTestUtils::removeDir("test_cache");
+}
+
 ov::Tensor ov::proxy::tests::ProxyTests::create_and_fill_tensor(const ov::element::Type& type, const ov::Shape& shape) {
     switch (type) {
     case ov::element::Type_t::i64:
@@ -104,6 +108,18 @@ std::shared_ptr<ov::Model> ov::proxy::tests::ProxyTests::create_model_with_subtr
     auto reshape = std::make_shared<ov::opset11::Reshape>(subtract, reshape_val, true);
     reshape->set_friendly_name("reshape");
     auto result = std::make_shared<ov::opset11::Result>(reshape);
+    result->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+std::shared_ptr<ov::Model> ov::proxy::tests::ProxyTests::create_model_with_add() {
+    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
+    param->set_friendly_name("input");
+    auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
+    const_value->set_friendly_name("const_val");
+    auto add = std::make_shared<ov::opset11::Add>(param, const_value);
+    add->set_friendly_name("add");
+    auto result = std::make_shared<ov::opset11::Result>(add);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
@@ -173,7 +189,7 @@ public:
     }
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return m_model;
     }
 
     void set_property(const ov::AnyMap& properties) override {
@@ -515,6 +531,8 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                     m_profiling = it.second.as<bool>();
                 else if (it.first == ov::device::id.name())
                     continue;
+                else if (it.first == ov::cache_dir.name())
+                    continue;
                 else
                     OPENVINO_THROW(get_device_name(), " set config: " + it.first);
             }
@@ -530,10 +548,14 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
+                RO_property(ov::optimal_batch_size.name()),
+                RW_property(ov::hint::performance_mode.name()),
+                RW_property(ov::hint::num_requests.name()),
             };
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
                 RW_property(ov::num_streams.name()),
+                RW_property(ov::cache_dir.name()),
                 RW_property(ov::enable_profiling.name()),
             };
 
@@ -551,6 +573,12 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
             } else if (name == ov::internal::supported_properties) {
                 return decltype(ov::internal::supported_properties)::value_type(
                     {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
+            } else if (name == ov::optimal_batch_size) {
+                return decltype(ov::optimal_batch_size)::value_type{1};
+            } else if (name == ov::hint::num_requests) {
+                return decltype(ov::hint::num_requests)::value_type{1};
+            } else if (name == ov::hint::performance_mode) {
+                return decltype(ov::hint::performance_mode)::value_type{ov::hint::PerformanceMode::LATENCY};
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -657,6 +685,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             // the whole config is RW before network is loaded.
             const static std::vector<ov::PropertyName> rwProperties{
                 RW_property(ov::enable_profiling.name()),
+                RW_property(ov::cache_dir.name()),
             };
             std::string device_id;
             if (arguments.find(ov::device::id.name()) != arguments.end()) {

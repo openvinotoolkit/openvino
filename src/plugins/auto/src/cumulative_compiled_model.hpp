@@ -15,8 +15,9 @@ class AutoCumuCompiledModel : public CompiledModel {
 public:
     AutoCumuCompiledModel(const std::shared_ptr<ov::Model>& model,
                           const std::shared_ptr<const ov::IPlugin>& plugin,
-                          ScheduleContext::Ptr context,
-                          Schedule::Ptr scheduler);
+                          const ov::SoPtr<ov::IRemoteContext>& remote_context,
+                          ScheduleContext::Ptr& schedule_context,
+                          Schedule::Ptr& scheduler);
 
     // implement pure virtual methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;

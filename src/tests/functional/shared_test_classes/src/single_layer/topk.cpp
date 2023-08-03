@@ -47,7 +47,7 @@ void TopKLayerTest::SetUp() {
             std::make_shared<ngraph::opset4::TopK>(paramIn[0], k, axis, mode, sort));
 
     ngraph::ResultVector results;
-    for (int i = 0; i < topk->get_output_size(); i++) {
+    for (size_t i = 0; i < topk->get_output_size(); i++) {
         results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");

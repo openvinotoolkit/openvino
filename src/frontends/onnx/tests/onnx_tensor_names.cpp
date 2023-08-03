@@ -50,7 +50,7 @@ std::shared_ptr<OpType> find_by_friendly_name(const std::vector<DerivedFromNode>
     }
 }
 
-NGRAPH_TEST(onnx_tensor_names, simple_model) {
+OPENVINO_TEST(onnx_tensor_names, simple_model) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
@@ -63,7 +63,7 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
                                                          {"abs_t", "final_output"}));
 }
 
-NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
+OPENVINO_TEST(onnx_tensor_names, node_multiple_outputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/top_k.onnx"));
 
@@ -77,7 +77,7 @@ NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs) {
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(results, "indices/sink_port_0", {"indices"}));
 }
 
-NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes) {
+OPENVINO_TEST(onnx_tensor_names, subgraph_with_multiple_nodes) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/max_pool_transposed.onnx"));
@@ -95,7 +95,7 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes) {
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
-NGRAPH_TEST(onnx_tensor_names, simple_multiout_operator) {
+OPENVINO_TEST(onnx_tensor_names, simple_multiout_operator) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/max_pool_simple.onnx"));
 
@@ -111,7 +111,7 @@ NGRAPH_TEST(onnx_tensor_names, simple_multiout_operator) {
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
-NGRAPH_TEST(onnx_tensor_names, simple_multiout_named_operator) {
+OPENVINO_TEST(onnx_tensor_names, simple_multiout_named_operator) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/max_pool_simple_named.onnx"));
@@ -128,7 +128,7 @@ NGRAPH_TEST(onnx_tensor_names, simple_multiout_named_operator) {
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
-NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
+OPENVINO_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/max_pool_transposed_named.onnx"));
@@ -144,7 +144,7 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_with_multiple_nodes_named) {
     EXPECT_EQ(result2->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name(), "z");
 }
 
-NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
+OPENVINO_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -160,7 +160,7 @@ NGRAPH_TEST(onnx_tensor_names, subgraph_conv_with_bias) {
     EXPECT_NE(nullptr, find_by_friendly_name<op::v1::Convolution>(ops, "D/WithoutBiases"));
 }
 
-NGRAPH_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
+OPENVINO_TEST(onnx_tensor_names, subgraph_gemm_with_bias) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/gemm_abc.onnx"));
 

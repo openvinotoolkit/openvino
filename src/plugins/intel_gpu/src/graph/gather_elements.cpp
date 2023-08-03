@@ -42,12 +42,11 @@ std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_no
     ov::op::v6::GatherElements op;
     op.set_axis(desc->axis);
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         impl_param.get_input_layout(0).get<ShapeType>(),
         impl_param.get_input_layout(1).get<ShapeType>()
     };
-    ov::op::v6::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v6::shape_infer(&op, input_shapes);
 
     format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
 

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include <string>
 
@@ -8,32 +9,32 @@
 
 // Copied from gtest
 
-namespace ngraph {
+namespace ov {
 std::string prepend_disabled(const std::string& backend_name,
                              const std::string& test_name,
                              const std::string& manifest);
 
 std::string combine_test_backend_and_case(const std::string& backend_name, const std::string& test_casename);
-}  // namespace ngraph
+}  // namespace ov
 
-#define NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) \
+#define OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) \
     backend_name##_##test_case_name##_##test_name##_Test
 
-#define NGRAPH_GTEST_TEST_(backend_name, test_case_name, test_name, parent_class, parent_id)                        \
-    class NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public parent_class {            \
+#define OPENVINO_GTEST_TEST_(backend_name, test_case_name, test_name, parent_class, parent_id)                        \
+    class OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public parent_class {            \
     public:                                                                                                         \
-        NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                 \
+        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                 \
                                                                                                                     \
     private:                                                                                                        \
         void TestBody() override;                                                                                   \
         static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;                                       \
-        GTEST_DISALLOW_COPY_AND_ASSIGN_(NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));    \
+        GTEST_DISALLOW_COPY_AND_ASSIGN_(OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));    \
     };                                                                                                              \
                                                                                                                     \
-    ::testing::TestInfo* const NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::test_info_ = \
+    ::testing::TestInfo* const OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::test_info_ = \
         ::testing::internal::MakeAndRegisterTestInfo(                                                               \
-            ::ngraph::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),                        \
-            ::ngraph::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),                              \
+            ::ov::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),                        \
+            ::ov::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),                              \
             nullptr,                                                                                                \
             nullptr,                                                                                                \
             ::testing::internal::CodeLocation(__FILE__, __LINE__),                                                  \
@@ -41,15 +42,15 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
             parent_class::SetUpTestCase,                                                                            \
             parent_class::TearDownTestCase,                                                                         \
             new ::testing::internal::TestFactoryImpl<                                                               \
-                NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>);                           \
-    void NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
+                OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>);                           \
+    void OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
 
-#define NGRAPH_TEST(test_case_name, test_name) \
-    NGRAPH_GTEST_TEST_(test_case_name, test_case_name, test_name, ::testing::Test, ::testing::internal::GetTestTypeId())
+#define OPENVINO_TEST(test_case_name, test_name) \
+    OPENVINO_GTEST_TEST_(test_case_name, test_case_name, test_name, ::testing::Test, ::testing::internal::GetTestTypeId())
 
-// NGRAPH_TEST_F facilitates the use of the same configuration parameters for multiple
+// OPENVINO_TEST_F facilitates the use of the same configuration parameters for multiple
 // unit tests similar to the original TEST_F, but with the introduction of a new 0th
-// parameter for the backend name, which allows nGraph's manifest controlled unit testing.
+// parameter for the backend name, which allows openvino's manifest controlled unit testing.
 //
 // Start by defining a class derived from testing::Test, which you'll pass for the
 // text_fixture parameter.
@@ -61,29 +62,29 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // where the test case name is "BACKENDNAME/FixtureClassName"
 // and the test name is "test_name"
 //
-// With the use of NGRAPH_TEST_F the filter to run all the tests for a given backend
+// With the use of OPENVINO_TEST_F the filter to run all the tests for a given backend
 // should be:
 // --gtest_filter=BACKENDNAME*.*
-// (rather than the BACKENDNAME.* that worked before the use of NGRAPH_TEST_F)
-#define NGRAPH_TEST_F(backend_name, test_fixture, test_name) \
-    NGRAPH_GTEST_TEST_(backend_name,                         \
+// (rather than the BACKENDNAME.* that worked before the use of OPENVINO_TEST_F)
+#define OPENVINO_TEST_F(backend_name, test_fixture, test_name) \
+    OPENVINO_GTEST_TEST_(backend_name,                         \
                        test_fixture,                         \
                        test_name,                            \
                        test_fixture,                         \
                        ::testing::internal::GetTypeId<test_fixture>())
 
-// NGRAPH_TEST_P combined with NGRAPH_INSTANTIATE_TEST_SUITE_P facilate the generation
+// OPENVINO_TEST_P combined with OPENVINO_INSTANTIATE_TEST_SUITE_P facilate the generation
 // of value parameterized tests (similar to the original TEST_P and INSTANTIATE_TEST_SUITE_P
-// with the addition of a new 0th parameter for the backend name, which allows nGraph's
+// with the addition of a new 0th parameter for the backend name, which allows openvino's
 // manifest controlled unit testing).
 //
 // Start by defining a class derived from ::testing::TestWithParam<T>, which you'll pass
 // for the test_case_name parameter.
-// Then use NGRAPH_INSTANTIATE_TEST_SUITE_P to define each generation of test cases (see below).
-#define NGRAPH_TEST_P(backend_name, test_case_name, test_name)                                                     \
-    class NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public test_case_name {         \
+// Then use OPENVINO_INSTANTIATE_TEST_SUITE_P to define each generation of test cases (see below).
+#define OPENVINO_TEST_P(backend_name, test_case_name, test_name)                                                     \
+    class OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name) : public test_case_name {         \
     public:                                                                                                        \
-        NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                \
+        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                                \
         void TestBody() override;                                                                                  \
                                                                                                                    \
     private:                                                                                                       \
@@ -94,19 +95,19 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
                                                           ::testing::internal::CodeLocation(__FILE__, __LINE__))   \
                 ->AddTestPattern(                                                                                  \
                     #backend_name "/" #test_case_name,                                                             \
-                    ::ngraph::prepend_disabled(#backend_name "/" #test_case_name, #test_name, s_manifest).c_str(), \
+                    ::ov::prepend_disabled(#backend_name "/" #test_case_name, #test_name, s_manifest).c_str(), \
                     new ::testing::internal::TestMetaFactory<                                                      \
-                        NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>());                \
+                        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)>());                \
             return 0;                                                                                              \
         }                                                                                                          \
         static int gtest_registering_dummy_ GTEST_ATTRIBUTE_UNUSED_;                                               \
-        GTEST_DISALLOW_COPY_AND_ASSIGN_(NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));   \
+        GTEST_DISALLOW_COPY_AND_ASSIGN_(OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name));   \
     };                                                                                                             \
-    int NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::gtest_registering_dummy_ =         \
-        NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::AddToRegistry();                   \
-    void NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
+    int OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::gtest_registering_dummy_ =         \
+        OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::AddToRegistry();                   \
+    void OPENVINO_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)::TestBody()
 
-// Use NGRAPH_INSTANTIATE_TEST_SUITE_P to create a generated set of test case variations.
+// Use OPENVINO_INSTANTIATE_TEST_SUITE_P to create a generated set of test case variations.
 // The prefix parameter is a label that you optionally provide (no quotes) for a unique
 // test name (helpful for labelling a set of inputs and for filtering).
 // The prefix parameter can be skipped by simply using a bare comma (see example below).
@@ -117,7 +118,7 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // without a trailing , parameter.
 //
 // Examples:
-// NGRAPH_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
+// OPENVINO_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
 //                                ,                             // empty/skipped prefix
 //                                TestWithParamSubClass,        // test_suite_name
 //                                ::testing::Range(0, 3) )      // test generator
@@ -126,7 +127,7 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // BACKENDNAME/TestWithParamSubClass.test_name/1
 // BACKENDNAME/TestWithParamSubClass.test_name/2
 //
-// NGRAPH_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
+// OPENVINO_INSTANTIATE_TEST_SUITE_P(BACKENDNAME,                  // backend_name
 //                                NumericRangeTests,            // prefix
 //                                TestWithParamSubClass,        // test_suite_name
 //                                ::testing::Range(0, 3) )      // test generator
@@ -135,11 +136,11 @@ std::string combine_test_backend_and_case(const std::string& backend_name, const
 // BACKENDNAME/NumericRangeTests/BACKENDNAME/TestWithParamSubClass.test_name/1
 // BACKENDNAME/NumericRangeTests/BACKENDNAME/TestWithParamSubClass.test_name/2
 //
-// With the use of NGRAPH_TEST_P and NGRAPH_INSTANTIATE_TEST_SUITE_P
+// With the use of OPENVINO_TEST_P and OPENVINO_INSTANTIATE_TEST_SUITE_P
 // the filter to run all the tests for a given backend should be:
 // --gtest_filter=BACKENDNAME*.*
-// (rather than the BACKENDNAME.* that worked before the use of NGRAPH_TEST_P)
-#define NGRAPH_INSTANTIATE_TEST_SUITE_P(backend_name, prefix, test_suite_name, generator)                     \
+// (rather than the BACKENDNAME.* that worked before the use of OPENVINO_TEST_P)
+#define OPENVINO_INSTANTIATE_TEST_SUITE_P(backend_name, prefix, test_suite_name, generator)                     \
     static ::testing::internal::ParamGenerator<test_suite_name::ParamType>                                    \
         gtest_##prefix##backend_name##test_suite_name##_EvalGenerator_() {                                    \
         return generator;                                                                                     \

@@ -78,7 +78,6 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const {
     if (outputs[0]->get_partial_shape().is_dynamic()) {
-        std::map<size_t, HostTensorPtr> constant_data;
         std::vector<ov::PartialShape> input_shapes;
         input_shapes.reserve(inputs.size());
 
@@ -87,10 +86,9 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             if (input_shapes.back().is_dynamic()) {
                 return false;
             }
-            constant_data.emplace(i, inputs[i]);
         }
 
-        const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+        const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
         outputs[0]->set_element_type(inputs[0]->get_element_type());
         outputs[0]->set_shape(output_shape);
