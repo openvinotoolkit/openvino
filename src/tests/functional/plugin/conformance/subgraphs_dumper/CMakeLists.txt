@@ -11,28 +11,6 @@ list(APPEND LIBRARIES
         openvino::pugixml
 )
 
-list(APPEND DEPENDENCIES)
-
-if(TARGET openvino_ir_frontend)
-    list(APPEND DEPENDENCIES openvino_ir_frontend)
-endif()
-
-if(TARGET openvino_onnx_frontend)
-    list(APPEND DEPENDENCIES openvino_onnx_frontend)
-endif()
-
-if(TARGET openvino_paddle_frontend)
-    list(APPEND DEPENDENCIES openvino_paddle_frontend)
-endif()
-
-if(TARGET openvino_pytorch_frontend)
-    list(APPEND DEPENDENCIES openvino_pytorch_frontend)
-endif()
-
-if(TARGET openvino_tensorflow_frontend)
-    list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
-endif()
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -43,7 +21,7 @@ addIeTargetTest(
             PRIVATE
                 ${LIBRARIES}
         DEPENDENCIES
-            ${DEPENDENCIES}
+            ov_frontends
         ADD_CPPLINT
 )
 
