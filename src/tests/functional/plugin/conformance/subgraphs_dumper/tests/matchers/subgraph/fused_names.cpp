@@ -23,8 +23,33 @@ using namespace ov::tools::subgraph_dumper;
 class FusedNamesExtractorTest : public FusedNamesExtractor,
                                 public SubgraphsDumperBaseTest {
 protected:
-    void is_match(const std::shared_ptr<ov::Model>& model) {
+    void is_match_smoke(const std::shared_ptr<ov::Model>& model) {
         size_t graph_cnt = 0;
+        {
+            auto compiled_names = extract_compiled_model_names(model);
+            std::vector<size_t> op_cnt;
+            size_t current_op_cnt = 0;
+            for (const auto& op : model->get_ordered_ops()) {
+                if (this->is_node_to_skip(op)) {
+                    continue;
+                }
+                auto op_name = op->get_friendly_name();
+                if (!compiled_names.count(op_name)) {
+                    ++current_op_cnt;
+                } else {
+                    if (current_op_cnt > 1) {
+                        op_cnt.push_back(current_op_cnt);
+                    }
+                    current_op_cnt = 0;
+                }
+            }
+            graph_cnt = op_cnt.size();
+        }
+        auto models = this->extract(model);
+        ASSERT_EQ(models.size(), graph_cnt);
+    }
+
+    void is_match_2_runs(const std::shared_ptr<ov::Model>& model) {
         auto models_1 = this->extract(model);
         auto models_2 = this->extract(model);
         ASSERT_EQ(models_1.size(), models_2.size());
@@ -43,6 +68,11 @@ protected:
             ++it_model_1;
             ++it_model_2;
         }
+    }
+
+    void is_match(const std::shared_ptr<ov::Model>& model) {
+        is_match_smoke(model);
+        is_match_2_runs(model);
     }
 };
 

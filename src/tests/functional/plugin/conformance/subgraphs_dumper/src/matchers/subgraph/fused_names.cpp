@@ -15,8 +15,7 @@ using namespace ov::tools::subgraph_dumper;
 
 std::unordered_set<std::string>
 FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Model>& model) {
-    auto core = ov::test::utils::PluginCache::get().core();
-    auto compiled_model = core->compile_model(model);
+    auto compiled_model = core->compile_model(model, device);
     std::unordered_set<std::string> compiled_op_name;
     for (const auto& compiled_op : compiled_model.get_runtime_model()->get_ordered_ops()) {
         const auto& rt_info = compiled_op->get_rt_info();
@@ -25,6 +24,11 @@ FusedNamesExtractor::extract_compiled_model_names(const std::shared_ptr<ov::Mode
         }
     }
     return compiled_op_name;
+}
+
+FusedNamesExtractor::FusedNamesExtractor() {
+    core = ov::test::utils::PluginCache::get().core();
+    device = *(core->get_available_devices().begin());
 }
 
 std::list<ExtractedPattern>
