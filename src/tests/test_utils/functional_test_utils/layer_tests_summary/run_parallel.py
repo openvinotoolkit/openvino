@@ -50,6 +50,7 @@ def parse_arguments():
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
     split_unit_help = "Split by test or suite"
     repeat_help = "Number of times to repeat failed and interrupted tests"
+    post_progress_help = "Post progress analyze using the logs"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
@@ -58,7 +59,8 @@ def parse_arguments():
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="")
-    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=0)
+    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=False)
+    parser.add_argument("-pp", "--post_progress", help=post_progress_help, type=bool, required=False, default=False)
 
     return parser.parse_args()
 
@@ -291,6 +293,7 @@ class TestParallelRunner:
         test_list = list()
         with open(test_list_file_name) as test_list_file:
             test_suite = ""
+            id = 0
             for test_name in test_list_file.read().split('\n'):
                 if "Running main() from" in test_name:
                     continue
@@ -300,7 +303,11 @@ class TestParallelRunner:
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
                         elif (test_suite) :
-                            test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*')
+                            if (id % 359 == 0) :
+                                test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*:')
+                            else :
+                                test_list[-1] += f'"{self.__replace_restricted_symbols(test_suite)}"*:'
+                            id += 1
                     continue
                 pos = test_name.find('#')
                 if pos > 0 or test_suite != "":
@@ -761,11 +768,12 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --parallel_devices={args.parallel_devices}")
     logger.info(f"[ARGUMENTS] --split_unit={args.split_unit}")
     logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
+    logger.info(f"[ARGUMENTS] --post_progress={args.post_progress}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.repeat_failed, args.parallel_devices)
     conformance.run()
-    if not conformance.postprocess_logs():
+    if args.post_progress and not conformance.postprocess_logs():
         logger.error("Run is not successful")
         sys.exit(-1)
     else:
