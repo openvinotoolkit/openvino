@@ -416,3 +416,29 @@ def lstm_cell(
         "clip": clip,
     }
     return _get_node_factory_opset4().create("LSTMCell", node_inputs, attributes)
+
+
+@nameable_op
+def range(
+    start: Node,
+    stop: NodeInput,
+    step: NodeInput,
+    output_type: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces the Range operation.
+
+    :param start:       The start value of the generated range.
+    :param stop:        The stop value of the generated range.
+    :param step:        The step value for the generated range.
+    :param output_type: The output tensor type.
+    :param name:        Optional name for output node.
+    :return: Range node
+    """
+    return _get_node_factory_opset4().create(
+        "Range",
+        as_nodes(start, stop, step),
+        {
+            "output_type": output_type,
+        },
+    )

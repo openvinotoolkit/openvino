@@ -138,6 +138,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # for Python API tests
       /usr/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements_test.txt
+      /usr/bin/python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       /usr/bin/python3 -m pip uninstall -y numpy # apt-get install python3-numpy will be used
       # Speed up build
       sudo apt -y --no-install-recommends install unzip
@@ -351,20 +352,27 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'nGraph and IE Python Bindings Tests'
 
-    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       /usr/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py -v
     env:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
-      PYTHONPATH: $(INSTALL_TEST_DIR)
+      PYTHONPATH: $(INSTALL_TEST_DIR):$(REPO_DIR)/tools/mo/
     displayName: 'Python API 2.0 Tests'
+
+  # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+      PYTHONPATH: $(INSTALL_TEST_DIR)
+    displayName: 'ONNX Frontend Python Tests' 
 
   - script: |
       # TODO: fix 'No mock frontend API available'

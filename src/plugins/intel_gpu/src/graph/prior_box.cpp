@@ -280,15 +280,6 @@ tensor get_output_shape(int32_t height, int32_t width, int32_t number_of_priors)
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
-    if (prim->support_opset8) {
-        impl_type = impl_types::ocl;
-        constant = false;
-    } else {
-        constant = true;
-    }
-}
-
 void prior_box_node::calc_result() {
     if (result != nullptr)
         return;

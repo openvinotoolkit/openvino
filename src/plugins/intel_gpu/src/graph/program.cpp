@@ -157,6 +157,7 @@ program::program(engine& engine_ref,
       _config(config),
       _task_executor(task_executor),
       processing_order(),
+      is_internal(is_internal),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
@@ -181,7 +182,8 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(task_executor),
-      processing_order() {
+      processing_order(),
+      is_internal(is_internal) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
@@ -622,8 +624,7 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;

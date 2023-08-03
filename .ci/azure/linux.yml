@@ -63,7 +63,7 @@ jobs:
       #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+        PYTHON_STATIC_ARGS: -m "not dynamic_library"
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
@@ -178,6 +178,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For running TensorFlow frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
+      # For running torchvision -> OpenVINO preprocess converter
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_mxnet.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_caffe.txt
@@ -439,20 +441,25 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
+      $(RUN_PREFIX) python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph and IE Python Bindings Tests'
 
-    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
+      export LD_LIBRARY_PATH=$INSTALL_TEST_DIR:$LD_LIBRARY_PATH
+      $(RUN_PREFIX) python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
-        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py
     displayName: 'Python API 2.0 Tests'
+  
+  # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
+    displayName: 'ONNX Frontend Python Tests'
 
   - script: |
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml

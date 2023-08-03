@@ -1705,6 +1705,8 @@ TEST(constant, bad_get_data_ptr) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(constant, hold_host_tensor) {
     Shape shape{4};
     void* hostDataPtr = nullptr;
