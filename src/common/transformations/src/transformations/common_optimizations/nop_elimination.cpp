@@ -837,7 +837,7 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
         return pattern::consumers_count(1)(out) && pattern::rank_equals(0)(out);
     });
     auto reshape_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
-                                                                               pattern::rank_equals(1));
+                                                                                pattern::rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
