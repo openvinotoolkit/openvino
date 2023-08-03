@@ -24,8 +24,8 @@ void copy_conditional_flow_marker_with_branches(const CfMarkerType& copy_from,
                                                 unordered_map<uint32_t, SetOfBranchIndices>& copy_to_braches) {
     for (const auto& marker : copy_from.existing_markers_with_branches) {
         const auto& switch_marker = marker.first;
-        const auto& branch_markers = marker.second;
-        copy_to_braches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+        const auto& branch_indices = marker.second;
+        copy_to_braches[switch_marker].insert(branch_indices.begin(), branch_indices.end());
     }
 }
 
@@ -33,8 +33,8 @@ void copy_conditional_flow_marker_with_switches(const CfMarkerType& copy_from,
                                                 unordered_map<uint32_t, SetOfSwitchNodes>& copy_to_switches) {
     for (const auto& marker : copy_from.existing_markers_with_switches) {
         const auto& switch_marker = marker.first;
-        const auto& branch_markers = marker.second;
-        copy_to_switches[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+        const auto& switch_nodes = marker.second;
+        copy_to_switches[switch_marker].insert(switch_nodes.begin(), switch_nodes.end());
     }
 }
 
@@ -334,14 +334,11 @@ bool propagate_conditional_flow(const OutputVector& ov_inputs,
             resulted_cf_marker.existing_markers_with_branches = combined_markers_with_branches;
             resulted_cf_marker.existing_markers_with_switches = combined_markers_with_switches;
         } else {
-            // check that non-Merge node does not expect data/flow from different Switch branches
-            // it means inconsistent model
+            // non-Merge nodes can contain both branch markers of the same conditional flow
+            // it can happen if some conditional edge is going directly from Switch node to this non-Merge node
+            // it means that the output value is external for If represented with Switch-Merge nodes
+            // and must be executed before If
             for (const auto& marker : combined_markers_with_branches) {
-                auto branch_markers = marker.second;
-                FRONT_END_GENERAL_CHECK(
-                    branch_markers.size() < 2,
-                    "[TensorFlow Frontend] inconsistent input model: non-Merge node expects data or "
-                    "flow from different branches of one Switch node");
                 resulted_cf_marker.existing_markers_with_branches.insert(marker);
             }
             resulted_cf_marker.existing_markers_with_switches.insert(combined_markers_with_switches.begin(),
