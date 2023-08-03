@@ -103,9 +103,9 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
-            out_xml = os.path.join(tmpdir, Path("model.xml"))
+            out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert_model(input_model=model_path)
+            ov_model = convert_model(Path(model_path))
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             ir = IREngine(out_xml, out_xml.replace('.xml', '.bin'))
