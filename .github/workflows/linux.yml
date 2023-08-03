@@ -45,7 +45,7 @@ jobs:
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYTHON_STATIC_ARGS: -m "not dynamic_library"
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -486,7 +486,7 @@ jobs:
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYTHON_STATIC_ARGS: -m "not dynamic_library"
 
     steps:
       - name: Create Directories
@@ -530,6 +530,9 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
 
       - name: Install MO dependencies
         run: |
@@ -579,6 +582,7 @@ jobs:
           # For python imports to import pybind_mock_frontend
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          export LD_LIBRARY_PATH=${{ env.INSTALL_TEST_DIR }}:$LD_LIBRARY_PATH
 
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} \
             --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml \

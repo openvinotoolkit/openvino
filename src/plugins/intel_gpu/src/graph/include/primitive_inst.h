@@ -210,6 +210,7 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+    void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
     void configure_shape_of_dependencies();
 
@@ -236,7 +237,7 @@ public:
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
             bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
-    std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
     virtual void save(cldnn::BinaryOutputBuffer& ob) const;
     virtual void load(cldnn::BinaryInputBuffer& ib);
@@ -307,7 +308,7 @@ protected:
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
 
-    std::vector<memory::cptr> _intermediates_memory;
+    std::vector<memory::ptr> _intermediates_memory;
 
     mutable LruCache<layout, memory::ptr, layout::Hasher> _reordered_weights_cache;
 
