@@ -13,7 +13,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <memory>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 #include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
@@ -351,9 +351,9 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
 
 namespace {
 /**
- * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with 
+ * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
- *  
+ *
  */
 class RnnShapeInfer : public NgraphShapeInfer {
 public:

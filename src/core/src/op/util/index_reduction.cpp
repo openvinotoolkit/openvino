@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/index_reduction.hpp"
+#include "openvino/op/util/index_reduction.hpp"
 
 #include <memory>
 
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-
-using namespace std;
 
 ov::op::util::IndexReduction::IndexReduction() = default;
 
