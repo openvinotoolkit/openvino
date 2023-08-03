@@ -14,7 +14,7 @@
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;

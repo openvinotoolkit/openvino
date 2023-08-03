@@ -9,43 +9,11 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "shape_inference/custom/ngram.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-class NgramShapeInfer : public ShapeInferEmptyPads {
-public:
-    NgramShapeInfer(const size_t k) : m_k(k) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto output_shape = input_shapes[0].get();
-        output_shape[1] *= m_k;
-        return {{std::move(output_shape)}, ShapeInferStatus::success};
-    }
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    size_t m_k;
-};
-
-class NgramShapeInferFactory : public ShapeInferFactory {
-public:
-    NgramShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto ngram = ov::as_type_ptr<NgramNode>(m_op);
-        if (!ngram) {
-            IE_THROW(Unexpected) << "Wrong operation type";
-        }
-        return std::make_shared<NgramShapeInfer>(ngram->get_k());
-    }
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-}   // namespace
 
 bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {

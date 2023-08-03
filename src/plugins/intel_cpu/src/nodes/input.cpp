@@ -21,7 +21,7 @@
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/shape_inference/shape_inference_pass_through.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;

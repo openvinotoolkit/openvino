@@ -26,6 +26,7 @@
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
 #include "common/cpu_convert.h"
+#include "shape_inference/custom/fullyconnected.hpp"
 
 #include <string>
 #include <vector>
@@ -91,53 +92,6 @@ bool FCKey::operator==(const FCKey &rhs) const {
              implType == rhs.implType && useConv1x1 == rhs.useConv1x1;
     return retVal;
 }
-
-class FCShapeInfer : public ShapeInferEmptyPads {
-public:
-    FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const VectorDims& activationShape = input_shapes[0].get();
-        const VectorDims& weightShape = input_shapes[1].get();
-        size_t activationRank = activationShape.size();
-        size_t channelRank = weightShape.size() - 1;
-
-        // activation   weight    output_shape
-        // NCHW         CoCHW     NCo
-        // TNC          CoC       TNCo
-        // NC           CoC       NCo
-        VectorDims outputShape(out_rank, 1);
-        // set Co
-        outputShape.back() = weightShape[0];
-        // set batch dims
-        size_t batchRank = activationRank - channelRank;
-        size_t startIdx = out_rank - batchRank - 1;
-        for (size_t i = 0; i < batchRank; i++) {
-            outputShape[i + startIdx] = activationShape[i];
-        }
-
-        return {{std::move(outputShape)}, ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    size_t out_rank = 0;
-};
-
-class FCShapeInferFactory : public ShapeInferFactory {
-public:
-    FCShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
-    }
-
-private:
-    std::shared_ptr<const ngraph::Node> m_op;
-};
 
 } // namespace
 

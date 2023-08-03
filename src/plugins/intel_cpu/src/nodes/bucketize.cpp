@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include <ngraph/opsets/opset3.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 #include "ie_parallel.hpp"
 #include "bucketize.h"
 

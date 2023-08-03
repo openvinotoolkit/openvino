@@ -9,7 +9,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils.hpp"
-#include "utils/shape_inference/shape_inference.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

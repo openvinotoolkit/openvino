@@ -81,6 +81,21 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
+function(group_source_file GROUP_NAME GROUP_DIR)
+    file(GLOB GROUP_FILES  ${GROUP_DIR}/*.cpp)
+    foreach(file ${GROUP_FILES})
+        set_source_files_properties(${file} PROPERTIES UNITY_GROUP ${GROUP_NAME})
+    endforeach()
+endfunction()
+
+if(ENABLE_FASTER_BUILD) 
+    set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
+    group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
+    group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
+    group_source_file(unit_src_ngrah_transformation ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations)
+    group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
+endif()
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu

@@ -7,7 +7,7 @@
 #include "ie_parallel.hpp"
 #include <openvino/op/unique.hpp>
 #include "common/cpu_memcpy.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace ov::intel_cpu;

@@ -3,13 +3,12 @@
 //
 
 #pragma once
-
 #include <gtest/gtest.h>
 
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
-#include "utils/shape_inference/shape_inference.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 namespace ov {
