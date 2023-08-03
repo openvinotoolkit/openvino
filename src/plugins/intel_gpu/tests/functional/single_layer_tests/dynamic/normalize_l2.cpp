@@ -59,12 +59,6 @@ protected:
        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
        auto normalize = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
 
-       //rel_threshold = 0.015f;
-
-       //ngraph::ResultVector results;
-       //for (size_t i = 0; i < mvn->get_output_size(); ++i) {
-       //    results.push_back(std::make_shared<ngraph::opset1::Result>(mvn->output(i)));
-       //}
        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(normalize)};
        function = std::make_shared<ngraph::Function>(results, param, "NormalizeL2");
    }
