@@ -119,12 +119,20 @@ device_type get_device_type(const cl::Device& device) {
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
 
-gfx_version parse_version(cl_uint ver) {
-    uint16_t major = ver >> 16;
-    uint8_t minor = (ver >> 8) & 0xFF;
-    uint8_t revision = ver & 0xFF;
+gfx_version parse_version(cl_uint gmdid) {
+    union GMDID {
+        uint32_t value;
+        struct
+        {
+            uint32_t revision : 6;
+            uint32_t reserved : 8;
+            uint32_t release : 8;
+            uint32_t architecture : 10;
+        };
+    };
 
-    return {major, minor, revision};
+    GMDID gmd_id = {gmdid};
+    return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision) };
 }
 
 bool get_imad_support(const cl::Device& device) {
