@@ -36,20 +36,6 @@ TEST_F(ModelUtilsTest, generate_0) {
     }
     {
         SubgraphExtractor extractor;
-        if (!extractor.match(test_model, recovered_model)) {
-            ov::pass::Manager manager;
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/model_0.xml", "/Users/iefode/repo/temp/model_0.xml");
-                manager.run_passes(recovered_model);
-                recovered_model->validate_nodes_and_infer_types();
-            }
-
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/orig_model_0.xml", "/Users/iefode/repo/temp/orig_model_0.xml");
-                manager.run_passes(test_model);
-                test_model->validate_nodes_and_infer_types();
-            }
-        }
         ASSERT_TRUE(extractor.match(test_model, recovered_model));
     }
 }
@@ -65,19 +51,6 @@ TEST_F(ModelUtilsTest, generate_1) {
     }
     {
         SubgraphExtractor extractor;
-        if (!extractor.match(test_model, recovered_model)) {
-            ov::pass::Manager manager;
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/model_1.xml", "/Users/iefode/repo/temp/model_1.xml");
-                manager.run_passes(recovered_model);
-                recovered_model->validate_nodes_and_infer_types();
-            }
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/orig_model_1.xml", "/Users/iefode/repo/temp/orig_model_1.xml");
-                manager.run_passes(test_model);
-                test_model->validate_nodes_and_infer_types();
-            }
-        }
         ASSERT_TRUE(extractor.match(test_model, recovered_model));
     }
 }
@@ -94,20 +67,6 @@ TEST_F(ModelUtilsTest, generate_2) {
     }
     {
         SubgraphExtractor extractor;
-        if (!extractor.match(test_model, recovered_model)) {
-            ov::pass::Manager manager;
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/model_2.xml", "/Users/iefode/repo/temp/model_2.xml");
-                manager.run_passes(recovered_model);
-                recovered_model->validate_nodes_and_infer_types();
-            }
-
-            {
-                manager.register_pass<ov::pass::Serialize>("/Users/iefode/repo/temp/orig_model_2.xml", "/Users/iefode/repo/temp/orig_model_2.xml");
-                manager.run_passes(test_model);
-                test_model->validate_nodes_and_infer_types();
-            }
-        }
         ASSERT_TRUE(extractor.match(test_model, recovered_model));
     }
 }
