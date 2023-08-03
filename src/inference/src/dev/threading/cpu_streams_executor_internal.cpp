@@ -72,51 +72,57 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                  std::vector<std::vector<int>>& _proc_type_table,
                                  std::vector<std::vector<int>>& _stream_processors,
                                  const int _cpu_status) {
-    std::vector<std::vector<int>> streams_info_table = _streams_info_table;
+    std::vector<std::vector<int>> streams_table;
     std::vector<std::vector<std::string>> stream_conditions;
     std::vector<int> stream_pos;
     std::vector<int> stream_num;
     int num_streams = 0;
+    int num_conditions = 0;
+    int condition_idx = 0;
+    bool last_all_proc = false;
 
-    stream_pos.assign(_streams_info_table.size(), 0);
-    stream_num.assign(_streams_info_table.size(), 0);
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        stream_pos[i] = num_streams;
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            stream_pos.push_back(num_streams);
+        }
         num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
     }
+    num_conditions = static_cast<int>(stream_pos.size());
     _stream_processors.assign(num_streams, std::vector<int>());
-    stream_conditions.assign(_streams_info_table.size(), std::vector<std::string>());
+    stream_conditions.assign(num_conditions, std::vector<std::string>());
+    stream_num.assign(num_conditions, 0);
+
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
         std::vector<std::string> proc_types;
         std::vector<std::string> numa_nodes;
         std::vector<std::string> sockets;
-        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            streams_table.push_back(_streams_info_table[i]);
+        }
+        if (last_all_proc && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            last_all_proc = false;
+            condition_idx++;
+        }
+        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC) {
             proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
-        }
-        if (num_streams == 1 && _streams_info_table[0][PROC_TYPE] == MAIN_CORE_PROC &&
-            _streams_info_table[0][THREADS_PER_STREAM] > _proc_type_table[0][MAIN_CORE_PROC]) {
-            proc_types.push_back(std::to_string(HYPER_THREADING_PROC));
-        }
-        if (_streams_info_table[i][STREAM_NUMA_NODE_ID] < 0) {
-            for (int j = 0; j < _numa_nodes; j++) {
-                numa_nodes.push_back(std::to_string(j));
-            }
         } else {
+            last_all_proc = true;
+        }
+        if (_streams_info_table[i][STREAM_NUMA_NODE_ID] >= 0) {
             numa_nodes.push_back(std::to_string(_streams_info_table[i][STREAM_NUMA_NODE_ID]));
         }
-        if (_streams_info_table[i][STREAM_SOCKET_ID] < 0) {
-            for (int j = 0; j < _numa_nodes; j++) {
-                sockets.push_back(std::to_string(j));
-            }
-        } else {
+        if (_streams_info_table[i][STREAM_SOCKET_ID] >= 0) {
             sockets.push_back(std::to_string(_streams_info_table[i][STREAM_SOCKET_ID]));
         }
         for (auto t : proc_types) {
             for (auto n : numa_nodes) {
                 for (auto s : sockets) {
-                    stream_conditions[i].push_back(t + n + s);
+                    stream_conditions[condition_idx].push_back(t + n + s);
                 }
             }
+        }
+        if (_streams_info_table[i][PROC_TYPE] > ALL_PROC && _streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
+            condition_idx++;
         }
     }
 
@@ -130,11 +136,11 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                 _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
                 if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
-                    _streams_info_table[j][THREADS_PER_STREAM]) {
+                    streams_table[j][THREADS_PER_STREAM]) {
                     stream_pos[j]++;
                     stream_num[j]++;
                 }
-                if (stream_num[j] >= _streams_info_table[j][NUMBER_OF_STREAMS]) {
+                if (stream_num[j] >= streams_table[j][NUMBER_OF_STREAMS]) {
                     stream_conditions[j].clear();
                 }
                 break;
