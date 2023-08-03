@@ -37,31 +37,16 @@ public:
 
 INSTANTIATE_TEST_SUITE_P(device_name, ov_multithreading_test, ::testing::Values("CPU"));
 
-TEST_P(ov_multithreading_test, get_property) {
+TEST_P(ov_multithreading_test, compile_model) {
     auto device_name = GetParam();
-    ov_core_t* core = nullptr;
-    OV_EXPECT_OK(ov_core_create(&core));
-    EXPECT_NE(nullptr, core);
-
-    ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
-    EXPECT_NE(nullptr, model);
-
-    ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
-    EXPECT_NE(nullptr, compiled_model);
-
-    const char* key = ov_property_key_supported_properties;
-    char* result = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
-    runParallel(
-        [&]() {
-            ov_compiled_model_get_property(compiled_model, key, &result);
-        },
-        10000);
-
-    ov_free(result);
-    ov_compiled_model_free(compiled_model);
-    ov_model_free(model);
-    ov_core_free(core);
+    std::atomic<unsigned int> counter{0u};
+    runParallel([&]() {
+        auto value = counter++;
+        ov_core_t* core = nullptr;
+        ov_core_create(&core);
+        ov_model_t* model = nullptr;
+        ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
+        ov_compiled_model_t* compiled_model = nullptr;
+        ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model);
+    });
 }
