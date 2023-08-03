@@ -3,6 +3,7 @@ import shutil
 import os
 import sys
 import subprocess
+from enum import Enum
 import re
 import json
 import logging as log
@@ -208,11 +209,14 @@ def runCommandList(commit, cfgData, enforceClean=False):
         if "catchMsg" in cmd:
             isErrFound = re.search(cmd["catchMsg"], checkOut)
             if isErrFound:
-                if skipCleanInterval:
+                if skipCleanInterval or True:
+                    # to-do skipEnabled instead
                     commitLogger.info("Build error: clean is necessary")
                     raise NoCleanFailedError()
                 else:
-                    raise CmdError(checkOut)
+                    # to-do CmdError and BuildError
+                    raise BuildError
+                    # raise CmdError(checkOut)
 
 
 def fetchAppOutput(cfg, commit):
@@ -250,6 +254,8 @@ def handleCommit(commit, cfgData):
         cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
+# # to-do: fix no-clean ahd swap exceptions
+#     except (BuildError):
     except (NoCleanFailedError):
         cfgData["trySkipClean"] = False
         runCommandList(commit, cfgData)
@@ -324,12 +330,20 @@ class CmdError(Exception):
     pass
 
 
-class NoCleanFailedError(Exception):
-    pass
-
-
 class RepoError(Exception):
     pass
+
+
+class BuildError(Exception):
+    class BuildErrType(Enum):
+        TO_REBUILD = 1
+        TO_SKIP = 2
+        TO_STOP = 3
+    def __init__(self, message, errType):
+        self.message = message
+        self.errType = errType
+    def __str__(self):
+        return self.message
 
 
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):

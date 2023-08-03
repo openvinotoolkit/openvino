@@ -1,7 +1,7 @@
 import os
 from utils.helpers import fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail
-from utils.helpers import handleCommit, runCommandList, getBlobDiff
+from utils.helpers import handleCommit, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError, CmdError
 import re
 import shutil
@@ -78,7 +78,7 @@ class BenchmarkAppPerformanceMode(Mode):
             commitLogger.info(logMsg)
             foundThroughput = cashedThroughput
         else:
-            runCommandList(sampleCommit, cfg, enforceClean=True)
+            handleCommit(sampleCommit, cfg)
             output = fetchAppOutput(cfg, sampleCommit)
             commitLogger.info(output)
             foundThroughput = re.search(
@@ -164,7 +164,7 @@ class CompareBlobsMode(Mode):
             self.commonLogger.info("New commit: {commit}".format(
                 commit=commit)
             )
-            runCommandList(commit, cfg, enforceClean=True)
+            handleCommit(commit, cfg)
             output = fetchAppOutput(cfg, commit)
             commitLogger.info(output)
             filename = self.setCommitCash(commit, None)

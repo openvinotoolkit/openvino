@@ -169,7 +169,22 @@ class Mode(ABC):
         def visit(self, cPath, commitToReport):
             cPath.append(commitToReport)
 
+        def validateCommit(self, commit, cfg):
+            try:
+                self.mode.getPseudoMetric(commit, cfg)
+            except (util.BuildError):
+                oldScl = cfg["skippedCommitList"]
+                oldScl.append(commit)
+                curList.remove(commit)
+
+        def validateCurList(self, curList, list, cfg):
+            if (not cfg["skipMode"]["flagSet"]["enableSkips"]):
+                pass
+            self.validateCommit(list[0], cfg)
+            self.validateCommit(list[-1], cfg)
+
         def prepBypass(self, curList, list, cfg):
+            self.validateCurList(curList, list, cfg)
             skipInterval = cfg["noCleanInterval"]
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
