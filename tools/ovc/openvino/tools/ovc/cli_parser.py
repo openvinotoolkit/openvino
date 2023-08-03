@@ -318,7 +318,7 @@ def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
     if isinstance(paths, (list, tuple)):
         paths_list = [readable_file_or_dir_or_object(path) for path in paths]
     if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_dir_or_object(path) for path in paths.split(',')]
+        paths_list = [readable_file_or_dir_or_object(path) for path in str(paths).split(',')]
 
     return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
 
@@ -331,7 +331,7 @@ def readable_files_or_empty(paths: [str, list, tuple]):
     if isinstance(paths, (list, tuple)):
         return [readable_file_or_object(path) for path in paths]
     if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_object(path) for path in paths.split(',')]
+        paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
         return paths_list
     return paths
 
