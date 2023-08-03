@@ -102,16 +102,15 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "Convolution",
         "FP32"
     },
-    // TODO: US #116899
     // not supported quantization level on weights
-    //{
-    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-    //    false,
-    //    { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
-    //    false,
-    //    "Convolution",
-    //    "FP32"
-    //},
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
