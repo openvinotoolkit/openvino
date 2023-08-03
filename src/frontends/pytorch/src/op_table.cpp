@@ -84,6 +84,7 @@ OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
@@ -328,6 +329,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
+        {"aten::linspace", op::translate_linspace},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
         {"aten::log_softmax", op::translate_log_softmax},
