@@ -644,10 +644,10 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     }
     // need to reload network, unregister it's priority
     // there maybe potential issue.
-    // for example they are dGPU, VPUX, iGPU, customer want to LoadNetwork with
-    // configure 0 dGPU, 1 VPUX, if dGPU load failed,
-    // the result will be not sure, maybe two network are loaded into VPUX,
-    // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
+    // for example they are dGPU, NPU, iGPU, customer want to LoadNetwork with
+    // configure 0 dGPU, 1 NPU, if dGPU load failed,
+    // the result will be not sure, maybe two network are loaded into NPU,
+    // maybe 0 is loaded to NPU, 1 is loaded to iGPU
     _autoSContext->_plugin->UnregisterPriority(_autoSContext->_modelPriority, context.deviceInfo.uniqueName);
     // remove the current device from deviceList
     auto eraseDevice = deviceChecker().checkAndReturnIfDeviceInList(device, deviceList, true);

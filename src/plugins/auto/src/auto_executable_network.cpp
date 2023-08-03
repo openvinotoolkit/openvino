@@ -215,7 +215,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                             iie.what());
                     }
                     real = (std::max)(requests, optimalBatchSize);
-                } else if (deviceInfo.deviceName.find("VPUX") != std::string::npos) {
+                } else if (deviceInfo.deviceName.find("NPU") != std::string::npos) {
                     real = 8u;
                 } else {
                     real = upperBoundStreamsNum ? 2 * upperBoundStreamsNum : defaultNumForTPUT;

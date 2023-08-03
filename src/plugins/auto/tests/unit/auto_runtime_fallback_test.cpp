@@ -150,7 +150,7 @@ public:
         IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(supportConfigs));
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
-        std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
+        std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1", "NPU"};
         ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
 
         std::vector<std::string> metrics = {METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
@@ -275,7 +275,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(0));
                             return mockInferrequestGPU_1; }));
             }
-        } else if (deviceName == "VPUX") {
+        } else if (deviceName == "NPU") {
             mockInferrequestVPUX = std::make_shared<mockAsyncInferRequest>(
                 inferReqInternalVPUX, mockExecutorVPUX, nullptr, ifThrow);
             ON_CALL(*mockIExeNetVPUX.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
@@ -321,10 +321,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 2, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 3, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 3, true, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"NPU", false}}, 1, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 2, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", false}}, 3, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", true}}, 3, true, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
@@ -345,10 +345,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, false, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"NPU", false}}, 1, false, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", true}}, 1, false, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
@@ -358,8 +358,8 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false, true, false, false},
     // loadFail and CreateInferRequestFail
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 3, true, false, true, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 3, true, false, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 3, true, false, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 3, true, false, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoRuntimeFallback, AutoRuntimeFallback,

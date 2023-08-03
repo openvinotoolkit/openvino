@@ -544,7 +544,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             MYRIAD.push_back(item);
             continue;
         }
-        if (item.deviceName.find("VPUX") == 0) {
+        if (item.deviceName.find("NPU") == 0) {
             VPUX.push_back(item);
             continue;
         }
@@ -566,7 +566,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
         }
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > NPU > iGPU > MYRIAD > CPU
     std::list<DeviceInformation> devices;
     if (networkPrecision == "INT8") {
         devices.splice(devices.end(), VPUX);
