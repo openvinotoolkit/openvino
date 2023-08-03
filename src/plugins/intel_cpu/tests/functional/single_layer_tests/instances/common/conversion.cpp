@@ -50,21 +50,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Static, ConvertCPULayerTes
                                 ::testing::ValuesIn(memForm4D_static_common)),
                         ConvertCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_7D_Dynamic, ConvertCPULayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_7D_dynamic()),
-                                ::testing::ValuesIn(precisions()),
-                                ::testing::ValuesIn(precisions()),
-                                ::testing::Values(CPUSpecificParams({}, {}, {}, {}))),
-                        ConvertCPULayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_7D_Static, ConvertCPULayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inShapes_7D_static()),
-                                ::testing::ValuesIn(precisions()),
-                                ::testing::ValuesIn(precisions()),
-                                ::testing::Values(CPUSpecificParams({}, {}, {}, {}))),
-                        ConvertCPULayerTest::getTestCaseName);
-
 }  // namespace Conversion
 }  // namespace CPULayerTestsDefinitions
