@@ -33,6 +33,7 @@ op::v3::Broadcast::Broadcast(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
     AxisSet broadcast_axes;

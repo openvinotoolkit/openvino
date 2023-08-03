@@ -12,7 +12,6 @@
 #include "default_opset.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"

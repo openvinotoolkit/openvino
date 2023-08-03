@@ -169,6 +169,7 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
     return ov::op::v0::Constant(tensor.get_element_type(), tensor.get_shape(), const_cast<void*>(tensor.data()));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
@@ -183,6 +184,7 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 ov::op::v0::Constant create_shared(ov::Tensor& tensor) {

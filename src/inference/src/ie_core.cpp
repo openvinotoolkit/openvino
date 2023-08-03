@@ -86,7 +86,7 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
+    std::string xmlConfigFile_ = ov::find_plugins_xml(xmlConfigFile);
     if (!xmlConfigFile_.empty())
         // If XML is default, load default plugins by absolute paths
         _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());

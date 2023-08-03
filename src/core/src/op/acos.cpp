@@ -28,6 +28,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVe
     return std::make_shared<Acos>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace acosop {
 namespace {
 template <ov::element::Type_t ET>
