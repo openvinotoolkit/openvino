@@ -587,6 +587,55 @@ std::shared_ptr<ov::Model> MHAINT8MatMulFunction::initOriginal() const {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
+std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
+    auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    auto transpose1Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    auto addParam = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    auto transpose2Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[3]);
+    ngraph::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
+
+    const auto channel = int64_t(12);
+    const auto last_dim = input_shapes[0].get_shape().back();
+    OPENVINO_ASSERT(last_dim % channel == 0, "Incorrect test configuration");
+    const auto new_shape = std::vector<int64_t>{0, 0, channel, static_cast<int64_t>(last_dim) / channel};
+
+    auto reshape0Const = ngraph::builder::makeConstant(ngraph::element::i64, {new_shape.size()}, new_shape);
+    auto reshape1Const = ngraph::builder::makeConstant(ngraph::element::i64, {new_shape.size()}, new_shape);
+    auto reshape2Const = ngraph::builder::makeConstant(ngraph::element::i64, {new_shape.size()}, new_shape);
+    auto reshape3Const = ngraph::builder::makeConstant(ngraph::element::i64, {input_shapes[0].size()}, std::vector<int64_t>{0, 0, -1});
+
+    auto transpose0Const = ngraph::builder::makeConstant(ngraph::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose1Const = ngraph::builder::makeConstant(ngraph::element::i64, {4}, std::vector<int64_t>{0, 2, 3, 1});
+    auto transpose2Const = ngraph::builder::makeConstant(ngraph::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose3Const = ngraph::builder::makeConstant(ngraph::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
+
+    const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(transpose1Param, reshape1Const, true);
+    const auto reshape2 = std::make_shared<ov::op::v1::Reshape>(transpose2Param, reshape2Const, true);
+
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(reshape1, transpose1Const);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(reshape2, transpose2Const);
+
+    auto fq0 = ngraph::builder::makeFakeQuantize(transpose0Param, ov::element::f32, 256, {1},
+                                                 {-12.5187311}, {12.4209289}, {-12.5187311}, {12.4209289});
+    auto fq1 = ngraph::builder::makeFakeQuantize(transpose1, ov::element::f32, 256, {1},
+                                                 {-1.43326699}, {1.42206954}, {-1.43326699}, {1.42206954});
+
+    const auto reshape0 = std::make_shared<ov::op::v1::Reshape>(fq0, reshape0Const, true);
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(reshape0, transpose0Const);
+
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, fq1);
+    const auto add = std::make_shared<ngraph::opset3::Add>(matMul0, addParam);
+    const auto softMax = std::make_shared<ngraph::opset8::Softmax>(add, -1);
+
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2);
+    auto fq2 = ngraph::builder::makeFakeQuantize(matMul1, ov::element::f32, 256, {1},
+                                                 {-1.81826221}, {1.804057}, {-1.81826221}, {1.804057});
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fq2, transpose3Const);
+    const auto reshape3 = std::make_shared<ov::op::v1::Reshape>(transpose3, reshape3Const, true);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
 std::shared_ptr<ov::Model> MHAFQFunction::initOriginal() const {
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
     auto transpose1Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);

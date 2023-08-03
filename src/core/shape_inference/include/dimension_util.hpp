@@ -12,6 +12,27 @@ namespace ov {
 namespace util {
 namespace dim {
 
+template <class TDim, typename std::enable_if<std::is_arithmetic<TDim>::value>::type* = nullptr>
+constexpr bool is_static(const TDim) {
+    return true;
+}
+
+template <class TDim, typename std::enable_if<!std::is_arithmetic<TDim>::value>::type* = nullptr>
+constexpr bool is_static(const TDim& d) {
+    return d.is_static();
+}
+
+template <class TDim>
+constexpr typename std::enable_if<std::is_arithmetic<TDim>::value, TDim>::type get_length(const TDim& d) {
+    return d;
+}
+
+template <class TDim>
+constexpr typename std::enable_if<!std::is_arithmetic<TDim>::value, typename TDim::value_type>::type get_length(
+    const TDim& d) {
+    return d.get_length();
+}
+
 constexpr int64_t inf_bound = -1;  //!< Infinite bound value for dimension.
 
 /**
@@ -132,10 +153,12 @@ typename std::enable_if<std::is_class<TDim>::value, TDim>::type padded(const TDi
  * @param stride       Kernel stride.
  * @return Pair of left, right padding values for input dimension.
  */
-template <class TDim, class T = typename TDim::value_type>
+template <
+    class TDim,
+    class T = typename std::conditional<std::is_arithmetic<TDim>::value, size_t, typename Dimension::value_type>::type>
 inline std::pair<T, T> padding(const TDim& dim, const int64_t kernel_size, const int64_t dilation, int64_t stride) {
-    if (dim.is_static()) {
-        const auto dim_size = static_cast<int64_t>(dim.get_length());
+    if (dim::is_static(dim)) {
+        const auto dim_size = static_cast<int64_t>(dim::get_length(dim));
         const auto dilated_kernel = dilated(kernel_size, dilation);
         const int64_t tmp = (dim_size + stride - 1) / stride;
 
@@ -194,6 +217,36 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
 }
 
 /**
+ * @brief Check if dimension is empty.
+ *
+ * For static dimension the empty dimension is equal to zero dimension.
+ *
+ * @tparam TDim  Dimension type.
+ * @param d      Dimension for check.
+ * @return true if dimension is empty otherwise false.
+ */
+template <class TDim,
+          typename std::enable_if<!std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_empty(TDim&& d) {
+    return d == typename std::decay<TDim>::type{};
+}
+
+/**
+ * @brief Check if dimension is empty.
+ *
+ * For iv::Dimension the empty means that has no dimension at all.
+ *
+ * @tparam TDim  Dimension type.
+ * @param d      Dimension for check.
+ * @return true if dimension is empty otherwise false.
+ */
+template <class TDim,
+          typename std::enable_if<std::is_same<Dimension, typename std::decay<TDim>::type>::value>::type* = nullptr>
+bool is_empty(TDim&& d) {
+    return d.get_interval().empty();
+}
+
+/**
  * @brief Check if dimension is evenly divisible.
  *
  * @tparam TDim     Dimension type.
@@ -203,12 +256,7 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
  */
 template <class TDim>
 bool is_divisible(const TDim& quotient, const typename TDim::value_type dividend) {
-    return quotient / dividend != TDim{};
-}
-
-template <>
-inline bool is_divisible<Dimension>(const Dimension& quotient, const typename Dimension::value_type dividend) {
-    return !(quotient / dividend).get_interval().empty();
+    return !is_empty(quotient / dividend);
 }
 
 /**
@@ -235,7 +283,6 @@ void scale(TDim& d, float scale) {
         }
     }
 }
-
 }  // namespace dim
 }  // namespace util
 }  // namespace ov

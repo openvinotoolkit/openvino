@@ -22,7 +22,7 @@ std::string generate_test_xml_file() {
     plugin_xml_file << "<ie>\n";
     plugin_xml_file << "    <plugins>\n";
     plugin_xml_file << "        <plugin location=\"";
-    plugin_xml_file << CommonTestUtils::getExecutableDirectory();
+    plugin_xml_file << ov::test::utils::getExecutableDirectory();
     plugin_xml_file << ov::util::FileTraits<char>::file_separator;
     plugin_xml_file << ov::util::FileTraits<char>::library_prefix();
     plugin_xml_file << "mock_engine";

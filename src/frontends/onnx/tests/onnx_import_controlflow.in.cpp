@@ -8,7 +8,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "default_opset.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/type.hpp"
@@ -31,8 +30,8 @@ static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 //     for (int i=0; i < trip_count; ++i) {
 //       cond = ...; // ignored
 //     }
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/controlflow/loop_2d_add.onnx"));
 
@@ -66,9 +65,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add) {
 //     for (int i=0; cond; ++i) {
 //       cond = ...;
 //     }
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_no_identity_termination_cond.onnx"));
 
@@ -83,9 +82,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_2d_add_trip_count_max_int.onnx"));
 
@@ -100,9 +99,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_max_int) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_static_shapes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_static_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_no_identity_termination_cond_static_shapes.onnx"));
 
@@ -118,9 +117,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
 
 // cond = false
 // input ("", cond) // Note this is analogous to a while loop
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_false) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_false) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_no_identity_termination_cond_false.onnx"));
 
@@ -138,9 +137,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
 //      for (int i=0; cond; ++i) {
 //        cond = ...;
 //      }
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond.onnx"));
 
@@ -153,9 +152,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond_static_shapes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond_static_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_const_no_identity_termination_cond_static_shapes.onnx"));
 
@@ -173,9 +172,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
 //      for (int i=0; i < trip_count && cond; ++i) {
 //        cond = ...;
 //      }
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs.onnx"));
 
@@ -194,9 +193,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs_static_shapes) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs_static_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_cond_and_trip_count_as_inputs_static_shapes.onnx"));
 
@@ -216,9 +215,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
 
 // ~~~~~~~~SCOPES VISIBILITY TESTS:~~~~~~~~
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_initializer_from_parent_scope.onnx"));
 
@@ -232,9 +231,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_node_from_parent_scope.onnx"));
 
@@ -247,9 +246,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_used_in_parent_and_in_body) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_used_in_parent_and_in_body) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_add_node_from_parent_scope_used_in_parent_and_in_body.onnx"));
 
@@ -265,10 +264,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_us
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scope_exception) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scope_exception) {
     try {
         const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                  SERIALIZED_ZOO,
                                  "onnx/controlflow/loop_2d_add_incorrect_access_body_scope.onnx"));
         FAIL() << "Incorrect access to body scope not detected";
@@ -280,9 +279,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scop
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_2d_add_the_same_name.onnx"));
 
@@ -295,9 +294,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_input_from_parent_graph.onnx"));
 
@@ -312,9 +311,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph) 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_2d_mul_opset1.onnx"));
 
@@ -332,9 +331,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
 
 // ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_scalars_add.onnx"));
 
@@ -347,9 +346,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_2d_add_const_cond.onnx"));
 
@@ -362,9 +361,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_2d_add_trip_count_dynamic.onnx"));
 
@@ -380,9 +379,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic) {
 }
 
 // ~~~~~~~~SUBGRAPH TYPES INFERENCE:~~~~~~~~
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/onnx_controlflow_loop_2d_infer_types.onnx"));
 
@@ -400,9 +399,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_infer_types) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_infer_types) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_infer_types) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_add_node_from_parent_scope_infer_types.onnx"));
 
@@ -420,9 +419,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope_in
 
 // ~~~~~~~~ADDITIONAL TESTS:~~~~~~~~
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/loop_concat_values.onnx"));
 
@@ -446,9 +445,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_concat_values) {
 //       for (int i=0; ; ++i) {
 //         cond = ... // Note this value is ignored, but is required in the body
 //       }
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped_shape_inference) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped_shape_inference) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_2d_add_trip_count_and_cond_skipped.onnx"));
 
@@ -464,8 +463,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skippe
 }
 
 // infinitive loop execution
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/controlflow/loop_infinite.onnx"));
 
@@ -486,9 +485,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outputs) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/loop_no_variadic_inputs_and_outputs.onnx"));
 
@@ -503,8 +502,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_output
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/controlflow/loop_pow.onnx"));
 
@@ -521,7 +520,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
     /*
        if (condition) {
          add(x, y)
@@ -530,7 +529,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
        }
     */
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_branches_with_same_inputs.onnx"));
 
@@ -561,7 +560,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
     /*
        if (condition) {
          add(x, y)
@@ -570,7 +569,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
        }
     */
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_branches_with_different_inputs.onnx"));
 
@@ -601,7 +600,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
     /*
        if (condition) {
          return const tensor {0, 1, 2, 3, 4, 5, 6, 7}
@@ -610,7 +609,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
        }
     */
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_branches_without_inputs.onnx"));
 
@@ -627,7 +626,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_without_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
     /*
        if (condition) {
          if (any(x > y) {
@@ -639,7 +638,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
          sub(x, y)
        }
     */
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/controlflow/if_inside_if.onnx"));
 
@@ -685,7 +684,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
     /*
        if (condition) {
          split(x, axis=0)
@@ -695,7 +694,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
        }
     */
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_branches_with_multiple_outputs.onnx"));
 
@@ -726,7 +725,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
     /*
         for (i = 0; i < 3; i++) {
             if (i == 0)
@@ -735,7 +734,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
                 a = a * b
         }
     */
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/controlflow/if_inside_loop.onnx"));
 
@@ -748,7 +747,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_loop) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
     /*
        unsq = unsqueeze(input)
        padded = pad(unsq)
@@ -761,7 +760,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
        output = add(input, if_output)
     */
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/controlflow/if_with_only_indentity_in_else_branch.onnx"));
 
@@ -777,7 +776,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
     /*
         for (i = 0; i < 5; i++) {
             if (i > 2) {
@@ -792,7 +791,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
     */
 
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_inside_if_inside_loop.onnx"));
 
@@ -805,7 +804,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if_inside_loop) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     /*
        if (condition) {
          add(x, y)
@@ -814,7 +813,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
        }
     */
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/controlflow/if_dynamic_inputs.onnx"));
 
@@ -843,10 +842,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     try {
         const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                 SERIALIZED_ZOO,
                                                                 "onnx/controlflow/if_missing_then_branch.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";
@@ -858,7 +857,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
 
     try {
         const auto function =
-            onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                 SERIALIZED_ZOO,
                                                                 "onnx/controlflow/if_missing_else_branch.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";
@@ -869,10 +868,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_missing_branches) {
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_if_negative_mismatch_between_branches_output) {
     try {
         const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                  SERIALIZED_ZOO,
                                  "onnx/controlflow/if_negative_mismatch_between_branches_output.onnx"));
         FAIL() << "Model import succeed, but it shouldn't";

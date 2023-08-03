@@ -43,7 +43,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
@@ -58,7 +58,7 @@ namespace {
                                     ::testing::ValuesIn(direction),
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
 }  // namespace

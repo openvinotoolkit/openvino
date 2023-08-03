@@ -30,8 +30,8 @@ std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roia
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "pooled_h=" << pooledH << "_";
     result << "pooled_w=" << pooledW << "_";
     result << "spatial_scale=" << spatialScale << "_";
@@ -143,8 +143,8 @@ std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<ro
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "coord_shape=" << CommonTestUtils::vec2str(coordsShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "coord_shape=" << ov::test::utils::vec2str(coordsShape) << "_";
     result << "pooled_h=" << pooledH << "_";
     result << "pooled_w=" << pooledW << "_";
     result << "spatial_scale=" << spatialScale << "_";

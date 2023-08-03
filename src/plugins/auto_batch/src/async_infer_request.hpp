@@ -22,6 +22,8 @@ public:
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+
     std::shared_ptr<ov::autobatch_plugin::SyncInferRequest> m_sync_request;
 
     ov::SoPtr<ov::IAsyncInferRequest> m_request_without_batch;

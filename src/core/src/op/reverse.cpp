@@ -70,6 +70,7 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
     return allowed_values.at(mode);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reverseop {
 template <element::Type_t ET>
 void get_axes(AxisSet& axes, const HostTensorPtr& in) {

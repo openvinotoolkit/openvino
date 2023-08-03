@@ -279,15 +279,18 @@ class TestParallelRunner:
         with open(test_list_file_name) as test_list_file:
             test_suite = ""
             for test_name in test_list_file.read().split('\n'):
+                if "Running main() from" in test_name:
+                    continue
+                if not ' ' in test_name:
+                    test_suite = test_name
+                    continue
                 pos = test_name.find('#')
-                if pos > 0:
-                    real_test_name = test_suite + test_name[2:pos-2]
+                if pos > 0 or test_suite != "":
+                    real_test_name = test_suite + (test_name[2:pos-2] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     else:
                         test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
-                else:
-                    test_suite = test_name
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(f"Len test_list_runtime (without disabled tests): {len(test_list)}")
@@ -681,11 +684,13 @@ class TestParallelRunner:
                                 copyfile(xml_file, failed_ir_xml)
                                 copyfile(bin_file, failed_ir_bin)
                                 copyfile(meta_file, failed_ir_meta)
-                output_file_name = failed_ir_dir + '.tar'
-                with tar_open(output_file_name, "w:gz") as tar:
-                    tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
-                    logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
-                rmtree(failed_ir_dir)
+                # api conformance has no failed irs
+                if os.path.exists(failed_ir_dir):
+                    output_file_name = failed_ir_dir + '.tar'
+                    with tar_open(output_file_name, "w:gz") as tar:
+                        tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
+                        logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
+                    rmtree(failed_ir_dir)
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:

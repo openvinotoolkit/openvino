@@ -38,7 +38,9 @@ public:
 
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
+    OPENVINO_SUPPRESS_DEPRECATED_START
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// \brief Initialize a constant from ov::Tensor
     /// \param tensor The ov::Tensor with data
@@ -165,6 +167,7 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Constructs a tensor constant with the supplied data
     ///
     /// \param type The element type of the tensor constant.
@@ -177,6 +180,7 @@ public:
         m_data = data;
         constructor_validate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Constant(const Constant& other);
     Constant(const Constant& other, const Shape& new_shape);
@@ -237,7 +241,9 @@ public:
 
     /// \brief Return data size in bytes
     size_t get_byte_size() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return m_data->size();
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -359,7 +365,9 @@ public:
     }
 
     const void* get_data_ptr() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <typename T>
     const T* get_data_ptr() const {
@@ -600,7 +608,9 @@ private:
     void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <element::Type_t ET>
@@ -782,7 +792,9 @@ private:
 
     element::Type m_element_type;
     Shape m_shape{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;

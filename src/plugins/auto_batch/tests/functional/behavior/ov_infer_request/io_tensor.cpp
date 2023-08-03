@@ -12,7 +12,7 @@ namespace {
 auto AutoBatchConfigs = []() {
     return std::vector<ov::AnyMap>{
         // explicit batch size 4 to avoid fallback to no auto-batching
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
          // no timeout to avoid increasing the test time
          {ov::auto_batch_timeout(0)}}};
 };
@@ -51,21 +51,21 @@ std::vector<ov::element::Type> supported_input_prcs = {ov::element::boolean,
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
                                             ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestIOTensorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                            ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                             ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(supported_input_prcs),
-                                            ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                            ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                             ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 

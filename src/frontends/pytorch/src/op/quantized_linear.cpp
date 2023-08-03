@@ -37,7 +37,7 @@ OutputVector translate_quantized_linear(const NodeContext& context) {
     linear = context.mark_node(std::make_shared<ov::op::v1::Add>(linear, bias));
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
-    return {context.mark_output(quantize(context, linear, scale, zero_point, x))};
+    return {quantize(context, linear, scale, zero_point, x)};
 };
 
 }  // namespace op

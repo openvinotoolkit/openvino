@@ -29,7 +29,7 @@ void OpSummaryDestroyer::initialize(OpSummary *p) {
 }
 
 OpSummary::OpSummary() {
-    reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
+    reportFilename = ov::test::utils::OP_REPORT_FILENAME;
 }
 
 OpSummary &OpSummary::getInstance() {
@@ -253,13 +253,13 @@ void OpSummary::saveReport() {
         auto processId = std::to_string(getpid());
         filename += "_" + processId + "_" + ts;
     }
-    filename += CommonTestUtils::REPORT_EXTENSION;
+    filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!CommonTestUtils::directoryExists(outputFolder)) {
-        CommonTestUtils::createDirectoryRecursive(outputFolder);
+    if (!ov::test::utils::directoryExists(outputFolder)) {
+        ov::test::utils::createDirectoryRecursive(outputFolder);
     }
 
-    std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
+    std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;
 
     std::map<ov::NodeTypeInfo, std::string> opsInfo;
     for (const auto &opset_pair : get_available_opsets()) {
@@ -283,7 +283,7 @@ void OpSummary::saveReport() {
 
     pugi::xml_document doc;
 
-    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+    const bool fileExists = ov::test::utils::fileExists(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;

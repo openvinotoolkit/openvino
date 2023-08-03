@@ -28,7 +28,7 @@ using namespace ngraph;
 class GatherAddAvgpool : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         inPrc = InferenceEngine::Precision::U8;
         outPrc = InferenceEngine::Precision::FP32;
         auto type = element::f32;

@@ -14,7 +14,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "common_test_utils/test_control.hpp"
@@ -26,9 +25,9 @@ static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 // ############################################################################ CORE TESTS
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
     ov::onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_0.onnx")};
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_0.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -43,9 +42,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
     ov::onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_1.onnx")};
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/compress_1.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -60,8 +59,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
+    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                  SERIALIZED_ZOO,
                                                                  "onnx/compress_default_axis.onnx")};
 
@@ -78,8 +77,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
+    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                  SERIALIZED_ZOO,
                                                                  "onnx/compress_negative_axis.onnx")};
 
@@ -105,7 +104,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission) {
     const element::Type ng_type = element::from<DataType>();
 
     ov::onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_abc_3d.onnx")};
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
@@ -122,7 +121,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                  SERIALIZED_ZOO,
                                                                  "onnx/split_equal_parts_default.onnx")};
 

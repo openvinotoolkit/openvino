@@ -30,8 +30,9 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
                                  layout({desc->sizes, output_type, input_layout.format});
 }
 
+namespace v4 {
 template<typename ShapeType>
-std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
+static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
     auto input_layout = impl_param.get_input_layout(0);
     auto input_shape = input_layout.get<ShapeType>();
@@ -72,6 +73,65 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
     const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
 
     return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+}
+} // namespace v4
+
+namespace v11 {
+template<typename ShapeType>
+static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<resample>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto input_shape = input_layout.get<ShapeType>();
+    size_t input_rank = input_shape.size();
+
+    ov::op::v11::Interpolate op;
+    op.set_attrs(desc->get_attrs());
+
+    ShapeType sizes_or_scales_shape;
+    if (!desc->sizes.empty()) {
+        sizes_or_scales_shape = ov::Shape{ desc->sizes.size() };
+    } else if (!desc->scales.empty()) {
+        sizes_or_scales_shape = ov::Shape{ desc->scales.size() };
+    } else {
+        sizes_or_scales_shape = ov::Shape{ input_rank };
+    }
+    std::vector<ShapeType> input_shapes = {input_shape, sizes_or_scales_shape};
+
+    std::unordered_map<size_t, ov::Tensor> tensors;
+
+    auto sizes = desc->sizes;
+    auto scales = desc->scales;
+    if (!sizes.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{sizes.size()}, sizes.data()));
+    } else if (!scales.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::f32, ov::Shape{scales.size()}, scales.data()));
+    }
+    auto axes = desc->axes;
+    if (!axes.empty()) {
+        auto axes_shape = ov::Shape{axes.size()};
+        input_shapes.push_back(axes_shape);
+        tensors.emplace(2, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
+    }
+
+    auto& memory_deps = impl_param.memory_deps;
+    const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
+
+    auto pads_begin = desc->pads_begin;
+    auto pads_end = desc->pads_end;
+    const auto output_shapes = ov::op::v11::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
+
+    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+}
+} // namespace v11
+
+template<typename ShapeType>
+std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node, const kernel_impl_params& impl_param) {
+    using Mode = ov::op::util::InterpolateBase::InterpolateMode;
+    auto desc = impl_param.typed_desc<resample>();
+    if (desc->operation_type == Mode::BILINEAR_PILLOW || desc->operation_type == Mode::BICUBIC_PILLOW)
+        return v11::calc_output_layouts<ShapeType>(node, impl_param);
+    else
+        return v4::calc_output_layouts<ShapeType>(node, impl_param);
 }
 
 template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
