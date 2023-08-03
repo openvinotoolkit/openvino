@@ -18,12 +18,9 @@ class CheckOutputMode(Mode):
         if not ("stopPattern" in cfg["runConfig"]):
             raise CfgError("stopPattern is not configured")
 
-    def checkIfBordersDiffer(self, lCommit, rCommit, list, cfg):
-        isLeftBorderFailed = False
-        if lCommit == list[0] or cfg["checkIfBordersDiffer"]:
-            isLeftBorderFailed = self.isBadVersion(lCommit, cfg)
-
-        isRightBorderGood = not self.isBadVersion(rCommit, cfg)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        isLeftBorderFailed = self.getPseudoMetric(lCommit, cfg)
+        isRightBorderGood = not self.getPseudoMetric(rCommit, cfg)
         curCommit = rCommit.replace('"', "")
         commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
@@ -33,7 +30,7 @@ class CheckOutputMode(Mode):
         )
         return isLeftBorderFailed == isRightBorderGood
 
-    def isBadVersion(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         checkOut = ""
         commitLogger = getCommitLogger(cfg, commit)
@@ -97,9 +94,9 @@ class BenchmarkAppPerformanceMode(Mode):
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
 
-    def checkIfBordersDiffer(self, lCommit, rCommit, list, cfg):
-        leftThroughput = self.getThroughputByCommit(lCommit, cfg)
-        rightThroughput = self.getThroughputByCommit(rCommit, cfg)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        leftThroughput = self.getPseudoMetric(lCommit, cfg)
+        rightThroughput = self.getPseudoMetric(rCommit, cfg)
         curRel = rightThroughput / leftThroughput
         isBad = not ((1 - curRel) < self.apprDev)
         if isBad:
@@ -112,7 +109,7 @@ class BenchmarkAppPerformanceMode(Mode):
         )
         return isBad
 
-    def getThroughputByCommit(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         curThroughput = 0
         commitLogger = getCommitLogger(cfg, commit)
@@ -153,7 +150,7 @@ class CompareBlobsMode(Mode):
         self.createCash()
         self.maxDiff = 0
 
-    def getOutNameByCommit(self, commit, cfg):
+    def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         commitLogger = getCommitLogger(cfg, commit)
         filename = ''
@@ -173,9 +170,9 @@ class CompareBlobsMode(Mode):
             filename = self.setCommitCash(commit, None)
         return filename
 
-    def checkIfBordersDiffer(self, lCommit, rCommit, list, cfg):
-        leftBorderOutputName = self.getOutNameByCommit(lCommit, cfg)
-        rightBorderOutputName = self.getOutNameByCommit(rCommit, cfg)
+    def compareCommits(self, lCommit, rCommit, list, cfg):
+        leftBorderOutputName = self.getPseudoMetric(lCommit, cfg)
+        rightBorderOutputName = self.getPseudoMetric(rCommit, cfg)
         fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)
         fullRightName = os.path.join(self.cachePath, rightBorderOutputName)
         curMaxDiff = getBlobDiff(fullLeftFileName, fullRightName)

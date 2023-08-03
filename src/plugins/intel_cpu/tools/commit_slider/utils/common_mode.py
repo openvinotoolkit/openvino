@@ -75,6 +75,12 @@ class Mode(ABC):
                 cacheDump.truncate()
                 cacheDump.close()
 
+    def getPseudoMetric(self, commit, cfg):
+        raise NotImplementedError("getPseudoMetric() is not implemented")
+
+    def compareCommits(self, c1, c2, list, cfg):
+        raise NotImplementedError("compareCommits() is not implemented")
+
     def checkCfg(self, cfg):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
@@ -127,11 +133,8 @@ class Mode(ABC):
                 c=pathcommit.cHash)
             )
 
-    def checkIfBordersDiffer(self, i1, i2, list, cfg):
-        raise NotImplementedError("checkIfBordersDiffer() is not implemented")
-
     def checkIfListBordersDiffer(self, list, cfg):
-        return self.checkIfBordersDiffer(list[0], list[-1], list, cfg)
+        return self.compareCommits(list[0], list[-1], list, cfg)
 
     class CommitPath:
 
@@ -192,7 +195,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.checkIfBordersDiffer(
+                isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 pc = Mode.CommitPath.PathCommit(
@@ -203,7 +206,7 @@ class Mode(ABC):
                 commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.checkIfBordersDiffer(
+            isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
@@ -225,7 +228,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.checkIfBordersDiffer(
+                isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
                 pc = Mode.CommitPath.PathCommit(
@@ -236,7 +239,7 @@ class Mode(ABC):
                 commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.checkIfBordersDiffer(
+            isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
@@ -258,7 +261,7 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.checkIfBordersDiffer(
+                isBad = self.mode.compareCommits(
                     sampleCommit, curList[0], list, cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 pc = Mode.CommitPath.PathCommit(
@@ -268,7 +271,7 @@ class Mode(ABC):
                 self.mode.setOutputInfo(pc)
                 commitPath.accept(self, pc)
                 lastCommit = list[-1]
-                isTailDiffer = self.mode.checkIfBordersDiffer(
+                isTailDiffer = self.mode.compareCommits(
                     breakCommit, lastCommit, list, cfg)
                 if isTailDiffer:
                     cfg["serviceConfig"]["sampleCommit"] = breakCommit
@@ -280,7 +283,7 @@ class Mode(ABC):
                     )
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.checkIfBordersDiffer(
+            isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
                 self.bypass(
