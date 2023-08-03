@@ -79,7 +79,6 @@ This guide provides general troubleshooting steps and solutions to possible issu
 
    * To check the version of OpenVINO Development Tools, use the following command:
 
-
    .. tab-set::
 
          .. tab-item:: Python
@@ -125,7 +124,6 @@ This guide provides general troubleshooting steps and solutions to possible issu
 <!--## Check the special tips for Anaconda installation-->
 
 <!--add this part in future-->
-
 
 .. dropdown:: Check if environment variables are set correctly
 
