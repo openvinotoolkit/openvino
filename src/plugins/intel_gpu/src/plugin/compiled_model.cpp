@@ -320,6 +320,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
@@ -357,6 +358,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             GPU_CONFIG_KEY(NV12_TWO_INPUTS),
             GPU_CONFIG_KEY(MAX_NUM_THREADS),
             GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
+            GPU_CONFIG_KEY(DISABLE_WINOGRAD_CONVOLUTION),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::optimal_number_of_infer_requests) {

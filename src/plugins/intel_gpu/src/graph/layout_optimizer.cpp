@@ -577,6 +577,8 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
             return false;
     }
 
+    bool disable_winograd_conv = node.get_program().get_config().get_property(ov::intel_gpu::disable_winograd_convolution);
+
     // A set of rules that define when byxf mem format has better performance
     if ((output_layout.data_type == data_types::f16 && weights_layout.spatial(0) == 1 &&
         all_ones(conv->dilation) &&
@@ -589,7 +591,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          all_zeroes(conv->padding_begin) &&
          all_zeroes(conv->padding_end)) ||
         // Winograd
-        should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
+        (!disable_winograd_conv && should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled)))
         return true;
 
     return false;
