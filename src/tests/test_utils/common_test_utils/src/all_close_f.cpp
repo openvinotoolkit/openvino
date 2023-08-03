@@ -498,9 +498,9 @@ template<typename T>
 
 
 ::testing::AssertionResult all_close_f(const ov::Tensor& a,
-                                                     const ov::Tensor& b,
-                                                     int tolerance_bits,
-                                                     float min_signal) {
+                                       const ov::Tensor& b,
+                                       int tolerance_bits,
+                                       float min_signal) {
         if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }

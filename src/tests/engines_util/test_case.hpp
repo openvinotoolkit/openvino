@@ -9,10 +9,7 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "engine_factory.hpp"
 #include "ngraph/file_util.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -28,25 +25,25 @@ inline std::string backend_name_to_device(const std::string& backend_name) {
     OPENVINO_THROW("Unsupported backend name");
 }
 
-std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
+std::shared_ptr<ov::Model> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
 
 class TestCase {
 public:
-    TestCase(const std::shared_ptr<Function>& function, const std::string& dev = "TEMPLATE");
+    TestCase(const std::shared_ptr<ov::Model>& function, const std::string& dev = "TEMPLATE");
 
     template <typename T>
     void add_input(const Shape& shape, const std::vector<T>& values) {
         const auto params = m_function->get_parameters();
-        NGRAPH_CHECK(m_input_index < params.size(), "All function parameters already have inputs.");
+        OPENVINO_ASSERT(m_input_index < params.size(), "All function parameters already have inputs.");
 
         const auto& input_pshape = params.at(m_input_index)->get_partial_shape();
-        NGRAPH_CHECK(input_pshape.compatible(shape),
-                     "Provided input shape ",
-                     shape,
-                     " is not compatible with nGraph function's expected input shape ",
-                     input_pshape,
-                     " for input ",
-                     m_input_index);
+        OPENVINO_ASSERT(input_pshape.compatible(shape),
+                        "Provided input shape ",
+                        shape,
+                        " is not compatible with nGraph function's expected input shape ",
+                        input_pshape,
+                        " for input ",
+                        m_input_index);
 
         auto t_shape = m_request.get_input_tensor(m_input_index).get_shape();
         bool is_dynamic = false;
@@ -64,13 +61,13 @@ public:
             m_request.set_input_tensor(m_input_index, tensor);
         } else {
             auto tensor = m_request.get_input_tensor(m_input_index);
-            NGRAPH_CHECK(tensor.get_size() >= values.size(),
-                         "Tensor and values have different sizes. Tensor (",
-                         tensor.get_shape(),
-                         ") size: ",
-                         tensor.get_size(),
-                         " and values size is ",
-                         values.size());
+            OPENVINO_ASSERT(tensor.get_size() >= values.size(),
+                            "Tensor and values have different sizes. Tensor (",
+                            tensor.get_shape(),
+                            ") size: ",
+                            tensor.get_size(),
+                            " and values size is ",
+                            values.size());
             std::copy(values.begin(), values.end(), tensor.data<T>());
         }
 
@@ -81,11 +78,11 @@ public:
     void add_input(const std::vector<T>& values) {
         const auto& input_pshape = m_function->get_parameters().at(m_input_index)->get_partial_shape();
 
-        NGRAPH_CHECK(input_pshape.is_static(),
-                     "Input number ",
-                     m_input_index,
-                     " in the tested graph has dynamic shape. You need to provide ",
-                     "shape information when setting values for this input.");
+        OPENVINO_ASSERT(input_pshape.is_static(),
+                        "Input number ",
+                        m_input_index,
+                        " in the tested graph has dynamic shape. You need to provide ",
+                        "shape information when setting values for this input.");
 
         add_input<T>(input_pshape.to_shape(), values);
     }
@@ -99,18 +96,14 @@ public:
 
     template <typename T>
     void add_input_from_file(const Shape& shape, const std::string& basepath, const std::string& filename) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        const auto filepath = ngraph::file_util::path_join(basepath, filename);
+        const auto filepath = ov::util::path_join({basepath, filename});
         add_input_from_file<T>(shape, filepath);
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
     void add_input_from_file(const std::string& basepath, const std::string& filename) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        const auto filepath = ngraph::file_util::path_join(basepath, filename);
+        const auto filepath = ov::util::path_join({basepath, filename});
         add_input_from_file<T>(filepath);
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
@@ -129,16 +122,16 @@ public:
     void add_expected_output(const Shape& expected_shape, const std::vector<T>& values) {
         const auto results = m_function->get_results();
 
-        NGRAPH_CHECK(m_output_index < results.size(), "All model results already have expected outputs.");
+        OPENVINO_ASSERT(m_output_index < results.size(), "All model results already have expected outputs.");
 
         const auto& output_pshape = results.at(m_output_index)->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape.compatible(expected_shape),
-                     "Provided expected output shape ",
-                     expected_shape,
-                     " is not compatible with OpenVINO model's output shape ",
-                     output_pshape,
-                     " for output ",
-                     m_output_index);
+        OPENVINO_ASSERT(output_pshape.compatible(expected_shape),
+                        "Provided expected output shape ",
+                        expected_shape,
+                        " is not compatible with OpenVINO model's output shape ",
+                        output_pshape,
+                        " for output ",
+                        m_output_index);
 
         ov::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
         std::copy(values.begin(), values.end(), tensor.data<T>());
@@ -152,24 +145,24 @@ public:
     void add_expected_output(const std::vector<T>& values) {
         const auto results = m_function->get_results();
 
-        NGRAPH_CHECK(m_output_index < results.size(), "All model results already have expected outputs.");
+        OPENVINO_ASSERT(m_output_index < results.size(), "All model results already have expected outputs.");
 
         const auto shape = results.at(m_output_index)->get_shape();
         add_expected_output<T>(shape, values);
     }
 
     template <typename T>
-    void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+    void add_expected_output_from_file(const ov::Shape& expected_shape,
                                        const std::string& basepath,
                                        const std::string& filename) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        const auto filepath = ngraph::file_util::path_join(basepath, filename);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto filepath = ov::util::path_join({basepath, filename});
         add_expected_output_from_file<T>(expected_shape, filepath);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
-    void add_expected_output_from_file(const ngraph::Shape& expected_shape, const std::string& filepath) {
+    void add_expected_output_from_file(const ov::Shape& expected_shape, const std::string& filepath) {
         const auto values = read_binary_file<T>(filepath);
         add_expected_output<T>(expected_shape, values);
     }
@@ -208,7 +201,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Function> m_function;
+    std::shared_ptr<ov::Model> m_function;
     ov::Core m_core;
     ov::InferRequest m_request;
     std::vector<ov::Tensor> m_expected_outputs;
