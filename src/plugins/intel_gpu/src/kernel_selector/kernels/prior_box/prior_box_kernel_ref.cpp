@@ -82,11 +82,15 @@ bool PriorBoxKernelRef::Validate(const Params& params, const optional_params& op
         return false;
     }
 
-    const auto& priorBox8arams = dynamic_cast<const prior_box_params&>(params);
-    if (priorBox8arams.inputs.size() != 2) {
+    const auto& priorBoxParams = dynamic_cast<const prior_box_params&>(params);
+    if (priorBoxParams.inputs.size() != 2) {
         return false;
     }
 
+    // Current ref kernel doesn't support clustered version
+    if (priorBoxParams.is_clustered) {
+        return false;
+    }
     return true;
 }
 

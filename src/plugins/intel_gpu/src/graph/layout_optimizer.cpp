@@ -1610,9 +1610,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         preferred_impl = impl_candidate;
     } else if (node.is_type<prior_box>()) {
-        if (node.as<prior_box>().get_primitive()->support_opset8) {
-            preferred_impl = impl_types::ocl;
-        }
+        preferred_impl = impl_types::ocl;
     }
 
     return preferred_impl;

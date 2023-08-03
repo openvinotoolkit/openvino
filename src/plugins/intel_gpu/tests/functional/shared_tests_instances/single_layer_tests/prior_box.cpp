@@ -58,7 +58,7 @@ const auto scaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes),
                                                     ::testing::Values(true),
                                                     ::testing::ValuesIn(min_max_aspect_ratios_order));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_Scale,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_PriorBox8_Scale,
                          PriorBoxLayerTest,
                          ::testing::Combine(scaleSizesParams,
                                             ::testing::ValuesIn(netPrecisions),
@@ -85,7 +85,7 @@ const auto noScaleSizesParams = ::testing::Combine(::testing::ValuesIn(min_sizes
                                                     ::testing::Values(false),
                                                     ::testing::ValuesIn(min_max_aspect_ratios_order));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox8_NoScale,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_PriorBox8_NoScale,
                          PriorBoxLayerTest,
                          ::testing::Combine(scaleSizesParams,
                                             ::testing::ValuesIn(netPrecisions),

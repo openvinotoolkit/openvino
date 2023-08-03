@@ -36,6 +36,7 @@ struct prior_box_params : public base_params {
     float step_x = 0, step_y = 0;
     uint32_t width = 0, height = 0;
     uint32_t num_priors_4 = 0;
+    bool is_clustered = false;
 };
 
 /**
