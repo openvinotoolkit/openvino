@@ -21,7 +21,6 @@ class TRANSFORMATIONS_API SymbolicOptimizations;
 // pre-symbolic
 class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;  // To be added to NopOptimization
 class TRANSFORMATIONS_API SharedTransposeOptimization;         //  TS Slice Backward before and TS Slice Forward after
-class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 
 // symbolic
 class TRANSFORMATIONS_API SymbolicPOC;
@@ -120,12 +119,6 @@ public:
 class ov::pass::SharedTransposeOptimization : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedTransposeOptimization", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
