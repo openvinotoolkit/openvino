@@ -164,10 +164,12 @@ public:
 };
 
 TEST_P(AutoBatching_Test, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 
 TEST_P(AutoBatching_Test_DetectionOutput, compareAutoBatchingToSingleBatch) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     TestAutoBatch();
 }
 
