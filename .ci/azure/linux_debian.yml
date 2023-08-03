@@ -138,6 +138,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # for Python API tests
       /usr/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements_test.txt
+      /usr/bin/python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       /usr/bin/python3 -m pip uninstall -y numpy # apt-get install python3-numpy will be used
       # Speed up build
       sudo apt -y --no-install-recommends install unzip
@@ -360,7 +361,7 @@ jobs:
       # - tests install dir for mock_py
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       # For python imports to import pybind_mock_frontend
-      PYTHONPATH: $(INSTALL_TEST_DIR)
+      PYTHONPATH: $(INSTALL_TEST_DIR):$(REPO_DIR)/tools/mo/
     displayName: 'Python API 2.0 Tests'
 
   # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
