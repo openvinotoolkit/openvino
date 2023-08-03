@@ -381,14 +381,12 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         auto variadic_split = std::make_shared<op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
 
         auto i = 0;
-        NodeVector ops_to_replace;
         for (auto& slice_with_attrs : attributes) {
-            slice_with_attrs.slice->output(0).replace(variadic_split->output(i));
-            ops_to_replace.push_back(slice_with_attrs.slice);
+            graph_rewritten |=
+                ov::replace_output_update_name(slice_with_attrs.slice->output(0), variadic_split->output(i));
+            ov::copy_runtime_info(slice_with_attrs.slice, variadic_split);
             ++i;
         }
-        copy_runtime_info(ops_to_replace, variadic_split);
-        graph_rewritten = true;
     }
     return graph_rewritten;
 }
