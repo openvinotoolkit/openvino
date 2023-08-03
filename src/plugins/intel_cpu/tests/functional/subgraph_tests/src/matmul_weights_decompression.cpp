@@ -189,7 +189,9 @@ protected:
         }
 
         std::map<std::string, std::string> additional_config = std::get<5>(test_param);
-        const size_t expected_count = additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES ? 1 : 0;
+        const size_t expected_count =
+            InferenceEngine::with_cpu_x86_avx2() &&
+            additional_config[PluginConfigParams::KEY_ENFORCE_BF16] != PluginConfigParams::YES ? 0 : 1;
         CheckNumberOfNodesWithType(compiledModel, "Convert", expected_count);
         CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_count);
         CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);

@@ -590,7 +590,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
 
-    dnnlpoc.appendDecompressionScales(decompressionMultiply);
+    if (!decompressionMultiply.empty())
+        dnnlpoc.appendDecompressionScales(decompressionMultiply);
     if (!decompressionSubtract.empty())
         dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract);
 
@@ -680,10 +681,9 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::data_type wdt = indt;
     dnnl::memory::data_type bdt = outdt;
 
-    dnnl::memory::data_type original_wdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
-    if (indt == dnnl::memory::data_type::f32 && original_wdt == dnnl::memory::data_type::u8) {
+    if (useWeightsDecompressionImpl) {
         // Weights decompression case
-        wdt = original_wdt;
+        wdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
     } else if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
 #if defined(OPENVINO_ARCH_X86_64)
         bdt = dnnl::memory::data_type::f32;

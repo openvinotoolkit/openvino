@@ -287,13 +287,13 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
 
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2))
+        return;
+
     auto& graphNodes = graph.GetNodes();
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
         if (fcNode == nullptr)
-            continue;
-
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2))
             continue;
 
         const auto parent = fcNode->getParentEdgesAtPort(1)[0]->getParent();
