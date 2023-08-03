@@ -142,6 +142,89 @@ inline OutputVector skip_node(const NodeContext& context) {
 }
 
 }  // namespace op
+
+class DummyDecoder : public TorchDecoder {
+public:
+    virtual Any const_input(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(const_input);
+    }
+    virtual const std::vector<size_t>& inputs() const override {
+        FRONT_END_NOT_IMPLEMENTED(inputs);
+    }
+    virtual const std::string& get_input_debug_name(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_debug_name);
+    }
+    virtual const std::string& get_input_signature_name(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_signature_name);
+    }
+    virtual PartialShape get_input_shape(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_shape);
+    }
+    virtual Any get_input_type(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_type);
+    }
+    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_input_transpose_order);
+    }
+    virtual const std::string& get_output_debug_name(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_output_debug_name);
+    }
+    virtual PartialShape get_output_shape(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_output_shape);
+    }
+    virtual Any get_output_type(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_output_type);
+    }
+    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_output_transpose_order);
+    }
+    virtual bool input_is_none(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(input_is_none);
+    }
+    virtual OutputVector try_decode_get_attr() const override {
+        FRONT_END_NOT_IMPLEMENTED(try_decode_get_attr);
+    }
+    virtual OutputVector as_constant() const override {
+        FRONT_END_NOT_IMPLEMENTED(as_constant);
+    }
+    virtual const std::string& as_string() const override {
+        FRONT_END_NOT_IMPLEMENTED(as_string);
+    }
+    virtual const std::string& get_op_type() const override {
+        FRONT_END_NOT_IMPLEMENTED(get_op_type);
+    }
+    virtual const std::string& get_schema() const override {
+        FRONT_END_NOT_IMPLEMENTED(get_schema);
+    }
+    virtual size_t num_of_outputs() const override {
+        FRONT_END_NOT_IMPLEMENTED(num_of_outputs);
+    }
+    virtual const std::vector<size_t>& outputs() const override {
+        FRONT_END_NOT_IMPLEMENTED(outputs);
+    }
+    virtual size_t output(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(output);
+    }
+    virtual std::shared_ptr<Node> mark_node(std::shared_ptr<Node> ov_node) const override {
+        FRONT_END_NOT_IMPLEMENTED(mark_node);
+    }
+    virtual size_t get_subgraph_size() const override {
+        FRONT_END_NOT_IMPLEMENTED(get_subgraph_size);
+    }
+    virtual void visit_subgraph(std::function<void(std::shared_ptr<TorchDecoder>)> node_visitor) const override {
+        FRONT_END_NOT_IMPLEMENTED(visit_subgraph);
+    }
+    virtual std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_subgraph_decoder);
+    }
+    virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
+        FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
+    }
+    virtual OutputVector inlined_inputs(size_t start_index) const override {
+        FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
+    }
+};
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

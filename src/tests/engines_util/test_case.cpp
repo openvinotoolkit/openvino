@@ -5,10 +5,11 @@
 #include "test_case.hpp"
 
 #include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
-#include "shared_utils.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
@@ -16,21 +17,46 @@ compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_
     return ov::test::utils::all_close_f(expected, result, static_cast<int>(tolerance_bits));
 }
 
+testing::AssertionResult compare_with_tolerance(const std::vector<float>& expected,
+                                                const std::vector<float>& results,
+                                                const float tolerance) {
+    auto comparison_result = testing::AssertionSuccess();
+
+    std::stringstream msg;
+    msg << std::setprecision(std::numeric_limits<long double>::digits10 + 1);
+
+    bool rc = true;
+
+    for (std::size_t j = 0; j < expected.size(); ++j) {
+        float diff = std::fabs(results[j] - expected[j]);
+        if (diff > tolerance) {
+            msg << expected[j] << " is not close to " << results[j] << " at index " << j << "\n";
+            rc = false;
+        }
+    }
+
+    if (!rc) {
+        comparison_result = testing::AssertionFailure();
+        comparison_result << msg.str();
+    }
+
+    return comparison_result;
+}
+
 testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_tensor,
                                                    const ov::Tensor& result_tensor,
                                                    const float tolerance) {
-    auto comparison_result = testing::AssertionSuccess();
+    OPENVINO_ASSERT(expected_tensor.get_element_type() == ov::element::f32);
 
-    auto exp_host_t = std::make_shared<ngraph::HostTensor>(expected_tensor.get_element_type(),
-                                                           expected_tensor.get_shape(),
-                                                           expected_tensor.data());
-    auto res_host_t = std::make_shared<ngraph::HostTensor>(result_tensor.get_element_type(),
-                                                           result_tensor.get_shape(),
-                                                           result_tensor.data());
-    const auto expected = read_vector<float>(exp_host_t);
-    const auto result = read_vector<float>(res_host_t);
+    std::vector<float> expected(expected_tensor.get_size());
+    ov::Tensor expected_view(expected_tensor.get_element_type(), expected_tensor.get_shape(), expected.data());
+    expected_tensor.copy_to(expected_view);
 
-    return ngraph::test::compare_with_tolerance(expected, result, tolerance);
+    std::vector<float> result(result_tensor.get_size());
+    ov::Tensor result_view(result_tensor.get_element_type(), result_tensor.get_shape(), result.data());
+    result_tensor.copy_to(result_view);
+
+    return compare_with_tolerance(expected, result, tolerance);
 }
 
 template <typename T>
@@ -43,33 +69,19 @@ compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_
 template <typename T>
 typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
 compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tensor, const size_t tolerance_bits) {
-    auto exp_host_t = std::make_shared<ngraph::HostTensor>(expected_tensor.get_element_type(),
-                                                           expected_tensor.get_shape(),
-                                                           expected_tensor.data());
-    auto res_host_t = std::make_shared<ngraph::HostTensor>(result_tensor.get_element_type(),
-                                                           result_tensor.get_shape(),
-                                                           result_tensor.data());
-    const auto expected = read_vector<T>(exp_host_t);
-    const auto result = read_vector<T>(res_host_t);
+    auto expected_tensor_converted =
+        ov::test::utils::make_tensor_with_precision_convert(expected_tensor, ov::element::f64);
+    auto result_tensor_converted = ov::test::utils::make_tensor_with_precision_convert(result_tensor, ov::element::f64);
 
-    // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
-    std::vector<double> expected_double(expected.size());
-    std::vector<double> result_double(result.size());
-
-    NGRAPH_CHECK(expected.size() == result.size(), "Number of expected and computed results don't match");
-
-    for (size_t i = 0; i < expected.size(); ++i) {
-        expected_double[i] = static_cast<double>(expected[i]);
-        result_double[i] = static_cast<double>(result[i]);
-    }
-
-    return ov::test::utils::all_close_f(expected_double, result_double, static_cast<int>(tolerance_bits));
+    return ov::test::utils::all_close_f(expected_tensor_converted,
+                                        result_tensor_converted,
+                                        static_cast<int>(tolerance_bits));
 }
 };  // namespace
 
 namespace ngraph {
 namespace test {
-std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
+std::shared_ptr<ov::Model> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
     ov::Core c;
     return c.read_model(xml_path, bin_path);
 }
@@ -179,7 +191,7 @@ testing::AssertionResult TestCase::compare_results_with_tolerance_as_fp(float to
     return comparison_result;
 }
 
-TestCase::TestCase(const std::shared_ptr<Function>& function, const std::string& dev) : m_function{function} {
+TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string& dev) : m_function{function} {
     try {
         // Register template plugin
         m_core.register_plugin(
