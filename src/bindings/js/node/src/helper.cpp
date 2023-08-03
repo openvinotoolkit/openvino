@@ -9,14 +9,15 @@
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types = {"i8"
-                                                               "u8",
-                                                               "i16",
-                                                               "u16",
-                                                               "i32",
-                                                               "u32",
-                                                               "f32",
-                                                               "f64",
-                                                               "i64"};
+                                                                     "u8",
+                                                                     "i16",
+                                                                     "u16",
+                                                                     "i32",
+                                                                     "u32",
+                                                                     "f32",
+                                                                     "f64",
+                                                                     "i64",
+                                                                     "u64"};
     return supported_element_types;
 }
 
@@ -186,11 +187,59 @@ ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const o
         throw std::invalid_argument("TypedArray.byteOffset has to be equal to zero.");
     }
     auto array_buffer = data.ArrayBuffer();
-    auto tensor = ov::Tensor(type, shape);
-    if (tensor.get_byte_size() == array_buffer.ByteLength()) {
-        std::memcpy(tensor.data(), array_buffer.Data(), array_buffer.ByteLength());
-    } else {
-        throw std::invalid_argument("Memory allocated using shape and element::type mismatch passed data's size");
+    ov::Tensor tensor;
+
+    switch (type) {
+    case ov::element::Type_t::i8: {
+        auto arr = reinterpret_cast<int8_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::u8: {
+        auto arr = reinterpret_cast<uint8_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::i16: {
+        auto arr = reinterpret_cast<int16_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::u16: {
+        auto arr = reinterpret_cast<uint16_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::i32: {
+        auto arr = reinterpret_cast<int32_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::u32: {
+        auto arr = reinterpret_cast<uint32_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::f32: {
+        auto arr = reinterpret_cast<float*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::f64: {
+        auto arr = reinterpret_cast<double*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::i64: {
+        auto arr = reinterpret_cast<int64_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
+    case ov::element::Type_t::u64: {
+        auto arr = reinterpret_cast<uint64_t*>(array_buffer.Data());
+        tensor = ov::Tensor(type, shape, &arr[0]);
+        break;
+    }
     }
     return tensor;
 }
