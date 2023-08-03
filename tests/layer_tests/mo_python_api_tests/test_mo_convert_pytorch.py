@@ -1106,3 +1106,11 @@ class ConvertRaises(unittest.TestCase):
         with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
             convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
                           ConversionExtension("aten::relu", relu_bad)])
+
+    def test_failed_extension(self):
+        import tempfile
+        from openvino.tools.mo import convert_model
+
+        with self.assertRaisesRegex(Exception, ".*PyTorch Frontend doesn't support provided model type.*"):
+            with tempfile.NamedTemporaryFile() as tmpfile:
+                convert_model(tmpfile.name, framework="pytorch")
