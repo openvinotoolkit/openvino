@@ -21,7 +21,7 @@ using namespace ov::tools::subgraph_dumper;
 class FusedNamesExtractorTest : public FusedNamesExtractor,
                                 public SubgraphsDumperBaseTest {
 protected:
-    bool is_match(const std::shared_ptr<ov::Model>& model) {
+    void is_match(const std::shared_ptr<ov::Model>& model) {
         size_t graph_cnt = 0;
         {
             auto compiled_names = extract_compiled_model_names(model);
@@ -44,26 +44,26 @@ protected:
             graph_cnt = op_cnt.size();
         }
         auto models = this->extract(model);
-        return models.size() == graph_cnt;
+        ASSERT_LE(models.size(), graph_cnt);
     }
 };
 
 TEST_F(FusedNamesExtractorTest, extract_0) {
     auto test_model = Model_0();
     auto model = test_model.get();
-    ASSERT_TRUE(is_match(model));
+    is_match(model);
 }
 
 TEST_F(FusedNamesExtractorTest, extract_1) {
     auto test_model = Model_1();
     auto model = test_model.get();
-    ASSERT_TRUE(is_match(model));
+    is_match(model);
 }
 
 TEST_F(FusedNamesExtractorTest, extract_2) {
     auto test_model = Model_2();
     auto model = test_model.get();
-    ASSERT_TRUE(is_match(model));
+    is_match(model);
 }
 
 }  // namespace

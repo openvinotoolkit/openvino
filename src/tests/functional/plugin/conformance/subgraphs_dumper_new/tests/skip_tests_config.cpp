@@ -5,6 +5,6 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    std::vector<std::string> retVector{};
+    std::vector<std::string> retVector {};
     return retVector;
 }
