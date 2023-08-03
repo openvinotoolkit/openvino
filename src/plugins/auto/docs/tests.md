@@ -259,7 +259,7 @@ openvino/bin/intel64/Release$ ./benchark_app -m openvino/src/core/tests/models/i
 [ INFO ] Throughput:          1396.29 FPS
 ```
 
-### The device selection fallback when hardware deivce didn't support precision of the model
+### Device selection fallback of the AUTO
 
 This section will show the fallback of device selection within the AUTO plugin if the device with high priority doesn't support the precision of the inputting model. For example, CPU supports both FP16 and FP32 precision model, while GNA doesn't FP32 precision. Although GNA has higher priority, AUTO plugin will ultimately choose the CPU plugin to load model with FP32 precision.  
 
