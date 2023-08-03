@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/scatter_nd_base.hpp"
-
-#include <scatter_nd_base_shape_inference.hpp>
+#include "openvino/op/util/scatter_nd_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
-
-using namespace std;
+#include "scatter_nd_base_shape_inference.hpp"
 
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;

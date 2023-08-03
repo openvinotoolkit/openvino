@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/embeddingbag_packed_base.hpp"
+#include "openvino/op/util/embeddingbag_packed_base.hpp"
 
 #include "embeddingbag_packed_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
 #include "openvino/core/validation_util.hpp"
 
 using namespace std;

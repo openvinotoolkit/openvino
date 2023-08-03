@@ -2,23 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/detection_output_base.hpp"
+#include "openvino/op/util/detection_output_base.hpp"
 
-#include <detection_output_shape_inference.hpp>
-#include <ngraph/validation_util.hpp>
+#include "detection_output_shape_inference.hpp"
 
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/squeeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/shape.hpp"
+ov::op::util::DetectionOutputBase::DetectionOutputBase(const ov::OutputVector& args) : Op(args) {}
 
-using namespace std;
-using namespace ov::op::util;
-
-DetectionOutputBase::DetectionOutputBase(const ov::OutputVector& args) : Op(args) {}
-
-void DetectionOutputBase::validate_base(const DetectionOutputBase::AttributesBase& attrs) {
+void ov::op::util::DetectionOutputBase::validate_base(const DetectionOutputBase::AttributesBase& attrs) {
     NODE_VALIDATION_CHECK(
         this,
         attrs.code_type == "caffe.PriorBoxParameter.CORNER" || attrs.code_type == "caffe.PriorBoxParameter.CENTER_SIZE",
@@ -74,7 +64,7 @@ bool ov::op::util::DetectionOutputBase::visit_attributes_base(AttributeVisitor& 
     return true;
 }
 
-ov::Dimension DetectionOutputBase::compute_num_classes(const AttributesBase& attrs) {
+ov::Dimension ov::op::util::DetectionOutputBase::compute_num_classes(const AttributesBase& attrs) {
     NODE_VALIDATION_CHECK(this,
                           3 == get_input_size() || get_input_size() == 5,
                           "A number of arguments must be  equal to 3 or equal to 5. Got  ",

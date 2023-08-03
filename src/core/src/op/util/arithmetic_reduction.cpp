@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/arithmetic_reduction.hpp"
+#include "openvino/op/util/arithmetic_reduction.hpp"
 
 #include "itt.hpp"
-#include "ngraph/validation_util.hpp"
-
-using namespace std;
 
 ov::op::util::ArithmeticReduction::ArithmeticReduction() = default;
 

@@ -2,18 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/gather_nd_base.hpp"
-
-#include <ngraph/validation_util.hpp>
+#include "openvino/op/util/gather_nd_base.hpp"
 
 #include "gather_nd_shape_inference.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/squeeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/shape.hpp"
-
-using namespace std;
 
 ov::op::util::GatherNDBase::GatherNDBase(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : Op({data, indices}),
