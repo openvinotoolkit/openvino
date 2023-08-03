@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header that defines common config subset for VPU plugins.
+ * @brief A header that defines common config subset for NPU plugins.
  * Include myriad_config.hpp or hddl_config.hpp directly.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *

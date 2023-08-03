@@ -36,33 +36,33 @@ def build_argparser():
     parser.add_argument('--faced',
                         default='CPU',
                         help='Target device for the face detection' +
-                        '(e.g. CPU, GPU, VPU, ...)')
+                        '(e.g. CPU, GPU, NPU, ...)')
     parser.add_argument('--headm',
                         default='head-pose-estimation-adas-0001.xml',
                         help='Path to OpenVINO head pose estimation model (.xml)')
     parser.add_argument('--headd',
                         default='CPU',
                         help='Target device for the head pose estimation inference ' +
-                        '(e.g. CPU, GPU, VPU, ...)')
+                        '(e.g. CPU, GPU, NPU, ...)')
     parser.add_argument('--landm',
                         default='facial-landmarks-35-adas-0002.xml',
                         help='Path to OpenVINO landmarks detector model (.xml)')
     parser.add_argument('--landd',
                         default='CPU',
-                        help='Target device for the landmarks detector (e.g. CPU, GPU, VPU, ...)')
+                        help='Target device for the landmarks detector (e.g. CPU, GPU, NPU, ...)')
     parser.add_argument('--gazem',
                         default='gaze-estimation-adas-0002.xml',
                         help='Path to OpenVINO gaze vector estimaiton model (.xml)')
     parser.add_argument('--gazed',
                         default='CPU',
                         help='Target device for the gaze vector estimation inference ' +
-                        '(e.g. CPU, GPU, VPU, ...)')
+                        '(e.g. CPU, GPU, NPU, ...)')
     parser.add_argument('--eyem',
                         default='open-closed-eye-0001.xml',
                         help='Path to OpenVINO open closed eye model (.xml)')
     parser.add_argument('--eyed',
                         default='CPU',
-                        help='Target device for the eyes state inference (e.g. CPU, GPU, VPU, ...)')
+                        help='Target device for the eyes state inference (e.g. CPU, GPU, NPU, ...)')
     return parser
 
 

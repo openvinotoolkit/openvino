@@ -19,7 +19,7 @@ const std::string keys =
     "{ h help |                              | Print this help message }"
     "{ input  |                              | Path to the input video file }"
     "{ facem  | face-detection-adas-0001.xml | Path to OpenVINO IE face detection model (.xml) }"
-    "{ faced  | CPU                          | Target device for face detection model (e.g. CPU, GPU, VPU, ...) }"
+    "{ faced  | CPU                          | Target device for face detection model (e.g. CPU, GPU, NPU, ...) }"
     "{ r roi  | -1,-1,-1,-1                  | Region of interest (ROI) to use for inference. Identified automatically when not set }";
 
 namespace {

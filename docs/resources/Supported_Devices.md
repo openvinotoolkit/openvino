@@ -14,7 +14,7 @@ Currently, processors of the 11th generation and later (up to the 13th generatio
 
 .. note::
 
-   With OpenVINO™ 2023.0 release, support has been cancelled for all VPU accelerators based on Intel® Movidius™.
+   With OpenVINO™ 2023.0 release, support has been cancelled for all NPU accelerators based on Intel® Movidius™.
 
 
 +---------------------------------------------------------------------+------------------------------------------------------------------------------------------------------+
