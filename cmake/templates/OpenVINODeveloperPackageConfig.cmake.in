@@ -71,8 +71,11 @@ foreach(component @openvino_export_components@)
 endforeach()
 
 # inherit OpenCV from main OpenVINO project if enabled
-if ("@OpenCV_FOUND@")
-    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+if("@OpenCV_FOUND@")
+    # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
+    if(NOT OpenCV_DIR)
+        load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+    endif()
     find_dependency(OpenCV)
 endif()
 
