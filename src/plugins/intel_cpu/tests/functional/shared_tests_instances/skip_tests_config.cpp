@@ -258,10 +258,16 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
-#endif
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-        // Skip fp16 tests for paltforms that don't support fp16 precision
-        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#if !defined(OV_CPU_ARM_ENABLE_FP16)
+    // Skip fp16 tests for paltforms that don't support fp16 precision
+    retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#else
+    // @todo create a ticket
+    retVector.emplace_back(R"(.*EltwiseLayerCPUTest\.CompareWithRefs/IS=\(\[1\.\.10\.2\.5\.6\]_\)_TS=\(\(3\.2\.5\.6\)_\(1\.2\.5\.6\)_\(2\.2\.5\.6\)_\)_"
+"eltwiseOpType=SqDiff_secondaryInputType=CONSTANT_opType=VECTOR_NetType=f32_InType=undefined_OutType=undefined_trgDev=CPU_configItem="
+"INFERENCE_PRECISION_HINT_f16.*)");
+#endif // OV_CPU_ARM_ENABLE_FP16
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions

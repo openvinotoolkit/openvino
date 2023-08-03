@@ -216,12 +216,13 @@ void FullyConnected::getSupportedDescriptors() {
             outputDataType = memory::data_type::bf16;
         }
     } else if (inputDataType == memory::data_type::f16) {
+#if defined(OV_CPU_WITH_ACL)
+        outputDataType = weightsDataType = memory::data_type::f16;
+#else
         // f16 input only supports f16/f32 output, even if FQ is fused as post-ops
         if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
             outputDataType = memory::data_type::f16;
         }
-#if defined(OV_CPU_WITH_ACL)
-        weightsDataType = memory::data_type::f16;
 #endif
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
