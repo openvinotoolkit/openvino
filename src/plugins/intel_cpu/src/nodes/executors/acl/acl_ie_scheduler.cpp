@@ -64,11 +64,7 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
         }
 
         InferenceEngine::parallel_for(num_windows, [&](int wid) {
-            ThreadInfo info;
-            info.cpu_info = &cpu_info();
-            info.num_threads = static_cast<int>(_num_threads);
-            info.thread_id = wid;
-            main_run(win_vec[wid], info);
+            main_run(win_vec[wid], {wid, static_cast<int>(_num_threads), &cpu_info()});
         });
     }
 }
@@ -85,11 +81,7 @@ void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Win
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
     InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
-        ThreadInfo info;
-        info.cpu_info    = &cpu_info();
-        info.num_threads = static_cast<int>(_num_threads);
-        info.thread_id   = wid;
-        workloads[wid](info);
+        workloads[wid]({wid, static_cast<int>(_num_threads), &cpu_info()});
     });
 }
 
