@@ -44,7 +44,10 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     size_t onednn_impls_counter = 0;
+    size_t all_impls_counter = 0;
+    const float onednn_min_threshold = 0.09f;
     bool should_update_fmt_map = false;
+
     // Calculate onednn kernels number and all kernels number inside the network
     for (auto n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
@@ -58,13 +61,25 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
 
         if (impl == impl_types::onednn)
             onednn_impls_counter++;
+
+        all_impls_counter++;
     }
 
-    if (onednn_impls_counter < 1 && lo.get_optimization_attributes().use_onednn_impls) {
+    float onednn_usage_ratio = all_impls_counter ? static_cast<float>(onednn_impls_counter) / static_cast<float>(all_impls_counter) : 0.f;
+
+    GPU_DEBUG_LOG << "----------------------------------------------" << std::endl;
+    GPU_DEBUG_LOG << "Onednn kernels number: " << onednn_impls_counter << " from " << all_impls_counter
+                  << " (" << onednn_usage_ratio * 100.f << "%)" << std::endl;
+    GPU_DEBUG_LOG << "Onednn usage threshold: " << onednn_min_threshold * 100.f << "%" << std::endl;
+
+    // Reverted to cldnn way for cases when onednn kernels number inside the whole network is extremely low =>
+    // improvements from onednn usage less than losses due to unoptimized formats for cldnn kernels, extra reorders, etc.
+    if (onednn_usage_ratio < onednn_min_threshold && lo.get_optimization_attributes().use_onednn_impls) {
         should_update_fmt_map = true;
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
         GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
     }
+    GPU_DEBUG_LOG << "----------------------------------------------" << std::endl;
 
     if (should_update_fmt_map)
 #endif // ENABLE_ONEDNN_FOR_GPU
