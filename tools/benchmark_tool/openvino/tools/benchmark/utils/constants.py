@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-VPUX_DEVICE_NAME = 'VPUX'
+VPUX_DEVICE_NAME = 'NPU'
 CPU_DEVICE_NAME = 'CPU'
 GPU_DEVICE_NAME = 'GPU'
 HETERO_DEVICE_NAME = 'HETERO'
