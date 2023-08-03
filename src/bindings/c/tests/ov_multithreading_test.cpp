@@ -39,14 +39,26 @@ INSTANTIATE_TEST_SUITE_P(device_name, ov_multithreading_test, ::testing::Values(
 
 TEST_P(ov_multithreading_test, compile_model) {
     auto device_name = GetParam();
-    std::atomic<unsigned int> counter{0u};
     runParallel([&]() {
-        auto value = counter++;
         ov_core_t* core = nullptr;
         ov_core_create(&core);
         ov_model_t* model = nullptr;
         ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
         ov_compiled_model_t* compiled_model = nullptr;
         ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model);
+    });
+}
+
+TEST_P(ov_multithreading_test, create_infer_request) {
+    auto device_name = GetParam();
+    runParallel([&]() {
+        ov_core_t* core = nullptr;
+        ov_core_create(&core);
+        ov_model_t* model = nullptr;
+        ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
+        ov_compiled_model_t* compiled_model = nullptr;
+        ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model);
+        ov_infer_request_t* infer_request = nullptr;
+        ov_compiled_model_create_infer_request(compiled_model, &infer_request);
     });
 }
