@@ -120,8 +120,6 @@ jobs:
       $(BUILD_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
       $(BUILD_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-      # For torchvision to OpenVINO preprocessing converter
-      $(BUILD_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       # For running Paddle frontend unit tests
       $(BUILD_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
@@ -140,6 +138,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # for Python API tests
       /usr/bin/python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements_test.txt
+      /usr/bin/python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       /usr/bin/python3 -m pip uninstall -y numpy # apt-get install python3-numpy will be used
       # Speed up build
       sudo apt -y --no-install-recommends install unzip
