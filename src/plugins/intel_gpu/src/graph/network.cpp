@@ -1171,7 +1171,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "network::execute_impl");
     int64_t curr_iter = -1;
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
@@ -1443,6 +1443,29 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
         get_memory_pool().dump(get_id());
     }
+
+#ifdef ENABLE_PROFILING_ITT
+    if (_enable_profiling && get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+        // Limitations:
+        // Device timeline is incorrect for dGPU - events for onednn primitives don't have proper device timestamps
+        // But even with disabled onednn the timeline is not properly synchronized with host timestamps.
+        // TODO: Fix it for dGPUs
+        get_stream().finish();
+        std::stringstream s;
+        s << "stream_" << &get_stream();
+        thread_local std::map<stream*, openvino::itt::track_t> tracks;
+        if (tracks.count(&get_stream()) == 0) {
+            tracks[&get_stream()] = openvino::itt::track(s.str());
+        }
+        for (const auto& kv : _events) {
+            const auto& id = kv.first;
+            const auto& event = kv.second;
+
+            auto timestamps = event->get_host_timestamps(get_stream());
+            OV_ITT_SCOPED_TASK_CUSTOM_TRACK(ov::intel_gpu::itt::domains::intel_gpu_plugin, tracks.at(&get_stream()), id, timestamps.first, timestamps.second);
+        }
+    }
+#endif
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

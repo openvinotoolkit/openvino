@@ -27,6 +27,8 @@ public:
 
     cl::Event& get() override { return _event; }
 
+    std::pair<uint64_t, uint64_t> get_host_timestamps(const stream& d) const override;
+
 private:
     bool _callback_set = false;
     void set_ocl_callback();

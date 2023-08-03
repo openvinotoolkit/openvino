@@ -14,6 +14,7 @@
 
 namespace cldnn {
 struct user_event;
+class stream;
 
 /// @brief user-defined event handler callback.
 using event_handler = std::function<void(void*)>;
@@ -36,6 +37,7 @@ public:
     bool add_event_handler(event_handler handler, void* data);
 
     std::vector<instrumentation::profiling_interval> get_profiling_info();
+    virtual std::pair<uint64_t, uint64_t> get_host_timestamps(const stream&) const { return {0, 0}; }
 
 private:
     std::mutex _handlers_mutex;

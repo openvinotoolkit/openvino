@@ -15,6 +15,7 @@ void ocl_user_event::set_impl() {
     static_cast<cl::UserEvent&&>(get()).setStatus(CL_COMPLETE);
     _duration = std::unique_ptr<cldnn::instrumentation::profiling_period_basic>(
         new cldnn::instrumentation::profiling_period_basic(_timer.uptime()));
+    _timestamp_end = openvino::itt::timestamp();
 }
 
 bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::profiling_interval>& info) {
@@ -25,6 +26,10 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
     auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
     info.push_back({ instrumentation::profiling_stage::executing, period });
     return true;
+}
+
+std::pair<uint64_t, uint64_t> ocl_user_event::get_host_timestamps(const stream& s) const {
+    return {_timestamp_begin, _timestamp_end};
 }
 
 void ocl_user_event::wait_impl() {

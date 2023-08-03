@@ -3,6 +3,7 @@
 //
 
 #include "ocl_event.hpp"
+#include "ocl_stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <cassert>
@@ -101,6 +102,32 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
     }
 
     return true;
+}
+
+std::pair<uint64_t, uint64_t> ocl_event::get_host_timestamps(const stream& s) const {
+    if (!is_event_profiled(_event))
+        return {0, 0};
+
+    auto& casted = downcast<const ocl_stream>(s);
+    auto device = casted.get_engine().get_cl_device();
+    cl_ulong device_start;
+    cl_ulong device_end;
+
+    _event.getProfilingInfo(CL_PROFILING_COMMAND_START, &device_start);
+    _event.getProfilingInfo(CL_PROFILING_COMMAND_END, &device_end);
+
+    cl_ulong device_timestamp = 0;
+    cl_ulong host_timestamp = 0;
+#if CL_TARGET_OPENCL_VERSION >= 210
+    std::tie(device_timestamp, host_timestamp) = device.getDeviceAndHostTimer();
+#endif
+    auto get_host_timestamp = [=](cl_ulong device_time) -> uint64_t {
+        if (device_time > device_timestamp)
+            return host_timestamp + device_time - device_timestamp;
+        return host_timestamp - (device_timestamp - device_time);
+    };
+
+    return {get_host_timestamp(device_start), get_host_timestamp(device_end)};
 }
 
 void ocl_events::wait_impl() {

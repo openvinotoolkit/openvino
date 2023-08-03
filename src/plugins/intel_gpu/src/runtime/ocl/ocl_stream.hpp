@@ -80,6 +80,7 @@ public:
     event::ptr create_base_event() override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
+    const ocl_engine& get_engine() const { return _engine; }
 
     static QueueTypes detect_queue_type(void* queue_handle);
 

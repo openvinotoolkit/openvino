@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_type.h"
@@ -111,6 +112,7 @@ struct primitive_type_base : primitive_type {
 
     std::vector<cldnn::layout> calc_output_layouts(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
         OPENVINO_ASSERT(node.type() == this, "primitive_type_base::calc_output_layouts: primitive type mismatch");
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("calc_output_layouts::" + node.id()));
 
         for (auto& t : impl_param.input_layouts) {
             GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " input tensor: " << t.to_short_string() << std::endl;

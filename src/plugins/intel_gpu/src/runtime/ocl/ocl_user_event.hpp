@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/profiling.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/util/util.hpp"
 #include "ocl_base_event.hpp"
 #include <memory>
@@ -20,7 +21,8 @@ struct ocl_user_event : public ocl_base_event {
     explicit ocl_user_event(const cl::Context& ctx, bool is_set = false)
     : ocl_base_event()
     , _ctx(ctx)
-    , _event(_ctx) {
+    , _event(_ctx)
+    , _timestamp_begin(openvino::itt::timestamp()) {
         if (is_set) {
             set();
         }
@@ -28,6 +30,7 @@ struct ocl_user_event : public ocl_base_event {
 
     void set_impl() override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
+    std::pair<uint64_t, uint64_t> get_host_timestamps(const stream& d) const override;
     cl::Event& get() override { return _event; };
 
 protected:
@@ -35,6 +38,9 @@ protected:
     std::unique_ptr<cldnn::instrumentation::profiling_period_basic> _duration;
     const cl::Context& _ctx;
     cl::UserEvent _event;
+
+    uint64_t _timestamp_begin = 0;
+    uint64_t _timestamp_end = 0;
 
 private:
     void wait_impl() override;

@@ -38,15 +38,35 @@ namespace openvino
         typedef struct handle_ {} *handle_t;
 
         /**
+         * @typedef track_t
+         * @ingroup ov_dev_profiling
+         * @brief Annotation handle for custom logical track.
+         */
+        typedef struct track_ {} *track_t;
+
+        /**
+         * @typedef timestamp_t
+         * @ingroup ov_dev_profiling
+         * @brief Handle for timestamp corresponding to the current moment
+         */
+        typedef uint64_t timestamp_t;
+
+        /**
          * @cond
          */
         namespace internal
         {
             domain_t domain(char const* name);
+            bool is_enabled(domain_t domain);
             handle_t handle(char const* name);
+            track_t track(char const* name);
+            timestamp_t timestamp();
             void taskBegin(domain_t d, handle_t t);
             void taskEnd(domain_t d);
+            void taskBeginEx(domain_t d, handle_t t, unsigned long long timestamp);
+            void taskEndEx(domain_t d, unsigned long long timestamp);
             void threadName(const char* name);
+            void setTrack(track_t t);
         }
         /**
          * @endcond
@@ -68,6 +88,10 @@ namespace openvino
             internal::threadName(name.c_str());
         }
 
+        inline void setTrack(track_t t) {
+            internal::setTrack(t);
+        }
+
         inline handle_t handle(char const *name)
         {
             return internal::handle(name);
@@ -76,6 +100,26 @@ namespace openvino
         inline handle_t handle(const std::string &name)
         {
             return internal::handle(name.c_str());
+        }
+
+        inline track_t track(const std::string &name) {
+            return internal::track(name.c_str());
+        }
+
+        inline void taskBeginEx(domain_t d, handle_t t, unsigned long long timestamp) {
+            return internal::taskBeginEx(d, t, timestamp);
+        }
+
+        inline void taskEndEx(domain_t d, unsigned long long timestamp) {
+            return internal::taskEndEx(d, timestamp);
+        }
+
+        inline timestamp_t timestamp() {
+            return internal::timestamp();
+        }
+
+        inline bool is_enabled(domain_t domain) {
+            return internal::is_enabled(domain);
         }
 
         /**

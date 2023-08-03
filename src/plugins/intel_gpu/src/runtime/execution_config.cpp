@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 #include <thread>
@@ -184,6 +185,11 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
         set_property(ov::enable_profiling(true));
     }
+#ifdef ENABLE_PROFILING_ITT
+    if (openvino::itt::is_enabled(itt::domains::intel_gpu_plugin())) {
+        set_property(ov::enable_profiling(true));
+    }
+#endif
 
     GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
