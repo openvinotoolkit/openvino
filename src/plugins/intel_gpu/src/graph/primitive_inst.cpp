@@ -19,6 +19,7 @@
 #include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
+#include "softmax_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -478,6 +479,16 @@ event::ptr primitive_inst::realloc_if_needed() {
     return ev;
 }
 
+bool primitive_inst::use_async_compilation() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+        return false;
+    }
+    return (_node->is_type<convolution>() ||
+            _node->is_type<fully_connected>() ||
+            _node->is_type<softmax>());
+}
+
 bool primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -590,13 +601,6 @@ bool primitive_inst::update_impl() {
         }
         if (!cached_impl) {
             if (_dynamic_impl) {
-                auto use_async_compilation = [&updated_params_no_dyn_pad]() {
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
-                        return false;
-                    }
-                    return updated_params_no_dyn_pad.desc->type_string().compare("fully_connected") == 0;
-                };
                 if (use_async_compilation()) {
                     auto& compilation_context = get_network().get_program()->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {

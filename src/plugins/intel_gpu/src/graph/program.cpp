@@ -124,9 +124,9 @@ static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
     config._streams = std::min(config._streams, num_cores);
 }
 
-static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
         case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
@@ -214,7 +214,7 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
     _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
-                                                            "Task executor config for CompilationContext in GPU plugin"));
+                                                            "Task executor config for CompilationContext in GPU plugin", 1));
 
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache

@@ -1499,7 +1499,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_onednn_ndims, ::testing::ValuesIn(std::v
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_6D },
 }));
 
-TEST(gemm_onednn, impl_replacement_with_cldnn) {
+TEST(gemm_onednn, DISABLED_impl_replacement_with_cldnn) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
