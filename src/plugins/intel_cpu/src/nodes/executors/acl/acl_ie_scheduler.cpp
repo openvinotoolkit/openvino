@@ -63,8 +63,7 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
             win_vec[i].validate();
         }
 
-        std::vector<IScheduler::Workload> workloads(num_windows);
-        InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
+        InferenceEngine::parallel_for(num_windows, [&](int wid) {
             ThreadInfo info;
             info.cpu_info = &cpu_info();
             info.num_threads = static_cast<int>(_num_threads);
