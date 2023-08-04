@@ -7,41 +7,50 @@
 
 This sample demonstrates how to estimate performance of a model using Synchronous Inference Request API. It makes sense to use synchronous inference only in latency oriented scenarios. Models with static input shapes are supported. Unlike :doc:`demos <omz_demos>` this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
-The following C++ API is used in the application:
 
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Feature                  | API                                          | Description                                  |
-+==========================+==============================================+==============================================+
-| OpenVINO Runtime Version | ``ov::get_openvino_version``                 | Get Openvino API version.                    |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Basic Infer Flow         | ``ov::Core``, ``ov::Core::compile_model``,   | Common API to do inference: compile a model, |
-|                          | ``ov::CompiledModel::create_infer_request``, | create an infer request,                     |
-|                          | ``ov::InferRequest::get_tensor``             | configure input tensors.                     |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Synchronous Infer        | ``ov::InferRequest::infer``,                 | Do synchronous inference.                    |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Model Operations         | ``ov::CompiledModel::inputs``                | Get inputs of a model.                       |
-+--------------------------+----------------------------------------------+----------------------------------------------+
-| Tensor Operations        | ``ov::Tensor::get_shape``,                   | Get a tensor shape and its data.             |
-|                          | ``ov::Tensor::data``                         |                                              |
-+--------------------------+----------------------------------------------+----------------------------------------------+
+.. tab-set::
 
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Options                        | Values                                                                                         |
-+================================+================================================================================================+
-| Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                                     |
-|                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                                           |
-|                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                                               |
-|                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`                              |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                  |
-|                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                              |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                           |
-+--------------------------------+------------------------------------------------------------------------------------------------+
-| Other language realization     | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README>`       |
-+--------------------------------+------------------------------------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Options                        | Values                                                                                         |
+      +================================+================================================================================================+
+      | Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                                     |
+      |                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                                           |
+      |                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                                               |
+      |                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`                              |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                  |
+      |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                              |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                           |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+      | Other language realization     | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README>`       |
+      +--------------------------------+------------------------------------------------------------------------------------------------+
+
+   .. tab-item:: C++ API
+
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Feature                  | API                                          | Description                                  |
+      +==========================+==============================================+==============================================+
+      | OpenVINO Runtime Version | ``ov::get_openvino_version``                 | Get Openvino API version.                    |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Basic Infer Flow         | ``ov::Core``, ``ov::Core::compile_model``,   | Common API to do inference: compile a model, |
+      |                          | ``ov::CompiledModel::create_infer_request``, | create an infer request,                     |
+      |                          | ``ov::InferRequest::get_tensor``             | configure input tensors.                     |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Synchronous Infer        | ``ov::InferRequest::infer``,                 | Do synchronous inference.                    |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Model Operations         | ``ov::CompiledModel::inputs``                | Get inputs of a model.                       |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+      | Tensor Operations        | ``ov::Tensor::get_shape``,                   | Get a tensor shape and its data.             |
+      |                          | ``ov::Tensor::data``                         |                                              |
+      +--------------------------+----------------------------------------------+----------------------------------------------+
+
+   .. tab-item:: Sample Code 
+
+      .. doxygensnippet:: samples/cpp/benchmark/sync_benchmark/main.cpp
+         :language: cpp
 
 How It Works
 ####################

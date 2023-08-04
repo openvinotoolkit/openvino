@@ -1,4 +1,4 @@
-# Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
+# Hello Reshape SSD Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
 @sphinxdirective
 
@@ -12,32 +12,44 @@ This sample demonstrates how to do synchronous inference of object detection mod
 
 Models with only 1 input and output are supported.
 
-The following Python API is used in the application:
+.. tab-set::
 
-+------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
-| Feature                            | API                                                                                                                                                                            | Description                          |
-+====================================+================================================================================================================================================================================+======================================+
-| Model Operations                   | `openvino.runtime.Model.reshape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ ,               | Managing of model                    |
-|                                    | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__ ,                   |                                      |
-|                                    | `openvino.runtime.Output.get_any_name <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name>`__ ,  |                                      |
-|                                    | `openvino.runtime.PartialShape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html>`__                                          |                                      |
-+------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+      +------------------------------------+---------------------------------------------------------------------------+
+      | Options                            | Values                                                                    |
+      +====================================+===========================================================================+
+      | Validated Models                   | :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`                     |
+      +------------------------------------+---------------------------------------------------------------------------+
+      | Validated Layout                   | NCHW                                                                      |
+      +------------------------------------+---------------------------------------------------------------------------+
+      | Model Format                       | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx) |
+      +------------------------------------+---------------------------------------------------------------------------+
+      | Supported devices                  | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`      |
+      +------------------------------------+---------------------------------------------------------------------------+
+      | Other language realization         | :doc:`C++ <openvino_inference_engine_samples_hello_reshape_ssd_README>`   |
+      +------------------------------------+---------------------------------------------------------------------------+
 
-+------------------------------------+---------------------------------------------------------------------------+
-| Options                            | Values                                                                    |
-+====================================+===========================================================================+
-| Validated Models                   | :doc:`mobilenet-ssd <omz_models_model_mobilenet_ssd>`                     |
-+------------------------------------+---------------------------------------------------------------------------+
-| Validated Layout                   | NCHW                                                                      |
-+------------------------------------+---------------------------------------------------------------------------+
-| Model Format                       | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx) |
-+------------------------------------+---------------------------------------------------------------------------+
-| Supported devices                  | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`      |
-+------------------------------------+---------------------------------------------------------------------------+
-| Other language realization         | :doc:`C++ <openvino_inference_engine_samples_hello_reshape_ssd_README>`   |
-+------------------------------------+---------------------------------------------------------------------------+
+   .. tab-item:: Python API 
+
+      The following Python API is used in the application:
+
+      +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+      | Feature                            | API                                                                                                                                                                            | Description                          |
+      +====================================+================================================================================================================================================================================+======================================+
+      | Model Operations                   | `openvino.runtime.Model.reshape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ ,               | Managing of model                    |
+      |                                    | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__ ,                   |                                      |
+      |                                    | `openvino.runtime.Output.get_any_name <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name>`__ ,  |                                      |
+      |                                    | `openvino.runtime.PartialShape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html>`__                                          |                                      |
+      +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/python/hello_reshape_ssd/hello_reshape_ssd.py  
+         :language: python
+
 
 How It Works
 ############

@@ -10,24 +10,35 @@
 
 This sample demonstrates how to execute an query OpenVINO™ Runtime devices, prints their metrics and default configuration values, using :doc:`Properties API <openvino_docs_OV_UG_query_api>`.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
-| Feature                                | API                                   | Description                                                       |
-+========================================+=======================================+===================================================================+
-| Available Devices                      | ``ov::Core::get_available_devices``,  | Get available devices information and configuration for inference |
-|                                        | ``ov::Core::get_property``            |                                                                   |
-+----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+      +----------------------------------------+----------------------------------------------------------------------------------------------+
+      | Options                                | Values                                                                                       |
+      +========================================+==============================================================================================+
+      | Supported devices                      | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                         |
+      +----------------------------------------+----------------------------------------------------------------------------------------------+
+      | Other language realization             | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README>` |
+      +----------------------------------------+----------------------------------------------------------------------------------------------+
 
-+----------------------------------------+----------------------------------------------------------------------------------------------+
-| Options                                | Values                                                                                       |
-+========================================+==============================================================================================+
-| Supported devices                      | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                         |
-+----------------------------------------+----------------------------------------------------------------------------------------------+
-| Other language realization             | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README>` |
-+----------------------------------------+----------------------------------------------------------------------------------------------+
+   .. tab-item:: C++ API
+
+      The following C++ API is used in the application:
+
+      +----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
+      | Feature                                | API                                   | Description                                                       |
+      +========================================+=======================================+===================================================================+
+      | Available Devices                      | ``ov::Core::get_available_devices``,  | Get available devices information and configuration for inference |
+      |                                        | ``ov::Core::get_property``            |                                                                   |
+      +----------------------------------------+---------------------------------------+-------------------------------------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+   
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/cpp/hello_query_device/main.cpp 
+         :language: cpp
 
 How It Works
 ############

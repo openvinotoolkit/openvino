@@ -1,4 +1,4 @@
-# Model Creation Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
+# Model Creation Python Sample {#openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README}
 
 @sphinxdirective
 
@@ -10,39 +10,50 @@
 
 This sample demonstrates how to run inference using a :doc:`model <openvino_docs_OV_UG_Model_Representation>` built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
 
-The following OpenVINO Python API is used in the application:
+.. tab-set::
 
-+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-| Feature                                  | API                                                                                                                                                          | Description                                                                        |
-+==========================================+==============================================================================================================================================================+====================================================================================+
-| Model Operations                         | `openvino.runtime.Model <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ ,                                    | Managing of model                                                                  |
-|                                          | `openvino.runtime.set_batch <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.set_batch.html>`__ ,                            |                                                                                    |
-|                                          | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__   |                                                                                    |
-+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
-| Opset operations                         | `openvino.runtime.op.Parameter <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.op.Parameter.html>`__ ,                      | Description of a model topology using OpenVINO Python API                          |
-|                                          | `openvino.runtime.op.Constant <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.op.Constant.html>`__ ,                        |                                                                                    |
-|                                          | `openvino.runtime.opset8.convolution <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.convolution.html>`__ ,          |                                                                                    |
-|                                          | `openvino.runtime.opset8.add <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.add.html>`__ ,                          |                                                                                    |
-|                                          | `openvino.runtime.opset1.max_pool <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset1.max_pool.html>`__ ,                |                                                                                    |
-|                                          | `openvino.runtime.opset8.reshape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.reshape.html>`__ ,                  |                                                                                    |
-|                                          | `openvino.runtime.opset8.matmul <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.matmul.html>`__ ,                    |                                                                                    |
-|                                          | `openvino.runtime.opset8.relu <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.relu.html>`__ ,                        |                                                                                    |
-|                                          | `openvino.runtime.opset8.softmax <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.softmax.html>`__                    |                                                                                    |
-+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+      +------------------------------------------------+-----------------------------------------------------------------------------+
+      | Options                                        | Values                                                                      |
+      +================================================+=============================================================================+
+      | Validated Models                               | LeNet                                                                       |
+      +------------------------------------------------+-----------------------------------------------------------------------------+
+      | Model Format                                   | Model weights file (\*.bin)                                                 |
+      +------------------------------------------------+-----------------------------------------------------------------------------+
+      | Supported devices                              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`        |
+      +------------------------------------------------+-----------------------------------------------------------------------------+
+      | Other language realization                     | :doc:`C++ <openvino_inference_engine_samples_model_creation_sample_README>` |
+      +------------------------------------------------+-----------------------------------------------------------------------------+
 
-+------------------------------------------------+-----------------------------------------------------------------------------+
-| Options                                        | Values                                                                      |
-+================================================+=============================================================================+
-| Validated Models                               | LeNet                                                                       |
-+------------------------------------------------+-----------------------------------------------------------------------------+
-| Model Format                                   | Model weights file (\*.bin)                                                 |
-+------------------------------------------------+-----------------------------------------------------------------------------+
-| Supported devices                              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`        |
-+------------------------------------------------+-----------------------------------------------------------------------------+
-| Other language realization                     | :doc:`C++ <openvino_inference_engine_samples_model_creation_sample_README>` |
-+------------------------------------------------+-----------------------------------------------------------------------------+
+   .. tab-item:: Python API 
+
+      The following OpenVINO Python API is used in the application:
+
+      +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+      | Feature                                  | API                                                                                                                                                          | Description                                                                        |
+      +==========================================+==============================================================================================================================================================+====================================================================================+
+      | Model Operations                         | `openvino.runtime.Model <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ ,                                    | Managing of model                                                                  |
+      |                                          | `openvino.runtime.set_batch <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.set_batch.html>`__ ,                            |                                                                                    |
+      |                                          | `openvino.runtime.Model.input <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input>`__   |                                                                                    |
+      +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+      | Opset operations                         | `openvino.runtime.op.Parameter <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.op.Parameter.html>`__ ,                      | Description of a model topology using OpenVINO Python API                          |
+      |                                          | `openvino.runtime.op.Constant <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.op.Constant.html>`__ ,                        |                                                                                    |
+      |                                          | `openvino.runtime.opset8.convolution <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.convolution.html>`__ ,          |                                                                                    |
+      |                                          | `openvino.runtime.opset8.add <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.add.html>`__ ,                          |                                                                                    |
+      |                                          | `openvino.runtime.opset1.max_pool <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset1.max_pool.html>`__ ,                |                                                                                    |
+      |                                          | `openvino.runtime.opset8.reshape <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.reshape.html>`__ ,                  |                                                                                    |
+      |                                          | `openvino.runtime.opset8.matmul <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.matmul.html>`__ ,                    |                                                                                    |
+      |                                          | `openvino.runtime.opset8.relu <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.relu.html>`__ ,                        |                                                                                    |
+      |                                          | `openvino.runtime.opset8.softmax <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.opset8.softmax.html>`__                    |                                                                                    |
+      +------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification Python* Sample <openvino_inference_engine_ie_bridges_python_sample_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/python/model_creation_sample/model_creation_sample.py  
+         :language: python
 
 How It Works
 ############
@@ -53,7 +64,6 @@ At startup, the sample application does the following:
 - :doc:`Build a Model <openvino_docs_OV_UG_Model_Representation>` and passed weights file
 - Loads the model and input data to the OpenVINO™ Runtime plugin
 - Performs synchronous inference and processes output data, logging each step in a standard output stream
-
 
 You can see the explicit description of each sample step at :doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 

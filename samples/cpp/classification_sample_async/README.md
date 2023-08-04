@@ -14,33 +14,44 @@ Models with only one input and output are supported.
 
 In addition to regular images, the sample also supports single-channel ``ubyte`` images as an input for LeNet model.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
-| Feature                  | API                                                                   | Description                                                                            |
-+==========================+=======================================================================+========================================================================================+
-| Asynchronous Infer       | ``ov::InferRequest::start_async``, ``ov::InferRequest::set_callback`` | Do asynchronous inference with callback.                                               |
-+--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
-| Model Operations         | ``ov::Output::get_shape``, ``ov::set_batch``                          | Manage the model, operate with its batch size. Set batch size using input image count. |
-+--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
-| Infer Request Operations | ``ov::InferRequest::get_input_tensor``                                | Get an input tensor.                                                                   |
-+--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
-| Tensor Operations        | ``ov::shape_size``, ``ov::Tensor::data``                              | Get a tensor shape size and its data.                                                  |
-+--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+      +----------------------------+-------------------------------------------------------------------------------------------------------+
+      | Options                    | Values                                                                                                |
+      +============================+=======================================================================================================+
+      | Validated Models           | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`        |
+      +----------------------------+-------------------------------------------------------------------------------------------------------+
+      | Model Format               | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                       |
+      +----------------------------+-------------------------------------------------------------------------------------------------------+
+      | Supported devices          | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                  |
+      +----------------------------+-------------------------------------------------------------------------------------------------------+
+      | Other language realization | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README>` |
+      +----------------------------+-------------------------------------------------------------------------------------------------------+
 
-+----------------------------+-------------------------------------------------------------------------------------------------------+
-| Options                    | Values                                                                                                |
-+============================+=======================================================================================================+
-| Validated Models           | :doc:`alexnet <omz_models_model_alexnet>`, :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`        |
-+----------------------------+-------------------------------------------------------------------------------------------------------+
-| Model Format               | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                       |
-+----------------------------+-------------------------------------------------------------------------------------------------------+
-| Supported devices          | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                                  |
-+----------------------------+-------------------------------------------------------------------------------------------------------+
-| Other language realization | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README>` |
-+----------------------------+-------------------------------------------------------------------------------------------------------+
+   .. tab-item:: C++ API
+
+      The following C++ API is used in the application:
+
+      +--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+      | Feature                  | API                                                                   | Description                                                                            |
+      +==========================+=======================================================================+========================================================================================+
+      | Asynchronous Infer       | ``ov::InferRequest::start_async``, ``ov::InferRequest::set_callback`` | Do asynchronous inference with callback.                                               |
+      +--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+      | Model Operations         | ``ov::Output::get_shape``, ``ov::set_batch``                          | Manage the model, operate with its batch size. Set batch size using input image count. |
+      +--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+      | Infer Request Operations | ``ov::InferRequest::get_input_tensor``                                | Get an input tensor.                                                                   |
+      +--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+      | Tensor Operations        | ``ov::shape_size``, ``ov::Tensor::data``                              | Get a tensor shape size and its data.                                                  |
+      +--------------------------+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/cpp/classification_sample_async/main.cpp 
+         :language: cpp
 
 How It Works
 ############

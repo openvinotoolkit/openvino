@@ -11,38 +11,50 @@
 This sample demonstrates how to do synchronous inference of object detection models using :doc:`input reshape feature <openvino_docs_OV_UG_ShapeInference>`.
 Models with only one input and output are supported.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-| Feature                          | API                                                         | Description                                    |
-+==================================+=============================================================+================================================+
-| Node operations                  | ``ov::Node::get_type_info``,                                | Get a node info                                |
-|                                  | ``ngraph::op::DetectionOutput::get_type_info_static``,      |                                                |
-|                                  | ``ov::Output::get_any_name``,                               |                                                |
-|                                  | ``ov::Output::get_shape``                                   |                                                |
-+----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-| Model Operations                 | ``ov::Model::get_ops``,                                     | Get model nodes, reshape input                 |
-|                                  | ``ov::Model::reshape``                                      |                                                |
-+----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-| Tensor Operations                | ``ov::Tensor::data``                                        | Get a tensor data                              |
-+----------------------------------+-------------------------------------------------------------+------------------------------------------------+
-| Preprocessing                    | ``ov::preprocess::PreProcessSteps::convert_element_type``,  | Model input preprocessing                      |
-|                                  | ``ov::preprocess::PreProcessSteps::convert_layout``         |                                                |
-+----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+      +----------------------------------+---------------------------------------------------------------------------------------------+
+      | Options                          | Values                                                                                      |
+      +==================================+=============================================================================================+
+      | Validated Models                 | :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`         |
+      +----------------------------------+---------------------------------------------------------------------------------------------+
+      | Model Format                     | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)             |
+      +----------------------------------+---------------------------------------------------------------------------------------------+
+      | Supported devices                | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                        |
+      +----------------------------------+---------------------------------------------------------------------------------------------+
+      | Other language realization       | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README>` |
+      +----------------------------------+---------------------------------------------------------------------------------------------+
 
-+----------------------------------+---------------------------------------------------------------------------------------------+
-| Options                          | Values                                                                                      |
-+==================================+=============================================================================================+
-| Validated Models                 | :doc:`person-detection-retail-0013 <omz_models_model_person_detection_retail_0013>`         |
-+----------------------------------+---------------------------------------------------------------------------------------------+
-| Model Format                     | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)             |
-+----------------------------------+---------------------------------------------------------------------------------------------+
-| Supported devices                | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                        |
-+----------------------------------+---------------------------------------------------------------------------------------------+
-| Other language realization       | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README>` |
-+----------------------------------+---------------------------------------------------------------------------------------------+
+   .. tab-item:: C++ API 
+
+      The following C++ API is used in the application:
+
+      +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+      | Feature                          | API                                                         | Description                                    |
+      +==================================+=============================================================+================================================+
+      | Node operations                  | ``ov::Node::get_type_info``,                                | Get a node info                                |
+      |                                  | ``ngraph::op::DetectionOutput::get_type_info_static``,      |                                                |
+      |                                  | ``ov::Output::get_any_name``,                               |                                                |
+      |                                  | ``ov::Output::get_shape``                                   |                                                |
+      +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+      | Model Operations                 | ``ov::Model::get_ops``,                                     | Get model nodes, reshape input                 |
+      |                                  | ``ov::Model::reshape``                                      |                                                |
+      +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+      | Tensor Operations                | ``ov::Tensor::data``                                        | Get a tensor data                              |
+      +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+      | Preprocessing                    | ``ov::preprocess::PreProcessSteps::convert_element_type``,  | Model input preprocessing                      |
+      |                                  | ``ov::preprocess::PreProcessSteps::convert_layout``         |                                                |
+      +----------------------------------+-------------------------------------------------------------+------------------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/cpp/hello_reshape_ssd/main.cpp 
+         :language: cpp
+
 
 How It Works
 ############

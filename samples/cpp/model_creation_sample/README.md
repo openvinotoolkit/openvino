@@ -12,55 +12,66 @@ This sample demonstrates how to execute an synchronous inference using :doc:`mod
 
 You do not need an XML file to create a model. The API of ov::Model allows creating a model on the fly from the source code.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Feature                                  | API                                     | Description                           |
-+==========================================+=========================================+=======================================+
-| OpenVINO Runtime Info                    | ``ov::Core::get_versions``              | Get device plugins versions           |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Shape Operations                         | ``ov::Output::get_shape``,              | Operate with shape                    |
-|                                          | ``ov::Shape::size``,                    |                                       |
-|                                          | ``ov::shape_size``                      |                                       |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Tensor Operations                        | ``ov::Tensor::get_byte_size``,          | Get tensor byte size and its data     |
-|                                          | ``ov::Tensor:data``                     |                                       |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Model Operations                         | ``ov::set_batch``                       | Operate with model batch size         |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Infer Request Operations                 | ``ov::InferRequest::get_input_tensor``  | Get a input tensor                    |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
-| Model creation objects                   | ``ov::opset8::Parameter``,              | Used to construct an OpenVINO model   |
-|                                          | ``ov::Node::output``,                   |                                       |
-|                                          | ``ov::opset8::Constant``,               |                                       |
-|                                          | ``ov::opset8::Convolution``,            |                                       |
-|                                          | ``ov::opset8::Add``,                    |                                       |
-|                                          | ``ov::opset1::MaxPool``,                |                                       |
-|                                          | ``ov::opset8::Reshape``,                |                                       |
-|                                          | ``ov::opset8::MatMul``,                 |                                       |
-|                                          | ``ov::opset8::Relu``,                   |                                       |
-|                                          | ``ov::opset8::Softmax``,                |                                       |
-|                                          | ``ov::descriptor::Tensor::set_names``,  |                                       |
-|                                          | ``ov::opset8::Result``,                 |                                       |
-|                                          | ``ov::Model``,                          |                                       |
-|                                          | ``ov::ParameterVector::vector``         |                                       |
-+------------------------------------------+-----------------------------------------+---------------------------------------+
+   .. tab-item:: Requirements 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+      | Options                                                 | Values                                                                                          |
+      +=========================================================+=================================================================================================+
+      | Validated Models                                        | LeNet                                                                                           |
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+      | Model Format                                            | model weights file (\*.bin)                                                                     |
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+      | Validated images                                        | single-channel ``MNIST ubyte`` images                                                           |
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+      | Supported devices                                       | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                            |
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+      | Other language realization                              | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>` |
+      +---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
 
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Options                                                 | Values                                                                                          |
-+=========================================================+=================================================================================================+
-| Validated Models                                        | LeNet                                                                                           |
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Model Format                                            | model weights file (\*.bin)                                                                     |
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Validated images                                        | single-channel ``MNIST ubyte`` images                                                           |
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Supported devices                                       | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                            |
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Other language realization                              | :doc:`Python <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>` |
-+---------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+   .. tab-item:: C++ API 
+
+      The following C++ API is used in the application:
+
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Feature                                  | API                                     | Description                           |
+      +==========================================+=========================================+=======================================+
+      | OpenVINO Runtime Info                    | ``ov::Core::get_versions``              | Get device plugins versions           |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Shape Operations                         | ``ov::Output::get_shape``,              | Operate with shape                    |
+      |                                          | ``ov::Shape::size``,                    |                                       |
+      |                                          | ``ov::shape_size``                      |                                       |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Tensor Operations                        | ``ov::Tensor::get_byte_size``,          | Get tensor byte size and its data     |
+      |                                          | ``ov::Tensor:data``                     |                                       |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Model Operations                         | ``ov::set_batch``                       | Operate with model batch size         |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Infer Request Operations                 | ``ov::InferRequest::get_input_tensor``  | Get a input tensor                    |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+      | Model creation objects                   | ``ov::opset8::Parameter``,              | Used to construct an OpenVINO model   |
+      |                                          | ``ov::Node::output``,                   |                                       |
+      |                                          | ``ov::opset8::Constant``,               |                                       |
+      |                                          | ``ov::opset8::Convolution``,            |                                       |
+      |                                          | ``ov::opset8::Add``,                    |                                       |
+      |                                          | ``ov::opset1::MaxPool``,                |                                       |
+      |                                          | ``ov::opset8::Reshape``,                |                                       |
+      |                                          | ``ov::opset8::MatMul``,                 |                                       |
+      |                                          | ``ov::opset8::Relu``,                   |                                       |
+      |                                          | ``ov::opset8::Softmax``,                |                                       |
+      |                                          | ``ov::descriptor::Tensor::set_names``,  |                                       |
+      |                                          | ``ov::opset8::Result``,                 |                                       |
+      |                                          | ``ov::Model``,                          |                                       |
+      |                                          | ``ov::ParameterVector::vector``         |                                       |
+      +------------------------------------------+-----------------------------------------+---------------------------------------+
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/cpp/model_creation_sample/main.cpp 
+         :language: cpp
 
 How It Works
 ############
