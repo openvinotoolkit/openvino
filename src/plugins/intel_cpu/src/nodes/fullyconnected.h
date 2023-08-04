@@ -137,6 +137,7 @@ private:
     std::shared_ptr<float> biasRnd;
     VectorDims weightDims;
 #endif
+    bool useWeightsDecompressionImpl = false;
     std::vector<float> decompressionSubtract;
     std::vector<float> decompressionMultiply;
 };
