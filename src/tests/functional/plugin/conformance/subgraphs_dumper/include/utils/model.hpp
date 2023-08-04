@@ -118,6 +118,17 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                                 if (ov::op::util::is_parameter(in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_node);
                                     params.push_back(param);
+                                } else if (ov::op::util::is_constant(in_node)) {
+                                    auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node);
+                                    if (op_to_replace->get_byte_size() > 1024) {
+                                        auto param = std::make_shared<ov::op::v0::Parameter>(
+                                            op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
+                                        param->set_friendly_name(op_to_replace->get_friendly_name());
+                                        if (param != nullptr) {
+                                            params.push_back(param);
+                                            ov::replace_node(op_to_replace, param);
+                                        }
+                                    }
                                 }
                                 filled_input_idx++;
                                 model_output_nodes[in_node_name].erase(in_out_idx);

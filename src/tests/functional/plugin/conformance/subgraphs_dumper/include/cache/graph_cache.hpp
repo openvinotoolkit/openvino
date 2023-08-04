@@ -48,7 +48,7 @@ protected:
         ExtractorsManager::ExtractorsMap matchers = {
             { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
             // temporary comment the following extractor to avaoid long subgraphs dumper
-            // { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
     }
