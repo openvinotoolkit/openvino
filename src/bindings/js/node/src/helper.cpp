@@ -162,7 +162,7 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type) {
-    return Napi::String::New(info.Env(), ov::element::Type(type).get_type_name());
+    return Napi::String::New(info.Env(), ov::element::Type(type).to_string());
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {
