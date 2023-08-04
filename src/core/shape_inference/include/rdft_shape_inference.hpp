@@ -37,11 +37,11 @@ std::vector<TRShape> shape_infer(const RDFT* op,
     auto& output_shape = output_shapes[0];
     auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
 
-    util::rfft_common_validation::shape_validation(op,
-                                                   input_shapes,
-                                                   *axes,
-                                                   static_cast<bool>(axes),
-                                                   util::rfft_common_validation::RFFTKind::Forward);
+    util::fft_common_validation::shape_validation(op,
+                                                  input_shapes,
+                                                  *axes,
+                                                  static_cast<bool>(axes),
+                                                  util::fft_common_validation::FFTKind::RealInput);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();

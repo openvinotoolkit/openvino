@@ -10,15 +10,15 @@
 namespace ov {
 namespace op {
 namespace util {
-namespace rfft_common_validation {
-enum class RFFTKind { Forward, Inverse };
+namespace fft_common_validation {
+enum class FFTKind { RealInput, ComplexInput };
 template <class T>
 void validate_input_rank(const ov::op::util::FFTBase* op,
                          const T& input_shape,
                          const T& axes_shape,
                          size_t input_rank,
-                         RFFTKind rfft_kind) {
-    const size_t min_rank = (rfft_kind == RFFTKind::Forward) ? 1 : 2;
+                         FFTKind fft_kind) {
+    const size_t min_rank = (fft_kind == FFTKind::RealInput) ? 1 : 2;
     NODE_VALIDATION_CHECK(op,
                           input_rank >= min_rank,
                           "The input rank must be greater or equal to ",
@@ -26,7 +26,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
                           ". Got input rank: ",
                           input_rank);
 
-    if (rfft_kind == RFFTKind::Inverse) {
+    if (fft_kind == FFTKind::ComplexInput) {
         NODE_VALIDATION_CHECK(op,
                               input_shape[input_rank - 1].compatible(2),
                               "The last dimension of input data must be 2. Got: ",
@@ -37,7 +37,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
         return;
     }
 
-    if (rfft_kind == RFFTKind::Forward) {
+    if (fft_kind == FFTKind::RealInput) {
         NODE_VALIDATION_CHECK(op,
                               input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
                               "The input rank must be greater than or equal to the number of axes. "
@@ -62,7 +62,7 @@ void validate_axes(const ov::op::util::FFTBase* op,
                    std::vector<int64_t>& axes,
                    size_t input_rank,
                    bool axes_are_known,
-                   RFFTKind rfft_kind) {
+                   FFTKind fft_kind) {
     if (axes_shape.rank().is_dynamic() || !axes_are_known) {
         return;
     }
@@ -77,12 +77,12 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // But RDFT operation supports negative axes to transform in other sense. More precisely,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
-    const int64_t axis_correction = (rfft_kind == RFFTKind::Forward) ? input_rank : (input_rank - 1);
+    const int64_t axis_correction = (fft_kind == FFTKind::RealInput) ? input_rank : (input_rank - 1);
     auto axis_min_value = -static_cast<int64_t>(input_rank);
     auto axis_max_value = static_cast<int64_t>(input_rank) - 1;
 
     // RDFT op axes can contain the last axis
-    if (rfft_kind == RFFTKind::Forward) {
+    if (fft_kind == FFTKind::RealInput) {
         --axis_min_value;
         ++axis_max_value;
     }
@@ -130,14 +130,14 @@ void shape_validation(const ov::op::util::FFTBase* op,
                       const std::vector<T>& input_shapes,
                       std::vector<int64_t>& axes,
                       bool axes_are_known,
-                      RFFTKind rfft_kind) {
+                      FFTKind fft_kind) {
     const auto& input_shape = input_shapes[0];
     const auto& axes_shape = input_shapes[1];
 
     if (input_shape.rank().is_static()) {
         const auto input_rank = input_shape.size();
-        validate_input_rank(op, input_shape, axes_shape, input_rank, rfft_kind);
-        validate_axes(op, axes_shape, axes, input_rank, axes_are_known, rfft_kind);
+        validate_input_rank(op, input_shape, axes_shape, input_rank, fft_kind);
+        validate_axes(op, axes_shape, axes, input_rank, axes_are_known, fft_kind);
     }
 
     NODE_VALIDATION_CHECK(op, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
@@ -147,7 +147,7 @@ void shape_validation(const ov::op::util::FFTBase* op,
         validate_signal_size(op, axes_shape, signal_size_shape);
     }
 }
-}  // namespace rfft_common_validation
+}  // namespace fft_common_validation
 }  // namespace util
 }  // namespace op
 }  // namespace ov

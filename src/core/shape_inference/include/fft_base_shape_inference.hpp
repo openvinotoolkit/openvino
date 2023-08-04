@@ -24,11 +24,11 @@ std::vector<TRShape> shape_infer(const util::FFTBase* op,
     auto& output_shape = output_shapes[0];
     auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta);
 
-    util::rfft_common_validation::shape_validation(op,
-                                                   input_shapes,
-                                                   *axes,
-                                                   static_cast<bool>(axes),
-                                                   util::rfft_common_validation::RFFTKind::Inverse);
+    util::fft_common_validation::shape_validation(op,
+                                                  input_shapes,
+                                                  *axes,
+                                                  static_cast<bool>(axes),
+                                                  util::fft_common_validation::FFTKind::ComplexInput);
 
     output_shape = input_shape;
 
