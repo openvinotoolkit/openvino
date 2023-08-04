@@ -169,15 +169,7 @@ openvino/bin/intel64/Release$ ./benchark_app -m openvino/src/core/tests/models/i
 
 ### Enable/Disable CPU as acceleration
 
-This section shows you the setting to AUTO plugin that enables/disables CPU as acceleration (or helper device) at the beginning via the benchmark APP. Configure the property ``ENABLE_STARTUP_FALLBACK`` first in the JSON file ``config.json`` as below before running.
-
-```bash
-{
-   "AUTO": {
-            "ENABLE_STARTUP_FALLBACK": "YES"
-   }
-}
-```
+This section shows the setting to AUTO plugin that enables/disables CPU as acceleration (or helper device) at the beginning via the benchmark APP. Configure the property ``ENABLE_STARTUP_FALLBACK`` first in the JSON file ``config.json``.
 
 Running benchmark_APP with enabling the property ``ENABLE_STARTUP_FALLBACK`` in JSON file ``config.json``.
 
@@ -263,7 +255,7 @@ openvino/bin/intel64/Release$ ./benchark_app -m openvino/src/core/tests/models/i
 
 This section will show the fallback of device selection within the AUTO plugin if the device with high priority doesn't support the precision of the inputting model. For example, CPU supports both FP16 and FP32 precision model, while GNA doesn't FP32 precision. Although GNA has higher priority, AUTO plugin will ultimately choose the CPU plugin to load model with FP32 precision.  
 
-AUTO will select GNA if no device is specified in the device candidate list of AUTO.
+AUTO will select GNA if no other device is specified in the device candidate list.
 
 ```bash
 ./benchmark_app -m add_abc.xml -d AUTO:GNA -t 10
@@ -294,7 +286,7 @@ AUTO will select GNA if no device is specified in the device candidate list of A
 [ INFO ] Throughput:          69131.99 FPS
 ```
 
-Device selection fallback will happen here as GNA doesn't support FP32 precision model.
+Device selection fallback will happen here. CPU will be selected by AUTO as GNA doesn't support FP32 precision model.
 
 ```bash
 ./benchmark_app -m add_abc.xml -d AUTO:GNA,CPU -t 10
