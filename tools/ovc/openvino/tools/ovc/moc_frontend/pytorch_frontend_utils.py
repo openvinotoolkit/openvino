@@ -31,7 +31,7 @@ def get_pytorch_decoder(model, example_inputs, args):
     except:
         pass
     inputs = prepare_torch_inputs(example_inputs, args.get("input"), allow_none=True)
-    decoder = TorchScriptPythonDecoder(model, example_input=inputs)
+    decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
     args['input_model'] = decoder
     args["example_input"] = inputs
 

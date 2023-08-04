@@ -55,7 +55,7 @@ def get_type_from_py_type(value):
     return OVType.dynamic
 
 
-def ivalue_to_constant(ivalue):
+def ivalue_to_constant(ivalue, shared_memory=True):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
@@ -76,12 +76,12 @@ def ivalue_to_constant(ivalue):
                 narr = np.ascontiguousarray(narr)
             # TODO: this tensor doesn't share memory with initial tensor
             tensor = Tensor(narr, ivalue.shape, OVType.bf16)
-            ov_const = op.Constant(tensor, shared_memory=True)
+            ov_const = op.Constant(tensor, shared_memory=shared_memory)
         else:
             narr = ivalue.numpy(force=True)
             if not narr.flags['C_CONTIGUOUS']:
                 narr = np.ascontiguousarray(narr)
-            ov_const = op.Constant(narr, shared_memory=True)
+            ov_const = op.Constant(narr, shared_memory=shared_memory)
         return ov_const.outputs()
     return None
 

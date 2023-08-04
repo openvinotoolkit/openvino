@@ -1065,6 +1065,35 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         self._test_by_ref_graph(temp_dir, test_params,
                                 graph_ref, compare_tensor_names=False)
 
+    @ pytest.mark.precommit
+    def test_sharing_memory_switched_off(self, ie_device, precision, ir_version, temp_dir):
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import Core
+        
+        class DataModel(torch.nn.Module):
+            def __init__(self):
+                super(DataModel, self).__init__()
+                self.data = torch.tensor([1, 2, 3, 4])
+        
+            def forward(self, x):                
+                return x + self.data
+
+        data_model = DataModel()
+        test_input = np.array([1, 2, 3, 4])
+
+        # Convert model to OV
+        ov_model = convert_model(data_model, input=([4], Type.i32), share_weights=False)
+
+        # Change value of variables in original model
+        data_model.data[0] *= 2
+
+        # Check model inference
+        core = Core()
+        cmp_model = core.compile_model(ov_model, ie_device)
+        ov_infer1 = cmp_model(test_input)
+
+        assert np.array_equal(ov_infer1[0], [2, 4, 6, 8])
+
 
 def create_pt_model_with_custom_op():
     #
