@@ -4,14 +4,6 @@
 
 #include "include/auto_unit_test.hpp"
 
-#define EXPECT_THROW_WITH_MESSAGE(stmt, etype, whatstring) EXPECT_THROW( \
-        try { \
-            stmt; \
-        } catch (const etype& ex) { \
-            EXPECT_THAT(std::string(ex.what()), HasSubstr(whatstring)); \
-            throw; \
-        } \
-    , etype)
 // define a matcher if all the elements of subMap are contained in the map.
 MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
     if (subMap.empty())

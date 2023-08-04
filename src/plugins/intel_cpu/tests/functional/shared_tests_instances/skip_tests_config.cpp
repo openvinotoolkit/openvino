@@ -188,8 +188,6 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // Issue: 113727
-        R"(.*MatMulCompressedWeights.*)",
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
     };
