@@ -29,7 +29,7 @@ RequestStatus SubrequestImpl::wait(int64_t timeoutMilliseconds) {
     try {
         status_ = waitHandler_(requestID_, timeoutMilliseconds);
     } catch (const std::exception& e) {
-        ov::intel_gna::log::error() << "Exception when executiong wait: " << e.what() << std::endl;
+        ov::intel_gna::log::error() << "Exception when execution wait: " << e.what() << std::endl;
         status_ = RequestStatus::kCompletedWithError;
     }
 
