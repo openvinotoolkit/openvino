@@ -30,18 +30,17 @@ Please file a github Issue on these with the label “pre-release” so we can g
       :material-regular:`feedback;1.4em` Share your feedback
 
 
-
 .. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
-   :open:
    :animate: fade-in-slide-down
    :color: primary
-
+   :open:
+   
    `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230728>`__ 
-
+   
    **New features:**
-
+   
    * Common:
-
+   
      - Proxy & hetero plugins have been migrated to API 2.0, providing enhanced compatibility and stability. 
      - Symbolic shape inference preview is now available, leading to improved performance for Large Language models (LLMs).
 
@@ -54,7 +53,6 @@ Please file a github Issue on these with the label “pre-release” so we can g
      - Various performance improvements for StableDiffusion, SegmentAnything, U-Net, and Large Language models. 
      - Optimized dGPU performance through the integration of oneDNN 3.2 and fusion optimizations for MVN, Crop+Concat, permute, etc. 
 
-
    * GNA Runtime: Addressed stability issues on the Gemini Lake platform related to GNA device plugin creation (ref: #115949). 
 
    * Frameworks:
@@ -65,18 +63,18 @@ Please file a github Issue on these with the label “pre-release” so we can g
 
    * NNCF: Enabled SmoothQuant method for Post-training Quantization, offering more techniques for quantizing models.
 
- **Distribution:**
+   **Distribution:**
 
    * Added conda-forge pre-release channel, simplifying OpenVINO pre-release installation with "conda install -c "conda-forge/label/openvino_dev" openvino" command.
    * Python API is now distributed as a part of conda-forge distribution, allowing users to access it using the command above.
    * Runtime can now be installed and used via vcpkg C++ package manager, providing more flexibility in integrating OpenVINO into projects.
 
-**New models:**
+   **New models:**
 
    * Enabled Large Language models such as open-llama, bloom, dolly-v2, GPT-J, llama-2, and more. We encourage users to try running their custom LLMs and share their feedback with us! 
    * Optimized performance for Stable Diffusion v2.1 (FP16 and INT8 for GPU) and Clip (CPU, INT8) models, improving their overall efficiency and accuracy. 
    
-**New openvino_notebooks:**
+   **New openvino_notebooks:**
 
    * `242-freevc-voice-conversion <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/242-freevc-voice-conversion>`__ - High-Quality Text-Free One-Shot Voice Conversion with FreeVC
    * `241-riffusion-text-to-music <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/241-riffusion-text-to-music>`__ - Text-to-Music generation using Riffusion
