@@ -84,7 +84,15 @@ private:
         uint32_t i;
     };
 
+    float cast_to_float(bool convert_bounds) const;
+
     uint16_t m_value;
+
+    constexpr static uint16_t m_min = 0x0200;
+    constexpr static uint16_t m_max = 0x7BFF;
+    constexpr static uint16_t m_lowest = 0xFBFF;
+
+    friend std::numeric_limits<ov::float16>;
 };
 
 #if defined(_MSC_VER)
@@ -125,7 +133,7 @@ bool float16::operator>=(const T& other) const {
 
 template <typename T>
 float16 float16::operator+(const T& other) const {
-    return {static_cast<float>(*this) + static_cast<float>(other)};
+    return {cast_to_float(true) + static_cast<float>(other)};
 }
 
 template <typename T>
@@ -135,7 +143,7 @@ float16 float16::operator+=(const T& other) {
 
 template <typename T>
 float16 float16::operator-(const T& other) const {
-    return {static_cast<float>(*this) - static_cast<float>(other)};
+    return {cast_to_float(true) - static_cast<float>(other)};
 }
 
 template <typename T>
@@ -145,7 +153,7 @@ float16 float16::operator-=(const T& other) {
 
 template <typename T>
 float16 float16::operator*(const T& other) const {
-    return {static_cast<float>(*this) * static_cast<float>(other)};
+    return {cast_to_float(true) * static_cast<float>(other)};
 }
 
 template <typename T>
@@ -155,7 +163,7 @@ float16 float16::operator*=(const T& other) {
 
 template <typename T>
 float16 float16::operator/(const T& other) const {
-    return {static_cast<float>(*this) / static_cast<float>(other)};
+    return {cast_to_float(true) / static_cast<float>(other)};
 }
 
 template <typename T>
@@ -175,13 +183,13 @@ class numeric_limits<ov::float16> {
 public:
     static constexpr bool is_specialized = true;
     static constexpr ov::float16 min() noexcept {
-        return ov::float16::from_bits(0x0200);
+        return ov::float16::from_bits(ov::float16::m_min);
     }
     static constexpr ov::float16 max() noexcept {
-        return ov::float16::from_bits(0x7BFF);
+        return ov::float16::from_bits(ov::float16::m_max);
     }
     static constexpr ov::float16 lowest() noexcept {
-        return ov::float16::from_bits(0xFBFF);
+        return ov::float16::from_bits(ov::float16::m_lowest);
     }
     static constexpr int digits = 11;
     static constexpr int digits10 = 3;

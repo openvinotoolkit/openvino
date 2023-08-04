@@ -30,6 +30,14 @@ using namespace ov;
 static_assert(sizeof(float16) == 2, "class float16 must be exactly 2 bytes");
 
 float16::float16(float value) {
+    if (value == std::numeric_limits<float>::lowest()) {
+        m_value = m_lowest;
+        return;
+    } else if (value == std::numeric_limits<float>::max()) {
+        m_value = m_max;
+        return;
+    }
+
     // Work in 32-bit and shift right 16 in the end
     union {
         float fv;
@@ -118,6 +126,28 @@ size_t float16::size() const {
 }
 
 float16::operator float() const {
+    bool convert_bounds = false;
+    return cast_to_float(convert_bounds);
+}
+
+bool std::isnan(float16 x) {
+    // Sign doesn't matter, frac not zero (infinity)
+    return (x.to_bits() & 0x7FFF) > 0x7c00;
+}
+
+uint16_t float16::to_bits() const {
+    return m_value;
+}
+
+float float16::cast_to_float(bool convert_bounds) const {
+    if (convert_bounds) {
+        if (m_value == m_lowest) {
+            return std::numeric_limits<float>::lowest();
+        } else if (m_value == m_max) {
+            return std::numeric_limits<float>::max();
+        }
+    }
+
     union {
         uint32_t i_val;
         float f_val;
@@ -143,13 +173,4 @@ float16::operator float() const {
     frac = frac << (23 - frac_size);
     i_val = static_cast<uint32_t>((m_value & 0x8000)) << 16 | (fexp << 23) | frac;
     return f_val;
-}
-
-bool std::isnan(float16 x) {
-    // Sign doesn't matter, frac not zero (infinity)
-    return (x.to_bits() & 0x7FFF) > 0x7c00;
-}
-
-uint16_t float16::to_bits() const {
-    return m_value;
 }

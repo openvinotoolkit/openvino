@@ -50,6 +50,16 @@ TEST(float16, conversions) {
     f16_string = ov::test::utils::float16_to_bits(f16);
     EXPECT_STREQ(source_string, f16_string.c_str());
     EXPECT_EQ(static_cast<float>(f16), 1.5);
+
+    f16 = std::numeric_limits<float>::lowest();
+    EXPECT_EQ(static_cast<float>(f16), -65504.0f);
+    f16 = std::numeric_limits<float>::max();
+    EXPECT_EQ(static_cast<float>(f16), 65504.0f);
+
+    float f32 = std::numeric_limits<float>::lowest();
+    EXPECT_EQ(static_cast<float16>(f32), std::numeric_limits<float16>::lowest());
+    f32 = std::numeric_limits<float>::max();
+    EXPECT_EQ(static_cast<float16>(f32), std::numeric_limits<float16>::max());
 }
 
 TEST(float16, assigns) {
@@ -73,6 +83,8 @@ TEST(float16, assigns) {
 }
 
 TEST(float16, values) {
+    EXPECT_EQ(sizeof(float16), 2);
+
     EXPECT_EQ(static_cast<float16>(ov::test::utils::FloatUnion(0, 112 - 8, (1 << 21) + 0).f).to_bits(),
               float16(0, 0, 2).to_bits());
     EXPECT_EQ(static_cast<float16>(ov::test::utils::FloatUnion(0, 112 - 8, (1 << 21) + 1).f).to_bits(),
