@@ -90,6 +90,25 @@ public:
         return lowPrecision.find(precision) != lowPrecision.end();
     }
 
+    static bool check(const element::Type precision, const size_t levels) {
+        switch (precision) {
+            case element::i4:
+            case element::u4:
+                return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
+            case element::i8:
+            case element::u8:
+                return (levels == low_precision::levels::int8) || (levels == low_precision::levels::int8_narrow_range);
+            case element::i16:
+            case element::u16:
+                return (levels == low_precision::levels::int16) || (levels == low_precision::levels::int16_narrow_range);
+            case element::i32:
+            case element::u32:
+                return (levels == low_precision::levels::int32) || (levels == low_precision::levels::int32_narrow_range);
+            default:
+                return false;
+        }
+    }
+
     static float getMinValue(const element::Type precision, const size_t levels) {
         switch (precision) {
             case element::u4:

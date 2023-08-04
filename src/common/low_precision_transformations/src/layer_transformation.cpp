@@ -338,6 +338,10 @@ DataPrecision LayerTransformation::getDataPrecision(
                 precisionDetailsAtOutputIntervals.precision :
                 *requiredPrecisions.begin();
 
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
@@ -348,6 +352,11 @@ DataPrecision LayerTransformation::getDataPrecision(
         // FakeQuantize optimal precision is not deined
         if (!requiredPrecisions.empty()) {
             const element::Type resultPrecision = *requiredPrecisions.begin();
+
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),

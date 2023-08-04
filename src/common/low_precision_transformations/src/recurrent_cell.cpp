@@ -108,6 +108,10 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ngra
                                             ? defaultPrecisions
                                             : precisionsAttribute.as<PrecisionsAttribute>().value();
                 const DataPrecision dataPrecision = getDataPrecision(lstm_parent, quantizationDetails, precisions);
+                if (dataPrecision.empty()) {
+                    return false;
+                }
+
                 auto QDQ = NetworkHelper::decomposeFakeQuantize(fq_node,
                                                                   dataPrecision.precision,
                                                                   dataPrecision.min,
