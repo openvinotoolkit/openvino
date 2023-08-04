@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes2D),
                                           testing::ValuesIn(axis2D),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU),
+                                          testing::Values(ov::test::utils::DEVICE_GPU),
                                           testing::Values(std::map<std::string, std::string>())),
                          LogSoftmaxLayerTest::getTestCaseName);
 
@@ -57,7 +57,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes4D),
                                           testing::ValuesIn(axis4D),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU),
+                                          testing::Values(ov::test::utils::DEVICE_GPU),
                                           testing::Values(std::map<std::string, std::string>())),
                          LogSoftmaxLayerTest::getTestCaseName);
 

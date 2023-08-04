@@ -65,7 +65,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GatherTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(opset_version)),
     GatherTransformation::getTestCaseName);

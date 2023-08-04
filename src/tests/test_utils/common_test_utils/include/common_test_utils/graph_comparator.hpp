@@ -308,8 +308,8 @@ public:
         return msg.empty() ? Result::ok() : Result::error(msg);
     }
 
-    Comparator recreate() const {
-        return Comparator(m_comparison_flags);
+    CmpValues get_comparison_flags() const {
+        return m_comparison_flags;
     }
 
     void compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
@@ -945,7 +945,9 @@ private:
     template <typename AttrValue>
     void verify(const std::string& name, const AttrValue& attr_value);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 

@@ -15,7 +15,7 @@ template <>
 struct typed_program_node<prior_box> : typed_program_node_base<prior_box> {
     using parent = typed_program_node_base<prior_box>;
 
-    typed_program_node(std::shared_ptr<prior_box> prim, program& prog);
+    typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1}; }

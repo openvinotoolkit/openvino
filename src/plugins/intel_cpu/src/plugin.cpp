@@ -38,11 +38,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
 
-#if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#include "arm_compute/runtime/CPP/CPPScheduler.h"
-#endif
-
 using namespace InferenceEngine;
 
 #define IE_CPU_PLUGIN_THROW(...) IE_THROW(__VA_ARGS__) << "CPU plugin: "
@@ -147,10 +142,6 @@ Engine::Engine() :
     specialSetup(new CPUSpecialSetup) {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extension>());
-#if defined(OV_CPU_WITH_ACL)
-    acl_scheduler = std::make_unique<ACLScheduler>();
-    arm_compute::Scheduler::set(acl_scheduler);
-#endif
 }
 
 Engine::~Engine() {
@@ -500,7 +491,18 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
+    if (!is_cpu_map_available()) {
+        ApplyPerformanceHints(config, nGraphFunc);
+    }
+
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+
+    conf.readProperties(config);
+    CalculateStreams(conf, nGraphFunc);
+
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -513,19 +515,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    if (!is_cpu_map_available()) {
-        ApplyPerformanceHints(config, nGraphFunc);
-    }
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-
-    conf.readProperties(config);
-    CalculateStreams(conf, nGraphFunc);
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
