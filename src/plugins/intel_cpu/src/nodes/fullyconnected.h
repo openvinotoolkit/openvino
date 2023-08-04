@@ -123,9 +123,7 @@ private:
 #ifdef OV_CPU_WITH_LLMDNN
     bool extractParamForLLMFc(llmdnn::fc_create_param& param);
     bool initLLMFc();
-    bool execLLMFc();
-    MemoryPtr convertMemoryPrecision(MemoryPtr weightPtr, const InferenceEngine::Precision prec);
-    void primExecLLMFc(void* weight);
+    void execLLMFc();
 
     std::vector<std::shared_ptr<llmdnn::fc_kernel>> fcLLMs;
     enum StateLLMFc {
