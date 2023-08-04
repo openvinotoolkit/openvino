@@ -40,7 +40,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
     if (rfft_kind == RFFTKind::Forward) {
         NODE_VALIDATION_CHECK(op,
                               input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
-                              "The input rank must be greater than or equal to the number of RDFT op axes. "
+                              "The input rank must be greater than or equal to the number of axes. "
                               "Got input rank: ",
                               input_rank,
                               ", number of axes: ",
@@ -48,7 +48,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
     } else {
         NODE_VALIDATION_CHECK(op,
                               input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
-                              "The input rank must be greater than number of IRDFT op axes. Got "
+                              "The input rank must be greater than number of axes. Got "
                               "input rank: ",
                               input_rank,
                               ", number of axes: ",
@@ -67,8 +67,8 @@ void validate_axes(const ov::op::util::FFTBase* op,
         return;
     }
 
-    // IRDFT operation supports negative axes to transform. More precisely, according to
-    // the IRDFT operation specification, axes should be integers from -(r - 1) to (r - 2)
+    // IRDFT, DFT, IDFT, operations supports negative axes to transform. More precisely, according to
+    // the operation specification, axes should be integers from -(r - 1) to (r - 2)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis
     // 'r - 1 + a'. The reason is the following: real input tensor of the shape
     // [n_0, ..., n_{r - 1}, 2] is interpreted as a complex tensor with the shape
@@ -91,9 +91,9 @@ void validate_axes(const ov::op::util::FFTBase* op,
     for (int64_t& axis : axes) {
         NODE_VALIDATION_CHECK(op,
                               axis_min_value < axis && axis < axis_max_value,
-                              "(I)RDFT op axis ",
+                              "Axis value: ",
                               axis,
-                              " must be in the input rank range (",
+                              ", must be in range (",
                               axis_min_value,
                               ", ",
                               axis_max_value,
@@ -104,23 +104,23 @@ void validate_axes(const ov::op::util::FFTBase* op,
         axes_set.insert(static_cast<size_t>(axis));
     }
 
-    NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "(I)RDFT op axes must be unique.");
+    NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "Each axis must be unique.");
 }
 
 template <class T>
 void validate_signal_size(const ov::op::util::FFTBase* op, const T& axes_shape, const T& signal_size_shape) {
     NODE_VALIDATION_CHECK(op,
                           signal_size_shape.rank().compatible(1),
-                          "(I)RDFT op signal size input must be 1D tensor. Got signal: ",
+                          "Signal size input must be 1D tensor. Got signal: ",
                           signal_size_shape);
 
     if (axes_shape.is_static() && signal_size_shape.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               axes_shape[0].compatible(signal_size_shape[0]),
-                              "Sizes of inputs 'axes' and 'signal_size' of (I)RDFT op must be equal. "
+                              "Sizes of inputs 'axes' and 'signal_size' must be equal. "
                               "Got size of 'axes': ",
                               axes_shape[0],
-                              "size of 'signal_size': ",
+                              ", size of 'signal_size': ",
                               signal_size_shape[0]);
     }
 }
@@ -140,7 +140,7 @@ void shape_validation(const ov::op::util::FFTBase* op,
         validate_axes(op, axes_shape, axes, input_rank, axes_are_known, rfft_kind);
     }
 
-    NODE_VALIDATION_CHECK(op, axes_shape.rank().compatible(1), "(I)RDFT op axes input must be 1D tensor.");
+    NODE_VALIDATION_CHECK(op, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
 
     if (input_shapes.size() == 3) {
         const auto& signal_size_shape = input_shapes[2];

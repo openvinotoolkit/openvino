@@ -35,7 +35,7 @@ TEST_P(ConstantAxesAndConstantSignalSizeTest, idft_constant_axes_and_signal_size
     }
 
     EXPECT_EQ(idft->get_element_type(), element::f32);
-    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(idft->get_output_partial_shape(0), params.ref_output_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -180,7 +180,7 @@ TEST(type_prop, idft_dynamic_axes) {
     auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
 
     EXPECT_EQ(idft->get_element_type(), element::f32);
-    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(ref_output_shape));
+    EXPECT_EQ(idft->get_output_partial_shape(0), ref_output_shape);
 }
 
 struct NonConstantAxesTestParams {
@@ -199,7 +199,7 @@ TEST_P(NonConstantAxesTest, idft_non_constant_axes) {
     auto idft = std::make_shared<op::v7::IDFT>(data, axes_input);
 
     EXPECT_EQ(idft->get_element_type(), element::f32);
-    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(idft->get_output_partial_shape(0), params.ref_output_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -273,7 +273,7 @@ TEST_P(NonConstantSignalSizeTest, idft_non_constant_signal_size) {
     auto idft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(idft->get_element_type(), element::f32);
-    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(idft->get_output_partial_shape(0), params.ref_output_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -321,7 +321,7 @@ TEST(type_prop, idft_invalid_input) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of FFT op axes.");
+        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of axes");
     }
 }
 
@@ -333,7 +333,7 @@ TEST(type_prop, idft_invalid_axes) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis 3 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 3, must be in range (-3, 2)");
     }
 
     try {
@@ -341,7 +341,7 @@ TEST(type_prop, idft_invalid_axes) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis -3 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: -3, must be in range (-3, 2)");
     }
 
     try {
@@ -349,7 +349,7 @@ TEST(type_prop, idft_invalid_axes) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axes must be unique.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Each axis must be unique");
     }
 
     try {
@@ -357,7 +357,7 @@ TEST(type_prop, idft_invalid_axes) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axis 2 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 2, must be in range (-3, 2)");
     }
 
     try {
@@ -365,7 +365,7 @@ TEST(type_prop, idft_invalid_axes) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes);
         FAIL() << "IDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op axes input must be 1D tensor.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be 1D tensor.");
     }
 }
 
@@ -378,7 +378,7 @@ TEST(type_prop, idft_invalid_signal_size) {
         auto idft = std::make_shared<op::v7::IDFT>(data, axes, signal_size);
         FAIL() << "IDFT node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "FFT op signal size input must be 1D tensor.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Signal size input must be 1D tensor.");
     }
 
     try {
@@ -402,5 +402,5 @@ TEST(type_prop, idft_dynamic_types) {
     auto idft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(idft->get_element_type(), element::dynamic);
-    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(ref_output_shape));
+    EXPECT_EQ(idft->get_output_partial_shape(0), ref_output_shape);
 }

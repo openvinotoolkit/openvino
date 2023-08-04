@@ -48,7 +48,7 @@ TEST_P(IRDFTConstantAxesAndConstantSignalSizeTest, irdft_constant_axes_and_signa
     }
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
-    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -192,7 +192,7 @@ TEST(type_prop, irdft_dynamic_axes) {
     auto irdft = std::make_shared<op::v9::IRDFT>(data, axes_input);
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
-    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(ref_output_shape));
+    EXPECT_EQ(irdft->get_output_partial_shape(0), ref_output_shape);
 }
 
 struct IRDFTNonConstantAxesTestParams {
@@ -284,7 +284,7 @@ TEST_P(IRDFTNonConstantSignalSizeTest, irdft_non_constant_signal_size) {
     auto irdft = std::make_shared<op::v9::IRDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
-    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -332,7 +332,7 @@ TEST(type_prop, irdft_invalid_input) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of IRDFT op axes.");
+        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of axes.");
     }
 }
 
@@ -344,7 +344,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis 3 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 3, must be in range (-3, 2)");
     }
 
     try {
@@ -352,7 +352,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis -3 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: -3, must be in range (-3, 2)");
     }
 
     try {
@@ -360,7 +360,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axes must be unique.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Each axis must be unique");
     }
 
     try {
@@ -368,7 +368,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axis 2 must be in the input rank range");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 2, must be in range (-3, 2)");
     }
 
     try {
@@ -376,7 +376,7 @@ TEST(type_prop, irdft_invalid_axes) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes);
         FAIL() << "IRDFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op axes input must be 1D tensor.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be 1D tensor");
     }
 }
 
@@ -389,7 +389,7 @@ TEST(type_prop, irdft_invalid_signal_size) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes, signal_size);
         FAIL() << "IRDFT node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "(I)RDFT op signal size input must be 1D tensor.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Signal size input must be 1D tensor.");
     }
 
     try {
@@ -397,7 +397,7 @@ TEST(type_prop, irdft_invalid_signal_size) {
         auto irdft = std::make_shared<op::v9::IRDFT>(data, axes, signal_size);
         FAIL() << "IRDFT node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' of (I)RDFT op must be equal.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' must be equal");
     }
 }
 
@@ -413,5 +413,5 @@ TEST(type_prop, irdft_dynamic_types) {
     auto irdft = std::make_shared<op::v9::IRDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(irdft->get_element_type(), element::dynamic);
-    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(ref_output_shape));
+    EXPECT_EQ(irdft->get_output_partial_shape(0), ref_output_shape);
 }
