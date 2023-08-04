@@ -21,7 +21,7 @@
 #    endif
 #endif
 
-#include "vpu_config.hpp"
+#include "npu_config.hpp"
 
 namespace InferenceEngine {
 

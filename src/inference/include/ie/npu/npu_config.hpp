@@ -7,7 +7,7 @@
  * Include myriad_config.hpp or hddl_config.hpp directly.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file vpu_config.hpp
+ * @file npu_config.hpp
  */
 
 #pragma once
