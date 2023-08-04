@@ -75,6 +75,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
+    FuseFCAndWeightsDecompression(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
@@ -283,6 +287,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
 
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2))
+        return;
+
     auto& graphNodes = graph.GetNodes();
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto fcNode = dynamic_cast<node::FullyConnected*>(graphNodes[i].get());
@@ -323,6 +330,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // Precision limitations
+        if (fcNode->getOriginalInputPrecisionAtPort(0) != Precision::FP32)
+            continue;
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
