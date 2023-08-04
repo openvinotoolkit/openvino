@@ -214,7 +214,7 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
     _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
-                                                            "Task executor config for CompilationContext in GPU plugin", 1));
+                                                       "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
 
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
