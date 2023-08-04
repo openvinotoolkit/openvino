@@ -297,7 +297,7 @@ void primitive_inst::update_shape() {
         if (_deps[i].first->get_node().is_in_shape_of_subgraph()) {
             bool can_skip = true;
             const auto& insts = _deps[i].first->dependant_shape_of_insts;
-            for (auto inst : insts) {
+            for (auto& inst : insts) {
                 can_skip &= !inst->shape_changed();
             }
             if (can_skip)
@@ -631,7 +631,7 @@ bool primitive_inst::update_impl() {
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
-                    _impl->set_kernels(kernels);
+                    _impl->set_kernels(std::move(kernels));
                     cache.add(updated_params_no_dyn_pad, _impl->clone());
                 }
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -720,7 +720,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     std::vector<kernel_impl_params> pred_params;
     std::vector<layout> preds_layouts;
-    for (auto pred : concat_inst->_deps) {
+    for (auto& pred : concat_inst->_deps) {
         pred_params.push_back(*pred.first->_impl_params);
         preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
@@ -784,7 +784,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto& engine = _network.get_engine();
                     // Need to use actual layout, not the fake aligned memory layout
                     auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
-                    subgraph->set_input_data(d.first->id(), actual_mem);
+                    subgraph->set_input_data(d.first->id(), std::move(actual_mem));
                 }
             }
             GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
@@ -993,11 +993,11 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
             // For each tensor we save max_rank dimensions in [bfvuwzyx] order
             size_t num_dynamic_pads = 0;
-            for (auto in : _node->get_dependencies()) {
+            for (auto& in : _node->get_dependencies()) {
                 const auto& dyn_pad_dims = in.first->get_output_layout(false).data_padding.get_dynamic_pad_dims().sizes();
                 num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
             }
-            for (auto o : _node->get_output_layouts()) {
+            for (auto& o : _node->get_output_layouts()) {
                 const auto& dyn_pad_dims = o.data_padding.get_dynamic_pad_dims().sizes();
                 num_dynamic_pads += std::accumulate(dyn_pad_dims.begin(), dyn_pad_dims.end(), static_cast<int32_t>(0));
             }
