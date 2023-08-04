@@ -85,7 +85,7 @@ private:
     InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, bool is_dynamic);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc);
 
-    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr);
+    void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, std::vector<cldnn::event::ptr>& events);
 
     template<typename RemoteBlobType, typename = typename std::enable_if<std::is_same<RemoteBlobType, RemoteCLbuffer>::value ||
                                                                          std::is_same<RemoteBlobType, RemoteUSMbuffer>::value>::type>
