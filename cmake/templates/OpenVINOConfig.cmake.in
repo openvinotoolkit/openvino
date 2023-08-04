@@ -411,7 +411,7 @@ macro(_ov_find_tensorflow_frontend_dependencies)
 endmacro()
 
 macro(_ov_find_onnx_frontend_dependencies)
-    set(_OV_ENABLE_SYSTEM_ONNX "@ENABLE_SYSTEM_ONNX@")
+    set(_OV_ENABLE_SYSTEM_ONNX "@ONNX_FOUND@")
     if(_OV_ENABLE_SYSTEM_ONNX)
         _ov_find_dependency(ONNX @ONNX_VERSION@ EXACT)
     endif()

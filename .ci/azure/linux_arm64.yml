@@ -96,6 +96,7 @@ jobs:
     displayName: 'System information'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       mkdir -p $(BUILD_OPENVINO)
       mkdir -p $(INSTALL_OPENVINO)
@@ -113,6 +114,7 @@ jobs:
   - script: |
       set -e
       python3 -m pip install --upgrade pip
+      python3 -m pip install cmake
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
@@ -145,12 +147,14 @@ jobs:
     displayName: 'Install arm64 libraries'
 
   - script: |
+      set -e
       git submodule update --init -- $(OPENVINO_REPO_DIR)/src/plugins
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gtest
       git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo
     displayName: 'Init submodules for non Conan dependencies'
 
   - script: |
+      set -e
       python3 -m pip install conan
       # install build profile compilers
       sudo -E apt --assume-yes install gcc g++
@@ -165,7 +169,7 @@ jobs:
       conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
         -pr:h $(BUILD_OPENVINO)/linux_arm64 \
         -s:h arch=armv8 \
-        -of $(BUILD_OPENVINO) \
+        -of $(BUILD_OPENVINO)/dependencies \
         -b missing
     env:
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
@@ -177,10 +181,10 @@ jobs:
     displayName: 'Install conan and dependencies'
 
   - script: |
-      source $(BUILD_OPENVINO)/conanbuild.sh
+      set -e
+      source $(BUILD_OPENVINO)/dependencies/conanbuild.sh
       # TODO: return tests building once GPU plugin migrates to Plugin API 2.0
       cmake \
-        -G Ninja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -197,7 +201,6 @@ jobs:
         -DENABLE_SYSTEM_PROTOBUF=ON \
         -DENABLE_SYSTEM_SNAPPY=ON \
         -DENABLE_SYSTEM_PUGIXML=ON \
-        -DCMAKE_TOOLCHAIN_FILE=$(BUILD_OPENVINO)/conan_toolchain.cmake \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
@@ -206,7 +209,10 @@ jobs:
         -DENABLE_PYTHON_PACKAGING=ON \
         -S $(OPENVINO_REPO_DIR) \
         -B $(BUILD_OPENVINO)
-      source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
+      source $(BUILD_OPENVINO)/dependencies/deactivate_conanbuild.sh
+    env:
+      CMAKE_GENERATOR: Ninja
+      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/dependencies/conan_toolchain.cmake
     displayName: 'CMake configure'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
@@ -221,9 +227,11 @@ jobs:
     displayName: 'Install OpenVINO Runtime'
 
   - script: |
-      source $(BUILD_OPENVINO)/conanbuild.sh
+      set -e
+      source $(BUILD_OPENVINO)/dependencies/conanbuild.sh
       $(INSTALL_OPENVINO)/samples/cpp/build_samples.sh
-      source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
+      source $(BUILD_OPENVINO)/dependencies/deactivate_conanbuild.sh
     env:
-      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/conan_toolchain.cmake
+      CMAKE_GENERATOR: Ninja
+      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/dependencies/conan_toolchain.cmake
     displayName: 'Build OpenVINO C++ samples'

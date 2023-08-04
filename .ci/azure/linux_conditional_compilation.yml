@@ -96,6 +96,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -142,6 +143,7 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
+      set -e
       python3 $(REPO_DIR)/thirdparty/itt_collector/runtool/sea_runtool.py \
           --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \

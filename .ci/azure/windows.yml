@@ -95,7 +95,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
 
   - script: |
-      python-3.11.2-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.11.2\x64
+      python-3.11.2-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.11.2\x64 && ^
       cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.11.2\x64.complete
     displayName: 'Install Python'
     workingDirectory: $(WORK_DIR)
@@ -165,7 +165,7 @@ jobs:
     displayName: "Set cmake toolchain"
 
   - script: |
-      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      set PATH=$(WORK_DIR)\ninja-win;%PATH% && ^
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
         -G "Ninja Multi-Config" ^
         -DENABLE_CPPLINT=OFF ^
@@ -192,34 +192,32 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      set PATH=$(WORK_DIR)\ninja-win;%PATH% && ^
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) --build $(BUILD_DIR) --parallel --config Release"
     displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
 
-  - script: |
-      $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install'
 
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: |
-      python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
+  - script: python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
+      call "$(MSVS_VARS_PATH)" && ^
+      $(CMAKE_CMD) ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR)\tests\samples_tests ^
         -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake Samples Tests'
 
-  - script: |
-      $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
+  - script: $(CMAKE_CMD) -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)\cmake_install.cmake
     displayName: 'Install Samples Tests'
 
   - script: |
@@ -236,7 +234,7 @@ jobs:
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
-      call $(SETUPVARS)
+      call $(SETUPVARS) && ^
       python -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_TEST_DIR)\smoke_tests\env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
       IE_APP_PATH: $(INSTALL_DIR)\samples_bin
@@ -327,12 +325,10 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_func_tests.xml
     displayName: 'AutoBatch FuncTests'
 
-  - script: |
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
 
-  - script: |
-      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests.xml

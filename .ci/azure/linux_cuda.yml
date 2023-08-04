@@ -119,6 +119,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
+      set -e
       sudo docker pull openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1
       sudo docker run --volume $(REPO_DIR)/../:/root/repos --volume $(WORK_DIR):/root/w \
         openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1 \

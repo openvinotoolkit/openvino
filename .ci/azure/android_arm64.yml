@@ -106,6 +106,7 @@ jobs:
     displayName: 'System information'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(ANDROID_TOOLS) ; mkdir $(ANDROID_TOOLS)
@@ -144,6 +145,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
+      set -e
       $(VCPKG_ROOT)/bootstrap-vcpkg.sh --disableMetrics
       # patch vcpkg default (community) toolchain to build only Release configuration
       echo "set(VCPKG_BUILD_TYPE release)" >> $(VCPKG_ROOT)/triplets/community/arm64-android.cmake

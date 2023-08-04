@@ -92,6 +92,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
@@ -105,6 +106,7 @@ jobs:
     path: openvino
 
   - script: |
+      set -e
       branch=`tr -s '\n ' < $(ONNXRUNTIME_UTILS)/version`
       git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Clone onnxruntime'
@@ -148,6 +150,7 @@ jobs:
     displayName: 'Install OpenVINO'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       $(ONNXRUNTIME_REPO_DIR)/build.sh \
         --config RelWithDebInfo \
@@ -161,6 +164,7 @@ jobs:
     displayName: 'Build Lin ONNX Runtime'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       skip_tests=$(tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests)
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
@@ -168,30 +172,35 @@ jobs:
     displayName: 'Run onnxruntime_test_all'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_global_thread_pools_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_api_tests_without_env
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
   - script: |
+      set -e
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
