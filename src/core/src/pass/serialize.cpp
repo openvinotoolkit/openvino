@@ -192,7 +192,7 @@ private:
             }
             return new_ptr;
         } else {
-            OPENVINO_ASSERT(false, "[ INTERNAL ERROR ] Not supported source type for weights compression: ", src_type);
+            OPENVINO_THROW("[ INTERNAL ERROR ] Not supported source type for weights compression: ", src_type);
         }
     }
 
