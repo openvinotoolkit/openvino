@@ -65,8 +65,8 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
 
         const auto padding =
             context.input_is_none(3)
-                ? context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{pads.size()}, 0))
-                : context.get_input(3).get_node_shared_ptr();
+                ? context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{pads.size()}, 0))->output(0)
+                : context.get_input(3);
         const auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
         const auto pads_remaining = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 0}));
 
