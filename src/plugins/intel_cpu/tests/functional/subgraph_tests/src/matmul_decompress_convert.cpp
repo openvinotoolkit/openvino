@@ -14,10 +14,11 @@ using namespace ov::test;
 
 namespace SubgraphTestsDefinitions {
 
-// todo:
-/* This test checks that the ConvertMatMulToFC transformation should work and the MatMul node is converted to the FC node.
- * The Convert node should be removed on the CPU plugin side.
+/* This test checks MatMul weights constant folding on CPU plugin side and cover two optimizations:
+    1. Decompressing Convert FP16 -> FP32 CF (FuseFCAndConvertOnWeights in cpu graph optimizer)
+    2. Transpose CF (FuseFCAndTransposeOnWeights in cpu graph optimizer)
 
+ * 1. Graph with decompressing Convert FP16 -> FP32. The Convert node should be removed on the CPU plugin side.
  * Graph before:
    ------------             ------------
    |Input(f32)|             |Input(f16)|
@@ -39,6 +40,38 @@ namespace SubgraphTestsDefinitions {
    ------------    ------------
    |Input(f32)|    |Input(f16)|
    ------------    ------------
+        |               |
+   ----------------------------
+   |      FullyConnected      |
+   ----------------------------
+                 |
+              --------
+              |Output|
+              --------
+
+ * 2. Graph with Transpose. In case of (transpose_b == false), ConvertMatMulToFC() transformation should insert Transpose on weights.
+ * It must not fold and must remain in the execution graph.
+ * Graph before:
+   ------------             ------------
+   |Input(f32)|             |Input(f32)|
+   ------------             ------------
+        |                        |
+   -------------------------------------
+   |   MatMul(transpose_b == false)    |
+   -------------------------------------
+                    |
+                 --------
+                 |Output|
+                 --------
+
+ * Exec graph:
+   ------------    ------------
+   |Input(f32)|    |Input(f32)|
+   ------------    ------------
+        |               |
+        |         -------------
+        |         | Transpose |
+        |         -------------
         |               |
    ----------------------------
    |      FullyConnected      |

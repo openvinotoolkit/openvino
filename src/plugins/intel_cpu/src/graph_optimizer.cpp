@@ -811,17 +811,18 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     auto isSuitablePattern = [](NodePtr parent) {
         bool res = true && parent->getType() == Type::Convert
-                        && parent->isConstant()
                         && parent->getChildEdges().size() == 1
                         && parent->getChildEdgeAt(0)->getOutputNum() == 1
                         && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
                         && one_of(parent->getOriginalInputPrecisionAtPort(0), Precision::FP16)
-                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16);
+                        && one_of(parent->getOriginalOutputPrecisionAtPort(0), Precision::FP32, Precision::BF16)
+                        && parent->isConstant();
         return res;
     };
 
     for (auto parent : graphNodes) {
         if (isSuitablePattern(parent)) {
+            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndConvertOnWeights);
             auto childNode = parent->getChildEdgeAt(0)->getChild();
             // set correct weight precision
             childNode->setOriginalInputPrecisionAtPort(1, parent->getOriginalInputPrecisionAtPort(0));
@@ -836,16 +837,17 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
     auto isSuitablePattern = [](NodePtr parent) {
         bool res = true && parent->getType() == Type::Transpose
-                        && parent->isConstant()
                         && parent->getChildEdges().size() == 1
                         && parent->getChildEdgeAt(0)->getOutputNum() == 1
                         && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
-                        && parent->getOutputShapeAtPort(0).getRank() == 2;
+                        && parent->getOutputShapeAtPort(0).getRank() == 2
+                        && parent->isConstant();
         return res;
     };
 
     for (auto parent : graphNodes) {
         if (isSuitablePattern(parent)) {
+            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndTransposeOnWeights)
             auto fcNode = std::dynamic_pointer_cast<FullyConnected>(parent->getChildEdgeAt(0)->getChild());
             fcNode->keepWeightsNonTransposed(true);
             auto transposeNode = std::dynamic_pointer_cast<Transpose>(parent);
