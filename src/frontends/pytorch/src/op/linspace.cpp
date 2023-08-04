@@ -24,15 +24,14 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_linspace(const NodeContext& context) {
+    num_inputs_check(context, 3, 7);
     // "aten::linspace(Scalar start, Scalar end, int steps, *, ScalarType? dtype=None, Layout? layout=None, Device?
     // device=None, bool? pin_memory=None) -> Tensor" "aten::linspace.out(Scalar start, Scalar end, int steps, *,
     // Tensor(a!) out) -> Tensor(a!)"
-    auto start = context.get_input(0);
-    auto end = context.get_input(1);
-    auto steps = context.get_input(2);
-
-    auto inputs = context.inputs();
-    auto out_tensor = end;
+    auto start = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), element::f32));
+    auto end = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::f32));
+    auto steps = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::f32));
+    auto out_tensor = context.get_input(1);
     auto apply_dtype = true;
     auto dtype = element::f32;
     if (!context.input_is_none(3) && context.get_input_size() == 7) {
@@ -51,9 +50,7 @@ OutputVector translate_linspace(const NodeContext& context) {
         out_tensor = context.get_input(3);
         apply_dtype = false;
     }
-    start = context.mark_node(std::make_shared<v0::Convert>(start, element::f32));
-    end = context.mark_node(std::make_shared<v0::Convert>(end, element::f32));
-    steps = context.mark_node(std::make_shared<v0::Convert>(steps, element::f32));
+
     auto const_0 = v0::Constant::create(element::f32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::f32, Shape{}, {1});
     auto step_range = context.mark_node(std::make_shared<v4::Range>(const_0, steps, const_1, element::f32));
@@ -63,8 +60,6 @@ OutputVector translate_linspace(const NodeContext& context) {
     auto step_multiplier = context.mark_node(std::make_shared<v1::Divide>(sub_end_start, sub_steps_1));
     auto is_single_step = context.mark_node(std::make_shared<v1::Equal>(steps, const_1));
     auto select_multiplier = context.mark_node(std::make_shared<v1::Select>(is_single_step, const_0, step_multiplier));
-
-    // TODO is multiplier float?
     auto step_values = context.mark_node(std::make_shared<v1::Multiply>(step_range, select_multiplier));
 
     auto linspace = context.mark_node(std::make_shared<v1::Add>(step_values, start));
@@ -73,6 +68,7 @@ OutputVector translate_linspace(const NodeContext& context) {
     } else {
         linspace = context.mark_node(std::make_shared<v1::ConvertLike>(linspace, out_tensor));
     }
+
     return {linspace};
 };
 

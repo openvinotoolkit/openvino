@@ -61,7 +61,7 @@ class TestLinspace(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8"])
     @pytest.mark.parametrize(
-        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1)]
+        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
     )
     def test_linspace_with_prim_dtype(self, dtype, end, start, steps, ie_device, precision, ir_version):
         self._test(
@@ -76,7 +76,7 @@ class TestLinspace(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
     @pytest.mark.parametrize(
-        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1)]
+        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
     )
     @pytest.mark.parametrize("use_out", [False, True])
     def test_linspace_with_out(self, dtype, use_out, end, start, steps, ie_device, precision, ir_version):
