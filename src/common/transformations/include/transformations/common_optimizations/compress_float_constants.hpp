@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API CompressFloatConstants;
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CompressFloatConstantsImpl", "0");
-    CompressFloatConstantsImpl();
+    CompressFloatConstantsImpl(bool postponed = false);
 };
 
 /**
@@ -44,8 +44,8 @@ public:
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("CompressFloatConstants", "0");
-    CompressFloatConstants() {
-        add_matcher<ov::pass::CompressFloatConstantsImpl>();
+    CompressFloatConstants(bool postponed = false) {
+        add_matcher<ov::pass::CompressFloatConstantsImpl>(postponed);
         add_matcher<ov::pass::AddOldApiMapToParameters>();
     }
 };

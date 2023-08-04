@@ -17,8 +17,9 @@
 #define POSTPONED_FP16_COMPRESSION 1
 
 namespace {
-    const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
-}
+// TODO: Make this definitiion unuque, now it is duplicated between this file and serialize.cpp
+const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
+}  // namespace
 
 std::shared_ptr<ov::op::v0::Constant> postponed_fp16_compression(std::shared_ptr<ov::op::v0::Constant>& constant) {
     constant->get_rt_info()[postponed_fp16_compression_tag] = true;
@@ -28,7 +29,8 @@ std::shared_ptr<ov::op::v0::Constant> postponed_fp16_compression(std::shared_ptr
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
-std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant) {
+std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant,
+                                                            bool postponed = false) {
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
@@ -39,7 +41,9 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (dst_data == nullptr)
         return nullptr;
 
+    // TODO: Speed this part up by applying code similar to Convert::evaluate
     int num_out_of_range = 0;
+    //#pragma parallel for reduction(+ : num_out_of_range)
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
@@ -63,15 +67,17 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
         return nullptr;
     }
 
-#if POSTPONED_FP16_COMPRESSION
-    return postponed_fp16_compression(constant);
-#else
-    return new_constant;
-#endif
+    if (postponed) {
+        // dispose just converted constant to avoid allocation too much memory
+        // it will be converted again while serialization
+        return postponed_fp16_compression(constant);
+    } else {
+        return new_constant;
+    }
 }
 }  // namespace
 
-ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
+ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
     auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
 
@@ -89,9 +95,9 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         auto c_type = const_node->get_element_type();
         std::shared_ptr<ov::Node> new_const;
         if (c_type == ov::element::f32) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
         } else if (c_type == ov::element::f64) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
         } else {
             return false;
         }
@@ -104,17 +110,19 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
 
         convert->set_friendly_name(const_node->get_friendly_name());
         new_const->set_friendly_name(const_node->get_friendly_name() + "_compressed");
-        convert->get_rt_info()[postponed_fp16_compression_tag] = true;
         ov::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
-        #if POSTPONED_FP16_COMPRESSION
-        for (const auto& target_input : constant_target_inputs) {
-            target_input.replace_source_output(convert);
+        if (postponed) {
+            // Value of postponed_fp16_compression_tag rt_info entry always should be true, value itself is ignored
+            // TODO: choose another type for that
+            new_const->get_rt_info()[postponed_fp16_compression_tag] = true;
+            new_const->get_output_tensor(0).get_rt_info()[postponed_fp16_compression_tag] = true;
+            for (const auto& target_input : constant_target_inputs) {
+                target_input.replace_source_output(convert);
+            }
+        } else {
+            ov::replace_node(const_node, convert);
         }
-        #else
-        ov::replace_node(const_node, convert);
-        #endif
-
         return true;
     };
 
