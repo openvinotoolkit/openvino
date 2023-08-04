@@ -59,7 +59,7 @@ void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::Reg
     auto f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
-    // FIXME: Add clumping here
+    // FIXME: Add clamping here
     gen.vcvtps2ph(f16vec, f32vec, 0);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
