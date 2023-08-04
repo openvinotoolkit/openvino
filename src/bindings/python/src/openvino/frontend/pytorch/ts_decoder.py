@@ -331,7 +331,8 @@ class TorchScriptPythonDecoder (Decoder):
             node.set_friendly_name(name)
         return node
 
-    def convert_quantized_tensor(self, qtensor: torch.Tensor):
+    @staticmethod
+    def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         # need to represent as Constant(u8) -> Convert(f32) -> Subtract(zero_point) -> Multiply (scale)
         qscheme = qtensor.qscheme()  # torch.per_channel_affine (per_tensor)
         if qscheme == torch.per_channel_affine:
@@ -345,7 +346,7 @@ class TorchScriptPythonDecoder (Decoder):
             zero_point_bc = np.reshape(zero_point, new_shape)
             scale_bc = np.reshape(scale, new_shape)
 
-            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=self._shared_memory)
+            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point_bc)
             return ops.multiply(sub, scale_bc).outputs()
@@ -354,7 +355,7 @@ class TorchScriptPythonDecoder (Decoder):
             scale = np.float32(qtensor.q_scale())
             zero_point = np.float32(qtensor.q_zero_point())
 
-            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=self._shared_memory)
+            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point)
             return ops.multiply(sub, scale).outputs()
@@ -367,7 +368,7 @@ class TorchScriptPythonDecoder (Decoder):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
             # TODO: but can be anything. Figure a better way to distinguish
             weight, bias = pt_value.unpack()
-            res = self.convert_quantized_tensor(weight)
+            res = self.convert_quantized_tensor(weight, self._shared_memory)
             if isinstance(bias, torch.Tensor):
                 res += ivalue_to_constant(bias, shared_memory=self._shared_memory)
             else:
