@@ -2,12 +2,7 @@ const { addon: ov } = require('openvinojs-node');
 
 const args = require('args');
 const cv2 = require('opencv.js');
-const {
-  setShape,
-  getImageData,
-  getImageBuffer,
-  arrayToImageData,
-} = require('../helpers.js');
+const { getImageData } = require('../helpers.js');
 
 args.options([{
   name: 'img',
