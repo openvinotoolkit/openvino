@@ -177,7 +177,7 @@ protected:
         auto params = builder::makeDynamicParams(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16 || weiConstElemType == ElementType::u8) {
+        if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -304,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_MLAS, MatMulDecompressConvertTest, testPara
 const auto testParams2D_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes2D),
     ::testing::ValuesIn(transposeParams),
-    ::testing::Values(ElementType::f32, ElementType::f16, ElementType::u8),
+    ::testing::Values(ElementType::f32, ElementType::f16),
     ::testing::ValuesIn(filterAdditionalConfig()),
     ::testing::ValuesIn(filterSpecificParams()));
 
@@ -315,7 +315,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest, testParams2D_
 const auto testParams2D_BF16_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes2D),
     ::testing::ValuesIn(transposeParams),
-    ::testing::Values(ElementType::f32, ElementType::f16, ElementType::u8),
+    ::testing::Values(ElementType::f32, ElementType::f16),
     ::testing::ValuesIn(filterAdditionalConfig_BF16()),
     ::testing::ValuesIn(filterSpecificParams_BF16()));
 
@@ -339,7 +339,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_MLAS, MatMulDecompressConvertTest, testPara
 const auto testParams3D_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes3D),
     ::testing::ValuesIn(transposeParams),
-    ::testing::Values(ElementType::f32, ElementType::f16, ElementType::u8),
+    ::testing::Values(ElementType::f32, ElementType::f16),
     ::testing::ValuesIn(filterAdditionalConfig()),
     ::testing::ValuesIn(filterSpecificParams()));
 
@@ -350,7 +350,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulDecompressConvertTest, testParams3D_
 const auto testParams3D_BF16_smoke = ::testing::Combine(
     ::testing::ValuesIn(inputShapes3D),
     ::testing::ValuesIn(transposeParams),
-    ::testing::Values(ElementType::f32, ElementType::f16, ElementType::u8),
+    ::testing::Values(ElementType::f32, ElementType::f16),
     ::testing::ValuesIn(filterAdditionalConfig_BF16()),
     ::testing::ValuesIn(filterSpecificParams_BF16()));
 

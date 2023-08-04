@@ -473,7 +473,7 @@ void FullyConnected::prepareParams() {
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
             if (transposeWeights) {
-                primArgs[DNNL_ARG_WEIGHTS] = prepareTransposedWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(makeTransposedWeightDescriptor(), execPtr->getWeightDesc())->getPrimitive();
             } else {
                 primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
             }
@@ -1081,7 +1081,7 @@ void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::ve
                 elementsCount);
 }
 
-MemoryPtr FullyConnected::prepareTransposedWeightMemory(DnnlMemoryDescPtr weightDesc) {
+DnnlMemoryDescPtr FullyConnected::makeTransposedWeightDescriptor() {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         IE_THROW() << "Weight input is not const for node " << getName() << ".";
     auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
@@ -1091,39 +1091,11 @@ MemoryPtr FullyConnected::prepareTransposedWeightMemory(DnnlMemoryDescPtr weight
     auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
     auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
     weightSrcDesc = {weightSrcDesc.get_dims(), weightSrcDesc.get_data_type(), memory::format_tag::ba};
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
+    weightSrcDesc = weightSrcDesc.reshape(execPtr->getWeightDesc()->getDnnlDesc().get_dims());
 
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->getData() };
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-
-        return _ptr;
-    };
-
-    MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(edgeMem->getSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
-    }
-
-    return ptr;
+    return DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
 }
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

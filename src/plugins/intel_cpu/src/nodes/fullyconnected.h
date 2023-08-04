@@ -124,8 +124,7 @@ private:
 
     // FC with transposed weights
     bool transposeWeights = false;
-    // this method is using to prepare transposed memory
-    MemoryPtr prepareTransposedWeightMemory(DnnlMemoryDescPtr weightDesc);
+    DnnlMemoryDescPtr makeTransposedWeightDescriptor();
 };
 
 }   // namespace node
