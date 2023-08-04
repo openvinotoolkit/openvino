@@ -104,8 +104,9 @@ public:
             case element::i32:
             case element::u32:
                 return (levels == low_precision::levels::int32) || (levels == low_precision::levels::int32_narrow_range);
+            default:
+                return false;
         }
-        return false;
     }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
