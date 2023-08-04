@@ -18,7 +18,7 @@
 #define POSTPONED_FP16_COMPRESSION 1
 
 namespace {
-// TODO: Make this definitiion unuque, now it is duplicated between this file and serialize.cpp
+// TODO: Make this definitiion unique, now it is duplicated between this file and serialize.cpp
 const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
 }  // namespace
 
