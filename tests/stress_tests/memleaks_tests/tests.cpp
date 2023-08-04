@@ -196,7 +196,6 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
 using MultiThreadLeak = MemLeaksTestSuite;
 TEST_P(MultiThreadLeak, inference_in_multi_thread) {
     auto test_params = GetParam();
-    const auto nstreams = 2;
     long vmsize = 0;
     long vmpeak = 0;
     long vmrss = 0;
@@ -205,20 +204,21 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
     long last_vmpeak = 0;
     long last_vmrss = 0;
     long last_vmhwm = 0;
-    int loop_iters = 100;
+    int loop_iters = test_params.numiters;
     for (int m = 0; m < test_params.models.size(); m++) {
         auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
         ie_api_wrapper->read_network(test_params.models[m]["full_path"]);
         ie_api_wrapper->load_network(test_params.device);
+        ie_api_wrapper->set_config(test_params.device, "THROUGHPUT_STREAMS", test_params.numthreads);
         int count = 0;
         std::vector<long> memory_data;
         memory_data.reserve(loop_iters * 4);
-        for (int i = 0; i < loop_iters; i++) {
-            std::cout << i << std::endl;
+        for (int z = 0; z < loop_iters; z++) {
+            std::cout << z << std::endl;
             {
                 std::srand(std::time(nullptr)); // use current time as seed for random generator
-                int random_variable = std::rand();
-                //random_variable = 0;
+                // int random_variable = std::rand();
+                int random_variable = 0;
                 std::vector<std::thread> empty_threads;
                 for (int i = 0; i < random_variable % 1000 ; i++) {
                     empty_threads.push_back(std::thread([](){}));
@@ -238,27 +238,24 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
                 }
                 std::sort(threads_ids.begin(), threads_ids.end());
                 for (int i = 0; i < test_params.numthreads; i++) {
-                    // std::cout << "thread_ids:" << threads_ids[i] << std::endl;
+                    std::cout << "thread_ids:" << threads_ids[i] << std::endl;
                 }
 
                 for (int i = 0; i < random_variable % 1000; i++) {
                     empty_threads[i].join();
                 }
             }
-            last_vmrss = vmrss;
-            last_vmhwm = vmhwm;
             getVmValues(vmsize, vmpeak, vmrss, vmhwm);
             memory_data.push_back(vmsize);
             memory_data.push_back(vmpeak);
             memory_data.push_back(vmrss);
             memory_data.push_back(vmhwm);
-            if (vmrss > last_vmrss || vmhwm > last_vmhwm) {
+            if (vmsize > last_vmsize) {
                 count++;
-                last_vmrss = vmrss;
-                last_vmhwm = vmhwm;
+                last_vmsize = vmsize;
             }
         }
-        if(count > 5) {
+        if(count >= 0) {
             for(int i = 0, y = 0; i < loop_iters * 4; i = i + 4, y++) {
                 std::cout << "loop:" << y << " vmsize:" << memory_data[i] <<
                     " vmpeak:" << memory_data[i+1] <<
@@ -266,7 +263,7 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
                     " vmhwm:" << memory_data[i+3] << std::endl;
             }
         }
-        EXPECT_LE(count, 5);
+        EXPECT_LE(count, 2);
     }
 }
 
