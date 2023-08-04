@@ -84,8 +84,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
         const auto shape_of_mp = context.mark_node(std::make_shared<v3::ShapeOf>(mp, element::i32));
         const auto gth_out_dims = context.mark_node(std::make_shared<v8::Gather>(shape_of_mp, dim_idxs, zero));
         const auto out_sub_one = context.mark_node(std::make_shared<v1::Subtract>(gth_out_dims, one));
-        const auto stride_node =
-            use_kernel ? context.get_input(1).get_node_shared_ptr() : context.get_input(2).get_node_shared_ptr();
+        const auto stride_node = use_kernel ? context.get_input(1) : context.get_input(2);
         const auto out_mul_stride = context.mark_node(std::make_shared<v1::Multiply>(out_sub_one, stride_node));
 
         // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.
