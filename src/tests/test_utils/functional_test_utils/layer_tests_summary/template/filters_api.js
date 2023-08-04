@@ -70,14 +70,14 @@ function update_statistic() {
             $("#report #data td:not(:hidden)").filter(function () {
                 if ($(this).attr(DATA_ATTRIBUTES.DEVICE) === device && $(this).attr(DATA_ATTRIBUTES.SW_PLUGIN) === sw_plugin) {
                     if ($(this).attr(DATA_ATTRIBUTES.PASSED) && $(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT) &&
-                        $(this).attr(DATA_ATTRIBUTES.REL_PASSED) && $(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT)) {
-                        if (scope == SCOPE_TYPE.MANDATORY) {
-                            passed += parseInt($(this).attr(DATA_ATTRIBUTES.PASSED))
-                            amount += parseInt($(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT))
-                        } else {
-                            passed += parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED))
-                            amount += parseInt($(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT))
-                        }
+                        scope == SCOPE_TYPE.OPTIONAL) {
+                        passed += parseInt($(this).attr(DATA_ATTRIBUTES.PASSED))
+                        amount += parseInt($(this).attr(DATA_ATTRIBUTES.TESTS_AMOUNT))
+                    }
+                    if ($(this).attr(DATA_ATTRIBUTES.REL_PASSED) && $(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT) &&
+                        scope == SCOPE_TYPE.MANDATORY) {
+                        passed += parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED))
+                        amount += parseInt($(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT))
                     }
                 }
             });
@@ -136,7 +136,7 @@ function update_data() {
                 $(this).children('span').text('-- %')
             }
 
-            $($(this).find('.green')[0]).text('P:' + $(this).attr(DATA_ATTRIBUTES.REL_PASSED))
+            $($(this).find('.green')[0]).text('P:' + parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED)))
             $($(this).find('.red')[0]).text('F:' + (parseInt($(this).attr(DATA_ATTRIBUTES.REL_TESTS_AMOUNT)) - parseInt($(this).attr(DATA_ATTRIBUTES.REL_PASSED))))
             $($(this).find('.grey')[0]).hide()
             $($(this).find('.dark')[0]).hide()

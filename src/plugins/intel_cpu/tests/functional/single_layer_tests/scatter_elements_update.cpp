@@ -41,17 +41,17 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
-        result << "_indices_values=" << CommonTestUtils::vec2str(indicesVals)
+        result << "_indices_values=" << ov::test::utils::vec2str(indicesVals)
                << "axis=" << axis << "_idx_precision=" << idxPrecision;
         return result.str();
     }
@@ -93,7 +93,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ScatterElementsUpdateLayerParams scatterParams;
         std::int64_t axis;
         ElementType inputPrecision;
@@ -128,28 +128,29 @@ const std::vector<std::int64_t> axes = { -3, -2, -1, 0, 1, 2 };
 
 const std::vector<ScatterElementsUpdateLayerParams> scatterParams = {
     ScatterElementsUpdateLayerParams{
-        ScatterElementsUpdateShapes{
-            {{-1, -1, -1}, {{10, 12, 15}, {8, 9, 10}, {11, 8, 12}}},
-            {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}},
-            {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}}
-        },
+        ScatterElementsUpdateShapes{{{-1, -1, -1}, {{10, 12, 15}, {8, 9, 10}, {11, 8, 12}}},
+                                    {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}},
+                                    {{-1, -1, -1}, {{1, 2, 4}, {2, 1, 4}, {4, 1, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
     },
     ScatterElementsUpdateLayerParams{
-        ScatterElementsUpdateShapes{
-            {{-1, -1, -1, -1}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}
-        },
+        ScatterElementsUpdateShapes{{{-1, -1, -1, -1}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
     },
     ScatterElementsUpdateLayerParams{
         ScatterElementsUpdateShapes{
             {{{7, 15}, {9, 12}, {1, 12}, {8, 12}}, {{10, 9, 8, 12}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
             {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
-            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}
-        },
+            {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
         IndicesValues{1, 0, 4, 6, 2, 3, 7, 5},
+    },
+    ScatterElementsUpdateLayerParams{
+        ScatterElementsUpdateShapes{{{-1, -1, -1, -1}, {{11, 9, 8, 10}, {8, 12, 10, 9}, {11, 10, 12, 9}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}},
+                                    {{-1, -1, -1, -1}, {{1, 2, 2, 2}, {1, 2, 1, 4}, {1, 2, 2, 2}}}},
+        IndicesValues{-1, 0, -4, -6, -2, -3, -7, -5},
     },
 };
 

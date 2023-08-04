@@ -20,6 +20,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Abs::clone_with_new_inputs(const OutputVec
     return std::make_shared<Abs>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace absop {
 namespace {
 template <ov::element::Type_t ET>

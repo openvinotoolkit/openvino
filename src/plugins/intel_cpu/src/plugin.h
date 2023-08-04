@@ -63,10 +63,6 @@ private:
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;
-
-#if defined(OV_CPU_WITH_ACL)
-    std::shared_ptr<arm_compute::IScheduler> acl_scheduler;
-#endif
 };
 
 }   // namespace intel_cpu

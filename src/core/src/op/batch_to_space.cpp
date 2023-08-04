@@ -77,6 +77,7 @@ bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto data = inputs[0];

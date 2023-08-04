@@ -35,7 +35,7 @@ InferenceEngine::Blob::Ptr ConstStridedSliceConcatTest::GenerateInput(const Infe
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.5f, 0.5f);
+    std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.5f, 0.5f);
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = values[i];
     }
@@ -84,7 +84,7 @@ void ConstStridedSliceConcatTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { std::vector<size_t>{ 1, totalInputSize } });
 
     const auto totalConstantSize = constSlices * constSliceSize;
-    auto constantValues = CommonTestUtils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
+    auto constantValues = ov::test::utils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
     auto constant = ngraph::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
 
     std::vector<ngraph::Output<ngraph::Node>> allToConcat;

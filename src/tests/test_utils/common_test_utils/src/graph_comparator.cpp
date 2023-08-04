@@ -470,6 +470,8 @@ public:
     using Result = Comparator::Result;
     using SubGraphOp = ov::op::util::SubGraphOp;
 
+    CompareSubGraphs(Comparator::CmpValues flags) : sub_comparator{flags} {};
+
     Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs, bool compare_in_outs) {
         const auto lhs_it_no = get_num_iterations(sub_lhs);
         const auto rhs_it_no = get_num_iterations(sub_rhs);
@@ -491,10 +493,22 @@ public:
             }
         }
 
+        const auto lhs_body = sub_lhs->get_function();
+        const auto rhs_body = sub_rhs->get_function();
+        if (lhs_body && rhs_body) {
+            const auto res = sub_comparator.compare(lhs_body, rhs_body);
+            if (!res.valid)
+                return res;
+        } else if (lhs_body || rhs_body) {
+            return Result::error("one subgraph's body is missing");
+        }
+
         return compare_backedges(sub_lhs, sub_rhs);
     }
 
 private:
+    Comparator sub_comparator;
+
     Result compare_inputs(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
         const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
         const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
@@ -579,11 +593,6 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare_io(ov::op::util::SubGraphOp* sub_lhs,
-                              ov::op::util::SubGraphOp* sub_rhs,
-                              bool compare_in_outs) {
-    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs, compare_in_outs);
-}
 }  // namespace subgraph
 }  // namespace
 Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) {
@@ -710,7 +719,7 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+        return Result::error(name(node1) + " and " + name(node2) + " have different type info: " +
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
@@ -720,7 +729,10 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     const bool subgraph_nodes = subgraph1 && subgraph2;
 
     if (subgraph_nodes) {
-        const auto result = subgraph::compare_io(subgraph1, subgraph2, should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
+        const auto result = subgraph::detail::CompareSubGraphs{get_comparison_flags()}.compare(
+            subgraph1,
+            subgraph2,
+            should_compare(CmpValues::SUBGRAPH_DESCRIPTORS));
         if (!result.valid) {
             return result;
         }
