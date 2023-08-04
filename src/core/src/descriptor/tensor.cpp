@@ -157,10 +157,10 @@ std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor
             names += ", ";
         names += name;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (names.empty())
         names = get_ov_tensor_legacy_name(tensor);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
 }

@@ -239,6 +239,33 @@ protected:
 };
 
 /* Graph:
+ *   FakeQuantize i8      Reshape1
+ *       Reshape0       Transpose1[0,2,3,1]
+ * Transpose0[0,2,1,3] FakeQuantize i8
+ *              \     /
+ *              MatMul0
+ *                 \   /
+ *                  Add        Reshape2
+ *                Softmax   Transpose2[0,2,1,3]
+ *                    \      /
+ *                     MatMul1
+ *                  FakeQuantize i8
+ *                  Transpose3[0,2,1,3]
+ *                    Reshape3
+ * Note: Reshapes are tosplit Tokenization between FQs and deq Mul and MHA since Snippets::Ignore_Callback may be enabled
+ */
+class MHAQuantMatMul0Function : public SnippetsFunctionBase {
+public:
+    explicit MHAQuantMatMul0Function(const std::vector<PartialShape>& inputShapes)
+            : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+
+/* Graph:
  *                                          Constant
  *   FakeQuantize u8      FakeQuantize u8   Convert
  * Transpose0[0,2,1,3] Transpose1[0,2,3,1]  Multiply

@@ -14,7 +14,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "editor.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "common_test_utils/test_control.hpp"
