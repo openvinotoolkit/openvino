@@ -287,7 +287,7 @@ if (ENABLE_CPU_EXTENSIONS)
                 ARCHIVE "cpu_extensions_20230804_lin.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                SHA256 "97e626793bb9a247cf8c7ea1b625f621329cc3b0e9521a48cef9fe5736197875"
+                SHA256 "006e478d3541c85929a8f62b00e7a4db4696da4f7f370105866fe9cb62cb35f4"
                 USE_NEW_LOCATION TRUE)
         unset(IE_PATH_TO_DEPS)
     else()
