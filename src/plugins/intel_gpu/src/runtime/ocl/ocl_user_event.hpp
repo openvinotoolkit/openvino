@@ -30,7 +30,7 @@ struct ocl_user_event : public ocl_base_event {
 
     void set_impl() override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
-    std::pair<uint64_t, uint64_t> get_host_timestamps(const stream& d) const override;
+    std::pair<uint64_t, uint64_t> get_host_timestamps(const stream& s) const override;
     cl::Event& get() override { return _event; };
 
 protected:

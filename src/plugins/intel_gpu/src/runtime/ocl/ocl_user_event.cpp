@@ -29,7 +29,7 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
 }
 
 std::pair<uint64_t, uint64_t> ocl_user_event::get_host_timestamps(const stream& s) const {
-    return {_timestamp_begin, _timestamp_end};
+    return std::make_pair(_timestamp_begin, _timestamp_end);
 }
 
 void ocl_user_event::wait_impl() {
