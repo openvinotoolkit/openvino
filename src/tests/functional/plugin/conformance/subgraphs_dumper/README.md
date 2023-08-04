@@ -21,7 +21,7 @@ The outcome of a build is a `subgrpahsDumper` binary located in the building art
 ## Run
 The tool takes two command-line parameters:    
 * `--input_folders` - Required. Comma separated paths to the input folders with models in Intermediate Representation format (IRs). The separator is `,`.
-* `--output_folder` - Required. Path to the output folders where the IRs will be serialized.
+* `--output_folder` - Optinal. Path to the output folders where the IRs will be serialized. Default value is "output".
 * `--local_cache` - Optional. Comma-separated paths to the local cache folders with IRs. The separator is `,`.
 * `--path_regex` - Optional. Regular expression to be applied in input folders for recursive discovery.
 * `--extract_body` - Optional. Allows extracting operation bodies to the operation cache.
