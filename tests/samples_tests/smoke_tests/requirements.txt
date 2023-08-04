@@ -2,7 +2,6 @@
 requests
 pyyaml
 wheel
-test-generator
 numpy
 pytest
 py
