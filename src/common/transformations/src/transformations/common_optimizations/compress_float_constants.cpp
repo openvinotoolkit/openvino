@@ -13,6 +13,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 
 #define POSTPONED_FP16_COMPRESSION 1
 
@@ -21,11 +22,6 @@ namespace {
 const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
 }  // namespace
 
-std::shared_ptr<ov::op::v0::Constant> postponed_fp16_compression(std::shared_ptr<ov::op::v0::Constant>& constant) {
-    constant->get_rt_info()[postponed_fp16_compression_tag] = true;
-    constant->validate_and_infer_types();
-    return constant;
-}
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
@@ -70,7 +66,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (postponed) {
         // dispose just converted constant to avoid allocation too much memory
         // it will be converted again while serialization
-        return postponed_fp16_compression(constant);
+        return constant;
     } else {
         return new_constant;
     }
@@ -95,7 +91,21 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         auto c_type = const_node->get_element_type();
         std::shared_ptr<ov::Node> new_const;
         if (c_type == ov::element::f32) {
-            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
+            if(postponed) { // New optimized implemenation based on count_out_of_f16_range, replace postposed by false to disable
+                auto size = shape_size(const_node->get_output_shape(0));
+                auto num_out_of_range = ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+
+                // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
+                float keep_threshold = 0.75f;
+                float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+
+                if (out_of_range_proportion >= keep_threshold) {
+                    return false;
+                }
+                new_const = const_node;
+            } else {
+                new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
+            }
         } else if (c_type == ov::element::f64) {
             new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
         } else {

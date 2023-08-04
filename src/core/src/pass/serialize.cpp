@@ -24,6 +24,7 @@
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
@@ -162,6 +163,8 @@ private:
             auto new_ptr = std::unique_ptr<char[]>(new char[size / 2]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
+            ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size/4);
+            /*
             //#pragma omp parallel for
             for (size_t i = 0; i < size / 4; ++i) {
                 // if abs value is smaller than the smallest positive fp16, but not zero
@@ -173,10 +176,11 @@ private:
                     dst_data[i] = static_cast<ov::float16>(src_data[i]);
                 }
             }
+            */
             return new_ptr;
         } else if (src_type == ov::element::f64) {
             *compressed_size = size / 4;
-            auto new_ptr = std::unique_ptr<char[]>(new char[size / 2]);
+            auto new_ptr = std::unique_ptr<char[]>(new char[size / 4]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
             //#pragma omp parallel for

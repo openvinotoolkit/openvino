@@ -12,7 +12,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace {
-template <typename src_t, typename dst_t>
+template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
 
 template <typename src_t, typename dst_t>
@@ -49,6 +49,17 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
     auto f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
+    gen.vcvtps2ph(f16vec, f32vec, 0);
+    gen.vmovdqu(gen.xword[dst], f16vec);
+}
+
+template <>
+void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    auto f16vec = gen.xmm3;
+    auto f32vec = gen.ymm4;
+
+    gen.vmovups(f32vec, gen.yword[src]);
+    // FIXME: Add clumping here
     gen.vcvtps2ph(f16vec, f32vec, 0);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
@@ -175,12 +186,12 @@ public:
 
     typedef void (*fn_t)(const args_t*);
 
-    template <typename src_t, typename dst_t>
+    template <typename src_t, typename dst_t, bool clamp = true>
     static fn_t get() {
         if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
-                                                              jit_convert_vec<src_t, dst_t>,
+                                                              jit_convert_vec<src_t, dst_t, clamp>,
                                                               jit_convert_vec_prepare<src_t, dst_t>};
 
             static jit_convert_array generator(context);
@@ -191,9 +202,9 @@ public:
     }
 };
 
-template <typename TI, typename TO>
+template <typename TI, typename TO, bool clamp = false>
 void convert_impl(const TI* arg, TO* out, size_t count) {
-    auto converter = jit_convert_array::get<TI, TO>();
+    auto converter = jit_convert_array::get<TI, TO, clamp>();
 
     if (converter) {
         jit_convert_array::args_t args = {arg, out, count};
@@ -229,6 +240,15 @@ void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
+}
+
+void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
+    convert_impl<float, float16, true>(arg, out, count);
+}
+
+size_t count_out_of_f16_range(const float* arg, size_t count) {
+    // FIXME: Provide real implementation instead of the stub below
+    return count > 100 ? 0 : count;
 }
 
 }  // namespace reference
