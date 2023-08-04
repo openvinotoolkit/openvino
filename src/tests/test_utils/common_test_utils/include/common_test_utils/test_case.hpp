@@ -13,26 +13,15 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
-inline std::string backend_name_to_device(const std::string& backend_name) {
-    if (backend_name == "INTERPRETER")
-        return "TEMPLATE";
-    if (backend_name == "IE_CPU")
-        return "CPU";
-    if (backend_name == "IE_GPU")
-        return "GPU";
-    OPENVINO_THROW("Unsupported backend name");
-}
-
-std::shared_ptr<ov::Model> function_from_ir(const std::string& xml_path, const std::string& bin_path = {});
 
 class TestCase {
 public:
     TestCase(const std::shared_ptr<ov::Model>& function, const std::string& dev = "TEMPLATE");
 
     template <typename T>
-    void add_input(const Shape& shape, const std::vector<T>& values) {
+    void add_input(const ov::Shape& shape, const std::vector<T>& values) {
         const auto params = m_function->get_parameters();
         OPENVINO_ASSERT(m_input_index < params.size(), "All function parameters already have inputs.");
 
@@ -95,7 +84,7 @@ public:
     }
 
     template <typename T>
-    void add_input_from_file(const Shape& shape, const std::string& basepath, const std::string& filename) {
+    void add_input_from_file(const ov::Shape& shape, const std::string& basepath, const std::string& filename) {
         const auto filepath = ov::util::path_join({basepath, filename});
         add_input_from_file<T>(shape, filepath);
     }
@@ -107,7 +96,7 @@ public:
     }
 
     template <typename T>
-    void add_input_from_file(const Shape& shape, const std::string& filepath) {
+    void add_input_from_file(const ov::Shape& shape, const std::string& filepath) {
         const auto value = read_binary_file<T>(filepath);
         add_input<T>(shape, value);
     }
@@ -119,7 +108,7 @@ public:
     }
 
     template <typename T>
-    void add_expected_output(const Shape& expected_shape, const std::vector<T>& values) {
+    void add_expected_output(const ov::Shape& expected_shape, const std::vector<T>& values) {
         const auto results = m_function->get_results();
 
         OPENVINO_ASSERT(m_output_index < results.size(), "All model results already have expected outputs.");
@@ -155,10 +144,8 @@ public:
     void add_expected_output_from_file(const ov::Shape& expected_shape,
                                        const std::string& basepath,
                                        const std::string& filename) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto filepath = ov::util::path_join({basepath, filename});
         add_expected_output_from_file<T>(expected_shape, filepath);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <typename T>
@@ -167,38 +154,9 @@ public:
         add_expected_output<T>(expected_shape, values);
     }
 
-    void run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) {
-        m_request.infer();
-        const auto res = compare_results(tolerance_bits);
+    void run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
 
-        if (res.first != testing::AssertionSuccess()) {
-            std::cout << "Results comparison failed for output: " << res.second << std::endl;
-            std::cout << res.first.message() << std::endl;
-        }
-
-        m_input_index = 0;
-        m_output_index = 0;
-
-        m_expected_outputs.clear();
-
-        EXPECT_TRUE(res.first);
-    }
-
-    void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f) {
-        m_request.infer();
-        const auto res = compare_results_with_tolerance_as_fp(tolerance);
-
-        if (res != testing::AssertionSuccess()) {
-            std::cout << res.message() << std::endl;
-        }
-
-        m_input_index = 0;
-        m_output_index = 0;
-
-        m_expected_outputs.clear();
-
-        EXPECT_TRUE(res);
-    }
+    void run_with_tolerance_as_fp(const float tolerance = 1.0e-5f);
 
 private:
     std::shared_ptr<ov::Model> m_function;
@@ -211,4 +169,4 @@ private:
     testing::AssertionResult compare_results_with_tolerance_as_fp(float tolerance_bits);
 };
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

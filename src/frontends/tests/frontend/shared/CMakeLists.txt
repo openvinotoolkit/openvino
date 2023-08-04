@@ -17,7 +17,7 @@ target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../
 
 target_link_libraries(${TARGET_NAME}
         PUBLIC
-                engines_test_util offline_transformations
+                offline_transformations
                 common_test_utils func_test_utils openvino::util
                 openvino::runtime
         PRIVATE

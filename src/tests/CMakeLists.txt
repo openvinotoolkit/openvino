@@ -31,7 +31,6 @@ ov_deprecated_no_errors()
 
 add_subdirectory(ngraph_helpers)
 add_subdirectory(test_utils)
-add_subdirectory(engines_util)
 
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)

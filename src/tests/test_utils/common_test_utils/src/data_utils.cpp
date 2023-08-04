@@ -284,7 +284,7 @@ void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
     }
 }
 
-template<ov::element::Type_t SRC_E, ov::element::Type_t DST_E>
+template<ov::element::Type_t SRC_E, ov::element::Type_t DST_E, typename std::enable_if<SRC_E != DST_E, int>::type = 0>
 void copy_tensor_with_convert(const ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
     using SRC_TYPE = typename ov::fundamental_type_for<SRC_E>;
     using DST_TYPE = typename ov::fundamental_type_for<DST_E>;
@@ -299,6 +299,11 @@ void copy_tensor_with_convert(const ov::Tensor& src_tensor, ov::Tensor& dst_tens
     auto converter = [] (SRC_TYPE value) {return static_cast<DST_TYPE>(value);};
 
     std::transform(src_ptr, src_ptr + src_size, dst_ptr, converter);
+}
+
+template<ov::element::Type_t SRC_E, ov::element::Type_t DST_E, typename std::enable_if<SRC_E == DST_E, int>::type = 0>
+void copy_tensor_with_convert(const ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
+    src_tensor.copy_to(dst_tensor);
 }
 
 ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc) {

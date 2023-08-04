@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_case.hpp"
+#include "common_test_utils/test_case.hpp"
 
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/data_utils.hpp"
@@ -79,12 +79,8 @@ compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tenso
 }
 };  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace test {
-std::shared_ptr<ov::Model> function_from_ir(const std::string& xml_path, const std::string& bin_path) {
-    ov::Core c;
-    return c.read_model(xml_path, bin_path);
-}
 
 std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tolerance_bits) {
     auto res = testing::AssertionSuccess();
@@ -203,5 +199,38 @@ TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string
     m_request = m_core.compile_model(function, dev).create_infer_request();
 }
 
+void TestCase::run(const size_t tolerance_bits) {
+    m_request.infer();
+    const auto res = compare_results(tolerance_bits);
+
+    if (res.first != testing::AssertionSuccess()) {
+        std::cout << "Results comparison failed for output: " << res.second << std::endl;
+        std::cout << res.first.message() << std::endl;
+    }
+
+    m_input_index = 0;
+    m_output_index = 0;
+
+    m_expected_outputs.clear();
+
+    EXPECT_TRUE(res.first);
+}
+
+void TestCase::run_with_tolerance_as_fp(const float tolerance) {
+    m_request.infer();
+    const auto res = compare_results_with_tolerance_as_fp(tolerance);
+
+    if (res != testing::AssertionSuccess()) {
+        std::cout << res.message() << std::endl;
+    }
+
+    m_input_index = 0;
+    m_output_index = 0;
+
+    m_expected_outputs.clear();
+
+    EXPECT_TRUE(res);
+}
+
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov
