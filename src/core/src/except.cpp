@@ -4,6 +4,8 @@
 
 #include "openvino/core/except.hpp"
 
+#include "openvino/util/file_util.hpp"
+
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
 void ov::Exception::create(const CheckLocInfo& check_loc_info, const std::string& explanation) {
@@ -15,22 +17,12 @@ void ov::Exception::create(const CheckLocInfo& check_loc_info, const std::string
 std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
                                      const std::string& context_info,
                                      const std::string& explanation) {
-    // Use relative path only for internal code
-    auto getRelativePath = [](const std::string& path) -> std::string {
-        // Path to local OpenVINO repository
-        static const std::string project_root(PROJECT_ROOT_DIR);
-        // All internal paths start from project root
-        if (path.find(project_root) != 0)
-            return path;
-        // Add +1 to remove first /
-        return path.substr(project_root.length() + 1);
-    };
     std::stringstream ss;
     if (check_loc_info.check_string) {
-        ss << "Check '" << check_loc_info.check_string << "' failed at " << getRelativePath(check_loc_info.file) << ":"
-           << check_loc_info.line;
+        ss << "Check '" << check_loc_info.check_string << "' failed at " << util::trim_file_name(check_loc_info.file)
+           << ":" << check_loc_info.line;
     } else {
-        ss << "Exception from " << getRelativePath(check_loc_info.file) << ":" << check_loc_info.line;
+        ss << "Exception from " << util::trim_file_name(check_loc_info.file) << ":" << check_loc_info.line;
     }
     if (!context_info.empty()) {
         ss << ":" << std::endl << context_info;

@@ -21,9 +21,11 @@ about this approach can be found in this
 This notebook demonstrates how to convert and run the InstructPix2Pix
 model using OpenVINO.
 
-Notebook contains the following steps: 1. Convert PyTorch models to ONNX
-format. 2. Convert ONNX models to OpenVINO IR format, using Model
-Optimizer tool. 3. Run InstructPix2Pix pipeline with OpenVINO.
+Notebook contains the following steps:
+
+1. Convert PyTorch models to ONNX format.
+2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+3. Run InstructPix2Pix pipeline with OpenVINO.
 
 Prerequisites
 -------------
@@ -148,11 +150,11 @@ how to run Stable Diffusion for text-to-image generation with OpenVINO
 in a separate
 `tutorial <225-stable-diffusion-text-to-image-with-output.html>`__.
 
-The model consists of three important parts: \* Text Encoder - to create
-conditions from a text prompt. \* Unet - for step-by-step denoising
-latent image representation. \* Autoencoder (VAE) - to encode the
-initial image to latent space for starting the denoising process and
-decoding latent space to image, when denoising is complete.
+The model consists of three important parts:
+
+* Text Encoder - to create conditions from a text prompt.
+* Unet - for step-by-step denoising latent image representation.
+* Autoencoder (VAE) - to encode the initial image to latent space for starting the denoising process and decoding latent space to image, when denoising is complete.
 
 Let us convert each part.
 
@@ -357,11 +359,11 @@ into two independent models.
 Unet
 ~~~~
 
-The Unet model has three inputs: \* ``scaled_latent_model_input`` - the
-latent image sample from previous step. Generation process has not been
-started yet, so you will use random noise. \* ``timestep`` - a current
-scheduler step. \* ``text_embeddings`` - a hidden state of the text
-encoder.
+The Unet model has three inputs:
+
+* ``scaled_latent_model_input`` - the latent image sample from previous step. Generation process has not been started yet, so you will use random noise.
+* ``timestep`` - a current scheduler step.
+* ``text_embeddings`` - a hidden state of the text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -918,9 +920,12 @@ running the inference pipeline. You can find example results generated
 by the model on this
 `page <https://www.timothybrooks.com/instruct-pix2pix/>`__, in case you
 need inspiration. Optionally, you can also change the random generator
-seed for latent state initialization and number of steps. > **Note**:
-Consider increasing ``steps`` to get more precise results. A suggested
-value is ``100``, but it will take more time to process.
+seed for latent state initialization and number of steps.
+
+.. note::
+
+   Consider increasing ``steps`` to get more precise results. A suggested value is ``100``, but it will take more time to process.
+
 
 .. code:: ipython3
 

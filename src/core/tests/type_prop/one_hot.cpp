@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -206,7 +206,7 @@ TEST(type_prop, one_hot_v1_negative_depth) {
 
     OV_EXPECT_THROW(auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis),
                     ov::Exception,
-                    HasSubstr("can't be lower than zero"));
+                    HasSubstr("can't be negative."));
 }
 
 TEST(type_prop, one_hot_v1_on_off_values_not_compatible) {

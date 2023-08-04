@@ -237,20 +237,38 @@ void InputModel::InputModelTFImpl::load_places() {
             m_telemetry->send_event("op_count", "tf_" + op.first, static_cast<int>(op.second));
         }
     }
+    m_graph_iterator->reset();
+    m_outputs.clear();
 
+    // SavedModel, MetaGraph formats have model signature that provides a concrete list of outputs
+    // some output can place among intermediate layers (i.e. it can have its output consumers)
+    // so just terminal nodes may not cover the whole list of outputs
+    if (m_saved_model_output_names) {
+        for (const auto& map_name : *m_saved_model_output_names) {
+            const auto& output_internal_tensor_name = map_name.first;
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_internal_tensor_name});
+            m_tensor_places[output_internal_tensor_name] = output_place;
+            m_outputs.push_back(output_place);
+        }
+        return;
+    }
+
+    // treat terminal nodes as the models outputs for the frozen TF1 format
     std::set<std::string> op_names_without_consumers;
     std::set_difference(all_op_names.begin(),
                         all_op_names.end(),
                         op_names_with_consumers.begin(),
                         op_names_with_consumers.end(),
                         std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-    m_graph_iterator->reset();
 
-    m_outputs.clear();
-    for (auto& output_name : op_names_without_consumers) {
-        std::vector<std::string> output_names = {output_name};
-        auto output_place =
-            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape({}), ov::element::dynamic, output_names);
+    for (const auto& output_name : op_names_without_consumers) {
+        auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                          ov::PartialShape({}),
+                                                          ov::element::dynamic,
+                                                          std::vector<std::string>{output_name});
         m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
@@ -338,9 +356,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                     "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
                 }
 
-                // skip conditional edges for all operators
                 if (is_conditional_edge(producer_name)) {
-                    continue;
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_name = producer_name.substr(1);
                 }
 
                 // is_input is a flag to leave producer operation node or not.

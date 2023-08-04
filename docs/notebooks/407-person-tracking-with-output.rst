@@ -93,12 +93,18 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
+.. code:: ipython3
+
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q opencv-python matplotlib requests scipy
+
 Imports
 -------
 
 .. code:: ipython3
 
     import collections
+    from pathlib import Path
     import sys
     import time
     
@@ -107,10 +113,23 @@ Imports
     from IPython import display
     import matplotlib.pyplot as plt
     from openvino.runtime import Core
+
+.. code:: ipython3
+
+    # Import local modules
     
-    sys.path.append("../utils")
+    utils_file_path = Path('../utils/notebook_utils.py')
+    notebook_directory_path = Path('.')
+    
+    if not utils_file_path.exists():
+        !git clone --depth 1 https://github.com/igor-davidyuk/openvino_notebooks.git -b moving_data_to_cloud openvino_notebooks
+        utils_file_path = Path('./openvino_notebooks/notebooks/utils/notebook_utils.py')
+        notebook_directory_path = Path('./openvino_notebooks/notebooks/407-person-tracking-webcam/')
+    
+    sys.path.append(str(utils_file_path.parent))
+    sys.path.append(str(notebook_directory_path))
+    
     import notebook_utils as utils
-    
     from deepsort_utils.tracker import Tracker
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
@@ -360,7 +379,7 @@ network’s original output and visualize it.
             color = compute_color_for_labels(id)
             label = '{}{:d}'.format("", id)
             t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2, 2)[0]
-            cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
             cv2.rectangle(
                 img, (x1, y1), (x1 + t_size[0] + 3, y1 + t_size[1] + 4), color, -1)
             cv2.putText(
@@ -368,7 +387,7 @@ network’s original output and visualize it.
                 label,
                 (x1, y1 + t_size[1] + 4),
                 cv2.FONT_HERSHEY_PLAIN,
-                2,
+                1.6,
                 [255, 255, 255],
                 2
             )
@@ -397,9 +416,10 @@ Visualize data
 
 .. code:: ipython3
 
-    image1 = cv2.cvtColor(cv2.imread("../data/image/person_1_1.png"), cv2.COLOR_BGR2RGB)
-    image2 = cv2.cvtColor(cv2.imread("../data/image/person_1_2.png"), cv2.COLOR_BGR2RGB)
-    image3 = cv2.cvtColor(cv2.imread("../data/image/person_2_1.png"), cv2.COLOR_BGR2RGB)
+    base_file_link = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/person_'
+    image_indices = ['1_1.png', '1_2.png', '2_1.png']
+    image_paths = [utils.download_file(base_file_link + image_index, directory='data') for image_index in image_indices]
+    image1, image2, image3 = [cv2.cvtColor(cv2.imread(str(image_path)), cv2.COLOR_BGR2RGB) for image_path in image_paths]
     
     # Define titles with images.
     data = {"Person 1": image1, "Person 2": image2, "Person 3": image3}
@@ -418,7 +438,25 @@ Visualize data
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_11_0.png
+.. parsed-literal::
+
+    data/person_1_1.png:   0%|          | 0.00/68.3k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    data/person_1_2.png:   0%|          | 0.00/68.9k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    data/person_2_1.png:   0%|          | 0.00/70.3k [00:00<?, ?B/s]
+
+
+
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_13_3.png
 
 
 Compare two persons
@@ -471,7 +509,7 @@ video file.
         try:
             # Create a video player to play with target fps.
             player = utils.VideoPlayer(
-                source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames
+                source=source, size=(700, 450), flip=flip, fps=24, skip_first_frames=skip_first_frames
             )
             # Start capturing.
             player.start()
@@ -505,7 +543,7 @@ video file.
     
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
-                processing_time = np.mean(processing_times) * 1000
+                processing_time = np.mean(processing_times) * 1100
                 fps = 1000 / processing_time
     
                 # Get poses from detection results.
@@ -546,7 +584,7 @@ video file.
                     box = track.to_tlwh()
                     x1, y1, x2, y2 = tlwh_to_xyxy(box, h, w)
                     track_id = track.track_id
-                    outputs.append(np.array([x1, y1, x2, y2, track_id], dtype=np.int))
+                    outputs.append(np.array([x1, y1, x2, y2, track_id], dtype=np.int32))
                 if len(outputs) > 0:
                     outputs = np.stack(outputs, axis=0)
     
@@ -643,8 +681,8 @@ Firefox, may cause flickering. If you experience flickering, set
 
 .. parsed-literal::
 
-    [ WARN:0@8.532] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@8.532] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@10.093] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@10.094] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 Run Person Tracking on a Video File
@@ -657,12 +695,12 @@ will work.
 
 .. code:: ipython3
 
-    video_file = "../data/video/people.mp4"
+    video_file = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4'
     run_person_tracking(source=video_file, flip=False, use_popup=False)
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_21_0.png
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_23_0.png
 
 
 .. parsed-literal::

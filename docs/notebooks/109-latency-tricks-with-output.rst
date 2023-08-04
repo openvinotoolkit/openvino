@@ -94,7 +94,7 @@ requirements of this particular object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=18f2331c8bf61fd35d93bb638f7ea64b>
+    <DisplayHandle display_id=5ab5e600f8b1dde3f55ff40ec675d04c>
 
 
 
@@ -346,8 +346,8 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0241 seconds
-    PyTorch model on CPU: 0.0195 seconds per image (51.21 FPS)
+    PyTorch model on CPU. First inference time: 0.0286 seconds
+    PyTorch model on CPU: 0.0202 seconds per image (49.58 FPS)
 
 
 ONNX model
@@ -395,8 +395,8 @@ Representation (IR) to leverage the OpenVINO Runtime.
 
 .. parsed-literal::
 
-    ONNX model on CPU. First inference time: 0.0167 seconds
-    ONNX model on CPU: 0.0132 seconds per image (76.03 FPS)
+    ONNX model on CPU. First inference time: 0.0173 seconds
+    ONNX model on CPU: 0.0133 seconds per image (75.16 FPS)
 
 
 OpenVINO IR model
@@ -433,8 +433,8 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0155 seconds
-    OpenVINO model on CPU: 0.0132 seconds per image (75.91 FPS)
+    OpenVINO model on CPU. First inference time: 0.0163 seconds
+    OpenVINO model on CPU: 0.0132 seconds per image (75.64 FPS)
 
 
 OpenVINO IR model on GPU
@@ -491,7 +491,7 @@ our case.
 .. parsed-literal::
 
     OpenVINO model + more threads on CPU. First inference time: 0.0151 seconds
-    OpenVINO model + more threads on CPU: 0.0131 seconds per image (76.12 FPS)
+    OpenVINO model + more threads on CPU: 0.0132 seconds per image (75.68 FPS)
 
 
 OpenVINO IR model in latency mode
@@ -520,8 +520,8 @@ devices as well.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO. First inference time: 0.0155 seconds
-    OpenVINO model on AUTO: 0.0135 seconds per image (73.89 FPS)
+    OpenVINO model on AUTO. First inference time: 0.0156 seconds
+    OpenVINO model on AUTO: 0.0135 seconds per image (73.93 FPS)
 
 
 OpenVINO IR model in latency mode + shared memory
@@ -554,8 +554,8 @@ performance!
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO. First inference time: 0.0132 seconds
-    OpenVINO model + shared memory on AUTO: 0.0053 seconds per image (187.78 FPS)
+    OpenVINO model + shared memory on AUTO. First inference time: 0.0144 seconds
+    OpenVINO model + shared memory on AUTO: 0.0053 seconds per image (187.92 FPS)
 
 
 Other tricks

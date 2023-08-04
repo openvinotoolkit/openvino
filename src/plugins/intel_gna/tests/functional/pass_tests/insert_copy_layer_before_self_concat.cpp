@@ -53,7 +53,7 @@ public:
                  outLayout,
                  targetName) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "IN=" << inputsNum << "_";
         result << "CN=" << concatsNum << "_";
         result << "axis=" << axis << "_";
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_InsertCopy,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          InsertCopyBeforeSelfConcatTest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <openvino/runtime/so_ptr.hpp>
 
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -17,8 +18,8 @@ namespace proxy {
  */
 class RemoteTensor : public ov::IRemoteTensor {
 public:
-    RemoteTensor(ov::RemoteTensor&& ctx, const std::string& dev_name);
-    RemoteTensor(const ov::RemoteTensor& ctx, const std::string& dev_name);
+    RemoteTensor(const ov::SoPtr<ov::ITensor>& ctx, const std::string& dev_name);
+    RemoteTensor(ov::SoPtr<ov::ITensor>&& ctx, const std::string& dev_name);
 
     const AnyMap& get_properties() const override;
     const std::string& get_device_name() const override;
@@ -35,11 +36,11 @@ public:
 
     const ov::Strides& get_strides() const override;
 
-    static const std::shared_ptr<ov::ITensor>& get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor);
+    static const ov::SoPtr<ov::ITensor>& get_hardware_tensor(const ov::SoPtr<ov::ITensor>& tensor);
 
 private:
     mutable std::string m_name;
-    ov::RemoteTensor m_tensor;
+    ov::SoPtr<ov::ITensor> m_tensor;
 };
 
 }  // namespace proxy

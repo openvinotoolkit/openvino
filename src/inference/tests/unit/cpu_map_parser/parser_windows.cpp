@@ -38,7 +38,7 @@ struct WinCpuMapTestCase {
     std::string system_info;
 };
 
-class WinCpuMapParserTests : public CommonTestUtils::TestsCommon,
+class WinCpuMapParserTests : public ov::test::TestsCommon,
                              public testing::WithParamInterface<std::tuple<WinCpuMapTestCase>> {
 public:
     void SetUp() override {

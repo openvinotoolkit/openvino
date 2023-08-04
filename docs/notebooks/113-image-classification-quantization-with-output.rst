@@ -10,11 +10,14 @@ backend for performing model quantization in NNCF, if you interested how
 to apply quantization on PyTorch model, please check this
 `tutorial <112-pytorch-post-training-quantization-nncf-with-output.html>`__.
 
-This tutorial consists of the following steps: - Prepare the model for
-quantization. - Define a data loading functionality. - Perform
-quantization. - Compare accuracy of the original and quantized models. -
-Compare performance of the original and quantized models. - Compare
-results on one picture.
+This tutorial consists of the following steps:
+
+- Prepare the model for quantization.
+- Define a data loading functionality.
+- Perform quantization.
+- Compare accuracy of the original and quantized models.
+- Compare performance of the original and quantized models.
+- Compare results on one picture.
 
 .. code:: ipython3
 
@@ -31,10 +34,11 @@ results on one picture.
 Prepare the Model
 -----------------
 
-Model preparation stage has the following steps: - Download a PyTorch
-model - Convert model to OpenVINO Intermediate Representation format
-(IR) using Model Optimizer Python API - Serialize converted model on
-disk
+Model preparation stage has the following steps:
+
+- Download a PyTorch model
+- Convert model to OpenVINO Intermediate Representation format (IR) using Model Optimizer Python API
+- Serialize converted model on disk
 
 .. code:: ipython3
 
@@ -51,10 +55,10 @@ disk
     Cloning into 'pytorch-cifar-models'...
     remote: Enumerating objects: 282, done.[K
     remote: Counting objects: 100% (281/281), done.[K
-    remote: Compressing objects: 100% (96/96), done.[K
-    remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1[K
+    remote: Compressing objects: 100% (95/95), done.[K
+    remote: Total 282 (delta 136), reused 269 (delta 129), pack-reused 1[K
     Receiving objects: 100% (282/282), 9.22 MiB | 4.20 MiB/s, done.
-    Resolving deltas: 100% (135/135), done.
+    Resolving deltas: 100% (136/136), done.
 
 
 .. code:: ipython3
@@ -184,8 +188,8 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.76it/s]
-    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 20.36it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.03it/s]
+    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 23.98it/s]
 
 
 Serialize an OpenVINO IR model
@@ -217,13 +221,43 @@ Compare Accuracy of the Original and Quantized Models
             total += 1
         return correct / total
 
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    from openvino.runtime import Core
+    
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     from openvino.runtime import Core
     
     core = Core()
-    compiled_model = core.compile_model(ov_model)
-    optimized_compiled_model = core.compile_model(quant_ov_model)
+    compiled_model = core.compile_model(ov_model, device.value)
+    optimized_compiled_model = core.compile_model(quant_ov_model, device.value)
     
     orig_accuracy = test_accuracy(compiled_model, val_loader)
     optimized_accuracy = test_accuracy(optimized_compiled_model, val_loader)
@@ -271,7 +305,7 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
 .. code:: ipython3
 
     # Inference FP16 model (OpenVINO IR)
-    !benchmark_app -m "model/mobilenet_v2.xml" -d CPU -api async -t 15
+    !benchmark_app -m "model/mobilenet_v2.xml" -d $device.value -api async -t 15
 
 
 .. parsed-literal::
@@ -283,15 +317,15 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
+    [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 25.72 ms
+    [ INFO ] Read model took 7.88 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x.1 , x , 1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
@@ -305,45 +339,52 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 144.38 ms
+    [ INFO ] Compile model took 164.70 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 24
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     CPU_BIND_THREAD: YES
+    [ INFO ]     CPU_THREADS_NUM: 0
+    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
+    [ INFO ]     DEVICE_ID: 
+    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
+    [ INFO ]     DYN_BATCH_ENABLED: NO
+    [ INFO ]     DYN_BATCH_LIMIT: 0
+    [ INFO ]     ENFORCE_BF16: NO
+    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.09 ms
+    [ INFO ] First inference took 3.15 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            90984 iterations
-    [ INFO ] Duration:         15002.82 ms
+    [ INFO ] Count:            89880 iterations
+    [ INFO ] Duration:         15002.85 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.78 ms
-    [ INFO ]    Average:       1.80 ms
-    [ INFO ]    Min:           1.10 ms
-    [ INFO ]    Max:           6.27 ms
-    [ INFO ] Throughput:   6064.46 FPS
+    [ INFO ]    Median:        1.80 ms
+    [ INFO ]    Average:       1.82 ms
+    [ INFO ]    Min:           1.13 ms
+    [ INFO ]    Max:           7.45 ms
+    [ INFO ] Throughput:   5990.86 FPS
 
 
 .. code:: ipython3
 
     # Inference INT8 model (OpenVINO IR)
-    !benchmark_app -m "model/quantized_mobilenet_v2.xml" -d CPU -api async -t 15
+    !benchmark_app -m "model/quantized_mobilenet_v2.xml" -d $device.value -api async -t 15
 
 
 .. parsed-literal::
@@ -355,61 +396,68 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
+    [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 34.93 ms
+    [ INFO ] Read model took 15.06 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
+    [ INFO ]     1 , x.1 , x (node: Parameter_2) : f32 / [...] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
+    [ INFO ]     1 , x.1 , x (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 247.66 ms
+    [ INFO ] Compile model took 314.58 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 24
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     CPU_BIND_THREAD: YES
+    [ INFO ]     CPU_THREADS_NUM: 0
+    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
+    [ INFO ]     DEVICE_ID: 
+    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
+    [ INFO ]     DYN_BATCH_ENABLED: NO
+    [ INFO ]     DYN_BATCH_LIMIT: 0
+    [ INFO ]     ENFORCE_BF16: NO
+    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.68 ms
+    [ INFO ] First inference took 1.86 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            183924 iterations
-    [ INFO ] Duration:         15000.75 ms
+    [ INFO ] Count:            181056 iterations
+    [ INFO ] Duration:         15001.51 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        0.92 ms
-    [ INFO ]    Average:       0.94 ms
-    [ INFO ]    Min:           0.64 ms
-    [ INFO ]    Max:           3.03 ms
-    [ INFO ] Throughput:   12260.99 FPS
+    [ INFO ]    Median:        0.93 ms
+    [ INFO ]    Average:       0.96 ms
+    [ INFO ]    Min:           0.62 ms
+    [ INFO ]    Max:           3.36 ms
+    [ INFO ] Throughput:   12069.19 FPS
 
 
 Compare results on four pictures
@@ -503,5 +551,5 @@ Compare results on four pictures
 
 
 
-.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_26_2.png
+.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_28_2.png
 

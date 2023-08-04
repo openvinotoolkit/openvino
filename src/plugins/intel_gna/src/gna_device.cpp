@@ -571,6 +571,7 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
 
     switch (target->get_effective_execution_target()) {
     case DeviceVersion::GNA1_0:
+    case DeviceVersion::GNAEmbedded1_0:
     case DeviceVersion::GNA2_0:
         return Limitations::kMaxLayersCountGNA2_0;
     case DeviceVersion::GNA3_0:
@@ -582,6 +583,11 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     default:
         return Limitations::kMaxLayersCountGNA3_X;
     }
+}
+
+bool GNADeviceHelper::isHwAvailable() {
+    return target->get_detected_device_version() != DeviceVersion::SoftwareEmulation &&
+           target->get_detected_device_version() != DeviceVersion::NotSet;
 }
 }  // namespace intel_gna
 }  // namespace ov

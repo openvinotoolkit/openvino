@@ -6,6 +6,7 @@
 
 #include "ops/ops_evaluates.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 std::vector<float> get_floats(const std::shared_ptr<ngraph::HostTensor>& input, const ngraph::Shape& shape) {
     size_t input_size = ngraph::shape_size(shape);
     std::vector<float> result(input_size);

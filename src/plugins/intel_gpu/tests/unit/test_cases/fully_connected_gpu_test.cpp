@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -60,10 +61,11 @@ VVVVF<T> fully_connected_reference(VVVVF<T> &input, VVVVF<T> &weights, VF<T> &bi
 template <typename T>
 void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format test_weights_fmt,
                                   int input_b, int f, int y, int x, int output_f, bool relu, T slope = 0) {
+    tests::random_generator rg(GET_SUITE_NAME);
     int min_random = -2, max_random = 2;
-    VVVVF<T> input_rnd = generate_random_4d<T>(input_b, f, y, x, min_random, max_random);
-    VVVVF<T> weights_rnd = generate_random_4d<T>(output_f, f, y, x, min_random, max_random);
-    VF<T> bias_rnd_vec = generate_random_1d<T>(output_f, min_random, max_random);
+    VVVVF<T> input_rnd = rg.generate_random_4d<T>(input_b, f, y, x, min_random, max_random);
+    VVVVF<T> weights_rnd = rg.generate_random_4d<T>(output_f, f, y, x, min_random, max_random);
+    VF<T> bias_rnd_vec = rg.generate_random_1d<T>(output_f, min_random, max_random);
     VF<T> input_rnd_vec = flatten_4d<T>(test_input_fmt, input_rnd);
     VF<T> weights_rnd_vec = flatten_4d<T>(test_weights_fmt, weights_rnd);
 
@@ -716,6 +718,7 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
 
 TEST(fully_connected_gpu, b_fs_yx_fsv4)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int in_B = 2;
@@ -781,8 +784,8 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, W_B, 1, 1 } });
     auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
     auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    set_values(input_low_mem,  generate_random_1d<float>(W_B, -200, 0));
-    set_values(input_high_mem, generate_random_1d<float>(W_B, 1, 200));
+    set_values(input_low_mem,  rg.generate_random_1d<float>(W_B, -200, 0));
+    set_values(input_high_mem, rg.generate_random_1d<float>(W_B, 1, 200));
     set_values(output_low_mem, { -127.0f });
     set_values(output_high_mem, { 127.0f });
 
@@ -846,9 +849,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
-    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
@@ -922,9 +926,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
-    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
@@ -988,6 +993,12 @@ using fully_connected_test_params = std::tuple<
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_f;
@@ -998,9 +1009,9 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         std::tie(batch, dims, output_f, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
-        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
-        auto weights_data = generate_smart_random_4d<WeightsT>(output_f, input_f, input_y, input_x);
-        auto bias_data = generate_smart_random_2d<BiasT>(1, output_f);
+        auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
+        auto weights_data = rg.generate_random_4d<WeightsT>(output_f, input_f, input_y, input_x, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
+        auto bias_data = rg.generate_random_2d<BiasT>(1, output_f, type_test_ranges<BiasT>::min, type_test_ranges<BiasT>::max, type_test_ranges<BiasT>::k);
 
         auto& eng = get_test_engine();
         auto net = network_test(eng);
@@ -1111,6 +1122,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_y;
@@ -1121,9 +1138,9 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         std::tie(batch, dims, output_y, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
-        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
-        auto weights_data = generate_smart_random_4d<WeightsT>(output_y, input_y, 1, 1);
-        auto bias_data = generate_smart_random_2d<BiasT>(1, output_y);
+        auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
+        auto weights_data = rg.generate_random_4d<WeightsT>(output_y, input_y, 1, 1, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
+        auto bias_data = rg.generate_random_2d<BiasT>(1, output_y, type_test_ranges<BiasT>::min, type_test_ranges<BiasT>::max, type_test_ranges<BiasT>::k);
 
         auto& eng = get_test_engine();
         auto net = network_test(eng);
@@ -1481,25 +1498,17 @@ VVF<OutputT> ref_fully_connected(
     return output;
 }
 
-namespace {
-    template<typename T>
-    std::vector<T> generate_random_values(size_t a, int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(min, max);
-    std::vector<T> v(a);
-
-    for (size_t i = 0; i < a; ++i) {
-        v[i] = (T)distribution(generator);
-    }
-    return v;
-    }
-} // namespace
 
 template <typename InputT, typename OutputT>
 class fc_quantized_random_test
     : public fully_connected_quantized_test<InputT, OutputT>
     , public ::testing::WithParamInterface< fully_connected_quantized_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
 public:
     void run_random_test() {
         size_t b, in_f, in_x, in_y, out_f;
@@ -1507,13 +1516,13 @@ public:
 
         std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
 
-        VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
-        VVVVF<int8_t> weights_data = generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
-        VF<int> bias_data = generate_random_1d<int>(out_f, -127, 127);
+        VVVVF<InputT> input_data = rg.generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
+        VVVVF<int8_t> weights_data = rg.generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
+        VF<int> bias_data = rg.generate_random_1d<int>(out_f, -127, 127);
         bool is_unsigned = std::is_same<OutputT, uint8_t>::value;
         quantization_t quant_data;
-        quant_data.input_low   = generate_random_values<float>(out_f, -200, 0);
-        quant_data.input_high  = generate_random_values<float>(out_f, 1, 200);
+        quant_data.input_low   = rg.generate_random_1d<float>(out_f, -200, 0);
+        quant_data.input_high  = rg.generate_random_1d<float>(out_f, 1, 200);
         quant_data.output_low  = is_unsigned ? 0.0f   : -127.0f;
         quant_data.output_high = is_unsigned ? 255.0f : 127.0f;
         quant_data.levels      = is_unsigned ? 256    : 255;
@@ -2286,6 +2295,12 @@ using fully_connected_dynamic_test_params = std::tuple<
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dynamic_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         std::vector<ov::Dimension::value_type> batch_sizes;
         ov::Dimension::value_type input_f;
@@ -2304,10 +2319,10 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), ov::Dimension(), input_f }, input_dt, format::bfyx };
 
         auto weights_mem = engine.allocate_memory({ ov::PartialShape{ output_f, input_f }, weights_dt, format::bfyx });
-        auto weights_data_vec = generate_random_1d<WeightsT>(output_f * input_f, -1, 1);
+        auto weights_data_vec = rg.generate_random_1d<WeightsT>(output_f * input_f, -1, 1);
 
         auto bias_mem = engine.allocate_memory({ ov::PartialShape{ output_f }, output_dt, format::bfyx });
-        auto bias_data_vec = generate_random_1d<OutputT>(output_f, 0, 1);
+        auto bias_data_vec = rg.generate_random_1d<OutputT>(output_f, 0, 1);
 
         set_values(weights_mem, weights_data_vec);
         set_values(bias_mem, bias_data_vec);
@@ -2333,7 +2348,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             if (fc_3d)
                 input_actual_layout = layout{ ov::PartialShape{ 1, batch_size, input_f }, input_dt, format::bfyx };
             cldnn::memory_ptr input_mem = engine.allocate_memory(input_actual_layout);
-            std::vector<InputT> input_data_vec = generate_random_1d<InputT>(batch_size * input_f, 0, 1);
+            std::vector<InputT> input_data_vec = rg.generate_random_1d<InputT>(batch_size * input_f, 0, 1);
             set_values(input_mem, input_data_vec);
             network.set_input_data("input", input_mem);
 
@@ -2497,7 +2512,9 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
     ASSERT_TRUE(reorder_kernel_params != nullptr);
     auto reorder_impl = network.get_program()->get_implementations_cache().get(*reorder_kernel_params);
-    ASSERT_TRUE(reorder_impl != nullptr);
+    // cldnn shape agnostic kernel reorder is done in build time
+    // therefore the reorder is no longer in cache, but the program_node of weight data is in the preferred format
+    ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
     ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
@@ -2672,6 +2689,7 @@ class fc_random_types_test
     , public ::testing::WithParamInterface< fully_connected_types_test_params> {
 public:
     void run_random_test() {
+        tests::random_generator rg(GET_SUITE_NAME);
         size_t b, in_f, in_x, in_y, out_f;
         format::type in_fmt;
 
@@ -2681,9 +2699,9 @@ public:
         quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
         quant_data.output_high = std::numeric_limits<WeightsT>::max();
 
-        VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
-        VVVVF<WeightsT> weights_data = generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
-        VF<WeightsT> bias_data = generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
+        VVVVF<InputT> input_data = rg.template generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
+        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
+        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
 
         this->set_input(input_data);
         this->set_weights(weights_data);

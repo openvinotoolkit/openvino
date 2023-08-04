@@ -24,18 +24,15 @@ the PaddleOCR is as follows:
 
 .. code:: ipython3
 
-    !pip install -q "paddlepaddle==2.5.0rc0"
-
-.. code:: ipython3
-
-    !pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1"
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q 'paddlepaddle==2.5.0rc0'
+    !pip install -q 'pyclipper>=1.2.1' 'shapely>=1.7.1'
 
 Imports
 -------
 
 .. code:: ipython3
 
-    import os
     import sys
     import cv2
     import numpy as np
@@ -46,13 +43,26 @@ Imports
     from PIL import Image
     from pathlib import Path
     import tarfile
-    import requests
     
     from openvino.runtime import Core
     from IPython import display
     import copy
+
+.. code:: ipython3
+
+    # Import local modules
     
-    sys.path.append("../utils")
+    utils_file_path = Path('../utils/notebook_utils.py')
+    notebook_directory_path = Path('.')
+    
+    if not utils_file_path.exists():
+        !git clone --depth 1 https://github.com/igor-davidyuk/openvino_notebooks.git -b moving_data_to_cloud openvino_notebooks
+        utils_file_path = Path('./openvino_notebooks/notebooks/utils/notebook_utils.py')
+        notebook_directory_path = Path('./openvino_notebooks/notebooks/405-paddle-ocr-webcam/')
+    
+    sys.path.append(str(utils_file_path.parent))
+    sys.path.append(str(notebook_directory_path))
+    
     import notebook_utils as utils
     import pre_post_processing as processing
 
@@ -72,7 +82,7 @@ files to load to CPU/GPU.
 
     # Define the function to download text detection and recognition models from PaddleOCR resources.
     
-    def run_model_download(model_url, model_file_path):
+    def run_model_download(model_url: str, model_file_path: Path) -> None:
         """
         Download pre-trained models from PaddleOCR resources
     
@@ -80,8 +90,7 @@ files to load to CPU/GPU.
             model_url: url link to pre-trained models
             model_file_path: file path to store the downloaded model
         """
-        model_name = model_url.split("/")[-1]
-        
+        archive_path = model_file_path.absolute().parent.parent / model_url.split("/")[-1]
         if model_file_path.is_file(): 
             print("Model already exists")
         else:
@@ -89,14 +98,12 @@ files to load to CPU/GPU.
             print("Downloading the pre-trained model... May take a while...")
     
             # Create a directory.
-            os.makedirs("model", exist_ok=True)
-            response = requests.get(model_url)
-            with open(f"model/{model_name}", "wb") as model_tar_file:
-                model_tar_file.write(response.content)
+            utils.download_file(model_url, archive_path.name, archive_path.parent)
             print("Model Downloaded")
     
-            file = tarfile.open(f"model/{model_name}")
-            res = file.extractall("model")
+    
+            file = tarfile.open(archive_path)
+            res = file.extractall(archive_path.parent)
             file.close()
             if not res:
                 print(f"Model Extracted to {model_file_path}.")
@@ -119,6 +126,16 @@ Download the Model for Text **Detection**
 .. parsed-literal::
 
     Downloading the pre-trained model... May take a while...
+
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/405-padd…
+
+
+.. parsed-literal::
+
     Model Downloaded
     Model Extracted to model/ch_PP-OCRv3_det_infer/inference.pdmodel.
 
@@ -151,6 +168,16 @@ Download the Model for Text **Recognition**
 .. parsed-literal::
 
     Downloading the pre-trained model... May take a while...
+
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/405-padd…
+
+
+.. parsed-literal::
+
     Model Downloaded
     Model Extracted to model/ch_PP-OCRv3_rec_infer/inference.pdmodel.
 
@@ -353,6 +380,31 @@ video file. See the list of procedures below:
 
 .. code:: ipython3
 
+    # Download font and a character dictionary for printing OCR results.
+    font_path = utils.download_file(
+        url='https://raw.githubusercontent.com/Halfish/lstm-ctc-ocr/master/fonts/simfang.ttf',
+        directory='fonts'
+    )
+    character_dictionary_path = utils.download_file(
+        url='https://raw.githubusercontent.com/WenmuZhou/PytorchOCR/master/torchocr/datasets/alphabets/ppocr_keys_v1.txt',
+        directory='fonts'
+    )
+
+
+
+.. parsed-literal::
+
+    fonts/simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    fonts/ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
+
+
+.. code:: ipython3
+
     def run_paddle_ocr(source=0, flip=False, use_popup=False, skip_first_frames=0):
         """
         Main function to run the paddleOCR inference:
@@ -444,7 +496,9 @@ video file. See the list of procedures below:
                     boxes,
                     txts,
                     scores,
-                    drop_score=0.5)
+                    drop_score=0.5,
+                    font_path=str(font_path)
+                )
     
                 # Visualize the PaddleOCR results.
                 f_height, f_width = draw_img.shape[:2]
@@ -512,8 +566,8 @@ Run live PaddleOCR:
 
 .. parsed-literal::
 
-    [ WARN:0@23.888] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@23.888] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@49.013] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@49.013] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 If you do not have a webcam, you can still run this demo with a video
@@ -530,7 +584,7 @@ will work.
 
 
 
-.. image:: 405-paddle-ocr-webcam-with-output_files/405-paddle-ocr-webcam-with-output_29_0.png
+.. image:: 405-paddle-ocr-webcam-with-output_files/405-paddle-ocr-webcam-with-output_30_0.png
 
 
 .. parsed-literal::

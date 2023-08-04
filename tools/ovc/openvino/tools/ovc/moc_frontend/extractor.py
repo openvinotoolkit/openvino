@@ -1,14 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape
+from openvino._pyopenvino import Place, PartialShape # pylint: disable=no-name-in-module,import-error
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
@@ -386,7 +383,7 @@ def convert_params_lists_to_dicts(input_model,
     input_user_data_types_dict - dictionary where key is input name, value is type from user;
     freeze_placeholder - dictionary where key is input name, value is input value from user;
     """
-    from openvino.runtime import PartialShape
+    from openvino.runtime import PartialShape # pylint: disable=no-name-in-module,import-error
     model_inputs = input_model.get_inputs()
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
@@ -405,7 +402,7 @@ def convert_params_lists_to_dicts(input_model,
 
     # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
-        from openvino.runtime import Type
+        from openvino.runtime import Type # pylint: disable=no-name-in-module,import-error
 
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}

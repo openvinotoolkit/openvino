@@ -67,6 +67,34 @@ Download model weights
     model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
+Select inference device
+-----------------------
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    ie = Core()
+    device = widgets.Dropdown(
+        options=ie.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 Load the Model
 --------------
 
@@ -101,7 +129,7 @@ Load an Image
 
 
 
-.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_8_0.png
+.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_10_0.png
 
 
 Do Inference
@@ -174,5 +202,5 @@ Visualize Results
 
 
 
-.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_13_0.png
+.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_15_0.png
 

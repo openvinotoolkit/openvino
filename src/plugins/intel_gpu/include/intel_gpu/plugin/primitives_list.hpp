@@ -224,6 +224,7 @@ REGISTER_FACTORY(v7, Roll);
 REGISTER_FACTORY(v8, Slice);
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
+REGISTER_FACTORY(v8, DetectionOutput);
 REGISTER_FACTORY(v8, DeformableConvolution);
 REGISTER_FACTORY(v8, NV12toRGB);
 REGISTER_FACTORY(v8, NV12toBGR);
@@ -250,6 +251,10 @@ REGISTER_FACTORY(v10, IsFinite);
 REGISTER_FACTORY(v10, IsInf);
 REGISTER_FACTORY(v10, IsNaN);
 REGISTER_FACTORY(v10, Unique);
+
+// ------------------------------ Supported v11 ops ----------------------------- //
+REGISTER_FACTORY(v11, Interpolate);
+REGISTER_FACTORY(v11, TopK);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

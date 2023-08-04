@@ -9,10 +9,11 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/op/util/pad_base.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
@@ -41,7 +42,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
 
         if (pad->inputs().size() == 4) {
             if (auto pad_value =
-                    std::dynamic_pointer_cast<opset4::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(pad->input_value(3).get_node_shared_ptr())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;
@@ -82,7 +83,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         // Create fake weights with ones GOIXY
         Shape weights_shape(rank + 1, 1);
         weights_shape[0] = channel_dim;  // G dimension
-        auto weights = opset4::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
+        auto weights = ov::op::v0::Constant::create(pad->input(0).get_element_type(), weights_shape, {1});
 
         // Create GroupConvolution attributes
         Strides stride(rank - 2, 1);
@@ -90,7 +91,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         CoordinateDiff new_pad_end{pad_end.begin() + 2, pad_end.end()};
 
         auto conv =
-            std::make_shared<opset4::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
+            std::make_shared<ov::op::v1::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
 
         conv->set_friendly_name(pad->get_friendly_name());
         ngraph::copy_runtime_info(pad, conv);

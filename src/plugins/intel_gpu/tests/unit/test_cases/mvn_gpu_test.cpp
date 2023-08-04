@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
@@ -585,6 +586,12 @@ struct mvn_basic_test_params {
 };
 
 struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_data(memory::ptr mem, const tests::VVVVVF<T>& data) {
         auto l = mem->get_layout();
@@ -607,14 +614,14 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_random_data(memory::ptr mem, int min, int max, int k = 8) {
         auto l = mem->get_layout();
-        auto input_data = tests::generate_random_5d<T>(l.batch(),
-                                                       l.feature(),
-                                                       l.spatial(0),
-                                                       l.spatial(1),
-                                                       l.spatial(2),
-                                                       min,
-                                                       max,
-                                                       k);
+        auto input_data = rg.generate_random_5d<T>(l.batch(),
+                                                   l.feature(),
+                                                   l.spatial(0),
+                                                   l.spatial(1),
+                                                   l.spatial(2),
+                                                   min,
+                                                   max,
+                                                   k);
         fill_data(mem, input_data);
     }
 
@@ -753,6 +760,12 @@ INSTANTIATE_TEST_SUITE_P(extended,
                                               .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));
 
 struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     template <typename T>
     void fill_data(cldnn::memory::ptr mem, const tests::VVVVVF<T>& data) {
         auto l = mem->get_layout();
@@ -775,14 +788,14 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_random_data(cldnn::memory::ptr mem, int min, int max, int k = 8) {
         auto l = mem->get_layout();
-        auto input_data = tests::generate_random_5d<T>(l.batch(),
-                                                       l.feature(),
-                                                       l.spatial(0),
-                                                       l.spatial(1),
-                                                       l.spatial(2),
-                                                       min,
-                                                       max,
-                                                       k);
+        auto input_data = rg.generate_random_5d<T>(l.batch(),
+                                                   l.feature(),
+                                                   l.spatial(0),
+                                                   l.spatial(1),
+                                                   l.spatial(2),
+                                                   min,
+                                                   max,
+                                                   k);
         fill_data(mem, input_data);
     }
 

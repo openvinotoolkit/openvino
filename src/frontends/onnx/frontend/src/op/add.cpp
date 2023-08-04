@@ -10,6 +10,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -39,3 +40,4 @@ OutputVector add(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -37,7 +37,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 
-int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
+int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
 
 // Check if data node is per-tensor
 template <typename T>

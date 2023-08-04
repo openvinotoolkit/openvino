@@ -155,7 +155,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
     int64_t max_boxes_output_from_input() const;
 };
 }  // namespace v3
@@ -356,7 +355,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
 };
 }  // namespace v5
 
@@ -506,7 +504,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
 };
 }  // namespace v9
 }  // namespace op

@@ -17,6 +17,15 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 Preparation
 -----------
 
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q 'openvino>=2023.0.0'
+    !pip install -q opencv-python
+    !pip install -q pillow matplotlib
+
 Imports
 ~~~~~~~
 
@@ -24,9 +33,7 @@ Imports
 
     import os
     import time
-    import requests
     from pathlib import Path
-    import sys
     
     import cv2
     import matplotlib.pyplot as plt
@@ -36,18 +43,49 @@ Imports
     from IPython.display import Pretty, ProgressBar, clear_output, display
     from PIL import Image
     from openvino.runtime import Core
-    
-    sys.path.append("../utils")
-    from notebook_utils import download_file
+
+.. code:: ipython3
+
+    # Define a download file helper function
+    def download_file(url: str, path: Path) -> None:
+        """Download file."""
+        import urllib.request
+        path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(url, path)
 
 Settings
 ~~~~~~~~
 
+Select inference device
+^^^^^^^^^^^^^^^^^^^^^^^
+
+select device from dropdown list for running inference using OpenVINO
+
 .. code:: ipython3
 
-    # Device to use for inference. For example, "CPU", or "GPU".
-    DEVICE = 'CPU'
+    import ipywidgets as widgets
     
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # 1032: 4x superresolution, 1033: 3x superresolution
     model_name = 'single-image-super-resolution-1032'
     
@@ -64,23 +102,10 @@ Settings
         model_xml_url = base_url + model_xml_name
         model_bin_url = base_url + model_bin_name
     
-        download_file(model_xml_url, model_xml_name, base_model_dir)
-        download_file(model_bin_url, model_bin_name, base_model_dir)
+        download_file(model_xml_url, model_xml_path)
+        download_file(model_bin_url, model_bin_path)
     else:
         print(f'{model_name} already downloaded to {base_model_dir}')
-
-
-
-.. parsed-literal::
-
-    model/single-image-super-resolution-1032.xml:   0%|          | 0.00/89.3k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model/single-image-super-resolution-1032.bin:   0%|          | 0.00/58.4k [00:00<?, ?B/s]
-
 
 Functions
 ~~~~~~~~~
@@ -122,24 +147,6 @@ Functions
         return textim.get()
     
     
-    def load_image(path: str) -> np.ndarray:
-        """
-        Loads an image from `path` and returns it as BGR numpy array.
-    
-        :param path: path to an image filename or url
-        :return: image as numpy array, with BGR channel order
-        """
-        if path.startswith("http"):
-            # Set User-Agent to Mozilla because some websites block requests
-            # with User-Agent Python.
-            response = requests.get(path, headers={"User-Agent": "Mozilla/5.0"})
-            array = np.asarray(bytearray(response.content), dtype="uint8")
-            image = cv2.imdecode(array, -1)  # Loads the image as BGR.
-        else:
-            image = cv2.imread(path)
-        return image
-    
-    
     def convert_result_to_image(result) -> np.ndarray:
         """
         Convert network result of floating point numbers to image with integer
@@ -177,7 +184,7 @@ about the network inputs and outputs.
 
     ie = Core()
     model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name=DEVICE)
+    compiled_model = ie.compile_model(model=model, device_name=device.value)
     
     # Network inputs and outputs are dictionaries. Get the keys for the
     # dictionaries.
@@ -218,11 +225,13 @@ Load and Show the Input Image
 
 .. code:: ipython3
 
-    IMAGE_PATH = Path("../data/image/tower.jpg")
+    IMAGE_PATH = Path("./data/tower.jpg")
     OUTPUT_PATH = Path("output/")
     
     os.makedirs(str(OUTPUT_PATH), exist_ok=True)
-    full_image = load_image(str(IMAGE_PATH))
+    
+    download_file('https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg', IMAGE_PATH)
+    full_image = cv2.imread(str(IMAGE_PATH))
     
     # Uncomment these lines to load a raw image as BGR.
     # import rawpy
@@ -239,7 +248,7 @@ Load and Show the Input Image
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_10_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_15_1.png
 
 
 Superresolution on a Crop of the Image
@@ -291,7 +300,7 @@ as the crop size.
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_12_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_17_1.png
 
 
 Reshape/Resize Crop for Model Input
@@ -357,7 +366,7 @@ Show the bicubic image and the enhanced superresolution image.
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_18_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_23_1.png
 
 
 Save Superresolution and Bicubic Image Crop
@@ -425,7 +434,7 @@ Write Animated GIF with Bicubic/Superresolution Comparison
 
 
 
-.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_22_1.png
+.. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_27_1.png
    :width: 960px
 
 
@@ -437,7 +446,9 @@ This may take a while. For the video, the superresolution and bicubic
 image are resized by a factor of 2 to improve processing speed. This
 gives an indication of the superresolution effect. The video is saved as
 an ``.avi`` file. You can click on the link to download the video, or
-open it directly from the images directory, and play it locally.
+open it directly from the ``output/`` directory, and play it locally. >
+Note: If you run the example in Google Colab, download video files using
+the ``Files`` tool.
 
 .. code:: ipython3
 
@@ -670,8 +681,8 @@ as total time to process each patch.
 
 .. parsed-literal::
 
-    Processed 42 patches in 5.06 seconds. Total patches per second (including processing): 8.29.
-    Inference patches per second: 16.98 
+    Processed 42 patches in 4.73 seconds. Total patches per second (including processing): 8.87.
+    Inference patches per second: 17.65 
 
 
 Save superresolution image and the bicubic image

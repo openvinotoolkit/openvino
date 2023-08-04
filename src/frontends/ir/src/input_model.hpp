@@ -20,9 +20,11 @@ class InputModel : public ov::frontend::InputModel {
     std::shared_ptr<InputModelIRImpl> _impl;
 
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     InputModel(std::istream& stream,
                const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Model> convert();
 };

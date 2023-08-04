@@ -45,11 +45,11 @@ To convert a model to OpenVINO model format (``ov.Model``), you can use the foll
 If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
 - model conversion API provides two parameters to override original input shapes for model conversion: ``input`` and ``input_shape``.
-For more information about these parameters, refer to the :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+  For more information about these parameters, refer to the :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 - To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
-use the ``input`` and ``output`` parameters to define new inputs and outputs of the converted model.
-For a more detailed description, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` guide.
+  use the ``input`` and ``output`` parameters to define new inputs and outputs of the converted model.
+  For a more detailed description, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` guide.
 
 You can also insert additional input pre-processing sub-graphs into the converted model by using
 the ``mean_values``, ``scales_values``, ``layout``, and other parameters described

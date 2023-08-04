@@ -51,13 +51,11 @@ This is the key difference between standard diffusion and latent
 diffusion models: in latent diffusion, the model is trained to generate
 latent (compressed) representations of the images.
 
-There are three main components in latent diffusion: \* A text-encoder,
-for example `CLIP’s Text
-Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__
-for creation condition to generate image from text prompt. \* A U-Net
-for step-by-step denoising latent image representation. \* An
-autoencoder (VAE) for encoding input image to latent space (if required)
-and decoding latent space to image back after generation.
+There are three main components in latent diffusion: 
+
+* A text-encoder, for example `CLIP’s Text Encoder <https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel>`__ for creation condition to generate image from text prompt. 
+* A U-Net for step-by-step denoising latent image representation.
+* An autoencoder (VAE) for encoding input image to latent space (if required) and decoding latent space to image back after generation.
 
 For more details regarding Stable Diffusion work, refer to the `project
 website <https://ommer-lab.com/research/latent-diffusion-models/>`__.
@@ -302,12 +300,13 @@ Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Mod
 to convert a model to IR format and compression weights to ``FP16``
 format.
 
-The pipeline consists of five important parts: \* OpenPose for obtaining
-annotation based on an estimated pose. \* ControlNet for conditioning by
-image annotation. \* Text Encoder for creation condition to generate an
-image from a text prompt. \* Unet for step-by-step denoising latent
-image representation. \* Autoencoder (VAE) for decoding latent space to
-image.
+The pipeline consists of five important parts:
+
+* OpenPose for obtaining annotation based on an estimated pose.
+* ControlNet for conditioning by image annotation.
+* Text Encoder for creation condition to generate an image from a text prompt.
+* Unet for step-by-step denoising latent image representation.
+* Autoencoder (VAE) for decoding latent space to image.
 
 Let us convert each part:
 
@@ -409,13 +408,13 @@ ControlNet conversion
 
 The controlNet model accepts the same inputs like UNet in Stable
 Diffusion pipeline and additional condition sample - skeleton key points
-map predicted by pose estimator: \* ``sample`` - latent image sample
-from the previous step, generation process has not been started yet, so
-we will use random noise, \* ``timestep`` - current scheduler step, \*
-``encoder_hidden_state`` - hidden state of text encoder, \*
-``controlnet_cond`` - condition input annotation. The output of the
-model is attention hidden states from down and middle blocks, which
-serves additional context for the UNet model.
+map predicted by pose estimator:
+
+* ``sample`` - latent image sample from the previous step, generation process has not been started yet, so we will use random noise,
+* ``timestep`` - current scheduler step,
+* ``encoder_hidden_state`` - hidden state of text encoder,
+* ``controlnet_cond`` - condition input annotation. The output of the model is attention hidden states from down and middle blocks, which serves additional context for the UNet model.
+
 
 .. code:: ipython3
 

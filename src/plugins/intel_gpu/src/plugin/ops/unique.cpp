@@ -19,10 +19,7 @@ void CreateUniqueOp(Program& p, const std::shared_ptr<ngraph::op::v10::Unique>& 
     int64_t axis{};
     if (op->get_input_size() == 2) {
         auto axis_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        if (!axis_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " ("
-                       << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(axis_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axis_constant->cast_vector<int64_t>().at(0);
         axis = ov::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
         flattened = false;

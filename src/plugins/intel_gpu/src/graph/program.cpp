@@ -104,7 +104,7 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
     if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
         return;
     }
@@ -115,23 +115,23 @@ static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config
     auto core_type = config._threadPreferredCoreType;
 
     int num_cores = total_num_cores;
-    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+    if (core_type == ov::threading::IStreamsExecutor::Config::BIG) {
         num_cores = total_num_big_cores;
-    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+    } else if (core_type == ov::threading::IStreamsExecutor::Config::LITTLE) {
         num_cores = total_num_little_cores;
     }
 
     config._streams = std::min(config._streams, num_cores);
 }
 
-static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
+static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+    ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
 
@@ -140,23 +140,24 @@ static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(con
     return task_executor_config;
 }
 
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
-    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+std::shared_ptr<ov::threading::IStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
+    ov::threading::IStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    return std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
 }
 
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
-                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
+      is_internal(is_internal),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
@@ -175,13 +176,14 @@ program::program(engine& engine_ref,
 program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
-                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  bool is_internal)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
-      processing_order() {
+      _task_executor(std::move(task_executor)),
+      processing_order(),
+      is_internal(is_internal) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
@@ -218,7 +220,7 @@ void program::init_program() {
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
-        get_compilation_context().remove_keys({item.first.hash()});
+        get_compilation_context().remove_keys({item.first});
     });
 }
 
@@ -246,7 +248,7 @@ kernels_cache& program::get_kernels_cache() const {
 program::ptr program::build_program(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
-                                    InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
@@ -265,7 +267,7 @@ program::ptr program::build_program(engine& engine,
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
-                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
 }
@@ -622,8 +624,7 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
@@ -821,7 +822,7 @@ void program::add_intermediate(std::shared_ptr<primitive> prim,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
+    add_intermediate(get_or_create(std::move(prim)), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
@@ -901,6 +902,10 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
+    return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
+}
+
+void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
@@ -1013,7 +1018,8 @@ bool program::extract(program_node& node) {
         outputs.push_back(&prev);
     }
 
-    auto& input = node.get_dependency(0);
+    auto input_with_port = node.get_dependency_with_port(0);
+    auto& input = *input_with_port.first;
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1040,7 +1046,7 @@ bool program::extract(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input, false);
+        replace_all_usages(node, input_with_port, false);
 
     if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
         processing_order.erase(&node);
@@ -1489,7 +1495,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
-            prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
@@ -1628,10 +1633,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 
         if (node->can_be_optimized())
             continue;
-        if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
-            continue;
-        }
-        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
+        if (node->is_type<data>()) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
             continue;

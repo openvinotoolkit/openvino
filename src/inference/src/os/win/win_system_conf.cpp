@@ -19,7 +19,6 @@ namespace ov {
 
 CPU::CPU() {
     DWORD len = 0;
-    _num_threads = parallel_get_max_threads();
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;
     }
@@ -38,6 +37,7 @@ CPU::CPU() {
                              _cores,
                              _proc_type_table,
                              _cpu_mapping_table);
+    _org_proc_type_table = _proc_type_table;
 }
 
 void parse_processor_info_win(const char* base_ptr,

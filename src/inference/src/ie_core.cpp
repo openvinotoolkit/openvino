@@ -86,7 +86,7 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
+    std::string xmlConfigFile_ = ov::find_plugins_xml(xmlConfigFile);
     if (!xmlConfigFile_.empty())
         // If XML is default, load default plugins by absolute paths
         _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
@@ -203,7 +203,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
     auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -233,7 +233,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     networkModel.seekg(currentPos, networkModel.beg);
 
     auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -251,10 +251,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
-                    .import_model(networkModel,
-                                  ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
-                                  parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
+                    .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
+    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,

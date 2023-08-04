@@ -19,7 +19,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("GRUSequence", "opset5", op::Op);
+    OPENVINO_OP("GRUSequence", "opset5", util::RNNCellBase);
     GRUSequence();
 
     GRUSequence(const Output<Node>& X,

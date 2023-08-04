@@ -50,14 +50,14 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
 
 def apply_ng_type(output: DataPtr, ng_type: Type):
     ng_ie_supported_type_map = {
-        Type.boolean.get_type_name(): "BOOL",
-        Type.f32.get_type_name(): "FP32",
-        Type.i8.get_type_name(): "I8",
-        Type.i32.get_type_name(): "I32",
-        Type.u8.get_type_name(): "U8",
+        Type.boolean.to_string(): "BOOL",
+        Type.f32.to_string(): "FP32",
+        Type.i8.to_string(): "I8",
+        Type.i32.to_string(): "I32",
+        Type.u8.to_string(): "U8",
     }
-    if ng_type.get_type_name() in ng_ie_supported_type_map:
-        output.precision = ng_ie_supported_type_map[ng_type.get_type_name()]
+    if ng_type.to_string() in ng_ie_supported_type_map:
+        output.precision = ng_ie_supported_type_map[ng_type.to_string()]
 
 
 class Runtime(object):

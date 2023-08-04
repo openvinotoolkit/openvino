@@ -28,8 +28,8 @@ void op::v5::GatherND::validate_and_infer_types() {
                           "The indices type is expected to be an integer type. Got: ",
                           indices_type);
 
-    std::vector<PartialShape> out_shapes(1);
-    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    const auto out_shapes =
+        shape_infer(this, std::vector<PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
     set_output_type(0, data_type, out_shapes[0]);
 }
 
@@ -55,8 +55,8 @@ void op::v8::GatherND::validate_and_infer_types() {
                           "The indices type is expected to be an integer type. Got: ",
                           indices_type);
 
-    std::vector<PartialShape> out_shapes(1);
-    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    const auto out_shapes =
+        shape_infer(this, std::vector<PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
     set_output_type(0, data_type, ov::PartialShape(out_shapes[0]));
 }
 

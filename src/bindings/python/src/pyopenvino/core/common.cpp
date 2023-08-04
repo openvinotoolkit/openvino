@@ -169,6 +169,7 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
     return ov::op::v0::Constant(tensor.get_element_type(), tensor.get_shape(), const_cast<void*>(tensor.data()));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
@@ -183,6 +184,7 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
@@ -224,6 +226,35 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
     }
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port) {
+    auto array_type = array_helpers::get_ov_type(array);
+    auto array_shape_size = ov::shape_size(array_helpers::get_shape(array));
+    auto port_element_type = port.get_element_type();
+    auto port_shape_size = ov::shape_size(port.get_partial_shape().is_dynamic() ? ov::Shape{0} : port.get_shape());
+
+    if (array_helpers::is_contiguous(array)) {
+        if (array_type != port_element_type) {
+            PyErr_WarnEx(PyExc_RuntimeWarning,
+                         "Type of the array and the port are different. Data is going to be casted.",
+                         1);
+        }
+        if (port.get_partial_shape().is_dynamic()) {
+            return ov::Tensor(port, const_cast<void*>(array.data(0)));
+        }
+        if (port_shape_size > array_shape_size) {
+            OPENVINO_THROW("Shape of the port exceeds shape of the array.");
+        }
+        if (port_shape_size < array_shape_size) {
+            PyErr_WarnEx(PyExc_RuntimeWarning,
+                         "Shape of the port is smaller than shape of the array. Passed data will be cropped.",
+                         1);
+        }
+        return ov::Tensor(port, const_cast<void*>(array.data(0)));
+    }
+
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 

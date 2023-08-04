@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/crop.hpp>
@@ -13,29 +14,13 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template<typename T>
-std::vector<T> generate_random_input(size_t b, size_t f, size_t z, size_t y, size_t x, int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    int k = 8; // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    std::vector<T> v(b*f*x*y*z);
-    for (size_t i = 0; i < b*f*x*y*z; ++i) {
-        v[i] = (T)distribution(generator);
-        v[i] /= k;
-    }
-    return v;
-}
-
-template<typename T>
-std::vector<T> generate_random_input(size_t b, size_t f, size_t y, size_t x, int min, int max) {
-    return generate_random_input<T>(b, f, 1, y, x, -min, max);
-}
 
 TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     //  Reference  : 1x2x2x2
     //  Input      : 2x3x4x5
     //  Output     : 1x2x2x3
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 2;
@@ -54,7 +39,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -131,6 +116,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
     //  Input      : 2x3x4x5
     //  Output     : 1x2x2x3
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 2;
@@ -149,7 +135,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int32_t> input_vec = rg.generate_random_1d<int32_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -179,6 +165,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
     //  Input      : 2x3x4x5
     //  Output     : 1x2x2x3
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 2;
@@ -197,7 +184,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int64_t> input_vec = rg.generate_random_1d<int64_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -227,6 +214,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -245,7 +233,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -276,6 +264,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -294,7 +283,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int32_t> input_vec = rg.generate_random_1d<int32_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -325,6 +314,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -343,7 +333,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int64_t> input_vec = rg.generate_random_1d<int64_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -374,6 +364,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -392,7 +383,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, {0, 0, 0, 0} ));
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -421,6 +412,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -439,7 +431,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int32_t> input_vec = generate_random_input<int32_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int32_t> input_vec = rg.generate_random_1d<int32_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -468,6 +460,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
     //  Input      : 6x2x4x3
     //  Output     : 3x1x2x2
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -486,7 +479,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 }));
 
-    std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<int64_t> input_vec = rg.generate_random_1d<int64_t>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1058,6 +1051,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     //  Input      : 6x2x4x3x2
     //  Output     : 3x1x2x2x1
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -1078,7 +1072,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size, crop_z_size }, { 0, 0, 0, 0, 0 }));
 
-    std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
     set_values(input, input_vec);
 
     network network(engine, topology, get_test_default_config(engine));
@@ -1109,6 +1103,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
     //  Input      : 6x2x6x4x3x2
     //  Output     : 3x1x3x2x2x1
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto batch_num = 6;
@@ -1133,7 +1128,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(crop("crop", input_info("input"), crop_size, tensor{ 0 }));
 
-    VVVVVVF<float> input_rnd = generate_random_6d<float>(batch_num, feature_num, w_size, z_size, y_size, x_size, -10, 10);
+    VVVVVVF<float> input_rnd = rg.generate_random_6d<float>(batch_num, feature_num, w_size, z_size, y_size, x_size, -10, 10);
     VF<float> input_vec = flatten_6d<float>(format::bfwzyx, input_rnd);
     set_values(input, input_vec);
 

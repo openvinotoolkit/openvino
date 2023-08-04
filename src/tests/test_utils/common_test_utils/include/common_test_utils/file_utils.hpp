@@ -14,6 +14,11 @@
 #include "common_test_utils/w_dirent.h"
 #include "common_test_utils/common_utils.hpp"
 
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+
 #ifdef _WIN32
 #include <direct.h>
 #define rmdir(dir) _rmdir(dir)
@@ -21,7 +26,9 @@
 #include <unistd.h>
 #endif  // _WIN32
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 template<class T>
 inline std::string to_string_c_locale(T value) {
@@ -157,7 +164,7 @@ inline void directoryFileListRecursive(const std::string& name, std::vector<std:
             if (entire->d_name == parent_dir || entire->d_name == current_dir) {
                 continue;
             }
-            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
+            std::string path = name + FileSeparator + entire->d_name;
             if (directoryExists(path)) {
                 directoryFileListRecursive(path, file_list);
             }
@@ -180,7 +187,7 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
     std::string copyDirPath = dirPath;
     std::vector<std::string> nested_dir_names;
     while (!directoryExists(copyDirPath)) {
-        auto pos = copyDirPath.rfind(CommonTestUtils::FileSeparator);
+        auto pos = copyDirPath.rfind(FileSeparator);
         nested_dir_names.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
         copyDirPath = copyDirPath.substr(0, pos);
     }
@@ -198,11 +205,11 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
                                                               const std::vector<std::regex>& patterns) {
     auto getFileListByPattern = [&patterns](const std::string& folderPath) {
         std::vector<std::string> allFilePaths;
-        CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
+        directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
         for (auto& filePath : allFilePaths) {
             for (const auto& pattern : patterns) {
-                if (CommonTestUtils::fileExists(filePath) && std::regex_match(filePath, pattern)) {
+                if (fileExists(filePath) && std::regex_match(filePath, pattern)) {
                     result.insert(filePath);
                     break;
                 }
@@ -213,7 +220,7 @@ inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<
 
     std::vector<std::string> result;
     for (auto &&folderPath : folderPaths) {
-        if (!CommonTestUtils::directoryExists(folderPath)) {
+        if (!directoryExists(folderPath)) {
             std::string msg = "Input directory (" + folderPath + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
@@ -277,4 +284,92 @@ std::string getExecutableDirectory();
 std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);
 
-}  // namespace CommonTestUtils
+namespace {
+inline std::string get_mock_engine_path() {
+    std::string mockEngineName("mock_engine");
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              mockEngineName + IE_BUILD_POSTFIX);
+}
+
+template <class T>
+std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
+    std::function<T> ptr(reinterpret_cast<T*>(ov::util::get_symbol(so, functionName.c_str())));
+    return ptr;
+}
+
+}  // namespace
+
+class MockPlugin : public ov::IPlugin {
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        for (auto&& it : properties) {
+            if (it.first == ov::num_streams.name())
+                num_streams = it.second.as<ov::streams::Num>();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties = {
+                ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
+                ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
+            return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type({});
+        } else if (name == ov::num_streams.name()) {
+            return decltype(ov::num_streams)::value_type(num_streams);
+        }
+        return "";
+    }
+
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    int32_t num_streams{0};
+};
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+
+// vpu repo uses CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::fileExists;
+using ov::test::utils::removeFilesWithExt;
+using ov::test::utils::removeFile;
+using ov::test::utils::removeDir;
+} // namespace CommonTestUtils

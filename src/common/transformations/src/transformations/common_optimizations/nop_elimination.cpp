@@ -10,16 +10,33 @@
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/util/pad_base.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace std;
@@ -39,19 +56,19 @@ static bool simplify_gather(shared_ptr<Node> node) {
         }
 
         auto axis = gather->get_axis();
-        if (axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+        if (axis == ov::op::v1::Gather::AXIS_NOT_SET_VALUE) {
             OPENVINO_DEBUG << "axis value not set";
             return false;
         }
 
         if (data.get_shape().size() != node->get_shape().size()) {
-            auto constant_indices = ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+            auto constant_indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
             if (!constant_indices)
                 return false;
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
             const auto const_indices = constant_indices->cast_vector<int64_t>();
             if (data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
-                auto squeeze = std::make_shared<opset8::Squeeze>(gather->input_value(0), gather->input_value(2));
+                auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather->input_value(0), gather->input_value(2));
                 squeeze->set_friendly_name(gather->get_friendly_name());
                 ov::copy_runtime_info(gather, squeeze);
                 ov::replace_node(gather, squeeze);
@@ -75,7 +92,7 @@ static bool simplify_gather(shared_ptr<Node> node) {
         // op has Nop
 
         // check if the indices is constant
-        auto constant_indices = ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+        auto constant_indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
         if (!constant_indices) {
             return false;
         } else {
@@ -122,8 +139,8 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
-    if (ov::as_type_ptr<opset3::Squeeze>(input_node) || ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
-        ov::as_type_ptr<opset3::Reshape>(input_node)) {
+    if (ov::as_type_ptr<ov::op::v0::Squeeze>(input_node) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(input_node) ||
+        ov::as_type_ptr<ov::op::v1::Reshape>(input_node)) {
         if (input_node->get_output_target_inputs(0).size() != 1)
             return false;
 
@@ -135,8 +152,8 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         } else {
             vector<int64_t> vi;
             vi.assign(shape.begin(), shape.end());
-            auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
-            auto new_reshape = make_shared<opset3::Reshape>(input.get_node()->input_value(0), pat, false);
+            auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            auto new_reshape = make_shared<ov::op::v1::Reshape>(input.get_node()->input_value(0), pat, false);
             new_reshape->set_friendly_name(node->get_friendly_name());
             copy_runtime_info({input_node, node}, new_reshape);
             replace_node(node, new_reshape);
@@ -179,13 +196,13 @@ static bool replace_squeeze_unsqueeze(const shared_ptr<Node>& node) {
 
     shared_ptr<Node> reshape;
     auto input = node->input_value(0).get_node_shared_ptr();
-    auto pat = opset3::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
+    auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
-    if (ov::is_type<opset3::Reshape>(input) || ov::is_type<opset3::Squeeze>(input) ||
-        ov::is_type<opset3::Unsqueeze>(input)) {
-        reshape = make_shared<opset3::Reshape>(input->input_value(0), pat, false);
+    if (ov::is_type<ov::op::v1::Reshape>(input) || ov::is_type<ov::op::v0::Squeeze>(input) ||
+        ov::is_type<ov::op::v0::Unsqueeze>(input)) {
+        reshape = make_shared<ov::op::v1::Reshape>(input->input_value(0), pat, false);
     } else {
-        reshape = make_shared<opset3::Reshape>(node->input_value(0), pat, false);
+        reshape = make_shared<ov::op::v1::Reshape>(node->input_value(0), pat, false);
     }
 
     // skip if reshape is nop
@@ -234,14 +251,14 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         return replace_squeeze_unsqueeze(node);
     }
 
-    auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(node);
+    auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(node);
     if (unsqueeze == nullptr)
         return false;
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
-    auto squeeze = ov::as_type_ptr<opset3::Squeeze>(input);
+    auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
-        auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
-        auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
+        auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+        auto new_unsq = make_shared<ov::op::v0::Unsqueeze>(input->input_value(0), axes_const);
         if (unsqueeze->get_output_partial_shape(0).same_scheme(new_unsq->get_output_partial_shape(0))) {
             return replace_node_update_name(unsqueeze, new_unsq);
         }
@@ -268,8 +285,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
             if (data_shape.rank().get_length() - static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
-                auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
-                auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
+                auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+                auto new_sq = make_shared<ov::op::v0::Squeeze>(input->input_value(0), axes_const);
                 if (unsqueeze->get_output_partial_shape(0).same_scheme(new_sq->get_output_partial_shape(0))) {
                     return replace_node_update_name(unsqueeze, new_sq);
                 }
@@ -279,7 +296,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         return false;
     }
     // eliminate redundant unsqueeze->unsqueeze
-    auto unsqueeze_i = ov::as_type_ptr<opset3::Unsqueeze>(input);
+    auto unsqueeze_i = ov::as_type_ptr<ov::op::v0::Unsqueeze>(input);
     if (unsqueeze_i) {
         const auto& data_shape = unsqueeze_i->input_value(0).get_partial_shape();
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -309,10 +326,14 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         }                                                                               \
     };
 
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, opset3::Reshape);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, opset3::Unsqueeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, ov::op::v1::Reshape);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, ov::op::v0::Unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather, opset7::Gather, opset8::Gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
+                               simplify_gather,
+                               ov::op::v1::Gather,
+                               ov::op::v7::Gather,
+                               ov::op::v8::Gather);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -353,10 +374,10 @@ pass::EliminatePad::EliminatePad() {
 
 pass::EliminateConvert::EliminateConvert() {
     MATCHER_SCOPE(EliminateConvert);
-    auto convert_pattern = pattern::wrap_type<opset8::Convert>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert = dynamic_pointer_cast<opset8::Convert>(m.get_match_root());
+        auto convert = dynamic_pointer_cast<ov::op::v0::Convert>(m.get_match_root());
         if (!convert) {
             return false;
         }
@@ -372,8 +393,8 @@ pass::EliminateConvert::EliminateConvert() {
 
 pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     MATCHER_SCOPE(EliminateConvertNonZero);
-    auto convert_pattern = pattern::wrap_type<opset8::Convert>(pattern::consumers_count(1));
-    auto non_zero = pattern::wrap_type<opset8::NonZero>({convert_pattern});
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>(pattern::consumers_count(1));
+    auto non_zero = pattern::wrap_type<ov::op::v3::NonZero>({convert_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
@@ -391,7 +412,7 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
 
 pass::EliminateConcat::EliminateConcat() {
     MATCHER_SCOPE(EliminateConcat);
-    auto convert_pattern = pattern::wrap_type<opset8::Concat>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v0::Concat>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto concat = m.get_match_root();
@@ -407,10 +428,10 @@ pass::EliminateConcat::EliminateConcat() {
 
 pass::EliminateSplit::EliminateSplit() {
     MATCHER_SCOPE(EliminateSplit);
-    auto convert_pattern = pattern::wrap_type<opset8::Split>();
+    auto convert_pattern = pattern::wrap_type<ov::op::v1::Split>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto split = dynamic_pointer_cast<opset8::Split>(m.get_match_root());
+        auto split = dynamic_pointer_cast<ov::op::v1::Split>(m.get_match_root());
         if (!split || split->get_num_splits() != 1) {
             return false;
         }
@@ -423,7 +444,7 @@ pass::EliminateSplit::EliminateSplit() {
 
 pass::EliminateSqueeze::EliminateSqueeze() {
     MATCHER_SCOPE(EliminateSqueeze);
-    auto squeeze_pattern = pattern::wrap_type<opset8::Squeeze>();
+    auto squeeze_pattern = pattern::wrap_type<ov::op::v0::Squeeze>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto node = m.get_match_root();
@@ -433,20 +454,20 @@ pass::EliminateSqueeze::EliminateSqueeze() {
             return replace_squeeze_unsqueeze(node);
         }
 
-        auto squeeze = ov::as_type_ptr<opset3::Squeeze>(node);
+        auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(node);
         if (squeeze == nullptr)
             return false;
         auto input = squeeze->input_value(0).get_node_shared_ptr();
         auto replace_squeeze_only = [&](const vector<int64_t>& axes) {
-            auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
-            auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
+            auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+            auto new_sq = make_shared<ov::op::v0::Squeeze>(input->input_value(0), axes_const);
             if (squeeze->get_output_partial_shape(0).same_scheme(new_sq->get_output_partial_shape(0))) {
                 return replace_node_update_name(squeeze, new_sq);
             }
             return false;
         };
         // eliminate redundant unsqueeze->squeeze
-        if (auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(input)) {
+        if (auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(input)) {
             PartialShape data_shape;
             if (op::util::is_parameter(input)) {
                 data_shape = unsqueeze->input(0).get_partial_shape();
@@ -473,8 +494,8 @@ pass::EliminateSqueeze::EliminateSqueeze() {
                 auto axes = get_unsqueeze_axes(data_shape, out_shape);
                 if (data_shape.rank().get_length() + static_cast<int64_t>(axes.size()) ==
                     out_shape.rank().get_length()) {
-                    auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
-                    auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
+                    auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+                    auto new_unsq = make_shared<ov::op::v0::Unsqueeze>(input->input_value(0), axes_const);
                     if (squeeze->get_output_partial_shape(0).same_scheme(new_unsq->get_output_partial_shape(0))) {
                         replace_output_update_name(squeeze, new_unsq);
                         return true;
@@ -484,7 +505,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
             return false;
         }
         // eliminate redundant squeeze->squeeze
-        if (auto squeeze_i = ov::as_type_ptr<opset3::Squeeze>(input)) {
+        if (auto squeeze_i = ov::as_type_ptr<ov::op::v0::Squeeze>(input)) {
             PartialShape data_shape;
             if (op::util::is_parameter(input)) {
                 data_shape = squeeze_i->input(0).get_partial_shape();
@@ -514,9 +535,9 @@ int64_t make_positive(int64_t value, const Output<Node>& node) {
 };
 
 bool check_squeeze(const shared_ptr<Node>& node) {
-    auto squeeze = dynamic_pointer_cast<ov::opset9::Squeeze>(node);
+    auto squeeze = dynamic_pointer_cast<ov::op::v0::Squeeze>(node);
     if (squeeze) {
-        auto axis = dynamic_pointer_cast<ov::opset9::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+        auto axis = dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
         if (axis) {
             auto axis_val = axis->cast_vector<int64_t>();
             if (axis_val.size() == 1 && make_positive(axis_val[0], squeeze->input_value(0)) == 1) {
@@ -530,9 +551,9 @@ bool check_squeeze(const shared_ptr<Node>& node) {
 // Checks that Reshape actually equals to Squeeze op
 // 0, -1 values in the shape pattern are not allowed.
 bool check_reshape(const shared_ptr<Node>& node) {
-    auto reshape = dynamic_pointer_cast<ov::opset9::Reshape>(node);
+    auto reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(node);
     if (reshape) {
-        auto shape_pattern = dynamic_pointer_cast<ov::opset9::Constant>(reshape->input_value(1).get_node_shared_ptr());
+        auto shape_pattern = dynamic_pointer_cast<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
         if (shape_pattern) {
             auto pattern_val = shape_pattern->cast_vector<int64_t>();
             bool is_valid_pattern = find(pattern_val.begin(), pattern_val.end(), 0) == pattern_val.end();
@@ -554,10 +575,10 @@ bool check_reshape(const shared_ptr<Node>& node) {
     return false;
 }
 
-bool check_axis(const shared_ptr<ov::opset9::Concat>& concat,
+bool check_axis(const shared_ptr<ov::op::v0::Concat>& concat,
                 const shared_ptr<Node>& split,
                 bool is_special_case = false) {
-    auto axis = dynamic_pointer_cast<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
+    auto axis = dynamic_pointer_cast<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
     if (!axis) {
         return false;
     }
@@ -581,7 +602,7 @@ bool check_axis(const shared_ptr<ov::opset9::Concat>& concat,
 }
 
 template <class T>
-shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
+shared_ptr<T> check_all_inputs(const shared_ptr<ov::op::v0::Concat>& concat) {
     shared_ptr<T> split;
     const auto concat_in_values = concat->input_values();
     size_t idx = 0;
@@ -613,9 +634,9 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
 
             auto seq_node = seq_out.get_node_shared_ptr();
             if (!seq_node || seq_out.get_index() != 0 ||
-                !(dynamic_pointer_cast<ov::opset9::RNNSequence>(seq_node) ||
-                  dynamic_pointer_cast<ov::opset9::GRUSequence>(seq_node) ||
-                  dynamic_pointer_cast<ov::opset9::LSTMSequence>(seq_node))) {
+                !(dynamic_pointer_cast<ov::op::v5::RNNSequence>(seq_node) ||
+                  dynamic_pointer_cast<ov::op::v5::GRUSequence>(seq_node) ||
+                  dynamic_pointer_cast<ov::op::v5::LSTMSequence>(seq_node))) {
                 return {};
             }
 
@@ -666,16 +687,16 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::opset9::Concat>& concat) {
 ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
     MATCHER_SCOPE(EliminateSplitConcat);
 
-    auto pattern_concat = pattern::wrap_type<opset8::Concat>();
+    auto pattern_concat = pattern::wrap_type<ov::op::v0::Concat>();
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-        const auto concat = dynamic_pointer_cast<ov::opset9::Concat>(pattern_map.at(pattern_concat));
+        const auto concat = dynamic_pointer_cast<ov::op::v0::Concat>(pattern_map.at(pattern_concat));
         if (!concat) {
             return false;
         }
-        shared_ptr<Node> split = check_all_inputs<ov::opset9::Split>(concat);
+        shared_ptr<Node> split = check_all_inputs<ov::op::v1::Split>(concat);
         if (!split) {
-            split = check_all_inputs<ov::opset9::VariadicSplit>(concat);
+            split = check_all_inputs<ov::op::v1::VariadicSplit>(concat);
         }
 
         if (!split) {
@@ -691,12 +712,12 @@ ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
 
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
-    auto order = pattern::wrap_type<opset8::Constant>();
-    auto transpose_pattern = pattern::wrap_type<opset8::Transpose>({pattern::any_input(), order});
+    auto order = pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_pattern = pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), order});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
-        auto order_const = dynamic_pointer_cast<opset8::Constant>(pattern_map.at(order));
+        auto order_const = dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(order));
         if (!order_const) {
             return false;
         }
@@ -719,11 +740,12 @@ pass::EliminateTranspose::EliminateTranspose() {
 pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
-    auto constant_pattern = pattern::wrap_type<opset8::Constant>();
+    auto constant_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto eltwise_pattern =
-        pattern::wrap_type<opset8::Add, opset8::Subtract, opset8::Multiply, opset8::Divide>({input, constant_pattern});
+        pattern::wrap_type<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>(
+            {input, constant_pattern});
     auto subtract_pattern =
-        pattern::wrap_type<opset8::Subtract>({input, pattern::wrap_type<opset8::Convert>({constant_pattern})});
+        pattern::wrap_type<ov::op::v1::Subtract>({input, pattern::wrap_type<ov::op::v0::Convert>({constant_pattern})});
     auto root = make_shared<pattern::op::Or>(OutputVector{eltwise_pattern, subtract_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -745,7 +767,7 @@ pass::EliminateEltwise::EliminateEltwise() {
 pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     MATCHER_SCOPE(EliminateScatterUpdate);
     auto scatter_pattern =
-        pattern::wrap_type<opset8::ScatterUpdate, opset8::ScatterNDUpdate, opset8::ScatterElementsUpdate>();
+        pattern::wrap_type<ov::op::v3::ScatterUpdate, ov::op::v3::ScatterNDUpdate, ov::op::v3::ScatterElementsUpdate>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
@@ -764,6 +786,47 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
 
     auto m = make_shared<pattern::Matcher>(scatter_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
+    MATCHER_SCOPE(EliminateNopBroadcast);
+    auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>(
+        pattern::op::as_value_predicate([](std::shared_ptr<Node> node) {
+            auto input_rank = node->get_input_partial_shape(0).rank();
+            auto output_rank = node->get_output_partial_shape(0).rank();
+            return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+        }));
+
+    ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
+        const auto& op = m.get_match_root();
+        if (op::util::is_constant_and_all_values_equal_int(op->input_value(1), 1))
+            return replace_output_update_name(op->output(0), op->input_value(0));
+        return false;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
+    MATCHER_SCOPE(NopSliceBeforeGatherElements);
+    auto slice = pattern::wrap_type<op::v8::Slice>();
+    auto gather = pattern::wrap_type<op::v6::GatherElements>({slice, pattern::any_input()});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_node = m.get_pattern_map();
+        const auto& slice_node = pattern_to_node.at(slice);
+        bool start_from_zero = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(1), 0);
+        bool step_is_one = op::util::is_constant_and_all_values_equal_int(slice_node->input_value(3), 1);
+        if (!start_from_zero || !step_is_one)
+            return false;
+        const auto& gather_node = pattern_to_node.at(gather);
+        gather_node->input(0).replace_source_output(slice_node->input_value(0));
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(gather, matcher_name);
+    register_matcher(m, matcher_pass_callback);
 }
 
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
@@ -785,6 +848,8 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
+        ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }

@@ -24,7 +24,7 @@ and datasets. It consists of the following steps:
 
 .. code:: ipython3
 
-    !pip install -q nncf datasets evaluate
+    !pip install -q "nncf>=2.5.0" datasets evaluate
 
 Imports
 -------
@@ -56,10 +56,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:27:49.466196: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:27:49.499821: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-11 22:27:10.887837: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-11 22:27:10.921844: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:27:50.040301: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-11 22:27:11.494944: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -85,9 +85,10 @@ Settings
 Prepare the Model
 -----------------
 
-Perform the following: - Download and unpack pre-trained BERT model for
-MRPC by PyTorch. - Convert the model to the OpenVINO Intermediate
-Representation (OpenVINO IR)
+Perform the following:
+
+- Download and unpack pre-trained BERT model for MRPC by PyTorch.
+- Convert the model to the OpenVINO Intermediate Representation (OpenVINO IR)
 
 .. code:: ipython3
 
@@ -141,7 +142,7 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
@@ -169,12 +170,6 @@ tokenizer from HuggingFace.
         return processed_dataset
     
     data_source = create_data_source()
-
-
-
-.. parsed-literal::
-
-    Downloading readme: 0.00B [00:00, ?B/s]
 
 
 .. parsed-literal::
@@ -392,8 +387,8 @@ The optimization process contains the following steps:
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.11it/s]
-    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.93it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.02it/s]
+    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.94it/s]
 
 
 .. code:: ipython3
@@ -404,14 +399,44 @@ The optimization process contains the following steps:
 Load and Test OpenVINO Model
 ----------------------------
 
-To load and test converted model, perform the following: \* Load the
-model and compile it for CPU. \* Prepare the input. \* Run the
-inference. \* Get the answer from the model output.
+To load and test converted model, perform the following:
+
+* Load the model and compile it for selected device.
+* Prepare the input.
+* Run the inference.
+* Get the answer from the model output.
+
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
     # Compile the model for a specific device.
-    compiled_quantized_model = core.compile_model(model=quantized_model, device_name="CPU")
+    compiled_quantized_model = core.compile_model(model=quantized_model, device_name=device.value)
     output_layer = compiled_quantized_model.outputs[0]
 
 The Data Source returns a pair of sentences (indicated by
@@ -450,7 +475,7 @@ Compare F1-score of FP32 and INT8 models
         Evaluate the model on GLUE dataset. 
         Returns F1 score metric.
         """
-        compiled_model = core.compile_model(model, device_name='CPU')
+        compiled_model = core.compile_model(model, device_name=device.value)
         output_layer = compiled_model.output(0)
     
         metric = evaluate.load('glue', 'mrpc')
@@ -495,7 +520,7 @@ Frames Per Second (FPS) for images.
 .. code:: ipython3
 
     # Compile the model for a specific device.
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
 
 .. code:: ipython3
 
@@ -520,7 +545,7 @@ Frames Per Second (FPS) for images.
     end = time.perf_counter()
     time_ir = end - start
     print(
-        f"IR FP32 model in OpenVINO Runtime/CPU: {time_ir / num_samples:.3f} "
+        f"IR FP32 model in OpenVINO Runtime/{device.value}: {time_ir / num_samples:.3f} "
         f"seconds per sentence, SPS: {num_samples / time_ir:.2f}"
     )
     
@@ -530,16 +555,16 @@ Frames Per Second (FPS) for images.
     end = time.perf_counter()
     time_ir = end - start
     print(
-        f"OpenVINO IR INT8 model in OpenVINO Runtime/CPU: {time_ir / num_samples:.3f} "
+        f"OpenVINO IR INT8 model in OpenVINO Runtime/{device.value}: {time_ir / num_samples:.3f} "
         f"seconds per sentence, SPS: {num_samples / time_ir:.2f}"
     )
 
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.071 seconds per sentence, SPS: 14.07
-    IR FP32 model in OpenVINO Runtime/CPU: 0.021 seconds per sentence, SPS: 48.22
-    OpenVINO IR INT8 model in OpenVINO Runtime/CPU: 0.010 seconds per sentence, SPS: 97.87
+    PyTorch model on CPU: 0.071 seconds per sentence, SPS: 14.09
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.022 seconds per sentence, SPS: 45.98
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.77
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -559,7 +584,7 @@ in OpenVINO.
 .. code:: ipython3
 
     # Inference FP32 model (OpenVINO IR)
-    ! benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d CPU -api sync
+    ! benchmark_app -m $ir_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
 
 
 .. parsed-literal::
@@ -567,81 +592,27 @@ in OpenVINO.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 56.68 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,?]
-    [ INFO ]     2 , attention_mask , attention_mask.1 (node: Parameter_3) : i64 / [...] / [1,?]
-    [ INFO ]     token_type_ids , 3 (node: Parameter_4) : i64 / [...] / [1,?]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: '1': [1,128], '2': [1,128], '3': [1,128]
-    [ INFO ] Reshape model took 57.63 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,128]
-    [ INFO ]     2 , attention_mask , attention_mask.1 (node: Parameter_3) : i64 / [...] / [1,128]
-    [ INFO ]     token_type_ids , 3 (node: Parameter_4) : i64 / [...] / [1,128]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 266.53 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]   NUM_STREAMS: 1
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input '2'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input '3'!. This input will be filled with random values!
-    [ INFO ] Fill input '1' with random values 
-    [ INFO ] Fill input '2' with random values 
-    [ INFO ] Fill input '3' with random values 
-    [Step 10/11] Measuring performance (Start inference synchronously, limits: 60000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 33.80 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            3293 iterations
-    [ INFO ] Duration:         60005.54 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        18.09 ms
-    [ INFO ]    Average:       18.12 ms
-    [ INFO ]    Min:           17.73 ms
-    [ INFO ]    Max:           22.74 ms
-    [ INFO ] Throughput:   55.27 FPS
+    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    Traceback (most recent call last):
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+        benchmark.print_version_info()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+        for device, version in self.core.get_versions(self.device).items():
+    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    
 
 
 .. code:: ipython3
 
     # Inference INT8 model (OpenVINO IR)
-    ! benchmark_app -m $compressed_model_xml -shape [1,128],[1,128],[1,128] -d CPU -api sync
+    ! benchmark_app -m $compressed_model_xml -shape [1,128],[1,128],[1,128] -d device.value -api sync
 
 
 .. parsed-literal::
@@ -649,73 +620,19 @@ in OpenVINO.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device device.value
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 53.69 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids , 1 (node: Parameter_2) : i64 / [...] / [1,?]
-    [ INFO ]     attention_mask.1 , 2 , attention_mask (node: Parameter_3) : i64 / [...] / [1,?]
-    [ INFO ]     3 , token_type_ids (node: Parameter_4) : i64 / [...] / [1,?]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: '1': [1,128], '2': [1,128], '3': [1,128]
-    [ INFO ] Reshape model took 61.50 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     input_ids , 1 (node: Parameter_2) : i64 / [...] / [1,128]
-    [ INFO ]     attention_mask.1 , 2 , attention_mask (node: Parameter_3) : i64 / [...] / [1,128]
-    [ INFO ]     3 , token_type_ids (node: Parameter_4) : i64 / [...] / [1,128]
-    [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 473.56 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: Model0
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]   NUM_STREAMS: 1
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input '1'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input '2'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input '3'!. This input will be filled with random values!
-    [ INFO ] Fill input '1' with random values 
-    [ INFO ] Fill input '2' with random values 
-    [ INFO ] Fill input '3' with random values 
-    [Step 10/11] Measuring performance (Start inference synchronously, limits: 60000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 17.89 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            6496 iterations
-    [ INFO ] Duration:         60002.09 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        9.09 ms
-    [ INFO ]    Average:       9.13 ms
-    [ INFO ]    Min:           8.45 ms
-    [ INFO ]    Max:           12.68 ms
-    [ INFO ] Throughput:   109.96 FPS
+    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    Traceback (most recent call last):
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+        benchmark.print_version_info()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+        for device, version in self.core.get_versions(self.device).items():
+    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    
 

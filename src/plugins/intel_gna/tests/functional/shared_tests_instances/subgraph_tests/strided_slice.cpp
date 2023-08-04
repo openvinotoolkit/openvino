@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_stridedslice_gna,
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          StridedSliceTest::getTestCaseName);
 

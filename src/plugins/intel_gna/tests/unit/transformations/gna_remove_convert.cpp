@@ -20,7 +20,7 @@ typedef std::tuple<ov::element::Type,  // Net precision
                    >
     removeConvertTestParams;
 
-class RemoveInputConvertTest : public CommonTestUtils::TestsCommon,
+class RemoveInputConvertTest : public ov::test::TestsCommon,
                                public ::testing::WithParamInterface<removeConvertTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<removeConvertTestParams>& obj) {

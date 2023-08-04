@@ -23,7 +23,7 @@ struct SchedulingCoreTypeTestCase {
     ov::hint::SchedulingCoreType output_type;
 };
 
-class SchedulingCoreTypeTests : public CommonTestUtils::TestsCommon,
+class SchedulingCoreTypeTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<SchedulingCoreTypeTestCase>> {
 public:
     void SetUp() override {

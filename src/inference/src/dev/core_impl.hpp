@@ -52,7 +52,7 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
-std::string findPluginXML(const std::string& xmlFile);
+std::string find_plugins_xml(const std::string& xmlFile);
 
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:
@@ -158,14 +158,14 @@ private:
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
                                                           ov::Plugin& plugin,
                                                           const ov::AnyMap& parsedConfig,
-                                                          const ov::RemoteContext& context,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const CacheContent& cacheContent) const;
 
     static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
         const CacheContent& cacheContent,
         ov::Plugin& plugin,
         const ov::AnyMap& config,
-        const ov::RemoteContext& context,
+        const ov::SoPtr<ov::IRemoteContext>& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
@@ -178,7 +178,7 @@ private:
 
     ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
                                                                 const std::shared_ptr<const ov::Model>& model,
-                                                                const ov::RemoteContext& context,
+                                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                                 const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
@@ -363,7 +363,7 @@ public:
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
-    bool device_supports_model_caching(const std::string& deviceName) const;
+    bool device_supports_model_caching(const std::string& device_name) const override;
 
     // ov::ICore
     std::shared_ptr<ov::Model> read_model(const std::string& model,
@@ -377,7 +377,7 @@ public:
                                                 const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                const ov::RemoteContext& context,
+                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                 const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
@@ -394,7 +394,7 @@ public:
                                                const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
-                                               const ov::RemoteContext& context,
+                                               const ov::SoPtr<ov::IRemoteContext>& context,
                                                const ov::AnyMap& config) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
@@ -403,13 +403,13 @@ public:
 
     std::vector<std::string> get_available_devices() const override;
 
-    ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
     ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 
-    ov::RemoteContext get_default_context(const std::string& device_name) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.

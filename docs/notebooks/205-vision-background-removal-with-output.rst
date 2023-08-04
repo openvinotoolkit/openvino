@@ -14,20 +14,26 @@ The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
 `here <https://github.com/xuebinqin/U-2-Net>`__.
 
-Prepare
--------
+Preparation
+-----------
+
+Install requirements
+~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q torch onnx opencv-python matplotlib
+    !pip install -q gdown
 
 Import the PyTorch Library and U\ :math:`^2`-Net
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    !pip install -q gdown
-
-.. code:: ipython3
-
     import os
     import time
+    import sys
     from collections import namedtuple
     from pathlib import Path
     
@@ -36,9 +42,26 @@ Import the PyTorch Library and U\ :math:`^2`-Net
     import numpy as np
     import torch
     from IPython.display import HTML, FileLink, display
-    from model.u2net import U2NET, U2NETP
     from openvino.runtime import Core
     from openvino.tools import mo
+
+.. code:: ipython3
+
+    # Import local modules
+    
+    utils_file_path = Path("../utils/notebook_utils.py")
+    notebook_directory_path = Path(".")
+    
+    if not utils_file_path.exists():
+        !git clone --depth 1 https://github.com/openvinotoolkit/openvino_notebooks.git
+        utils_file_path = Path("./openvino_notebooks/notebooks/utils/notebook_utils.py")
+        notebook_directory_path = Path("./openvino_notebooks/notebooks/205-vision-background-removal/")
+    
+    sys.path.append(str(utils_file_path.parent))
+    sys.path.append(str(notebook_directory_path))
+    
+    from notebook_utils import load_image
+    from model.u2net import U2NET, U2NETP
 
 Settings
 ~~~~~~~~
@@ -50,7 +73,6 @@ detection and human segmentation.
 
 .. code:: ipython3
 
-    IMAGE_DIR = "../data/image/"
     model_config = namedtuple("ModelConfig", ["name", "url", "model", "model_args"])
     
     u2net_lite = model_config(
@@ -110,7 +132,8 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1rbSTGKAE-MTxBYHd-51l2hMOQPT_7EPy
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:01<00:00, 4.43MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 4.90MB/s]
+
 
 .. parsed-literal::
 
@@ -137,15 +160,15 @@ next cell loads the model and the pre-trained weights.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3734: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3734: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1967: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1967: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
       warnings.warn("nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.")
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -190,9 +213,9 @@ that is expected by the OpenVINO IR model.
 
 .. code:: ipython3
 
-    IMAGE_PATH = Path(IMAGE_DIR) / "coco_hollywood.jpg"
+    IMAGE_URI = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg"
     image = cv2.cvtColor(
-        src=cv2.imread(filename=str(IMAGE_PATH)),
+        src=load_image(IMAGE_URI),
         code=cv2.COLOR_BGR2RGB,
     )
     
@@ -227,7 +250,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.122 seconds, FPS: 8.20.
+    Inference finished. Inference time: 0.122 seconds, FPS: 8.17.
 
 
 Visualize Results
@@ -258,7 +281,7 @@ with the background removed.
 
 
 
-.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_18_0.png
+.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_20_0.png
 
 
 Add a Background Image
@@ -278,12 +301,12 @@ background pixels a value of 0. Replace the background image as follows:
 
 .. code:: ipython3
 
-    BACKGROUND_FILE = f"{IMAGE_DIR}/wall.jpg"
+    BACKGROUND_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"
     OUTPUT_DIR = "output"
     
     os.makedirs(name=OUTPUT_DIR, exist_ok=True)
     
-    background_image = cv2.cvtColor(src=cv2.imread(filename=BACKGROUND_FILE), code=cv2.COLOR_BGR2RGB)
+    background_image = cv2.cvtColor(src=load_image(BACKGROUND_FILE), code=cv2.COLOR_BGR2RGB)
     background_image = cv2.resize(src=background_image, dsize=(image.shape[1], image.shape[0]))
     
     # Set all the foreground pixels from the result to 0
@@ -292,7 +315,7 @@ background pixels a value of 0. Replace the background image as follows:
     new_image = background_image + bg_removed_result
     
     # Save the generated image.
-    new_image_path = Path(f"{OUTPUT_DIR}/{IMAGE_PATH.stem}-{Path(BACKGROUND_FILE).stem}.jpg")
+    new_image_path = Path(f"{OUTPUT_DIR}/{Path(IMAGE_URI).stem}-{Path(BACKGROUND_FILE).stem}.jpg")
     cv2.imwrite(filename=str(new_image_path), img=cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR))
     
     # Display the original image and the image with the new background side by side
@@ -317,7 +340,7 @@ background pixels a value of 0. Replace the background image as follows:
 
 
 
-.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_20_0.png
+.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_22_0.png
 
 
 

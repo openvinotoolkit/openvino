@@ -28,6 +28,7 @@ TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
 TF_OP_CONVERTER(translate_placeholder_linked_op);
@@ -40,6 +41,7 @@ TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
+TF_OP_CONVERTER(translate_switch_op);
 TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
@@ -182,6 +184,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
+        {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
         {"MutableHashTableV2", CreatorFunction(translate_hash_table_op)},
@@ -230,6 +233,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Select", CreatorFunction(translate_select_op)},
         {"SelectV2", CreatorFunction(translate_select_v2_op)},
         {"Shape", CreatorFunction(translate_shape_op)},
+        {"ShapeN", CreatorFunction(translate_shape_op)},
         {"Size", CreatorFunction(translate_size_op)},
         {"Slice", CreatorFunction(translate_slice_op)},
         {"Snapshot", CreatorFunction(translate_identity_op)},
@@ -247,6 +251,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessIf", CreatorFunction(translate_if_op)},
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
+        {"Switch", CreatorFunction(translate_switch_op)},
         {"TensorListFromTensor", CreatorFunction(translate_tensor_list_from_tensor_op)},
         {"TensorListGetItem", CreatorFunction(translate_tensor_list_get_item_op)},
         {"TensorListPushBack", CreatorFunction(translate_tensor_list_push_back_op)},

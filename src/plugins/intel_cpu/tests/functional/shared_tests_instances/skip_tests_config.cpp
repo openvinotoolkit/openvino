@@ -74,7 +74,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*(CanGetInputsInfoAndCheck|canSetConfigToCompiledModel).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // Issue: 72021 Unreasonable abs_threshold for comparing bf16 results
-        R"(.*smoke_Reduce.*type=(Prod|Min).*netPRC=(BF|bf)16.*)",
+        R"(.*smoke_Reduce.*type=(Prod|Min).*INFERENCE_PRECISION_HINT=(BF|bf)16.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
@@ -186,8 +186,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 106939
         R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
         // New plugin API doesn't support changes of pre-processing
-        R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
-        R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // TODO: for 22.2 (CVS-68949)
+        R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -210,6 +212,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    // TODO: fix CVS-115961
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_2_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -246,12 +253,23 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
         retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    if (!InferenceEngine::with_cpu_x86_avx512_core_fp16()) {
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+    }
+#endif
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

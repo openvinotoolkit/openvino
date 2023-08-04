@@ -16,6 +16,12 @@ macro(ov_install_static_lib target comp)
         if(target_type STREQUAL "STATIC_LIBRARY")
             set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
         endif()
+
+        # save all internal installed targets to filter them later in 'ov_generate_dev_package_config'
+        list(APPEND openvino_installed_targets ${target})
+        set(openvino_installed_targets "${openvino_installed_targets}" CACHE INTERNAL
+            "A list of OpenVINO internal targets" FORCE)
+
         install(TARGETS ${target} EXPORT OpenVINOTargets
                 ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
     endif()
@@ -148,13 +154,12 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_C_SAMPLES "c_samples")
     set(OV_CPACK_COMP_PYTHON_SAMPLES "python_samples")
     # python
-    set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
-    set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+    set(OV_CPACK_COMP_BENCHMARK_APP "benchmark_app")
+    set(OV_CPACK_COMP_OVC "ovc")
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
-    set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
@@ -178,15 +183,12 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL)
     # python
-    unset(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL)
-    unset(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
-    unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
-    # TODO: think about python entry points
-    # maybe we can create entry points without python interpreter and use it in debian / rpm as well?
+    unset(OV_CPACK_COMP_BENCHMARK_APP_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_OVC_EXCLUDE_ALL)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
     # tools
-    unset(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL)
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     unset(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL)
     # scripts

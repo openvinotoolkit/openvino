@@ -11,17 +11,13 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
-#include "intel_gpu/runtime/itt.hpp"
 
-#include <description_buffer.hpp>
-#include <threading/ie_executor_manager.hpp>
-#include <exec_graph_info.hpp>
-
-#include <ie_ngraph_utils.hpp>
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
 #include <list>
 #include <set>
@@ -34,9 +30,6 @@
 #include <utility>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <exec_graph_info.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -44,7 +37,7 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+Graph::Graph(InferenceEngine::CNNNetwork& network, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
              InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_networkName(network.getName())
@@ -57,7 +50,7 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
              InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_config(config)
@@ -74,7 +67,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
 #ifdef ENABLE_ONEDNN_FOR_GPU
         get_engine().create_onednn_engine(config);
 #else
-        IE_THROW() << "[GPU] Current model cache requires OneDNN, but cannot use it.";
+        OPENVINO_THROW("[GPU] Current model cache requires OneDNN, but cannot use it.");
 #endif  // ENABLE_ONEDNN_FOR_GPU
     }
 
@@ -178,7 +171,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
     auto externalQueue = m_context->get_external_queue();
     if (externalQueue) {
         if (m_config.get_property(ov::num_streams) != 1)
-            IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
+            OPENVINO_THROW("Throughput streams can't be used with shared queue!\n");
         auto &engine = m_program->get_engine();
         network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, externalQueue), m_stream_id);
     } else {
@@ -374,8 +367,12 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
             auto param = std::make_shared<ngraph::op::Parameter>(out_et, out_pshape);
             params.push_back(param);
             return_node = param;
+            // create additional result node if parameter is output without post reorder
+            if (is_output) {
+                results.emplace_back(std::make_shared<ngraph::op::Result>(return_node->get_default_output()));
+            }
         } else {
-            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(get_inputs(prim_info), output_size);
+            return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(get_inputs(prim_info), output_size);
 
             if (is_output) {    // create additional result node
                 nodes.push_back(return_node);
@@ -405,12 +402,12 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         std::map<std::string, std::string> info;
         Precision prec = data_type_to_precision(prim_info.output_layout.data_type);
         Precision inference_precision = data_type_to_precision(prim_info.runtime_precision);
-        info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = prec.name();
-        info[ExecGraphInfoSerialization::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
-        info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = prim_info.layout_str;
-        info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
-        info[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
-        info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = inference_precision.name();
+        info[ov::exec_model_info::OUTPUT_PRECISIONS] = prec.name();
+        info[ov::exec_model_info::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
+        info[ov::exec_model_info::OUTPUT_LAYOUTS] = prim_info.layout_str;
+        info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
+        info[ov::exec_model_info::IMPL_TYPE] = prim_info.kernel_id;
+        info[ov::exec_model_info::RUNTIME_PRECISION] = inference_precision.name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (auto& fused_id : prim_info.c_fused_ids) {
@@ -419,7 +416,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
                     originalNames.push_back(origin_id);
             }
         }
-        info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
+        info[ov::exec_model_info::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
 
         std::string exec_time = "not_executed";
         if (perfMap.find(prim_info.original_id) != perfMap.end()) {
@@ -428,7 +425,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
                 exec_time = std::to_string(perfCounter.realTime_avg());
             }
         }
-        info[ExecGraphInfoSerialization::PERF_COUNTER] = exec_time;
+        info[ov::exec_model_info::PERF_COUNTER] = exec_time;
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;
@@ -436,7 +433,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
                 results.back()->get_rt_info()[kvp.first] = kvp.second;
         }
         if (is_output)
-            results.back()->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE] = "Result";
+            results.back()->get_rt_info()[ov::exec_model_info::LAYER_TYPE] = "Result";
 
         nodes.push_back(return_node);
         node2layer[prim_info.original_id] = return_node;
@@ -824,7 +821,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
 
 std::shared_ptr<cldnn::network> Graph::GetNetwork(size_t idx) const {
     if (idx >= GetNetworksCount())
-        IE_THROW() << "Unable to find network with id=" << idx << ". Stored networks count: " << GetNetworksCount();
+        OPENVINO_THROW("Unable to find network with id=", idx, ". Stored networks count: ", GetNetworksCount());
 
     return m_networks[idx];
 }
@@ -836,18 +833,18 @@ std::string Graph::MapOutputName(std::string outName) const {
 
     // Find correct output ID. Start with name stored in IR.
     if (primitiveIDs.find(outName) == primitiveIDs.end()) {
-        IE_THROW() << "output with name " << outName << " was not found in primitiveIDs";
+        OPENVINO_THROW("output with name ", outName, " was not found in primitiveIDs");
     }
     std::string outputID = primitiveIDs.at(outName);
     while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
         // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.
         auto prim = allPrimitiveIds.find(outputID);
         if (prim == allPrimitiveIds.end()) {
-            IE_THROW() << "Unknown primitive id " << outputID;
+            OPENVINO_THROW("Unknown primitive id ", outputID);
         }
 
         if (prevPrimitiveIDs.at(outputID).size() != 1 || prim->second != "_optimized_") {
-            IE_THROW() << "Unable to find parent for output primitive " << outputID;
+            OPENVINO_THROW("Unable to find parent for output primitive ", outputID);
         }
         outputID = prevPrimitiveIDs.at(outputID)[0];
     }

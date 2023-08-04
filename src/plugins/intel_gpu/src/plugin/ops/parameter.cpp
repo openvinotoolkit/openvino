@@ -21,9 +21,8 @@ namespace intel_gpu {
 
 static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
-    if (networkInputs.find(op->get_friendly_name()) == networkInputs.end()) {
-        IE_THROW() << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";
-    }
+    OPENVINO_ASSERT(networkInputs.find(op->get_friendly_name()) != networkInputs.end(),
+                    "[GPU] Can't find input ", op->get_friendly_name(), " in InputsDataMap");
 
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
@@ -61,7 +60,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
     if ((meanChannels > 0) &&
         (meanChannels != static_cast<size_t>(networkInputLayout.feature()))) {
-        IE_THROW() << "Mismatched mean values channels in input " << inputName;
+        OPENVINO_THROW("Mismatched mean values channels in input ", inputName);
     }
 
     switch (preProcess.getMeanVariant()) {
@@ -70,14 +69,14 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (meanChannels > 0) {
             for (size_t c = 0; c < meanChannels; c++) {
                 if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                    IE_THROW() << "not supporting stdScale yet in input " << inputName;
+                    OPENVINO_THROW("not supporting stdScale yet in input ", inputName);
                 meanValues.push_back(preProcess[c]->meanValue);
             }
         }
         break;
     }
     case MEAN_IMAGE: {
-        IE_ASSERT(meanChannels);
+        OPENVINO_ASSERT(meanChannels);
         // first merge all mean values to a single blob
         // todo make sure mean blob precision is the same as the input precision
         auto meanDims = input_pshape;
@@ -86,7 +85,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         case 4: meanDims[0] = 1;
             break;
         default:
-            IE_THROW() << "Missing batch dimensions in input image";
+            OPENVINO_THROW("Missing batch dimensions in input image");
         }
         const TensorDesc desc(Precision::FP32, meanDims.to_shape(), TensorDesc::getLayoutByDims(meanDims.to_shape()));
         TBlob<float> meanBlob(desc);
@@ -94,7 +93,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         auto meanBlobData = meanBlob.data();
         for (size_t c = 0; c < meanChannels; c++) {
             if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                IE_THROW() << "not supporting stdScale yet in input " << inputName;
+                OPENVINO_THROW("not supporting stdScale yet in input ", inputName);
             auto channelMeanBlob = std::dynamic_pointer_cast<TBlob<float>>(preProcess[c]->meanData);
             auto channelSize = channelMeanBlob->size();
             auto channelBlobData = channelMeanBlob->data();
@@ -128,7 +127,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         }
         break;
     }
-    default: IE_THROW() << "Invalid mean variant in input " << inputName;
+    default: OPENVINO_THROW("Invalid mean variant in input ", inputName);
         break;
     }
 
@@ -207,13 +206,24 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     } else {
         auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
         cldnn::layout inputLayout(networkInputLayout);
-        inputLayout.data_type = DataTypeFromPrecision(ip);
+        auto network_input_data_type = DataTypeFromPrecision(ip);
+        inputLayout.data_type = network_input_data_type;
         p.inputLayouts.insert({ inputInfo->name(), inputLayout });
 
         p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
 
         switch (preProcess.getMeanVariant()) {
-        case NONE:
+        case NONE: {
+            // If mean value is not specified and the data type does not change, do not add post reorder
+            if (network_input_data_type != networkInputLayout.data_type) {
+                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                    cldnn::input_info(inputName),
+                                                    networkInputLayout,
+                                                    meanValues,
+                                                    cldnn::reorder_mean_mode::none), {inputName});
+            }
+            break;
+        }
         case MEAN_VALUE: {
             p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
                                                 cldnn::input_info(inputName),
@@ -230,7 +240,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                                                 cldnn::reorder_mean_mode::subtract), {inputName});
             break;
         }
-        default: IE_THROW() << "Invalid mean variant in input " << inputName;
+        default: OPENVINO_THROW("Invalid mean variant in input ", inputName);
             break;
         }
     }

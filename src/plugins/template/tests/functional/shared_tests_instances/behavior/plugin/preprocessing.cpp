@@ -24,7 +24,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_PreprocessingPrecisionConvertTestsViaSet
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),               // Number of input tensor channels
                                 ::testing::Values(true),            // Use SetInput
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 
@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_PreprocessingPrecisionConvertTestsViaGet
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),          // Number of input tensor channels (blob_copy only supports 4d and 5d tensors)
                                 ::testing::Values(false),      // use GetBlob
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 

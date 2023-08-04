@@ -110,18 +110,34 @@ is a command-line application that can be run in the notebook with
 
 .. code:: ipython3
 
-    ie = Core()
+    core = Core()
     # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
-    device = "MULTI:CPU,GPU" if "GPU" in ie.available_devices else "CPU"
-    # Uncomment one of the options below to benchmark on other devices.
-    # device = "GPU"
-    # device = "CPU"
-    # device = "AUTO"
+    device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
+    
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + device_list,
+        value=device_list[0],
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
     # Benchmark model
-    ! benchmark_app -m $MODEL_PATH -d $device -t 15 -api sync
+    ! benchmark_app -m $MODEL_PATH -d $device.value -t 15 -api sync
 
 
 .. parsed-literal::
@@ -133,15 +149,15 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
+    [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.79 ms
+    [ INFO ] Read model took 13.92 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
@@ -155,39 +171,46 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Model outputs:
     [ INFO ]     153 (node: 153) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 163.85 ms
+    [ INFO ] Compile model took 181.67 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
-    [ INFO ]   NUM_STREAMS: 1
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 12
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     CPU_BIND_THREAD: YES
+    [ INFO ]     CPU_THREADS_NUM: 0
+    [ INFO ]     CPU_THROUGHPUT_STREAMS: 1
+    [ INFO ]     DEVICE_ID: 
+    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
+    [ INFO ]     DYN_BATCH_ENABLED: NO
+    [ INFO ]     DYN_BATCH_LIMIT: 0
+    [ INFO ]     ENFORCE_BF16: NO
+    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
+    [ INFO ]     NETWORK_NAME: pretrained_unet_kits19
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+    [ INFO ]     PERFORMANCE_HINT: LATENCY
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
     [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
     [ INFO ] Fill input 'input.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 25.59 ms
+    [ INFO ] First inference took 27.22 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1419 iterations
-    [ INFO ] Duration:         15009.20 ms
+    [ INFO ] Count:            1431 iterations
+    [ INFO ] Duration:         15005.09 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.34 ms
-    [ INFO ]    Average:       10.38 ms
-    [ INFO ]    Min:           10.13 ms
-    [ INFO ]    Max:           14.24 ms
-    [ INFO ] Throughput:   96.71 FPS
+    [ INFO ]    Median:        10.25 ms
+    [ INFO ]    Average:       10.29 ms
+    [ INFO ]    Min:           9.99 ms
+    [ INFO ]    Max:           15.67 ms
+    [ INFO ] Throughput:   97.57 FPS
 
 
 Download and Prepare Data
@@ -257,12 +280,10 @@ to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal
 number based on your device and heuristics. After acquiring the
-inference queue, there are two jobs to do: - Preprocess the data and
-push it to the inference queue. The preprocessing steps will remain the
-same. - Tell the inference queue what to do with the model output after
-the inference is finished. It is represented by the ``callback`` python
-function that takes an inference result and data that we passed to the
-inference queue along with the prepared input data
+inference queue, there are two jobs to do:
+
+- Preprocess the data and push it to the inference queue. The preprocessing steps will remain the same.
+- Tell the inference queue what to do with the model output after the inference is finished. It is represented by the ``callback`` python function that takes an inference result and data that we passed to the inference queue along with the prepared input data
 
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
@@ -279,9 +300,9 @@ to see the implementation.
 
 .. code:: ipython3
 
-    ie = Core()
+    core = Core()
     segmentation_model = SegmentationModel(
-        ie=ie, model_path=Path(MODEL_PATH), sigmoid=True, rotate_and_flip=True
+        ie=core, model_path=Path(MODEL_PATH), sigmoid=True, rotate_and_flip=True
     )
     image_paths = sorted(case_path.glob("imaging_frames/*jpg"))
     
@@ -319,8 +340,16 @@ Specify device
 
 .. code:: ipython3
 
-    # Possible options for device include "CPU", "GPU", "AUTO", "MULTI".
-    device = "MULTI:CPU,GPU" if "GPU" in ie.available_devices else "CPU"
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 Setting callback function
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -367,7 +396,7 @@ Create asynchronous inference queue and perform it
     from openvino.runtime import AsyncInferQueue
     
     load_start_time = time.perf_counter()
-    compiled_model = ie.compile_model(segmentation_model.net, device)
+    compiled_model = core.compile_model(segmentation_model.net, device.value)
     # Create asynchronous inference queue with optimal number of infer requests
     infer_queue = AsyncInferQueue(compiled_model)
     infer_queue.set_callback(completion_callback)
@@ -403,7 +432,7 @@ Create asynchronous inference queue and perform it
 
 .. parsed-literal::
 
-    Loaded model to CPU in 0.17 seconds.
-    Total time to infer all frames: 3.412s
-    Time per frame: 0.050177s (19.929 FPS)
+    Loaded model to Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO') in 0.18 seconds.
+    Total time to infer all frames: 3.416s
+    Time per frame: 0.050229s (19.909 FPS)
 

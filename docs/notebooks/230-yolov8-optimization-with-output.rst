@@ -26,12 +26,16 @@ This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch YOLOv8 with OpenVINO. We consider the steps required
 for object detection and instance segmentation scenarios.
 
-The tutorial consists of the following steps: - Prepare the PyTorch
-model. - Download and prepare a dataset. - Validate the original model.
-- Convert the PyTorch model to OpenVINO IR. - Validate the converted
-model. - Prepare and run optimization pipeline. - Compare performance of
-the FP32 and quantized models. - Compare accuracy of the FP32 and
-quantized models.
+The tutorial consists of the following steps:
+
+- Prepare the PyTorch model.
+- Download and prepare a dataset.
+- Validate the original model.
+- Convert the PyTorch model to OpenVINO IR.
+- Validate the converted model.
+- Prepare and run optimization pipeline.
+- Compare performance of the FP32 and quantized models.
+- Compare accuracy of the FP32 and quantized models.
 
 Get Pytorch model
 -----------------
@@ -43,10 +47,11 @@ the YOLOv8 nano model (also known as ``yolov8n``) pre-trained on a COCO
 dataset, which is available in this
 `repo <https://github.com/ultralytics/ultralytics>`__. Similar steps are
 also applicable to other YOLOv8 models. Typical steps to obtain a
-pre-trained model: 1. Create an instance of a model class. 2. Load a
-checkpoint state dict, which contains the pre-trained model weights. 3.
-Turn the model to evaluation for switching some operations to inference
-mode.
+pre-trained model:
+
+1. Create an instance of a model class.
+2. Load a checkpoint state dict, which contains the pre-trained model weights.
+3. Turn the model to evaluation for switching some operations to inference mode.
 
 In this case, the creators of the model provide an API that enables
 converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
@@ -280,9 +285,12 @@ Preprocessing
 ~~~~~~~~~~~~~
 
 Model input is a tensor with the ``[-1, 3, -1, -1]`` shape in the
-``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
-size) \* ``C`` - image channels \* ``H`` - image height \* ``W`` - image
-width
+``N, C, H, W`` format, where
+
+* ``N`` - number of images in batch (batch size)
+* ``C`` - image channels
+* ``H`` - image height
+* ``W`` - image width
 
 The model expects images in RGB channels format and normalized in [0, 1]
 range. Although the model supports dynamic input shape with preserving
@@ -414,9 +422,13 @@ size.
 The instance segmentation model, additionally, has an output that
 contains proto mask candidates for instance segmentation. It should be
 decoded by using box coordinates. It is a tensor with the
-``[-1 32, -1, -1]`` shape in the ``B,C H,W`` format, where: - ``B`` -
-batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
-- mask width
+``[-1 32, -1, -1]`` shape in the ``B,C H,W`` format, where:
+
+- ``B`` - batch size
+- ``C`` - number of candidates
+- ``H`` - mask height
+- ``W`` - mask width
+
 
 .. code:: ipython3
 
@@ -753,13 +765,14 @@ validator class instance.
 
 
 After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference. *To validate the models on the full dataset set
-``NUM_TEST_SAMPLES = None``.*
+getting accuracy metrics.
+
+.. note::
+
+   Model evaluation is time consuming process and can take several minutes, depending on the hardware. For reducing calculation time, we define ``num_samples`` parameter with evaluation subset size, but in this case, accuracy can be noncomparable with originally reported by the authors of the model, due to validation subset difference. 
+
+
+*To validate the models on the full dataset set* ``NUM_TEST_SAMPLES = None``.
 
 .. code:: ipython3
 
@@ -1485,9 +1498,12 @@ API <https://docs.openvino.ai/2023.0/openvino_docs_OV_Runtime_UG_Preprocessing_O
 For example, we can integrate converting input data layout and
 normalization defined in ``image_to_tensor`` function.
 
-The integration process consists of the following steps: 1. Initialize a
-PrePostProcessing object. 2. Define the input data format. 3. Describe
-preprocessing steps. 4. Integrating Steps into a Model.
+The integration process consists of the following steps:
+
+1. Initialize a PrePostProcessing object.
+2. Define the input data format.
+3. Describe preprocessing steps.
+4. Integrating Steps into a Model.
 
 Initialize PrePostProcessing API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1525,10 +1541,11 @@ layout expected by model
 Describe preprocessing steps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Our preprocessing function contains the following steps: \* Convert the
-data type from ``U8`` to ``FP32``. \* Convert the data layout from
-``NHWC`` to ``NCHW`` format. \* Normalize each pixel by dividing on
-scale factor 255.
+Our preprocessing function contains the following steps:
+
+* Convert the data type from ``U8`` to ``FP32``.
+* Convert the data layout from ``NHWC`` to ``NCHW`` format.
+* Normalize each pixel by dividing on scale factor 255.
 
 ``ppp.input(input_id).preprocess()`` is used for defining a sequence of
 preprocessing steps:

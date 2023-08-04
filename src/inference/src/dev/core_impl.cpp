@@ -14,7 +14,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
-#include "dev/make_tensor.hpp"
 #include "file_utils.h"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
@@ -32,6 +31,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -50,7 +50,13 @@ ov::ICore::~ICore() = default;
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
-static constexpr const char* internal_plugin_suffix = "_ov_internal";
+std::string get_internal_plugin_name(const std::string& device_name, const ov::AnyMap& properties) {
+    static constexpr const char* internal_plugin_suffix = "_ov_internal";
+    auto it = properties.find(ov::proxy::configuration::internal_name.name());
+    if (it != properties.end())
+        return it->second.as<std::string>();
+    return device_name + internal_plugin_suffix;
+}
 #endif
 
 template <typename F>
@@ -361,8 +367,6 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         if (it != config.end()) {
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
-            if (alias == fallback)
-                fallback += internal_plugin_suffix;
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
@@ -396,11 +400,15 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         // Create proxy plugin for alias
         auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
-            dev_name += internal_plugin_suffix;
+            dev_name = get_internal_plugin_name(dev_name, config);
         // Alias can be registered by several plugins
         if (pluginRegistry.find(alias) == pluginRegistry.end()) {
             // Register new plugin
             PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+            // Add internal name for proxy in order to modify fallback order before the initialization
+            if (alias == device_name)
+                desc.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
+
             fill_config(desc.defaultConfig, config, dev_name);
             pluginRegistry[alias] = desc;
             add_mutex(alias);
@@ -412,12 +420,16 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
                             "Cannot register plugin for ",
                             dev_name,
                             " plugin with the same name already registered!");
+            // Add internal name for proxy in order to modify fallback order before the initialization
+            if (alias == device_name)
+                plugin.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
             fill_config(plugin.defaultConfig, config, dev_name);
         }
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
         // Fallback without alias means that we need to replace original plugin to proxy
-        dev_name += internal_plugin_suffix;
+        dev_name = get_internal_plugin_name(dev_name, config);
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+        desc.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
         fill_config(desc.defaultConfig, config, dev_name);
         pluginRegistry[device_name] = desc;
         add_mutex(device_name);
@@ -425,6 +437,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::proxy::configuration::alias,
                                                                         ov::proxy::configuration::fallback,
+                                                                        ov::proxy::configuration::internal_name,
                                                                         ov::proxy::configuration::priority};
 
     // Register real plugin
@@ -573,6 +586,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
+            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin_impl))
+                wrapper->set_shared_object(so);
             plugin = Plugin{plugin_impl, so};
         }
 
@@ -609,9 +624,29 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 }
                 it = desc.defaultConfig.find(ov::device::priorities.name());
                 if (it != desc.defaultConfig.end()) {
-                    initial_config[ov::device::priorities.name()] = it->second;
+                    // Fix fallback names in case if proxy plugin got a conflict in the process of plugins registration
+                    auto priorities = it->second.as<std::vector<std::string>>();
+                    auto internal_name = desc.defaultConfig.find(ov::proxy::configuration::internal_name.name());
+                    for (auto&& priority : priorities) {
+                        if (priority == deviceName) {
+                            OPENVINO_ASSERT(internal_name != desc.defaultConfig.end(),
+                                            "Cannot create proxy device ",
+                                            deviceName,
+                                            ". Device has incorrect configuration.");
+                            priority = internal_name->second.as<std::string>();
+                        }
+                    }
+                    initial_config[ov::device::priorities.name()] = priorities;
                 }
                 plugin.set_property(initial_config);
+                try {
+                    plugin.get_property(ov::available_devices);
+                } catch (const ov::Exception& ex) {
+                    OPENVINO_THROW("Failed to create plugin for device ",
+                                   deviceName,
+                                   "\nPlease, check your environment\n",
+                                   ex.what());
+                }
             }
 #endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
@@ -662,8 +697,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             });
         }
 
-        std::lock_guard<std::mutex> g_lock(get_mutex());
         // add plugin as extension itself
+        std::lock_guard<std::mutex> g_lock(get_mutex());
+
         if (desc.extensionCreateFunc) {  // static OpenVINO case
             try {
                 InferenceEngine::IExtensionPtr ext;
@@ -699,30 +735,32 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_model_caching(plugin)) {
+    // Skip caching for proxy plugin. HW plugin will load network from the cache
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock;
-        // Proxy plugin fallback to lowlevel device
-        if (!is_proxy_device(plugin))
-            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+            return compile_model_and_cache(model,
+                                           plugin,
+                                           parsed._config,
+                                           ov::SoPtr<ov::IRemoteContext>{},
+                                           cacheContent);
         });
     } else {
-        res = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
+        res = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return res;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const ov::RemoteContext& context,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (!context) {
         IE_THROW() << "Remote context is null";
     }
-    std::string deviceName = context.get_device_name();
+    std::string deviceName = context->get_device_name();
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
@@ -731,13 +769,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_model_caching(plugin)) {
+    // Skip caching for proxy plugin. HW plugin will load network from the cache
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock;
-        // Proxy plugin fallback to lowlevel device
-        if (!is_proxy_device(plugin))
-            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, context, cacheContent);
         });
@@ -749,7 +785,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Plugin& plugin,
                                                                           const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::RemoteContext& context,
+                                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
@@ -778,25 +814,26 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_model_caching(plugin)) {
+    // Skip caching for proxy plugin. HW plugin will load network from the cache
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock;
-        // Proxy plugin fallback to lowlevel device
-        if (!is_proxy_device(plugin))
-            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = ReadNetwork(model_path, std::string());
-            return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
-        });
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        compiled_model =
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto cnnNetwork = ReadNetwork(model_path, std::string());
+                return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+            });
     } else if (cacheManager) {
         // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
-        compiled_model =
-            compile_model_with_preprocess(plugin, cnnNetwork.getFunction(), ov::RemoteContext{}, parsed._config);
+        compiled_model = compile_model_with_preprocess(plugin,
+                                                       cnnNetwork.getFunction(),
+                                                       ov::SoPtr<ov::IRemoteContext>{},
+                                                       parsed._config);
     }
     return compiled_model;
 }
@@ -812,21 +849,24 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
-    if (cacheManager && device_supports_model_caching(plugin)) {
+    // Skip caching for proxy plugin. HW plugin will load network from the cache
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock;
-        // Proxy plugin fallback to lowlevel device
-        if (!is_proxy_device(plugin))
-            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = read_model(model_str, weights);
-            return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
-        });
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        compiled_model =
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto cnnNetwork = read_model(model_str, weights);
+                return compile_model_and_cache(cnnNetwork,
+                                               plugin,
+                                               parsed._config,
+                                               ov::SoPtr<ov::IRemoteContext>{},
+                                               cacheContent);
+            });
     } else {
         auto model = read_model(model_str, weights);
-        compiled_model = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
+        compiled_model = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return compiled_model;
 }
@@ -845,10 +885,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
+    auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
@@ -868,9 +908,6 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());
-    if (device_name.find(internal_plugin_suffix) != std::string::npos)
-        return true;
-
     // Alias hides the device
     for (auto&& it : pluginRegistry) {
         auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
@@ -924,7 +961,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     return devices;
 }
 
-ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name, params);
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
@@ -987,6 +1024,16 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     } catch (ov::Exception&) {
     }
 
+    // try to search against internal supported_properties
+    try {
+        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
+            if (property.is_mutable()) {
+                supported_config_keys.emplace_back(std::move(property));
+            }
+        }
+    } catch (ov::Exception&) {
+    }
+
     // collect supported properties for HW device
     AnyMap supported_config;
     for (auto&& kvp : flattened_config) {
@@ -1002,7 +1049,7 @@ bool ov::CoreImpl::is_new_api() const {
     return m_new_api;
 }
 
-ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_name) const {
+ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name);
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
@@ -1167,7 +1214,8 @@ void ov::CoreImpl::register_plugin(const std::string& plugin,
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(device_name);
-    if (it != pluginRegistry.end()) {
+    // Proxy plugins can be configured in the runtime
+    if (it != pluginRegistry.end() && !is_proxy_device(device_name)) {
         IE_THROW() << "Device with \"" << device_name << "\"  is already registered in the OpenVINO Runtime";
     }
 
@@ -1316,8 +1364,8 @@ const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions()
     return extensions;
 }
 
-bool ov::CoreImpl::device_supports_model_caching(const std::string& deviceName) const {
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
+bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
+    auto parsed = parseDeviceNameIntoConfig(device_name);
     return device_supports_model_caching(get_plugin(parsed._deviceName));
 }
 
@@ -1357,7 +1405,7 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
                                                                     ov::Plugin& plugin,
                                                                     const ov::AnyMap& parsedConfig,
-                                                                    const ov::RemoteContext& context,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_and_cache");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
@@ -1383,7 +1431,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     const CacheContent& cacheContent,
     ov::Plugin& plugin,
     const ov::AnyMap& config,
-    const ov::RemoteContext& context,
+    const ov::SoPtr<ov::IRemoteContext>& context,
     std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};
@@ -1589,7 +1637,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = tensor_to_blob(weights._impl);
+        blob = tensor_to_blob(get_tensor_impl(weights));
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
     return ReadNetwork(model, blob, frontendMode).getFunction();

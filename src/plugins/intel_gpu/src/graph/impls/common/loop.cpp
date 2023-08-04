@@ -35,7 +35,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<loop>());
+        OPENVINO_ASSERT(arg.is_type<loop>());
         const auto& node = arg.as<loop>();
         _max_iteration = node.get_max_iteration();
         _back_edges = node.get_back_edges();
@@ -72,7 +72,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // read trip_count from outer network
         bool update_num_iterations = false;
         memory::ptr trip_count_mem = outer_network.get_primitive(primitive->trip_count_id)->output_memory_ptr();
-        int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
+        int64_t trip_count = loop_node::read_scalar_value(std::move(trip_count_mem), stream);
         if (trip_count < 0) {
             trip_count = _max_iteration;
             update_num_iterations = true;
@@ -94,7 +94,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         // If there are concatenated_output_mem_mappings or backedge_memory_mappings we need to wait for
         // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
         if (!concatenated_input_mem_mappings.empty() || !instance.backedge_memory_mappings.empty()) {
-            for (auto e : events) {
+            for (auto& e : events) {
                 e->wait();
             }
         }

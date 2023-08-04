@@ -42,17 +42,17 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
-        result << "indices_values=" << CommonTestUtils::vec2str(indicesValues);
+        result << "indices_values=" << ov::test::utils::vec2str(indicesValues);
         result << "_idx_precision=" << idxPrecision;
         result << "trgDev=GPU";
         return result.str();
@@ -81,7 +81,7 @@ protected:
                         data[i] = indicesVals[i];
                     }
                 } else {
-                    IE_THROW() << "GatherNDUpdate. Unsupported indices precision: " << inputPrecision;
+                    OPENVINO_THROW("GatherNDUpdate. Unsupported indices precision: ", inputPrecision);
                 }
             } else {
                 if (inputPrecision.is_real()) {
@@ -95,7 +95,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         ScatterNDUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;

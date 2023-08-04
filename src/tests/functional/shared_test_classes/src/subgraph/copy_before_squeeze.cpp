@@ -13,7 +13,7 @@ namespace SubgraphTestsDefinitions {
         std::ostringstream results;
 
         results << "netPRC=" << netPrecision.name() << "_";
-        results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         results << "targetDevice=" << targetName;
         return results.str();
     }

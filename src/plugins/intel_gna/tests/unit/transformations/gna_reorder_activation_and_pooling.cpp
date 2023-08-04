@@ -71,7 +71,7 @@ typedef std::tuple<ActivationFactoryPtr,  // activation Node factory
                    >
     ConvolutionActivationPoolTestOptions;
 
-class ConvolutionActivationPoolTestFixture : public CommonTestUtils::TestsCommon,
+class ConvolutionActivationPoolTestFixture : public ov::test::TestsCommon,
                                              public testing::WithParamInterface<ConvolutionActivationPoolTestOptions> {
 public:
     void SetUp() override;

@@ -135,15 +135,20 @@ std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
 };
 
 namespace {
-const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
-                                                                  {1, element::i8},
-                                                                  {2, element::i16},
-                                                                  {3, element::i32},
-                                                                  {4, element::i64},
-                                                                  {5, element::f16},
-                                                                  {6, element::f32},
-                                                                  {7, element::f64},
-                                                                  {11, element::boolean}};
+const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
+    {0, element::u8},
+    {1, element::i8},
+    {2, element::i16},
+    {3, element::i32},
+    {4, element::i64},
+    {5, element::f16},
+    {6, element::f32},
+    {7, element::f64},
+    {11, element::boolean},
+    {12, element::i8},  // quantized i8
+    {13, element::u8},  // quantized u8
+    {14, element::i32}  // quantized i32
+};
 
 const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
                                                                             {"same", ov::op::PadType::SAME_UPPER}};
@@ -331,6 +336,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs) {
+    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("PTFrameworkNode");
+    attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
+    list_construct->set_attrs(attrs);
+    list_construct->validate_and_infer_types();
+    return list_construct;
+}
+
 bool is_none_node(const Output<Node>& node) {
     if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();
@@ -380,7 +395,7 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
             if (otype != lhs_type) {
                 lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
             }
-            if (otype != lhs_type) {
+            if (otype != rhs_type) {
                 rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
             }
             return;

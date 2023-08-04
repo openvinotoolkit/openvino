@@ -32,9 +32,11 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
-Notebook contains the following steps: 1. Convert PyTorch models to ONNX
-format. 2. Convert ONNX models to OpenVINO IR format, using Model
-Optimizer tool. 3. Run Stable Diffusion pipeline with OpenVINO.
+Notebook contains the following steps:
+
+1. Convert PyTorch models to ONNX format.
+2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+3. Run Stable Diffusion pipeline with OpenVINO.
 
 Prerequisites
 -------------
@@ -125,10 +127,11 @@ OpenVINO optimization tools and features. You will use OpenVINO Model
 Optimizer tool for conversion model to IR format and compression weights
 to ``FP16`` format.
 
-The model consists of three important parts: \* Text Encoder for
-creation condition to generate image from text prompt. \* Unet for step
-by step denoising latent image representation. \* Autoencoder (VAE) for
-encdoing input image to latent space (if required) and decoding latent
+The model consists of three important parts:
+
+* Text Encoder for creation condition to generate image from text prompt.
+* Unet for step by step denoising latent image representation.
+* Autoencoder (VAE) for encdoing input image to latent space (if required) and decoding latent
 space to image back after generation.
 
 Let us convert each part.
@@ -218,10 +221,13 @@ hidden states. You will use ``opset_version=14``, because model contains
 U-net
 ~~~~~
 
-Unet model has three inputs: \* ``sample`` - latent image sample from
+Unet model has three inputs:
+
+* ``sample`` - latent image sample from
 previous step. Generation process has not been started yet, so you will
-use random noise. \* ``timestep`` - current scheduler step. \*
-``encoder_hidden_state`` - hidden state of text encoder.
+use random noise.
+* ``timestep`` - current scheduler step.
+* ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -410,13 +416,7 @@ Prepare Inference Pipeline
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
 
-.. raw:: html
-
-   <p align="left">
-
-.. raw:: html
-
-   </p>
+.. image:: https://camo.githubusercontent.com/60d9edf7fc65d617c56ddac5344a9fe3f4152e38f43cab994589a8e8bf14d36a/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3231363337383933322d37613962653339662d636338362d343365342d623037322d3636333732613335643662642e706e67
 
 As you can see from the diagram, the only difference between
 Text-to-Image and text-guided Image-to-Image generation in approach is
@@ -819,9 +819,11 @@ Text-to-Image generation
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
-latent state initialization and number of steps. > **Note**: Consider
-increasing ``steps`` to get more precise results. A suggested value is
-``50``, but it will take longer time to process.
+latent state initialization and number of steps. 
+
+.. note::
+
+   Consider increasing ``steps`` to get more precise results. A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
 
