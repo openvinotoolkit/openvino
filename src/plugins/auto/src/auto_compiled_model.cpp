@@ -106,7 +106,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
         if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            real = m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<unsigned int>();
+            real = m_scheduler->m_compile_context[ACTUALDEVICE].
+                m_compiled_model->get_property(name).as<unsigned int>();
         } else {
             std::unique_lock<std::mutex> lock(m_context->m_mutex);
             auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
