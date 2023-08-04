@@ -52,9 +52,9 @@ public:
     }
 };
 
-::testing::AssertionResult test_ordered_ops(std::shared_ptr<ov::Model> f, const ov::NodeVector& required_ops) {
+::testing::AssertionResult test_ordered_ops(const std::shared_ptr<ov::Model>& m, const ov::NodeVector& required_ops) {
     std::unordered_set<ov::Node*> seen;
-    for (auto& node_ptr : f->get_ordered_ops()) {
+    for (auto& node_ptr : m->get_ordered_ops()) {
         ov::Node* node = node_ptr.get();
         if (seen.count(node) > 0) {
             return ::testing::AssertionFailure() << "Duplication in ordered ops";

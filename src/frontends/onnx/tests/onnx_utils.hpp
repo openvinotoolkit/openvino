@@ -7,16 +7,17 @@
 #include <string>
 
 #include "openvino/runtime/core.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 static const std::string ONNX_FE = "onnx";
 
 inline std::string backend_name_to_device(const std::string& backend_name) {
     if (backend_name == "INTERPRETER")
-        return "TEMPLATE";
+        return ov::test::utils::DEVICE_TEMPLATE;
     if (backend_name == "IE_CPU")
-        return "CPU";
+        return ov::test::utils::DEVICE_CPU;
     if (backend_name == "IE_GPU")
-        return "GPU";
+        return ov::test::utils::DEVICE_GPU;
     OPENVINO_THROW("Unsupported backend name");
 }
 

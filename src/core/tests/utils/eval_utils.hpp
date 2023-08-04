@@ -14,7 +14,7 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <typename T>
-void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>& data) {
+void copy_data(const std::shared_ptr<ngraph::runtime::Tensor>& tv, const std::vector<T>& data) {
     size_t data_size = data.size() * sizeof(T);
     if (data_size > 0) {
         tv->write(data.data(), data_size);
@@ -22,7 +22,7 @@ void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>
 }
 
 template <>
-inline void copy_data<bool>(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<bool>& data) {
+inline void copy_data<bool>(const std::shared_ptr<ngraph::runtime::Tensor>& tv, const std::vector<bool>& data) {
     std::vector<char> data_char(data.begin(), data.end());
     copy_data(tv, data_char);
 }

@@ -35,9 +35,9 @@ std::shared_ptr<ov::Model> make_test_graph() {
 
     auto r0 = std::make_shared<ov::op::v1::Add>(t3, t4);
 
-    auto f0 = std::make_shared<ov::Model>(r0, ov::ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
+    auto m = std::make_shared<ov::Model>(r0, ov::ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
 
-    return f0;
+    return m;
 }
 
 // This function traverses the vector of ops and verifies that each op's dependencies (its inputs)

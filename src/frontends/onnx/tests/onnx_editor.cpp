@@ -593,7 +593,7 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
                                      "onnx/model_editor/reference/"
                                      "subgraph__input_edge_from_tensor_with_multiple_consumers_5.onnx");
 
-    const auto result = ngraph::test::compare_onnx_models(editor.model_string(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
