@@ -386,12 +386,7 @@ class CopyExt(build_ext):
         ("skip-rpath", None, "Skips RPATH for Python extensions."),
     ]
     boolean_options = ["skip_rpath"]
-
-    def initialize_options(self):
-        """Set default values for all the options that this command supports."""
-        super().initialize_options()
-        self.skip_rpath = False
-
+    
     def run(self):
         if len(self.extensions) == 1:
             self.run_command("build_clib")
