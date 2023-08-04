@@ -203,6 +203,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAINT8MatMul, MHAINT8MatMul,
                                  ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
                          MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAQuantMatMul0, MHAQuantMatMul0,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 128, 768}, {1, 128, 768}, {1, 1, 1, 128}, {1, 128, 768}}),
+                                 ::testing::Values(std::vector<element::Type>{}),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(false), // The graph doesn't contain Multiply
+                                 ::testing::Values(8),     // FQ on input + MHA + Transpose on output + 4 Reshapes + Deq Mul
+                                 ::testing::Values(3),     // FQ on input + MHA + Deq Mul
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
+                         MHA::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul, MHAFQAfterMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(inputShapes),

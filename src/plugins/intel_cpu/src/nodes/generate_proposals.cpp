@@ -18,7 +18,7 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 namespace ov {
 namespace intel_cpu {

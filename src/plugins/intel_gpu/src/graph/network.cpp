@@ -1694,6 +1694,7 @@ void network::update_variable_memory(const std::string& variable_id, const cldnn
             it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
         else
             it->second->set_memory(get_engine().allocate_memory(layout, false));
+        it->second->is_set = false;
     }
     for (auto primitive : _variable_state_primitives) {
         if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
