@@ -488,6 +488,7 @@ void InferRequest::wait() {
     bool do_sync_per_output = (m_graph->GetNetwork()->get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
     if (!do_sync_per_output)
         m_graph->GetNetwork()->get_stream().finish();
+    std::vector<cldnn::event::ptr> copy_events;
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
         // because it does not create outputsMap during SetGraph
@@ -498,7 +499,6 @@ void InferRequest::wait() {
             outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
 
         bool need_output_update = false;
-
         if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() ||
             (outputMemory && _outputs.at(no.first)->byteSize() != outputMemory->size())) {
             need_output_update = true;
@@ -546,11 +546,19 @@ void InferRequest::wait() {
                 same_mem = same_host_mem(outputMemory, dst_ptr);
             }
             if (!same_mem && outputMemory->size()) {
-                copy_output_data(outputMemory, bptr);
+                copy_output_data(outputMemory, bptr, copy_events);
             }
         }
     }
-
+    // wait for copy event
+    if (copy_events.size() > 0) {
+        if (m_graph->GetNetwork()->get_stream().get_queue_type() == QueueTypes::in_order) {
+            // wait only the last one
+            m_graph->GetNetwork()->get_stream().wait_for_events({copy_events.back()});
+        } else {
+            m_graph->GetNetwork()->get_stream().wait_for_events(copy_events);
+        }
+    }
     // finally collect profiling info
     if (m_useProfiling) {
         m_graph->UpdatePerfStatistics();
@@ -609,7 +617,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
     return blob;
 }
 
-void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
+void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, std::vector<cldnn::event::ptr>& copy_events) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_output_data");
     auto is_convert_needed = [](const Precision& prc) {
         const std::vector<Precision> convert_needed = { Precision::I16, Precision::U16, Precision::FP64,
@@ -639,7 +647,8 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
 
         OPENVINO_ASSERT(intermediate_output_blob, "[GPU] Intermediate blob for outputs precessing is not allocated");
 
-        src->copy_to(stream, intermediate_output_blob->buffer());
+        auto ev = src->copy_to(stream, intermediate_output_blob->buffer(), false);
+        copy_events.push_back(ev);
 
         switch (dst->getTensorDesc().getPrecision()) {
         #define CASE(PRC, SRC_DT, DST_DT) \
@@ -661,7 +670,8 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
         }
     } else {
         auto dst_ptr = dst->buffer().as<void*>();
-        src->copy_to(stream, dst_ptr);
+        auto ev = src->copy_to(stream, dst_ptr, false);
+        copy_events.push_back(ev);
     }
 }
 
