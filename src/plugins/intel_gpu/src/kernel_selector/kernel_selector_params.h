@@ -687,7 +687,7 @@ struct base_params : public Params {
             out.SetDynamicShapeOffset(offset);
             if (out.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : out.GetDims()) {
+                for (auto& dim : out.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }

@@ -284,7 +284,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         int fm_sz = fm_w * fm_h;
 
         mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
-        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{bbox_pred, stream};
+        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{std::move(bbox_pred), stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 

@@ -55,7 +55,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
 
     std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
-        input0_shape,
+        std::move(input0_shape),
         begin_shape,
         end_shape,
         strides_shape

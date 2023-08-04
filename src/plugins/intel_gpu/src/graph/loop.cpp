@@ -350,7 +350,7 @@ void loop_inst::preprocess_output_memory() {
             const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
             const int64_t start = output_mapping.start < 0? _max_iteration - 1: output_mapping.start;
             concatenated_memory_mapping memory_mapping_info(
-                output_mapping.axis, to_mem, sliced_mems, _network.get_stream(),
+                output_mapping.axis, std::move(to_mem), sliced_mems, _network.get_stream(),
                 num_elements_iteration, output_mapping.stride, start);
             memory_mapping_info.sliced_data_prim = body_network->get_primitive(internal_id);
             memory_mapping_info.concat_data_prim = get_network().get_primitive(external_id);

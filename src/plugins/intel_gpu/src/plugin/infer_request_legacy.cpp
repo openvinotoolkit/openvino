@@ -780,7 +780,7 @@ void InferRequestLegacy::wait_dynamic() {
                 auto outputMemory = internal_outputs_dynamic[nb].at(outputID).get_memory();
                 Blob::Ptr bptr = _outputs[no.first];
 
-                copy_output_data(outputMemory, bptr, &batchOutputs[no.first][nb]);
+                copy_output_data(outputMemory, std::move(bptr), &batchOutputs[no.first][nb]);
             }
         }
     }
@@ -945,7 +945,7 @@ void InferRequestLegacy::allocate_inputs() {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
                 auto blobPtr = create_device_blob(desc_fp32, litr->second);
-                _deviceInputs[name] = blobPtr;
+                _deviceInputs[name] = std::move(blobPtr);
                 Blob::Ptr inputBlob = create_host_blob(desc);
                 _inputs[name] = inputBlob;
             } else {
@@ -1008,7 +1008,7 @@ void InferRequestLegacy::allocate_outputs() {
                 device_blob_desc.setPrecision(Precision::FP32);
 
             auto host_blob = create_host_blob(desc);
-            _outputs[no.first] = host_blob;
+            _outputs[no.first] = std::move(host_blob);
             auto device_blob = create_device_blob(device_blob_desc, output_layout);
             _deviceOutputs[no.first] = device_blob;
         } else {
@@ -1036,7 +1036,7 @@ void InferRequestLegacy::allocate_outputs_dynamic() {
 
         Blob::Ptr outputBlob = create_host_blob(desc);
         _outputs[no.first] = outputBlob;
-        outputsMap[no.first] = outputID;
+        outputsMap[no.first] = std::move(outputID);
     }
 }
 
@@ -1151,7 +1151,7 @@ void InferRequestLegacy::prepare_output(const cldnn::primitive_id& outputName, B
         IE_THROW(NotAllocated) << str_output_not_allocated;
     }
     auto outputMem = impl->get_memory();
-    _nw_ptr->set_output_memory(internalName, outputMem);
+    _nw_ptr->set_output_memory(internalName, std::move(outputMem));
 }
 
 InferenceEngine::Blob::Ptr InferRequestLegacy::create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout) {

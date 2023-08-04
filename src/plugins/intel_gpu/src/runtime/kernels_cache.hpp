@@ -121,7 +121,7 @@ public:
     std::vector<std::string> get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const;
     void add_to_cached_kernels(const std::vector<kernel::ptr>& kernels);
 
-    size_t get_kernel_batch_hash(const kernel_impl_params params) const {
+    size_t get_kernel_batch_hash(const kernel_impl_params& params) const {
         if (_kernel_batch_hash.find(params) != _kernel_batch_hash.end())
             return _kernel_batch_hash.at(params);
         return 0;

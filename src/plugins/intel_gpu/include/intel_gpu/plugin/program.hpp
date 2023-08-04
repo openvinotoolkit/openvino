@@ -142,7 +142,7 @@ public:
 
     template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
     void add_primitive(const ngraph::Node& op, PType prim, std::vector<std::string> aliases = {}) {
-        add_primitive(op, std::static_pointer_cast<cldnn::primitive>(std::make_shared<PType>(prim)), aliases);
+        add_primitive(op, std::static_pointer_cast<cldnn::primitive>(std::make_shared<PType>(prim)), std::move(aliases));
     }
 
     void add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
