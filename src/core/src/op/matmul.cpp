@@ -34,6 +34,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace matmul {
 namespace {
 template <element::Type_t ET>

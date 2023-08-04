@@ -86,6 +86,9 @@ make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeV
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
+ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc);
+
+
 template<typename T>
 inline void fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int32_t height, const int32_t width, const float omega,
                              const bool is_roi_max_mode, const int32_t seed = 1) {
@@ -263,41 +266,8 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
  * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
-template<ov::element::Type_t DT>
-void inline fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
-                               const int32_t k = 1, const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    if (DT == ov::element::u4 || DT == ov::element::i4 ||
-        DT == ov::element::u1) {
-        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
-    } else {
-        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
-    }
-}
-
-template<ov::element::Type_t DT>
-void inline
-fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start_from, const int32_t k,
-                         const int seed = 1) {
-    using T = typename ov::element_type_traits<DT>::value_type;
-    std::default_random_engine random(seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
-
-    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
-    for (size_t i = 0; i < tensor.get_size(); i++) {
-        auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
-        if (DT == ov::element::Type_t::f16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
-        } else if (DT == ov::element::Type_t::bf16) {
-            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
-        } else {
-            rawBlobDataPtr[i] = static_cast<T>(value);
-        }
-    }
-}
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
+                               const int32_t k = 1, const int seed = 1);
 
 /** @brief Fill blob with random data.
  *
