@@ -28,7 +28,6 @@
 #include "default_opset.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"

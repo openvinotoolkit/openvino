@@ -2,160 +2,65 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
-#include <regex>
-#include <chrono>
-#include <ctime>
-
-#include "inference_engine.hpp"
-
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/test_constants.hpp"
-
-#include "ops_cache.hpp"
-#include "op_cloner.hpp"
-#include "utils/model_wrap_struct.hpp"
 #include "gflag_config.hpp"
-#include <string.h>
+#include "cache/op_cache.hpp"
+#include "cache/graph_cache.hpp"
+#include "utils/model.hpp"
 
-static std::vector<std::regex> getRegexByFrontend() {
-    std::vector<std::regex> result;
-#ifdef ENABLE_OV_ONNX_FRONTEND
-    result.push_back(std::regex(R"(.*\.onnx)"));
-#endif
-#ifdef ENABLE_OV_PADDLE_FRONTEND
-    result.push_back(std::regex(R"(.*\.pdmodel)"));
-    result.push_back(std::regex(R"(.*__model__)"));
-#endif
-#ifdef ENABLE_OV_TF_FRONTEND
-    result.push_back(std::regex(R"(.*\.pb)"));
-#endif
-#ifdef ENABLE_OV_IR_FRONTEND
-    result.push_back(std::regex(R"(.*\.xml)"));
-#endif
-#ifdef ENABLE_OV_TF_LITE_FRONTEND
-    result.push_back(std::regex(R"(.*\.tflite)"));
-#endif
-#ifdef ENABLE_OV_PYTORCH_FRONTEND
-    result.push_back(std::regex(R"(.*\.pt)"));
-#endif
-    return result;
-}
-
-std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::string> &dirs) {
-    std::vector<std::string> input_folder_content;
-    const auto patterns = getRegexByFrontend();
-    for (const auto &dir : dirs) {
-        std::vector<std::string> content;
-        if (ov::test::utils::directoryExists(dir)) {
-            content = ov::test::utils::getFileListByPatternRecursive({dir}, patterns);
-        } else if (ov::test::utils::fileExists(dir) && std::regex_match(dir, std::regex(".*.lst"))) {
-            content = ov::test::utils::readListFiles({dir});
-        } else {
-            std::string msg = "Input directory (" + dir + ") doesn't not exist!";
-            throw std::runtime_error(msg);
-        }
-        if (!content.empty()) {
-            input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
-        }
-    }
-    std::vector<SubgraphsDumper::Model> models;
-    auto xml_regex = std::regex(FLAGS_path_regex);
-    for (const auto &file : input_folder_content) {
-        if (std::regex_match(file, xml_regex)) {
-            models.emplace_back(SubgraphsDumper::Model(file));
-        }
-    }
-    std::sort(models.begin(), models.end());
-    std::reverse(models.begin(), models.end());
-    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
-        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
-        std::cout << msg << std::endl;
-        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
-    }
-    return models;
-}
-
-void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
-                 uint8_t& ret_code,
-                 const std::vector<SubgraphsDumper::Model>& models,
-                 const bool extract_body) {
-    auto core = ov::test::utils::PluginCache::get().core();
-    time_t rawtime;
-    struct tm *timeinfo;
-    char buffer[20];
-    size_t all_models = models.size();
-    std::string successful_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "successful_models.lst",
-                not_read_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "not_read_models.lst",
-                not_fully_cached_models_file_path = FLAGS_output_folder + ov::test::utils::FileSeparator + "not_fully_cached_models.lst";
-    std::ofstream successful_models_file, not_read_models_file, not_fully_cached_models_file;
-    successful_models_file.open(successful_models_file_path, std::ios::out | std::ios::trunc);
-    not_read_models_file.open(not_read_models_file_path, std::ios::out | std::ios::trunc);
-    not_fully_cached_models_file.open(not_fully_cached_models_file_path, std::ios::out | std::ios::trunc);
-    for (size_t i = 0; i < all_models; ++i) {
-        const auto model = models[i];
-        if (ov::test::utils::fileExists(model.path)) {
-            try {
-                time(&rawtime);
-                timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
-
-                strftime(buffer, 20, "%H:%M:%S", timeinfo);
-                std::cout << "[" << std::string(buffer) << "][" << i + 1 << "/" << all_models << "]Processing model: "
-                          << model.path << std::endl;
-
-                std::shared_ptr<ov::Model> function;
-                try {
-                    function = core->read_model(model.path);
-                } catch (std::exception &e) {
-                    not_read_models_file << model.path << std::endl;
-                    std::cout << "Model reading failed with exception:" << std::endl << e.what() << std::endl;
-                    ret_code = 1;
-                    continue;
-                }
-                cache->update_ops_cache(function, model, extract_body);
-                successful_models_file << model.path << std::endl;
-            } catch (std::exception &e) {
-                not_fully_cached_models_file << model.path << std::endl;
-                std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
-                ret_code = 1;
-                continue;
-            }
-        }
-    }
-    successful_models_file.close();
-    not_read_models_file.close();
-    not_fully_cached_models_file.close();
-}
-
+using namespace ov::tools::subgraph_dumper;
 
 int main(int argc, char *argv[]) {
-    uint8_t ret_code = 0;
-
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
         return 0;
     }
-    SubgraphsDumper::ClonersMap::constant_size_threshold_mb = FLAGS_constants_size_threshold;
 
     std::vector<std::string> local_cache_dirs = ov::test::utils::splitStringByDelimiter(FLAGS_local_cache);
     std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
-    std::vector<SubgraphsDumper::Model> models;
+    std::vector<std::string> models;
+
+    if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
+        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
+        std::cout << msg << std::endl;
+        ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
+    }
     try {
-        models = findModelsInDirs(dirs);
+        models = find_models(dirs, FLAGS_path_regex);
     } catch (std::runtime_error& e) {
-        std::cout << "Try 'subgraphdumper -h' for more information. \nException: " << e.what() << std::endl;
+        std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
 
-    auto cache = SubgraphsDumper::OPCache::make_cache();
-    if (!FLAGS_local_cache.empty()) {
-        auto cachedOps = findModelsInDirs(local_cache_dirs);
-        cacheModels(cache, ret_code, cachedOps, FLAGS_extract_body);
+    std::vector<std::shared_ptr<ICache>> caches;
+    if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
+        std::cout << "[ INFO ] OpCache is enabled!" << std::endl;
+        caches.push_back(OpCache::get());
     }
-    cacheModels(cache, ret_code, models, FLAGS_extract_body);
-    cache->serialize_cached_ops(FLAGS_output_folder);
+    if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+        // todo: iefode: to check and enable it in CI
+        // std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
+        // caches.push_back(GraphCache::get());
+    }
 
-    return ret_code;
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(FLAGS_output_folder);
+    }
+    std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
+    // Upload previously cached graphs to cache
+    if (!FLAGS_local_cache.empty()) {
+        auto cachedOps = find_models(local_cache_dirs);
+        cache_model_status = cache_models(caches, cachedOps, FLAGS_extract_body);
+    }
+    {
+        auto tmp_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
+        cache_model_status.insert(tmp_cache_model_status.begin(), tmp_cache_model_status.end());
+    }
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(FLAGS_output_folder);
+        cache->serialize_cache();
+    }
+    save_model_status_to_file(cache_model_status, FLAGS_output_folder);
+    return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }
