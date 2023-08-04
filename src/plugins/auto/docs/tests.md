@@ -258,7 +258,7 @@ This section will show the fallback of device selection within the AUTO plugin i
 AUTO will select GNA if no other device is specified in the device candidate list.
 
 ```bash
-./benchmark_app -m add_abc.xml -d AUTO:GNA -t 10
+openvino/bin/intel64/Release$ ./benchmark_app -m openvino/src/core/tests/models/ir/add_abc.xml -d AUTO:GNA -t 10
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
 [Step 2/11] Loading OpenVINO Runtime
@@ -289,7 +289,7 @@ AUTO will select GNA if no other device is specified in the device candidate lis
 Device selection fallback will happen here. CPU will be selected by AUTO as GNA doesn't support FP32 precision model.
 
 ```bash
-./benchmark_app -m add_abc.xml -d AUTO:GNA,CPU -t 10
+openvino/bin/intel64/Release$ ./benchmark_app -m openvino/src/core/tests/models/ir/add_abc.xml -d AUTO:GNA,CPU -t 10
 [Step 1/11] Parsing and validating input arguments
 [ INFO ] Parsing input parameters
 [Step 2/11] Loading OpenVINO Runtime
