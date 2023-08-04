@@ -47,10 +47,10 @@ const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "C
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
 const DeviceInformation MYRIAD_INFO = {"MYRIAD", {}, 2, "01", "MYRIAD_01" };
-const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01" };
+const DeviceInformation NPU_INFO = {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01" };
 const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
-const std::vector<DeviceInformation>  int8DeviceVector = {KEEMBAY_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
+const std::vector<DeviceInformation>  int8DeviceVector = {NPU_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  binDeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  batchedblobDeviceVector = {DGPU_INFO, IGPU_INFO};
 std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32", fp32DeviceVector},
@@ -59,8 +59,8 @@ std::map<std::string, const std::vector<DeviceInformation>> devicesMap = {{"FP32
                                                                            {"BIN",  binDeviceVector},
                                                                            {"BATCHED_BLOB", batchedblobDeviceVector}
                                                                          };
-const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, KEEMBAY_INFO};
-const std::vector<DeviceInformation> reverseTotalDevices = {KEEMBAY_INFO, CPU_INFO, MYRIAD_INFO, IGPU_INFO, DGPU_INFO};
+const std::vector<DeviceInformation> totalDevices = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO, NPU_INFO};
+const std::vector<DeviceInformation> reverseTotalDevices = {NPU_INFO, CPU_INFO, MYRIAD_INFO, IGPU_INFO, DGPU_INFO};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN", "BATCHED_BLOB"};
 std::vector<ConfigParams> testConfigs;
 
@@ -249,7 +249,7 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_NPU),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuArchitecture));

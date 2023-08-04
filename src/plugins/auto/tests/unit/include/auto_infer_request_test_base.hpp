@@ -25,7 +25,7 @@
 using namespace ::testing;
 
 using Config = std::map<std::string, std::string>;
-const std::vector<std::string>  availableDevs = {CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_KEEMBAY};
+const std::vector<std::string>  availableDevs = {CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_NPU};
 struct DeferedExecutor : public ITaskExecutor {
     using Ptr = std::shared_ptr<DeferedExecutor>;
     DeferedExecutor() = default;

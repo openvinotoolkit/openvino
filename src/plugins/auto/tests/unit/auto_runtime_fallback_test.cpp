@@ -170,7 +170,7 @@ public:
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
                         return mockExeNetworkGPU_1; }));
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_KEEMBAY)),
+                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_NPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
                         return mockExeNetworkVPUX; }));

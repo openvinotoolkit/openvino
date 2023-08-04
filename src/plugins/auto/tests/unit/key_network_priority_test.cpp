@@ -93,7 +93,7 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_NPU),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(Return("GPU: vendor=0x8086 arch=0"));
@@ -127,13 +127,13 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
             {"GPU.0", {}, 2, "01", "iGPU_01", 1},
             {"GPU.1", {}, 2, "01", "dGPU_01", 2},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
-            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01", 4}};
+            {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {"GPU.0", {}, 2, "01", "iGPU_01", 0},
             {"GPU.1", {}, 2, "01", "dGPU_01", 0},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
-            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01", 0}};
+            {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01", 0}};
     }
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(sizeOfConfigs);
@@ -156,13 +156,13 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
             {"GPU.0", {}, 2, "01", "iGPU_01", 1},
             {"GPU.1", {}, 2, "01", "dGPU_01", 2},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
-            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01", 4}};
+            {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {"GPU.0", {}, 2, "01", "iGPU_01", 0},
             {"GPU.1", {}, 2, "01", "dGPU_01", 0},
             {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
-            {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01", 0}};
+            {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01", 0}};
     }
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(sizeOfConfigs * 2);
@@ -277,7 +277,7 @@ const std::vector<ConfigParams> testConfigs = {
     // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
     // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
     // {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
-    // {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01", 4}};
+    // {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01", 4}};
     // cpu > igpu > dgpu > MYRIAD > NPU
     ConfigParams {"FP32", true, {PriorityParams {0, "CPU_01"},
         PriorityParams {1, "iGPU_01"},
