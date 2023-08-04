@@ -37,7 +37,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
-    Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithms");
+    Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
     exports.DefineProperty(preprocess);
 
     exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));

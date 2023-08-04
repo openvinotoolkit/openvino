@@ -87,7 +87,7 @@ interface PrePostProcessor {
   setInputModelLayout(layout: string[]): PrePostProcessor;
   // FIXME: are we going to add index parameter for this method?
   setInputTensorLayout(layout: string[]): PrePostProcessor;
-  preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithms)
+  preprocessResizeAlgorithm(resizeAlgorithm: resizeAlgorithm)
     : PrePostProcessor;
   setInputTensorShape(shape: number[]): PrePostProcessor;
 }
@@ -107,7 +107,7 @@ declare enum element {
   f32,
 }
 
-declare enum resizeAlgorithms {
+declare enum resizeAlgorithm {
   RESIZE_NEAREST,
   RESIZE_CUBIC,
   RESIZE_LINEAR,
@@ -120,7 +120,7 @@ export interface NodeAddon {
   PrePostProcessor: PrePostProcessorConstructor,
 
   element: typeof element,
-  resizeAlgorithms: typeof resizeAlgorithms,
+  resizeAlgorithm: typeof resizeAlgorithm,
 }
 
 export default
