@@ -29,14 +29,14 @@ edges_with_convert = [*connect('placeholder', '0:random_uniform'), *connect('min
                       *connect('convert', 'result'), ]
 
 
-class ChangeRandomUniformOutputTypeTest():
+class TestChangeRandomUniformOutputType():
     @pytest.mark.parametrize("ir_type, out_type, dst_type", [
     ("FP16", np.float32, np.float16),
     ("FP32", np.float16, np.float32),
     ("FP32", np.float32, None),
     ("FP32", np.int64, None)
 ])
-    def test_change_random_uniform_output_type(ir_type, out_type, dst_type):
+    def test_change_random_uniform_output_type(self,ir_type, out_type, dst_type):
         graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
         graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
                                 nodes_with_edges_only=True)
