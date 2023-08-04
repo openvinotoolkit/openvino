@@ -19,7 +19,7 @@
         {"cmd" : "git submodule init", "path" : "{gitPath}"},
         {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
         {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
-        {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "Error", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
     "deepCleanCommandList" : [
@@ -42,13 +42,11 @@
         {"cmd" : "make --jobs=4", "path" : "{buildPath}"},
         {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
     ],
-    "skippedCommitList" : [],
     "skipMode" : {
         "modeName" : "skipAndDeepClean",
         "flagSet" : {
             "comment" : "ignored if modeName is defined",
             "!!" : "rebuildEnabled for checkout also",
-            "!" : "skippedCommitList - here",
             "enforceSkips" : "enabled automatically when double-build failed",
             "enforceExtendedBuild" : false,
             "enableSkips" : false,

@@ -117,8 +117,10 @@ class Mode(ABC):
 
     def run(self, list, cfg) -> int:
         self.prepareRun(list, cfg)
-        self.traversal.bypass(
-            list, list, cfg, self.commitPath
+        for i, item in enumerate(list):
+            list[i] = item.replace('"', "")
+        self.traversal.wrappedBypass(
+            list, list, cfg
         )
         self.postRun(list)
 
@@ -126,12 +128,14 @@ class Mode(ABC):
         # override if you need more details in output representation
         pass
 
-    def getResult(self):
-        # override if you need more details in output representation
+    def printResult(self):
         for pathcommit in self.commitPath.getList():
-            print("Break commit: {c}".format(
-                c=pathcommit.cHash)
-            )
+            print(self.getCommitInfo(pathcommit))
+
+    def getCommitInfo(self, commit):
+        # override if you need more details in output representation
+        return "Break commit: {c}, state: {s}".format(
+            c=commit.cHash, s=commit.state)
 
     def checkIfListBordersDiffer(self, list, cfg):
         return self.compareCommits(list[0], list[-1], list, cfg)
@@ -163,28 +167,42 @@ class Mode(ABC):
             return self.commitList
 
     class Traversal(ABC):
-        def bypass(self, curList, list, cfg, commitPath) -> int:
+        def bypass(self, curList, list, cfg) -> int:
             raise NotImplementedError()
+
+        def wrappedBypass(self, curList, list, cfg) -> int:
+            try:
+                self.bypass(curList, list, cfg)
+            except util.BuildError as be:
+                # to-do add analisys
+                if be.errType != util.BuildError.BuildErrType.TO_SKIP:
+                    raise util.BuildError(
+                        message = "error occured during rebuilding",
+                        errType = util.BuildError.BuildErrType.WRONG_STATE,
+                        commit=be.commit
+                        )
+                self.skipCommit(be.commit, curList, cfg)
+                self.wrappedBypass(curList, list, cfg)
+
+
+        def skipCommit(self, commit, curList, cfg):
+            curList.remove(commit)
+            pc = Mode.CommitPath.PathCommit(
+                commit,
+                Mode.CommitPath.CommitState.SKIPPED
+            )
+            self.mode.commonLogger.info(
+                "Skipped commit {}".format(commit)
+            )
+            self.mode.setOutputInfo(pc)
+            self.mode.commitPath.accept(self, pc)
+
 
         def visit(self, cPath, commitToReport):
             cPath.append(commitToReport)
 
-        def validateCommit(self, commit, cfg):
-            try:
-                self.mode.getPseudoMetric(commit, cfg)
-            except (util.BuildError):
-                oldScl = cfg["skippedCommitList"]
-                oldScl.append(commit)
-                curList.remove(commit)
-
-        def validateCurList(self, curList, list, cfg):
-            if (not cfg["skipMode"]["flagSet"]["enableSkips"]):
-                pass
-            self.validateCommit(list[0], cfg)
-            self.validateCommit(list[-1], cfg)
 
         def prepBypass(self, curList, list, cfg):
-            self.validateCurList(curList, list, cfg)
             skipInterval = cfg["noCleanInterval"]
             i1 = list.index(curList[0])
             i2 = list.index(curList[-1])
@@ -203,7 +221,7 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, curList, list, cfg, commitPath) -> int:
+        def bypass(self, curList, list, cfg) -> int:
             self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
@@ -218,25 +236,25 @@ class Mode(ABC):
                     Mode.CommitPath.CommitState.BREAK
                 )
                 self.mode.setOutputInfo(pc)
-                commitPath.accept(self, pc)
+                self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
-                self.bypass(
-                    curList[0 : mid + 1], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[0 : mid + 1], list, cfg
                 )
             else:
-                self.bypass(
-                    curList[mid :], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[mid :], list, cfg
                 )
 
     class FirstFixedVersion(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, curList, list, cfg, commitPath) -> int:
+        def bypass(self, curList, list, cfg) -> int:
             self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
@@ -251,25 +269,25 @@ class Mode(ABC):
                     Mode.CommitPath.CommitState.BREAK
                 )
                 self.mode.setOutputInfo(pc)
-                commitPath.accept(self, pc)
+                self.mode.commitPath.accept(self, pc)
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
-                self.bypass(
-                    curList[mid :], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[mid :], list, cfg
                 )
             else:
-                self.bypass(
-                    curList[0 : mid + 1], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[0 : mid + 1], list, cfg
                 )
 
     class AllBreakVersions(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def bypass(self, curList, list, cfg, commitPath) -> int:
+        def bypass(self, curList, list, cfg) -> int:
             self.prepBypass(curList, list, cfg)
             sampleCommit = curList[0]
             curLen = len(curList)
@@ -284,7 +302,7 @@ class Mode(ABC):
                     Mode.CommitPath.CommitState.BREAK
                 )
                 self.mode.setOutputInfo(pc)
-                commitPath.accept(self, pc)
+                self.mode.commitPath.accept(self, pc)
                 lastCommit = list[-1]
                 isTailDiffer = self.mode.compareCommits(
                     breakCommit, lastCommit, list, cfg)
@@ -292,19 +310,19 @@ class Mode(ABC):
                     cfg["serviceConfig"]["sampleCommit"] = breakCommit
                     # to-do make copy without skip-commits
                     brIndex = list.index(breakCommit)
-                    self.bypass(
+                    self.wrappedBypass(
                        list[brIndex :],
-                       list, cfg, commitPath
+                       list, cfg
                     )
                 return
             mid = (int)((curLen - 1) / 2)
             isBad = self.mode.compareCommits(
                     sampleCommit, curList[mid], list, cfg)
             if isBad:
-                self.bypass(
-                    curList[0 : mid + 1], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[0 : mid + 1], list, cfg
                 )
             else:
-                self.bypass(
-                    curList[mid :], list, cfg, commitPath
+                self.wrappedBypass(
+                    curList[mid :], list, cfg
                 )

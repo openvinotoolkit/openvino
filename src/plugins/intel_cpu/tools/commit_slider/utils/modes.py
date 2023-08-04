@@ -136,12 +136,10 @@ class BenchmarkAppPerformanceMode(Mode):
     def setOutputInfo(self, pathCommit):
         pathCommit.perfRel = self.perfRel
 
-    def getResult(self):
-        for pathCommit in self.commitPath.getList():
-            print("Break commit: {c}, perf. ratio = {d}".format(
-                c=pathCommit.cHash,
-                d=pathCommit.perfRel)
-            )
+    def getCommitInfo(self, commit):
+        return "{ci}, perf. ratio = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.perfRel)
 
 
 class CompareBlobsMode(Mode):
@@ -245,9 +243,7 @@ class CompareBlobsMode(Mode):
     def setOutputInfo(self, pathCommit):
         pathCommit.diff = self.maxDiff
 
-    def getResult(self):
-        for pathcommit in self.commitPath.getList():
-            print("Break commit: {c}, diff = {d}".format(
-                c=pathcommit.cHash,
-                d=pathcommit.diff)
-            )
+    def getCommitInfo(self, commit):
+        return "{ci}, diff = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.diff)

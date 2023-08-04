@@ -164,9 +164,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
     defRepo = gitPath
     for cmd in commandList:
         if "tag" in cmd:
-            if cmd["tag"] == "clean" and skipCleanInterval:
-                continue
-            elif cmd["tag"] == "preprocess":
+            if cmd["tag"] == "preprocess":
                 if not (
                     "preprocess" in cfgData["runConfig"]
                     and "name" in cfgData["runConfig"]["preprocess"]
@@ -200,23 +198,16 @@ def runCommandList(commit, cfgData, enforceClean=False):
                 pass
             sys.stdout.write(line)
             commitLogger.info(line)
+            if "catchMsg" in cmd:
+                isErrFound = re.search(cmd["catchMsg"], line)
+                if isErrFound:
+                    raise BuildError(
+                        errType=BuildError.BuildErrType.UNDEFINED,
+                        message="error while executing: {}".
+                            format(cmd["cmd"]), commit=commit
+                        )
         proc.wait()
         checkOut, err = proc.communicate()
-        try:
-            checkOut = checkOut.decode("utf-8")
-        except (UnicodeDecodeError, AttributeError):
-            pass
-        if "catchMsg" in cmd:
-            isErrFound = re.search(cmd["catchMsg"], checkOut)
-            if isErrFound:
-                if skipCleanInterval or True:
-                    # to-do skipEnabled instead
-                    commitLogger.info("Build error: clean is necessary")
-                    raise NoCleanFailedError()
-                else:
-                    # to-do CmdError and BuildError
-                    raise BuildError
-                    # raise CmdError(checkOut)
 
 
 def fetchAppOutput(cfg, commit):
@@ -249,16 +240,19 @@ def fetchAppOutput(cfg, commit):
 
 
 def handleCommit(commit, cfgData):
+    commitLogger = getCommitLogger(cfgData, commit)
     if "skipCleanInterval" in cfgData["serviceConfig"]:
         skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
         cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
-# # to-do: fix no-clean ahd swap exceptions
-#     except (BuildError):
-    except (NoCleanFailedError):
-        cfgData["trySkipClean"] = False
-        runCommandList(commit, cfgData)
+    except BuildError as be:
+        commitLogger.info("Build error: clean is necessary")
+        raise BuildError(
+            errType=BuildError.BuildErrType.TO_SKIP,
+            message="build error handled by skip",
+            commit=commit
+            ) from be
 
 
 def returnToActualVersion(cfg):
@@ -336,12 +330,17 @@ class RepoError(Exception):
 
 class BuildError(Exception):
     class BuildErrType(Enum):
+        # Undefined - unresolved behaviour, to-do ...
+        UNDEFINED = 0
         TO_REBUILD = 1
         TO_SKIP = 2
         TO_STOP = 3
-    def __init__(self, message, errType):
+        # throwed in unexpected case
+        WRONG_STATE = 4
+    def __init__(self, commit, message, errType):
         self.message = message
         self.errType = errType
+        self.commit = commit
     def __str__(self):
         return self.message
 
