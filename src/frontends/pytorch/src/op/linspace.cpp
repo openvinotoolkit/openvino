@@ -26,8 +26,9 @@ using namespace ov::op;
 OutputVector translate_linspace(const NodeContext& context) {
     num_inputs_check(context, 3, 7);
     // "aten::linspace(Scalar start, Scalar end, int steps, *, ScalarType? dtype=None, Layout? layout=None, Device?
-    // device=None, bool? pin_memory=None) -> Tensor" "aten::linspace.out(Scalar start, Scalar end, int steps, *,
-    // Tensor(a!) out) -> Tensor(a!)"
+    // device=None, bool? pin_memory=None) -> Tensor"
+
+    // "aten::linspace.out(Scalar start, Scalar end, int steps, *, Tensor(a!) out) -> Tensor(a!)"
     auto start = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), element::f32));
     auto end = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::f32));
     auto steps = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::f32));
