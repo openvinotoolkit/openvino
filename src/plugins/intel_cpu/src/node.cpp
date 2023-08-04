@@ -865,27 +865,19 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
-MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         IE_THROW() << "Weight input is not const for node " << getName() << ".";
     auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
     if (!edgeMem)
         IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
 
-    auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
-    auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-    return prepareWeightMemory(newSrcDesc, weightDesc);
-}
-
-MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr srcWeightDesc, DnnlMemoryDescPtr dstWeightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
-    if (!edgeMem)
-        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+    if (!srcWeightDesc) {
+        auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+        auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+        weightSrcDesc = weightSrcDesc.reshape(dstWeightDesc->getDnnlDesc().get_dims());
+        srcWeightDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+    }
 
     auto create = [&] () {
         Memory srcMemory{ getEngine(), srcWeightDesc, edgeMem->getData() };

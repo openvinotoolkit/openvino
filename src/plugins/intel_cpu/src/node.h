@@ -652,8 +652,7 @@ protected:
     void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr srcWeightDesc, DnnlMemoryDescPtr dstWeightDesc);
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
 
     bool isDynamic = false;
 

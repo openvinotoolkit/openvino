@@ -294,14 +294,12 @@ void FullyConnected::prepackMLASWeight() {
         MemoryPtr ptr;
         auto create = [&]() {
             float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
-            // todo: leave comment about transposeWeights
-            size_t ldb = transposeWeights ? N : K;
+            size_t ldb = weightsNonTransposed ? N : K;
             MemoryPtr _ptr =
                 std::make_shared<Memory>(getEngine(),
                                          intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
             float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
-            // todo: leave detailed comment (double transpose = do nothing)
-            mlas_sgemm_pack(transposeWeights ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
+            mlas_sgemm_pack(weightsNonTransposed ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
 
@@ -318,7 +316,7 @@ void FullyConnected::prepackMLASWeight() {
         return ptr;
     };
     const auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
-    // Weight is transpoed by MatMulConstTransposesExtraction
+    // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
     // the weight is reshaped to [-1, K] in ConvertMatMulToFC
     K = wgtDims[1];
@@ -472,8 +470,8 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            if (transposeWeights) {
-                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(makeTransposedWeightDescriptor(), execPtr->getWeightDesc())->getPrimitive();
+            if (weightsNonTransposed) {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), makeTransposedWeightDescriptor())->getPrimitive();
             } else {
                 primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
             }

@@ -38,8 +38,8 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
-    void setFakeTranspose(bool fake) {
-        fakeTranspose = fake;
+    void setOptimized(bool isOptimized) {
+        this->isOptimized = isOptimized;
     }
 
 protected:
@@ -60,7 +60,7 @@ private:
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
 
     bool performAsReorder = false;
-    bool fakeTranspose = false;
+    bool isOptimized = false;
 };
 
 }   // namespace node

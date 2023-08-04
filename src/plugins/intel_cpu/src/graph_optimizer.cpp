@@ -847,9 +847,9 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     for (auto parent : graphNodes) {
         if (isSuitablePattern(parent)) {
             auto fcNode = std::dynamic_pointer_cast<FullyConnected>(parent->getChildEdgeAt(0)->getChild());
-            fcNode->setTransposeWeights(true);
+            fcNode->keepWeightsNonTransposed(true);
             auto transposeNode = std::dynamic_pointer_cast<Transpose>(parent);
-            transposeNode->setFakeTranspose(true);
+            transposeNode->setOptimized(true);
         }
     }
 }
