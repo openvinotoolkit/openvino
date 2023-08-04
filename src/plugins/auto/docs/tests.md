@@ -259,4 +259,68 @@ openvino/bin/intel64/Release$ ./benchark_app -m openvino/src/core/tests/models/i
 [ INFO ] Throughput:          1396.29 FPS
 ```
 
-### Enable/Disable runtime fallback when fails on device
+### Device selection fallback of the AUTO
+
+This section will show the fallback of device selection within the AUTO plugin if the device with high priority doesn't support the precision of the inputting model. For example, CPU supports both FP16 and FP32 precision model, while GNA doesn't FP32 precision. Although GNA has higher priority, AUTO plugin will ultimately choose the CPU plugin to load model with FP32 precision.  
+
+AUTO will select GNA if no device is specified in the device candidate list of AUTO.
+
+```bash
+./benchmark_app -m add_abc.xml -d AUTO:GNA -t 10
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] AUTO
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+[ INFO ] 
+[ INFO ] GNA
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+...
+[ INFO ]   GNA: 
+[ INFO ]     OPTIMIZATION_CAPABILITIES: INT16 INT8 EXPORT_IMPORT
+...
+[Step 11/11] Dumping statistics report
+[ INFO ] Execution Devices: [ GNA ]
+...
+[ INFO ] Latency:
+[ INFO ]    Median:           0.01 ms
+[ INFO ]    Average:          0.01 ms
+[ INFO ]    Min:              0.01 ms
+[ INFO ]    Max:              0.20 ms
+[ INFO ] Throughput:          69131.99 FPS
+```
+
+Device selection fallback will happen here as GNA doesn't support FP32 precision model.
+
+```bash
+./benchmark_app -m add_abc.xml -d AUTO:GNA,CPU -t 10
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] AUTO
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+[ INFO ] 
+[ INFO ] CPU
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+[ INFO ] 
+[ INFO ] GNA
+[ INFO ] Build ................................. <OpenVINO version>-<Branch name>
+...
+[Step 11/11] Dumping statistics report
+[ INFO ] Execution Devices: [ CPU ]
+...
+[ INFO ] Latency:
+[ INFO ]    Median:           8.90 ms
+[ INFO ]    Average:          8.95 ms
+[ INFO ]    Min:              5.16 ms
+[ INFO ]    Max:              32.78 ms
+[ INFO ] Throughput:          446.08 FPS
+```

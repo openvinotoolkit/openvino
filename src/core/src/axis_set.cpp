@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/axis_set.hpp"
+#include "openvino/core/axis_set.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 ov::AxisSet::AxisSet() : std::set<size_t>() {}
 
@@ -32,9 +32,7 @@ std::vector<int64_t> ov::AxisSet::to_vector() const {
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisSet& axis_set) {
     s << "AxisSet{";
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    s << ngraph::join(axis_set);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    s << ov::util::join(axis_set);
     s << "}";
     return s;
 }

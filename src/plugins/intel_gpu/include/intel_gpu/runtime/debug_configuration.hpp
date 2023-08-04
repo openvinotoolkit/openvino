@@ -114,6 +114,7 @@ public:
     int dump_layers_limit_batch;                    // Limit the size of batch to dump
     int dump_layers_raw;                            // Dump raw data.
     int dump_layers_binary;                         // Dump binary data.
+    int dump_runtime_memory_pool;                   // Dump memory pool status at each iteration
     int base_batch_for_memory_estimation;           // Base batch size to be used in memory estimation
     std::vector<std::string> after_proc;            // Start inference after the listed processes
     int serialize_compile;                          // Serialize creating primitives and compiling kernels
@@ -122,7 +123,9 @@ public:
     int disable_async_compilation;                  // Disable async compilation
     int disable_dynamic_impl;                       // Disable dynamic implementation
     int disable_runtime_buffer_fusing;              // Disable runtime buffer fusing
-    int disable_memory_reuse;                   // Disable memmory reuse among layers
+    int disable_memory_reuse;                       // Disable memmory reuse among layers
+    int disable_build_time_weight_reorder_for_dynamic_nodes; // Disable build time weight reordering for dynamic nodes
+    int disable_runtime_skip_reorder;               // Disable runtime skip reorder
     std::set<int64_t> dump_iteration;               // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;  // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();

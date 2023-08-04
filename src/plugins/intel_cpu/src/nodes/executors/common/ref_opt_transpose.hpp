@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../transpose.hpp"
+#include "nodes/executors/transpose.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {

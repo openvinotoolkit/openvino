@@ -151,6 +151,7 @@ public:
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
     bool is_loop_body() const { return is_body_program; }
+    bool is_internal_program() const { return is_internal; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
@@ -278,6 +279,7 @@ private:
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
+    bool is_internal;
     bool is_body_program;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
