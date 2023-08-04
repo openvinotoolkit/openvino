@@ -29,8 +29,8 @@ public:
         SizeVector inputShapeA = supportedInputShapes.first; SizeVector inputShapeB = supportedInputShapes.second;
 
         std::ostringstream result;
-        result << "IS_A=" << CommonTestUtils::vec2str(inputShapeA) << "_";
-        result << "IS_B=" << CommonTestUtils::vec2str(inputShapeB) << "_";
+        result << "IS_A=" << ov::test::utils::vec2str(inputShapeA) << "_";
+        result << "IS_B=" << ov::test::utils::vec2str(inputShapeB) << "_";
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
@@ -38,7 +38,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::pair<SizeVector, SizeVector> inShapes;
         fusingSpecificParams fusingParams;
         std::tie(inShapes, fusingParams) = this->GetParam();

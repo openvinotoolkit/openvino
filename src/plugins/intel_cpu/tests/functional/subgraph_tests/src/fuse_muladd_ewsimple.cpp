@@ -18,14 +18,14 @@ std::string FuseMulAddAndEwSimpleTest::getTestCaseName(testing::TestParamInfo<Fu
     Precision inPrec;
     std::tie(inputShape, inPrec) = obj.param;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "Precision=" << inPrec.name();
 
     return result.str();
 }
 
 void FuseMulAddAndEwSimpleTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();

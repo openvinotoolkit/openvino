@@ -41,13 +41,13 @@ public:
     using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
     Graph(InferenceEngine::CNNNetwork& network,
-          RemoteContextImpl::Ptr context,
+          const RemoteContextImpl::Ptr& context,
           const ExecutionConfig& config,
           uint16_t stream_id = 0,
           InferenceEngine::InputsDataMap* inputs = nullptr,
           InferenceEngine::OutputsDataMap* outputs = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib,
-          RemoteContextImpl::Ptr context,
+          const RemoteContextImpl::Ptr& context,
           const ExecutionConfig& config,
           uint16_t stream_id = 0,
           InferenceEngine::InputsDataMap* inputs = nullptr,

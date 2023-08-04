@@ -51,7 +51,7 @@ const auto testCase_yolov3 = ::testing::Combine(
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov3_mxnet = ::testing::Combine(
@@ -64,7 +64,7 @@ const auto testCase_yolov3_mxnet = ::testing::Combine(
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov2_caffe = ::testing::Combine(
@@ -77,7 +77,7 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
     ::testing::Values(start_axis),
     ::testing::Values(end_axis),
     ::testing::Values(InferenceEngine::Precision::FP32),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3, RegionYoloLayerTest, testCase_yolov3, RegionYoloLayerTest::getTestCaseName);

@@ -3,13 +3,12 @@
 //
 
 #pragma once
-
 #include <gtest/gtest.h>
 
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
-#include "utils/shape_inference/shape_inference.hpp"
-#include "utils/shape_inference/static_shape.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/static_shape.hpp"
 
 using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 namespace ov {
@@ -38,20 +37,15 @@ void shape_inference(ov::Node* op,
     output_shapes = std::move(*result);
 }
 
-}  // namespace intel_cpu
-
-namespace test {
-namespace utils {
 template <class T = std::unordered_map<size_t, Tensor>>
 ShapeVector shape_inference(ov::Node* op, const ShapeVector& input_shapes, const T& constant_data = T{}) {
-    const auto in_shapes = intel_cpu::make_static_shape_refs(input_shapes);
-    const auto shape_infer = intel_cpu::make_shape_inference(op->shared_from_this());
+    const auto in_shapes = make_static_shape_refs(input_shapes);
+    const auto shape_infer = make_shape_inference(op->shared_from_this());
     auto result = shape_infer->infer(in_shapes, make_tensor_accessor(constant_data));
     OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
     return *result;
 }
-}  // namespace utils
-}  // namespace test
+}  // namespace intel_cpu
 }  // namespace ov
 
 struct TestTensor {

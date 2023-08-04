@@ -85,7 +85,7 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
 
     json_composite space_to_depth_info;
     space_to_depth_info.add("input id", input.id());
-    space_to_depth_info.add("mode", depth_mode);
+    space_to_depth_info.add("mode", std::move(depth_mode));
     space_to_depth_info.add("block size", desc->block_size);
 
     node_info->add("space_to_depth info", space_to_depth_info);

@@ -19,6 +19,7 @@ using namespace std;
 
 namespace ov {
 namespace op {
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshape {
 namespace {
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {

@@ -15,27 +15,26 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "engines_util/execute_tools.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
+#include "onnx_utils.hpp"
 
 using namespace ngraph;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 static std::string s_manifest = "${MANIFEST}";
-static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
+static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_reduced_dims.onnx"));
 
@@ -49,14 +48,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reduced_dims) {
                                                     {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 12}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_reordered_dims.onnx"));
 
@@ -72,14 +71,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_reordered_dims) {
                                                     {{18, 19, 20}, {21, 22, 23}}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{4, 2, 3}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_extended_dims.onnx"));
 
@@ -94,14 +93,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_extended_dims) {
                                                     {{{16, 17}, {18, 19}}, {{20, 21}, {22, 23}}}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{3, 2, 2, 2}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_single_dim.onnx"));
 
@@ -115,7 +114,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
         test::NDArray<float, 1>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{24}, expected_output);
     test_case.run();
@@ -123,7 +122,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_single_dim) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
     // the model contains the target shape in the initializers: [2, -1, 2]
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/reshape_negative_dim.onnx"));
 
@@ -153,14 +152,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_dim) {
                                                      {0.46147937f, 0.7805292f}}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_negative_with_zero_dims.onnx"));
 
@@ -174,14 +173,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_negative_with_zero_dim) {
                                                     {{12, 13}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 23}}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/reshape_output_shape_as_input.onnx"));
 
@@ -195,7 +194,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
                                                     {{12, 13}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 23}}})
                                .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{2, 3, 4}, input);
     test_case.add_expected_output(Shape{2, 6, 2}, expected_output);
     test_case.run();
@@ -203,7 +202,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reshape_output_shape_as_input) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0.f);
@@ -212,7 +211,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
                                        21.f, 29.f, 6.f,  14.f, 7.f,  15.f, 22.f, 30.f, 23.f, 31.f};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -220,7 +219,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/depth_to_space_v1.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0.f);
@@ -229,14 +228,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_v1) {
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
                                        21.f, 29.f, 6.f,  14.f, 7.f,  15.f, 22.f, 30.f, 23.f, 31.f};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/depth_to_space_crd.onnx"));
 
@@ -247,7 +246,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
                                        7.f,  10.f, 14.f, 11.f, 15.f, 16.f, 20.f, 17.f, 21.f, 24.f, 28.f,
                                        25.f, 29.f, 18.f, 22.f, 19.f, 23.f, 26.f, 30.f, 27.f, 31.f};
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -256,7 +255,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/depth_to_space_bad_blocksize.onnx")),
                  std::runtime_error);
@@ -264,7 +263,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
     // This model fails to import since it lacks of required parameter `blocksize`.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/depth_to_space_no_blocksize.onnx")),
                  std::runtime_error);
@@ -272,7 +271,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/depth_to_space_bad_mode.onnx"));
         FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
@@ -286,7 +285,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/depth_to_space_bad_input_shape.onnx"));
         FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
@@ -300,7 +299,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
 
     std::vector<float> input(32);
     std::iota(input.begin(), input.end(), 0.f);
@@ -310,7 +309,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
         4.f, 6.f, 12.f, 14.f, 20.f, 22.f, 28.f, 30.f, 5.f, 7.f, 13.f, 15.f, 21.f, 23.f, 29.f, 31.f,
     };
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -318,7 +317,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
     try {
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/space_to_depth_invalid_input_shape.onnx"));
         FAIL() << "Expected ngraph_error exception, but no exception was thrown";
@@ -334,7 +333,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
     // This model fails to import since the depth channel length must be a multiple of the
     // `blocksize` attribute value.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/space_to_depth_bad_blocksize.onnx")),
                  std::runtime_error);
@@ -342,7 +341,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
     // This model fails to import since it lacks of required `blocksize` attribute.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                      SERIALIZED_ZOO,
                                                                      "onnx/space_to_depth_no_blocksize.onnx")),
                  std::runtime_error);
@@ -350,7 +349,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/squeeze.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/squeeze.onnx"));
 
     // {1, 4, 1, 1, 2}
     auto input = test::NDArray<float, 5>({{{{{1.0f, 2.0f}}}, {{{3.0f, 4.0f}}}, {{{5.0f, 6.0f}}}, {{{7.0f, 8.0f}}}}})
@@ -360,18 +359,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze) {
     auto expected_output =
         test::NDArray<float, 2>({{1.0f, 2.0f}, {3.0f, 4.0f}, {5.0f, 6.0f}, {7.0f, 8.0f}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(Shape{1, 4, 1, 1, 2}, input);
     test_case.add_expected_output(Shape{4, 2}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/squeeze_empty_axes_attribute.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
     test_case.add_expected_output<float>(Shape{4, 2}, data);
@@ -379,11 +378,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_empty_axes_attribute) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/squeeze_opset13_no_axes.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     const std::vector<float> data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     test_case.add_input<float>(Shape{1, 4, 1, 1, 2}, data);
     test_case.add_expected_output<float>(Shape{4, 2}, data);
@@ -392,7 +391,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
 
     auto input = test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
                                           {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
@@ -405,14 +404,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze) {
                                   {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/unsqueeze_negative_axes.onnx"));
 
@@ -427,7 +426,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
                                   {{{-0.05270234f, 0.7113202f, -0.45783648f, -1.3378475f, 0.26926285f}}}}})
             .get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -435,7 +434,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/concat.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/concat.onnx"));
 
     Inputs inputs;
 
@@ -444,14 +443,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat) {
 
     auto expected_output = test::NDArray<float, 1>({1, 2, 3, 4}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/concat_negative_axis.onnx"));
 
@@ -462,20 +461,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis) {
 
     auto expected_output = test::NDArray<float, 2>({{1, 2}, {3, 4}, {5, 6}, {7, 8}}).get_vector();
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/split_equal_parts_default.onnx"));
 
     Inputs inputs{{1, 2, 3, 4, 5, 6}};
     Outputs expected_outputs{{1, 2}, {3, 4}, {5, 6}};
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_multiple_inputs(inputs);
 
     for (std::size_t i = 0; i < expected_outputs.size(); ++i) {
@@ -486,11 +485,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
     // Split into 2 equal parts along axis=1
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/split_equal_parts_2d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_expected_output<float>({0, 1, 2, 6, 7, 8});
     test_case.add_expected_output<float>({3, 4, 5, 9, 10, 11});
@@ -499,11 +498,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_2d) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
     // Split into variable parts {2, 4} along axis=1
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/split_variable_parts_2d.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     test_case.add_input<float>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
     test_case.add_expected_output<float>({0, 1, 6, 7});
     test_case.add_expected_output<float>({2, 3, 4, 5, 8, 9, 10, 11});
@@ -511,11 +510,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_split_variable_parts_2d) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_static_shape) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/expand_static_shape.onnx"));
 
-    auto test_case = test::TestCase(function, s_device);
+    auto test_case = ov::test::TestCase(function, s_device);
     // input data shape (3,1)
     test_case.add_input(std::vector<float>{1, 2, 3});
 

@@ -43,6 +43,7 @@ shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Mish>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace mish {
 namespace {
 template <element::Type_t ET>

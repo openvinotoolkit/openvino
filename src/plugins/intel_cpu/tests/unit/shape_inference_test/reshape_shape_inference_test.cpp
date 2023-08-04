@@ -22,7 +22,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, default_ctor_no_args) {
     auto const_data = std::unordered_map<size_t, ov::Tensor>{{1, Tensor(element::i64, ov::Shape{5}, shape_pattern)}};
     input_shapes = ShapeVector{{2, 9, 12, 8}, {5}};
 
-    output_shapes = test::utils::shape_inference(op.get(), input_shapes, const_data);
+    output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 4, 12, 1, 18}));
@@ -37,7 +37,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, all_inputs_are_dynamic_rank) {
     op = make_op(data, pattern, true);
 
     input_shapes = ShapeVector{{9, 24, 8}, {5}};
-    output_shapes = test::utils::shape_inference(op.get(), input_shapes, const_data);
+    output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 4, 8, 1, 27}));
@@ -52,7 +52,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, all_inputs_are_static_rank) {
     op = make_op(data, pattern, false);
 
     input_shapes = ShapeVector{{9, 24, 8}, {4}};
-    output_shapes = test::utils::shape_inference(op.get(), input_shapes, const_data);
+    output_shapes = shape_inference(op.get(), input_shapes, const_data);
 
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 4, 1, 216}));
@@ -65,7 +65,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, pattern_with_special_values) {
     op = make_op(data, pattern, true);
 
     input_shapes = ShapeVector{{3, 6, 5, 5}, {2}};
-    output_shapes = test::utils::shape_inference(op.get(), input_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.front(), StaticShape({3, 150}));
 }
@@ -77,7 +77,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, reshape_to_empty_volume) {
     op = make_op(data, pattern, false);
 
     input_shapes = ShapeVector{{0, 2, 2}, {2}};
-    output_shapes = test::utils::shape_inference(op.get(), input_shapes);
+    output_shapes = shape_inference(op.get(), input_shapes);
 
     EXPECT_EQ(output_shapes.front(), StaticShape({0, 4}));
 }
@@ -88,7 +88,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, reshape_pattern_not_defined) {
     op = make_op(data, pattern, true);
 
     input_shapes = ShapeVector{{9, 24, 8}, {5}};
-    OV_EXPECT_THROW(std::ignore = test::utils::shape_inference(op.get(), input_shapes),
+    OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("Static shape inference lacks constant data on port 1"));
 }
@@ -99,7 +99,7 @@ TEST_F(ReshapeV1StaticShapeInferenceTest, shape_pattern_as_constant) {
     op = make_op(data, pattern, false);
 
     input_shapes = ShapeVector{{9, 24, 8}, {4}};
-    OV_EXPECT_THROW(std::ignore = test::utils::shape_inference(op.get(), input_shapes),
+    OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     HasSubstr("is incompatible with input shape"));
 }
