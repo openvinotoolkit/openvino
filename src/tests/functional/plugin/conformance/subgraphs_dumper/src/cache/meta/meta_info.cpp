@@ -129,11 +129,11 @@ void MetaInfo::update(const std::string& _model_path,
     }
 }
 
-std::map<std::string, InputInfo> MetaInfo::get_input_info() {
+std::map<std::string, InputInfo> MetaInfo::get_input_info() const {
     return input_info;
 }
 
-std::map<std::string, ModelInfo> MetaInfo::get_model_info() {
+std::map<std::string, ModelInfo> MetaInfo::get_model_info() const {
     return model_info;
 }
 

@@ -16,7 +16,9 @@ public:
     explicit ExtractorsManager(const ExtractorsMap& extractors = {}) : m_extractors(extractors) {}
 
     bool match(const std::shared_ptr<ov::Model> &model,
-               const std::shared_ptr<ov::Model> &ref);
+               const std::shared_ptr<ov::Model> &ref,
+               std::map<std::string, InputInfo> &in_info,
+               const std::map<std::string, InputInfo> &in_info_ref);
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
                                         bool is_extract_body = true);
 
@@ -25,6 +27,13 @@ public:
 
 protected:
     ExtractorsMap m_extractors = {};
+
+    std::map<std::string, InputInfo> align_input_info(const std::shared_ptr<ov::Model>& model,
+                                                      const std::shared_ptr<ov::Model>& model_ref,
+                                                      const std::map<std::string, InputInfo> &in_info,
+                                                      const std::map<std::string, InputInfo> &in_info_ref);
+    bool match(const std::shared_ptr<ov::Model> &model,
+               const std::shared_ptr<ov::Model> &ref);
 };
 
 }  // namespace subgraph_dumper
