@@ -10,10 +10,7 @@
 
 using namespace ov::hetero;
 
-Configuration::Configuration()
-    : dump_graph(false),
-      exclusive_async_requests(true),
-      device_properties({ov::internal::exclusive_async_requests(exclusive_async_requests)}) {}
+Configuration::Configuration() : dump_graph(false) {}
 
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -27,10 +24,6 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             dump_graph = value.as<bool>();
         } else if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
-        } else if (ov::internal::exclusive_async_requests == key) {
-            exclusive_async_requests = value.as<bool>();
-            // property should be passed to underlying devices as part of `get_device_properties()`
-            device_properties.emplace(key, value);
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -46,8 +39,6 @@ ov::Any Configuration::get(const std::string& name) const {
         return {dump_graph};
     } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities) {
         return {device_priorities};
-    } else if (name == ov::internal::exclusive_async_requests) {
-        return {exclusive_async_requests};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
@@ -58,8 +49,7 @@ std::vector<ov::PropertyName> Configuration::get_supported() const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     static const std::vector<ov::PropertyName> names = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                         "TARGET_FALLBACK",
-                                                        ov::device::priorities,
-                                                        ov::internal::exclusive_async_requests};
+                                                        ov::device::priorities};
     return names;
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
@@ -68,8 +58,7 @@ ov::AnyMap Configuration::get_hetero_properties() const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     return {{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
             {"TARGET_FALLBACK", device_priorities},
-            {ov::device::priorities.name(), device_priorities},
-            {ov::internal::exclusive_async_requests.name(), exclusive_async_requests}};
+            {ov::device::priorities.name(), device_priorities}};
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 

@@ -11,8 +11,8 @@
 namespace ov {
 namespace op {
 
-template <class TShape>
-std::vector<TShape> shape_infer(const util::ScatterNDBase* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::ScatterNDBase* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
     const auto& inputs_shape = input_shapes[util::ScatterNDBase::INPUTS];
     const auto& indices_shape = input_shapes[util::ScatterNDBase::INDICES];
@@ -64,13 +64,6 @@ std::vector<TShape> shape_infer(const util::ScatterNDBase* op, const std::vector
     }
 
     return {inputs_shape};
-}
-
-template <class TShape>
-void shape_infer(const util::ScatterNDBase* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace op
 }  // namespace ov

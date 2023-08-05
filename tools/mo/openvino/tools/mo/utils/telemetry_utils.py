@@ -16,12 +16,13 @@ from openvino.tools.mo.utils.utils import check_values_equal
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 
-def init_mo_telemetry():
-    _ = tm.Telemetry(tid=get_tid(), app_name='Model Conversion API', app_version=get_rt_version(), backend='ga4')
+def init_mo_telemetry(app_name='Model Optimizer'):
+    return tm.Telemetry(tid=get_tid(), app_name=app_name, app_version=get_rt_version(), backend='ga4')
 
 
 def send_framework_info(framework: str):

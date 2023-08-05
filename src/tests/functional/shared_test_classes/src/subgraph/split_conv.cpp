@@ -21,8 +21,8 @@ std::string SplitConvTest::getTestCaseName(const testing::TestParamInfo<SplitCon
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";
@@ -39,7 +39,7 @@ InferenceEngine::Blob::Ptr SplitConvTest::GenerateInput(const InferenceEngine::I
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -2.0f, 2.0f);
+    std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -2.0f, 2.0f);
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = values[i];
     }
@@ -72,7 +72,7 @@ void SplitConvTest::SetUp() {
     auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(relu2, reshapePattern1, false);
 
-    auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
+    auto filterWeights = ov::test::utils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
     auto conv = ngraph::builder::makeConvolution(reshape1,
                                                  ngPrc,

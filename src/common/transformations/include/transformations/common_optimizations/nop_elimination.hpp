@@ -20,6 +20,8 @@ class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateSplitConcat;
 class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
+class TRANSFORMATIONS_API EliminateNopBroadcast;
+class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
 class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
@@ -129,4 +131,26 @@ class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateSplitConcat", "0");
     EliminateSplitConcat();
+};
+
+/**
+ * @ingroup ie_transformation_comm on_api
+ * @brief EliminateNopBroadcast eliminates broadcast or tile with all ones on the second input
+ */
+class ov::pass::EliminateNopBroadcast : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateNopBroadcast", "0");
+    EliminateNopBroadcast();
+};
+
+/**
+ * @ingroup ie_transformation_comm on_api
+ * @brief NopSliceBeforeGatherElements eliminates slice before GElements if slicing from 0
+ * It is valid since GatherElements doesn't support negative indices and Slice won't affect
+ * indexing of elements in the original tensor that GatherElements would like to take
+ */
+class ov::pass::NopSliceBeforeGatherElements : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopSliceBeforeGatherElements", "0");
+    NopSliceBeforeGatherElements();
 };

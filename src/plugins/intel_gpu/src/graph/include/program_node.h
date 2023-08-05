@@ -56,7 +56,6 @@ struct program_node {
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
-    friend class post_optimize_weights;             // to be removed when possible - requires an access to selected_impl
 
     template <class PType>
     friend struct typed_program_node;
@@ -104,7 +103,7 @@ public:
     bool is_fused_dep(size_t dep_idx) const;
 
     bool has_fused_dep() const {
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return true;
         }
@@ -114,7 +113,7 @@ public:
     int32_t get_first_fused_dep_idx() const {
         if (!has_fused_dep())
             return -1;
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return fused.outer_dep_start_idx;
         }
@@ -195,9 +194,11 @@ public:
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
     void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 

@@ -33,8 +33,8 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        memory_1_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
-        memory_2_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
+        memory_1_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
+        memory_2_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
 
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 
@@ -47,7 +47,7 @@ namespace SubgraphTestsDefinitions {
         auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
 
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
-                                                                CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
+                                                                ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
         auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
         auto mem_1_write = std::make_shared<ngraph::opset3::Assign>(mul, "memory_1");
 
@@ -78,8 +78,8 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        memory_1_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
-        memory_2_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
+        memory_1_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
+        memory_2_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
 
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 
@@ -88,7 +88,7 @@ namespace SubgraphTestsDefinitions {
         auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
 
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
-                                                                CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
+                                                                ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
         auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
         auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);

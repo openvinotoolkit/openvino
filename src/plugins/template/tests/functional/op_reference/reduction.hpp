@@ -41,7 +41,7 @@ public:
         result << "reductionType=" << param.reductionType << "_";
         result << "dataType=" << param.data.type << "_";
         result << "dataShape=" << param.data.shape << "_";
-        result << "axes=" << CommonTestUtils::vec2str(param.reductionAxes);
+        result << "axes=" << ov::test::utils::vec2str(param.reductionAxes);
         if (param.keepDimensions) {
             result << "_keepDims";
         }

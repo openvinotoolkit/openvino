@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -45,11 +44,11 @@ class typed_primitive_inst;
 */
 struct primitive_impl {
     primitive_impl() = default;
-    explicit primitive_impl(std::shared_ptr<WeightsReorderParams> params, std::string kernel_name = "", bool is_dynamic = false)
+    explicit primitive_impl(const std::shared_ptr<WeightsReorderParams>& params, std::string kernel_name = "", bool is_dynamic = false)
         : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {
     }
     explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
-        primitive_impl(nullptr, kernel_name, is_dynamic) {}
+        primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
@@ -99,7 +98,6 @@ struct primitive_impl {
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
-    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
@@ -159,7 +157,7 @@ public:
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
+    virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
     std::vector<std::shared_ptr<primitive_inst>> get_user_insts() const {
@@ -212,6 +210,7 @@ public:
     void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
+    void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
     void configure_shape_of_dependencies();
 
@@ -232,12 +231,13 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
+    bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
             bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
-    std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
     virtual void save(cldnn::BinaryOutputBuffer& ob) const;
     virtual void load(cldnn::BinaryInputBuffer& ib);
@@ -308,7 +308,7 @@ protected:
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
 
-    std::vector<memory::cptr> _intermediates_memory;
+    std::vector<memory::ptr> _intermediates_memory;
 
     mutable LruCache<layout, memory::ptr, layout::Hasher> _reordered_weights_cache;
 
@@ -502,7 +502,7 @@ protected:
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
-        _outputs[0] = buffer;
+        _outputs[0] = std::move(buffer);
     }
 
 private:

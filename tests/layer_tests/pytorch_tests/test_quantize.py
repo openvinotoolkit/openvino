@@ -48,27 +48,37 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
             reason="Not supported with FakeQuantize."))
     ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - sporadic issue
+    @pytest.mark.precommit
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
 
 class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (np.array(5.00 * np.random.rand(5, 6, 7, 8) + 5.00, dtype=np.float32),)
 
-    @pytest.mark.parametrize("scales", [ 
-        np.array([1.0, 0.21, 0.62, 0.5], dtype=np.float32),
-        np.array([0.21, 0.62, 0.5, 1.0], dtype=np.float32),
-        np.array([0.62, 0.5, 1.0, 0.21], dtype=np.float32),
-        np.array([0.5, 1.0, 0.21, 0.62], dtype=np.float32),
-    ])
-    @pytest.mark.parametrize("zero_points", [
-        np.array([0, 4, 2, 1], dtype=np.int32),
-        np.array([0, 1, 2, 3], dtype=np.int32),
-        np.array([0, 0, 0, 0], dtype=np.int32),
-        np.array([-1, 0, -4, 5], dtype=np.int32),
+    @pytest.mark.parametrize("scale, zero_point, axis", [ 
+        [
+            np.array([1.0, 0.21, 0.62, 0.5, 0.74], dtype=np.float32),
+            np.array([0, -1, 2, -3, 4], dtype=np.int32),
+            0
+        ],
+        [
+            np.array([1.0, 0.62, 0.74, 0.11, 0.89, 0.32], dtype=np.float32),
+            np.array([0, 2, 4, -5, 6, -7], dtype=np.int32),
+            1
+        ],
+        pytest.param(
+            np.array([1.0, 0.21, 0.62, 0.5, 0.11, 0.89, 0.32], dtype=np.float32),
+            np.array([0, -1, 2, -3, 4, -5, -7], dtype=np.int32),
+            2, 
+            marks=pytest.mark.skip(reason="Axis = 2 not supported in FakeQuantize.")),
+        [
+            np.array([1.0, 0.21, 0.62, 0.5, 0.74, 0.11, 0.89, 0.32], dtype=np.float32),
+            np.array([0, -1, 2, -3, 4, -5, 6, -7], dtype=np.int32),
+            3
+        ],
     ])
     @pytest.mark.parametrize("dtype", [
         torch.quint8,
@@ -76,12 +86,10 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
         pytest.param(torch.qint32, marks=pytest.mark.skip(
             reason="Not supported with FakeQuantize."))
     ])
-    @pytest.mark.parametrize("axis", [
-        0, 1, 2, 3
-    ])
     @pytest.mark.nightly
-    # @pytest.mark.precommit - conversion issue
-    def test_quantize_per_channel_dequantize(self, scales, zero_points, dtype, axis, ie_device, precision, ir_version):
-        if dtype == torch.quint8: zero_points = abs(zero_points)
-        self._test(aten_quantize_per_channel_aten_dequantize(scales, zero_points, dtype, axis), None, ["aten::quantize_per_channel", "aten::dequantize"], 
-                ie_device, precision, ir_version, )
+    @pytest.mark.precommit
+    def test_quantize_per_channel_dequantize(self, scale, zero_point, dtype, axis, ie_device, precision, ir_version):
+        np.random.shuffle(scale), np.random.shuffle(zero_point)
+        if dtype == torch.quint8: zero_point = abs(zero_point)
+        self._test(aten_quantize_per_channel_aten_dequantize(scale, zero_point, dtype, axis), None, ["aten::quantize_per_channel", "aten::dequantize"], 
+                ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)

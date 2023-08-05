@@ -64,10 +64,10 @@ class TagFilter(log.Filter):
         return True  # if regex wasn't set print all logs
 
 
-def init_logger(lvl: str, silent: bool):
+def init_logger(lvl: str, verbose: bool):
     global handler_num
     log_exp = os.environ.get('MO_LOG_PATTERN')
-    if silent:
+    if not verbose:
         lvl = 'ERROR'
     fmt = LvlFormatter(lvl=lvl)
     handler = log.StreamHandler()
@@ -89,72 +89,3 @@ def restore_logger_state(state: tuple):
     logger.setLevel(level)
     logger.filters = filters
     logger.handlers = handlers
-
-
-def progress_bar(function: callable):
-    """
-    Decorator for model conversion pipeline progress display
-    Works in combination with function: mo.utils.class_registration.apply_transform
-    """
-
-    def wrapper(*args, **kwargs):
-        for arg in ['graph', 'curr_transform_num', 'num_transforms']:
-            msg = 'Progress bar decorator is enabled for Model Conversion API transformation applying cycle only. ' \
-                  'Argument `{}` {}'
-
-            assert arg in kwargs, msg.format(arg, 'is missing')
-            assert kwargs[arg] is not None, msg.format(arg, 'should not be None')
-
-        if 'progress' in kwargs['graph'].graph['cmd_params'] and kwargs['graph'].graph['cmd_params'].progress:
-            bar_len = 20
-            total_replacers_count = kwargs['num_transforms']
-
-            def progress(i):
-                return int((i + 1) / total_replacers_count * bar_len)
-
-            def percent(i):
-                return (i + 1) / total_replacers_count * 100
-
-            end = '' if not kwargs['graph'].graph['cmd_params'].stream_output else '\n'
-            curr_i = kwargs['curr_transform_num']
-            print('\rProgress: [{:{}}]{:>7.2f}% done'.format('.' * progress(curr_i), bar_len, percent(curr_i)), end=end)
-
-            sys.stdout.flush()
-
-        function(*args, **kwargs)
-
-    return wrapper
-
-def progress_printer(argv: Namespace):
-    """
-    A higher-order factory function returning a configurable callback displaying a progress bar
-    Depending on the configuration stored in 'argv' the progress bar can be one-line, multi-line, or silent.
-    """
-    def _progress_bar(progress, total, completed, endline):
-        bar_len = 20
-
-        def dots():
-            return '.' * int(progress * bar_len)
-
-        print('\rProgress: [{:{}}]{:>7.2f}% done'.format(dots(), bar_len, progress*100), end=endline)
-        sys.stdout.flush()
-
-    def no_progress_bar(progress, total, completed):
-        """ A 'dummy' progressbar which doesn't print anything """
-        pass
-
-    def oneline_progress_bar(progress, total, completed):
-        """ A callback that always prints the progress in the same line (mimics real GUI progress bar)"""
-        _progress_bar(progress, total, completed, '')
-
-    def newline_progress_bar(progress, total, completed):
-        """ A callback that prints an updated progress bar in separate lines """
-        _progress_bar(progress, total, completed, '\n')
-
-    if "progress" in argv and argv.progress:
-        if "stream_output" in argv and argv.stream_output:
-            return newline_progress_bar
-        else:
-            return oneline_progress_bar
-    else:
-        return no_progress_bar

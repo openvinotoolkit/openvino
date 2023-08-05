@@ -24,7 +24,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
                              ::testing::Values(ov::element::f32),
                              ::testing::Values(1), // Add
                              ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Add::getTestCaseName);
 // test cross-tile (vector vs scalar) optimizations in the absence of vector tile
 std::vector<std::vector<ov::Shape>> inShapesStatic{
@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          AddPair::getTestCaseName);
 
 } // namespace snippets_static_1
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddConst,
                 ::testing::Values(ov::element::f32),
                 ::testing::Values(1), // Add
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddConst::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddRollConst,
                 ::testing::Values(ov::element::f32),
                 ::testing::Values(2), // Add + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddRollConst::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_BF16, AddRollConst,
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_BF16, AddRollConst,
                 ::testing::Values(ov::element::bf16),
                 ::testing::Values(3), // Add + reorder + roll after inputs
                 ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         AddRollConst::getTestCaseName);
 }  // namespace
 } // namespace snippets

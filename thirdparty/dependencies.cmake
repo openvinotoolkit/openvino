@@ -364,7 +364,9 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     if(ENABLE_SYSTEM_PROTOBUF)
         # Note: Debian / Ubuntu / RHEL libprotobuf.a can only be used with -DBUILD_SHARED_LIBS=OFF
         # because they are compiled without -fPIC
-        set(Protobuf_USE_STATIC_LIBS ON)
+        if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
+            set(Protobuf_USE_STATIC_LIBS ON)
+        endif()
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
@@ -525,14 +527,14 @@ endif()
 #
 
 if(ENABLE_SAMPLES)
-    # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+    # Note: VPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         # conan and vcpkg create imported target nlohmann_json::nlohmann_json
     else()
         add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of VPUX plugin reused this
+        # this is required only because of VPU plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
         # for nlohmann library versions older than v3.0.0

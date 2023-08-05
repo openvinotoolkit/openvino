@@ -9,7 +9,9 @@
 #include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace common {
@@ -183,3 +185,4 @@ std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& par
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

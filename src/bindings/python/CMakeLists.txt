@@ -192,6 +192,10 @@ endif()
 # Build the code
 #
 
+# TODO: find a real root cause and remove this workaround
+# or localize it to the specific place of the code
+add_definitions(-DPYBIND11_NO_ASSERT_GIL_HELD_INCREF_DECREF)
+
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
@@ -341,7 +345,7 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_target(_python_api_package ALL DEPENDS ${meta_info_file})
 
     # install python package, which will be later packed into DEB | RPM
-    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
     install(DIRECTORY ${python_package_prefix}/
             DESTINATION ${CMAKE_INSTALL_PREFIX}

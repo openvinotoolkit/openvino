@@ -16,7 +16,7 @@
 #include "nodes/common/reorder_prim.h"
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -338,9 +338,6 @@ void Reorder::execute(dnnl::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        // src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
-        // dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
-
         if (prim) {
             prim.execute(strm, primArgs);
         } else {
