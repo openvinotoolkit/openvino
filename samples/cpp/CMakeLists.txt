@@ -101,7 +101,7 @@ if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
     set(GFLAGS_USE_TARGET_NAMESPACE ON)
-    set(GFLAGS_SHARED ON)
+    set(GFLAGS_SHARED OFF)
     set(GFLAGS_NOTHREADS ON)
 
     find_package(gflags QUIET)
