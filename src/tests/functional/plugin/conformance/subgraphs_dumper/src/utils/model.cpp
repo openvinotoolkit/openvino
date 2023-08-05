@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/util/file_util.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "utils/model.hpp"
 
 namespace ov {
@@ -20,7 +22,9 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
     }
 }
 
-std::vector<std::string> find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
+// { models, { not_read_model }}
+std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
+find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
     std::vector<std::string> models, full_content;
     for (const auto& dir : dirs) {
         std::vector<std::string> dir_content;
@@ -36,18 +40,36 @@ std::vector<std::string> find_models(const std::vector<std::string> &dirs, const
             full_content.insert(full_content.end(), dir_content.begin(), dir_content.end());
         }
     }
+    std::multimap<size_t, std::string> models_sorted_by_size;
+    std::vector<std::string> not_read_model;
     auto in_regex = std::regex(regexp);
-    for (const auto& file : full_content) {
-        if (std::regex_match(file, in_regex)) {
+    for (const auto& model_file : full_content) {
+        if (std::regex_match(model_file, in_regex)) {
             try {
-                models.emplace_back(file);
+                // models.emplace_back(file);
+                if (ov::util::file_exists(model_file)) {
+                    auto core = ov::test::utils::PluginCache::get().core();
+                    auto model_size = core->read_model(model_file)->get_graph_size();
+                    models_sorted_by_size.insert({ model_size, model_file});
+                } else {
+                    continue;
+                }
             } catch (std::exception& e) {
-                std::cout << "[ ERROR ] Impossible to read model: " << file << std::endl << "Exception: " << e.what();
+                not_read_model.emplace_back(model_file);
+                std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
             }
         }
     }
+    // sort model by size with reverse
+    auto model_cnt = models_sorted_by_size.size();
+    models.resize(model_cnt);
+    auto it = models_sorted_by_size.rbegin();
+    for (size_t i = 0; i < model_cnt; ++i) {
+        models[i] = it->second;
+        ++it;
+    }
     std::cout << "[ INFO ] Total model number is " << models.size() << std::endl;
-    return models;
+    return { models, { ModelCacheStatus::NOT_READ, not_read_model } };
 }
 
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(

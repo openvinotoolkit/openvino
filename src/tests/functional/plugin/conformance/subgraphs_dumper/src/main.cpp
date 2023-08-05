@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::string> dirs = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
 
     std::vector<std::string> models;
+    std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
 
     if (!ov::test::utils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
@@ -27,7 +28,9 @@ int main(int argc, char *argv[]) {
         ov::test::utils::createDirectoryRecursive(FLAGS_output_folder);
     }
     try {
-        models = find_models(dirs, FLAGS_path_regex);
+        auto all_models = find_models(dirs, FLAGS_path_regex);
+        models = all_models.first;
+        cache_model_status.insert(all_models.second);
     } catch (std::runtime_error& e) {
         std::cout << "[ INFO ] Try 'subgraphsDumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
@@ -46,15 +49,32 @@ int main(int argc, char *argv[]) {
     for (auto& cache : caches) {
         cache->set_serialization_dir(FLAGS_output_folder);
     }
-    std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
     // Upload previously cached graphs to cache
     if (!FLAGS_local_cache.empty()) {
-        auto cachedOps = find_models(local_cache_dirs);
-        cache_model_status = cache_models(caches, cachedOps, FLAGS_extract_body);
+        auto cached_ops = find_models(local_cache_dirs);
+        // todo: add normal caching with meta info reading
+        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body);
+        auto not_read_model = cached_ops.second;
+        for (auto& model_status : cache_model_status) {
+            auto& key = model_status.first;
+            auto& value = model_status.second;
+            if (not_read_model.first == key) {
+                value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+            }
+            if (this_cache_model_status.count(key)) {
+                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+            }
+        }
     }
     {
-        auto tmp_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
-        cache_model_status.insert(tmp_cache_model_status.begin(), tmp_cache_model_status.end());
+        auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
+        for (auto& model_status : cache_model_status) {
+            auto& key = model_status.first;
+            auto& value = model_status.second;
+            if (this_cache_model_status.count(key)) {
+                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+            }
+        }
     }
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();

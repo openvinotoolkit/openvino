@@ -56,7 +56,8 @@ static std::map<ModelCacheStatus, std::string> model_cache_status_to_str = {
     { ModelCacheStatus::NOT_READ, "not_read_models" },
 };
 
-std::vector<std::string> find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
+std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
+find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".*");
 
 // model_cache_status: model_list
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
