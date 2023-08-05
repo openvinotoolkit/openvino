@@ -5,6 +5,6 @@
 #include <openvino/frontend/onnx/frontend.hpp>
 
 void test_load() {
-     ov::frontend::onnx::FrontEnd fe;
+    ov::frontend::onnx::FrontEnd fe;
     fe.get_name();
 }

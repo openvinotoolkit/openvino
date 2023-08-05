@@ -42,7 +42,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.get_engine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem)); // cldnn::data cannot set dependency
     return md;
 }
 
@@ -119,7 +119,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
         cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
-        p.add_primitive(*op, execution_condition);
+        p.add_primitive(*op, std::move(execution_condition));
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
@@ -138,7 +138,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.add_primitive(*op, output_data);
+            p.add_primitive(*op, std::move(output_data));
             external_id = layerNameWithIndex;
         } else {
             p.primitive_ids[layerNameWithIndex] = layerName;
