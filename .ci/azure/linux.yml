@@ -298,28 +298,28 @@ jobs:
   - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
-  - script: |
-      set -e
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install test files'
 
   - script: |
+      set -e
       sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package --parallel
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
   - script: |
+      set -e
       # install debian packages from previous release
       sudo apt-get install --no-install-recommends gnupg wget -y
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      sudo apt-get install openvino -y || exit 1
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -428,12 +428,10 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
-  - script: |
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
 
-  - script: |
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_func_tests.xml
@@ -448,6 +446,7 @@ jobs:
     displayName: 'nGraph and IE Python Bindings Tests'
 
   - script: |
+      set -e
       export LD_LIBRARY_PATH=$INSTALL_TEST_DIR:$LD_LIBRARY_PATH
       $(RUN_PREFIX) python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
@@ -461,12 +460,10 @@ jobs:
         --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
     displayName: 'ONNX Frontend Python Tests'
 
-  - script: |
-      python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+  - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
 
-  - script: |
-      python3 -m pytest -s $(REPO_DIR)/tools/ovc/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-OpenVinoConversion.xml
+  - script: python3 -m pytest -s $(REPO_DIR)/tools/ovc/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-OpenVinoConversion.xml
     displayName: 'OpenVino Conversion UT'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
@@ -488,6 +485,7 @@ jobs:
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
+      set -e
       export PATH=$HOME/.local/bin:$PATH
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
       $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ \
@@ -501,55 +499,69 @@ jobs:
     displayName: 'Samples Smoke Tests'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch.xmlTEST
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'PyTorch Layer Tests'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'TensorFlow 2 Layer Tests - TF FE'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'TensorFlow 2 Layer Tests - Legacy FE'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/  --junitxml=./TEST-test_mo_convert.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
     displayName: 'MO Python API Tests'
 
-
   - script: |
+      set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/py_frontend_tests --junitxml=./TEST-test_py_fontend.xml
     displayName: 'Python Frontend tests'
