@@ -25,7 +25,7 @@ bool ExtractorsManager::match(const std::shared_ptr<ov::Model> &model,
             auto new_input_info = align_input_info(model, ref, in_info, in_info_ref);
             in_info = new_input_info;
             return true;
-        } catch (std::exception& e) {
+        } catch (...) {
             return false;
         }
     }
