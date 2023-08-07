@@ -48,31 +48,10 @@ class TestTSmall(PytorchLayerTest):
         import torch
 
         class aten_transpose(torch.nn.Module):
-            def __init__(self, num_dims, inplace):
+            def __init__(self, inplace):
                 super(aten_transpose, self).__init__()
-                if num_dims == 2:
-                    self.forward = self.forward_2d if not inplace else self.forward_2d_inplace
-                elif num_dims == 1:
-                    self.forward = self.forward_1d if not inplace else self.forward_1d_inplace
-                else:
-                    if inplace:
-                        self.forward = self.forward_inplace
-
-            def forward_2d(self, x):
-                x = torch.reshape(x, (2, -1))
-                return x.t(), x
-
-            def forward_2d_inplace(self, x):
-                x = torch.reshape(x, (2, -1))
-                return x.t_(), x
-
-            def forward_1d(self, x):
-                x = torch.reshape(x, (-1, ))
-                return x.t(), x
-
-            def forward_1d_inplace(self, x):
-                x = torch.reshape(x, (-1, ))
-                return x.t_(), x
+                if inplace:
+                    self.forward = self.forward_inplace
 
             def forward(self, x):
                 return x.t(), x
@@ -82,7 +61,7 @@ class TestTSmall(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_transpose(num_dims, inplace), ref_net, "aten::t" if not inplace else "aten::t_" 
+        return aten_transpose(inplace), ref_net, "aten::t" if not inplace else "aten::t_" 
 
     @pytest.mark.parametrize("num_dims", [0, 1, 2])
     @pytest.mark.parametrize("input_dtype", ["float32", "int32"])
