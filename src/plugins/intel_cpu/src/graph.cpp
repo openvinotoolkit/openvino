@@ -486,14 +486,23 @@ void Graph::InitEdges() {
         numberOfEdges--;
     };
 
-    // static std::mutex mutex;
-    // std::lock_guard<std::mutex> _lock(mutex);
+#if 0
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> _lock(mutex);
+    std::cout << "InitEdges(): " << std::endl;
+    for (auto& test_edge : graphEdges) {
+        std::cout << "     edge = " << test_edge << ", edge_name = " << test_edge->name()
+                  << ", input_precision = " << test_edge->getInputDesc().getPrecision()
+                  << ", output precision = " << test_edge->getOutputDesc().getPrecision() << std::endl;
+    }
+#endif
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         // If edge's child is 'Convert' op and the edge's input/output has different precision, we can set convert's input precision
         // with parent precision to avoid additional new convert op is added.
-        if ((edge->getChild()->getType() == Type::Convert) &&/* (edge->getParent()->getType() != Type::Input) &&*/
-            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision()) {
+        if ((edge->getChild()->getType() == Type::Convert) && /* (edge->getParent()->getType() != Type::Input) &&*/
+            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+            edge->getOutputDesc().getPrecision() == InferenceEngine::Precision::FP64) {
             auto convert = edge->getChild();
             const auto& inDesc = edge->getInputDesc();
             const auto& outDesc = convert->getChildEdgeAt(0)->getInputDesc();
