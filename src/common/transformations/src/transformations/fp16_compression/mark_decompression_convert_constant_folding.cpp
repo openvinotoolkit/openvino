@@ -80,7 +80,7 @@ pass::KeepConstAndDecompressionForMatMul::KeepConstAndDecompressionForMatMul() {
 
         // input to matmul is decompression Convert
         const auto& inp_convert = node->input_value(1).get_node_shared_ptr();
-        if (!is_type<ov::op::v0::Convert>(inp_convert) || !is_decompression(inp_convert))
+        if (!is_type<ov::op::v0::Convert>(inp_convert) || inp_convert->get_output_target_inputs(0).size() != 1 || !is_decompression(inp_convert))
             return false;
 
         disable_constant_folding(inp_convert);
