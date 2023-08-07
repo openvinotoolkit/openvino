@@ -891,6 +891,8 @@ void Graph::Allocate() {
     for (auto& edge : graphEdges) edge->validate();
 
 #if 0
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> _lock(mutex);
     std::cout << std::endl;
     for (auto& edge : graphEdges) {
         std::cout << "Graph::Allocate(): edge_name = " << edge->name()
@@ -936,10 +938,33 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
         auto create_mem_desc = [&](const ov::SoPtr<ITensor>& tensor) -> CpuBlockedMemoryDesc {
-            InferenceEngine::TensorDesc tensorDesc(
-                ie::details::convertPrecision(tensor->get_element_type()),
-                tensor->get_shape(),
-                InferenceEngine::TensorDesc::getLayoutByRank(tensor->get_shape().size()));
+            auto element_type = tensor->get_element_type();
+            auto shape = tensor->get_shape();
+            std::vector<size_t> blk_order(shape.size());
+            std::iota(blk_order.begin(), blk_order.end(), 0);
+            std::vector<size_t> dim_offset(shape.size(), 0);
+            std::vector<size_t> blk_strides;
+            auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+            if (byte_strides.empty()) {
+                blk_strides = ov::row_major_strides(shape);
+            } else {
+                // ROI tensor need figure out correct blk_strides
+                blk_strides.resize(byte_strides.size());
+                std::transform(byte_strides.begin(),
+                               byte_strides.end(),
+                               blk_strides.begin(),
+                               [&element_type](size_t byte_stride) {
+                                   OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                                   "Limitation: Stride in bytes ",
+                                                   byte_stride,
+                                                   " should be divisible by size of element ",
+                                                   element_type.size());
+                                   return byte_stride / element_type.size();
+                               });
+            }
+            InferenceEngine::TensorDesc tensorDesc(ie::details::convertPrecision(tensor->get_element_type()),
+                                                   shape,
+                                                   ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides});
             return MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensorDesc);
         };
 
@@ -972,7 +997,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor> &in)
             Memory mem(getEngine(), inter_mem_desc, inter_data_ptr, false);
             childEdge->getMemory().load(mem, false);
         } else if (ext_data_ptr != inter_data_ptr) {
-            Memory ext_mem(getEngine(), inter_mem_desc, ext_data_ptr, false);
+            Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
             childEdge->getMemory().load(ext_mem, false);
             std::cout << "push_input: update data " << ext_precision << " to " << inter_precision << std::endl;
         }
