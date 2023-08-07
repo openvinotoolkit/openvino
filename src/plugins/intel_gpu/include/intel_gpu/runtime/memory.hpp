@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "openvino/runtime/tensor.hpp"
-
 #include "layout.hpp"
 #include "memory_caps.hpp"
 #include "event.hpp"
@@ -245,12 +243,6 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
         }
     }
     return out_vecs;
-}
-
-inline ov::Tensor make_tensor(layout l, void* memory_pointer) {
-    ov::element::Type et = data_type_to_element_type(l.data_type);
-
-    return ov::Tensor(et, l.get_shape(), memory_pointer);
 }
 
 }  // namespace cldnn
