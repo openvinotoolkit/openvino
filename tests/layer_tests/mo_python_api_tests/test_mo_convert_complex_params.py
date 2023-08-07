@@ -262,6 +262,8 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input_shape': "[?,1..3,4,..5]"}},
         {'params_test': {'input': InputCutInfo("Relu", [3, 2], Type(np.int32), [1, 2, 3, 4, 5, 6])},
          'params_ref': {'input': "Relu[3 2]{i32}->[1 2 3 4 5 6]"}},
+        {'params_test': {'input': ("Relu", [3, 2], Type(np.int32))},
+         'params_ref': {'input': "Relu[3 2]{i32}"}},
         {'params_test': {'input': ("Relu", Type(np.int32))},
          'params_ref': {'input': "Relu{i32}"}},
         {'params_test': {'input': ("Relu", [3, 2])},
