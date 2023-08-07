@@ -1540,7 +1540,7 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
     std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
     for (const auto& it : opsets) {
         if (opsetNames.find(it.first) != opsetNames.end())
-            OPENVINO_THROW("Cannot add opset with name: ", it.first, ". Opset with the same name already exists.");
+            IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
         opsetNames.insert(it.first);
     }
 
