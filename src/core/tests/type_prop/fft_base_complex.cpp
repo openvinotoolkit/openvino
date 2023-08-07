@@ -24,6 +24,7 @@ struct FFTConstantAxesAndConstantSignalSizeTestParams {
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
+    std::vector<ov::label_t> expected_labels;
 };
 
 template <class TOp>
@@ -129,43 +130,55 @@ public:
             {Dimension(0, 2), Dimension(7, 500), Dimension(7, 500), Dimension(1, 18)},
             {1, 2},
             {}},
-        FFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2}, {2}, {2}, {2, 180, 77, 2}, {1, 2}, {-1, 77}},
+        FFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2},
+                                                       {2},
+                                                       {2},
+                                                       {2, 180, 77, 2},
+                                                       {1, 2},
+                                                       {-1, 77},
+                                                       {10, 11, ov::no_label, 13}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2},
                                                        {2},
                                                        {2},
                                                        {87, 180, 390, 2},
                                                        {2, 0},
-                                                       {390, 87}},
+                                                       {390, 87},
+                                                       {ov::no_label, 11, ov::no_label, 13}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{7, 50, 130, 400, 2},
                                                        {3},
                                                        {3},
                                                        {7, 40, 130, 600, 2},
                                                        {3, 0, 1},
-                                                       {600, -1, 40}},
+                                                       {600, -1, 40},
+                                                       {10, ov::no_label, 12, ov::no_label, 14}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{2, Dimension(0, 200), 180, 2},
                                                        {2},
                                                        {2},
                                                        {2, Dimension(0, 200), 77, 2},
                                                        {1, 2},
-                                                       {-1, 77}},
+                                                       {-1, 77},
+                                                       {10, 11, ov::no_label, 13}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
                                                        {2},
                                                        {2},
                                                        {87, 180, 390, 2},
                                                        {2, 0},
-                                                       {390, 87}},
+                                                       {390, 87},
+                                                       {ov::no_label, 11, ov::no_label, 13}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
                                                        {3},
                                                        {3},
                                                        {Dimension(8, 129), 40, 130, 600, 2},
                                                        {3, 0, 1},
-                                                       {600, -1, 40}}};
+                                                       {600, -1, 40},
+                                                       {10, ov::no_label, 12, ov::no_label, 14}}};
 };
 
 TYPED_TEST_SUITE_P(FFTConstantAxesAndConstantSignalSizeTest);
 
 TYPED_TEST_P(FFTConstantAxesAndConstantSignalSizeTest, constant_axes_and_signal_size) {
     for (auto params : this->test_params) {
+        set_shape_labels(params.input_shape, 10);
         auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
 
@@ -180,6 +193,11 @@ TYPED_TEST_P(FFTConstantAxesAndConstantSignalSizeTest, constant_axes_and_signal_
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+        if (params.expected_labels.empty()) {
+            EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), get_shape_labels(params.input_shape));
+        } else {
+            EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
+        }
     }
 }
 
