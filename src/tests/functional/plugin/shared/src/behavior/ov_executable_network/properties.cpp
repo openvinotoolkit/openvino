@@ -3,8 +3,10 @@
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-#include "openvino/runtime/properties.hpp"
+
 #include <cstdint>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -63,6 +65,12 @@ TEST_P(OVCompiledModelPropertiesTests, CanUseCache) {
     ov::test::utils::removeDir("./test_cache");
 }
 
+TEST_P(OVCompiledModelPropertiesTests, IgnoreEnableMMap) {
+    core->set_property(ov::enable_mmap(false));
+    properties[ov::enable_mmap.name()] = false;
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+}
+
 TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetProperty) {
     auto compiled_model = core->compile_model(model, target_device, properties);
     auto supported_properties = compiled_model.get_property(ov::supported_properties);
@@ -115,7 +123,8 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+        ASSERT_EQ(default_property.second, property)
+            << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
 }

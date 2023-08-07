@@ -309,6 +309,17 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     if (!keep_core_property) {
         clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
         clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+
+        // Remove core properties from config
+        auto it = updated_config.find(ov::force_tbb_terminate.name());
+        if (it != updated_config.end()) {
+            updated_config.erase(it);
+        }
+
+        it = updated_config.find(ov::enable_mmap.name());
+        if (it != updated_config.end()) {
+            updated_config.erase(it);
+        }
     }
 
     return {updated_device_name, updated_config};
