@@ -861,19 +861,6 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     auto in_layout2 = layout{ ov::PartialShape{2, 72, 57, 57}, data_types::f16, format::fs_b_yx_fsv32};
     auto in_layout3 = layout{ ov::PartialShape{2, 144, 57, 57}, data_types::f16, format::fs_b_yx_fsv32};
 
-    auto in_mem1 = engine.allocate_memory(in_layout1);
-    auto in_mem2 = engine.allocate_memory(in_layout2);
-    auto in_mem3 = engine.allocate_memory(in_layout3);
-
-    random_generator rg(GET_SUITE_NAME);
-    auto in_data1 = rg.generate_random_4d<FLOAT16>(2, 36, 57, 57, -1, 1);
-    auto in_data2 = rg.generate_random_4d<FLOAT16>(2, 72, 57, 57, -1, 1);
-    auto in_data3 = rg.generate_random_4d<FLOAT16>(2, 144, 57, 57, -1, 1);
-
-    set_values(in_mem1, in_data1);
-    set_values(in_mem2, in_data2);
-    set_values(in_mem3, in_data3);
-
     auto padding1 = padding({0,18,1,1}, {0,0,0,0});
     auto padding2 = padding({0,0,0,0}, {0,0,0,0});
     auto padding3 = padding({0,0,0,0}, {0,0,0,0});
