@@ -236,6 +236,7 @@ jobs:
     displayName: 'Build Debian packages'
 
   - script: |
+      set -e
       # install debian packages from previous release
       sudo apt-get -y update
       sudo apt-get install --no-install-recommends gnupg wget -y
@@ -243,7 +244,7 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2023.list
-      sudo apt-get install openvino -y || exit 1
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -375,6 +376,7 @@ jobs:
     displayName: 'ONNX Frontend Python Tests' 
 
   - script: |
+      set -e
       # TODO: fix 'No mock frontend API available'
       $(TEST_VENV)/bin/python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
       $(TEST_VENV)/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
@@ -398,6 +400,7 @@ jobs:
     displayName: 'Install Samples Tests'
 
   - script: |
+      set -e
       /usr/bin/python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
       # GNA isn't a part of Debian package, so filter out that tests
       /usr/bin/python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
@@ -410,6 +413,7 @@ jobs:
     displayName: 'Samples Smoke Tests'
 
   - script: |
+      set -e
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
@@ -417,6 +421,7 @@ jobs:
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
   - script: |
+      set -e
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
     env:
