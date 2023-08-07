@@ -5,7 +5,6 @@
 #include "fullyconnected.h"
 
 #include "eltwise.h"
-#include "ie_precision.hpp"
 #include "ie_system_conf.h"
 #include "input.h"
 #include "fake_quantize.h"
@@ -27,13 +26,11 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
-#include "common/reorder_prim.h"
 #include "ie_parallel.hpp"
 #include "common/dnnl_thread.hpp"
 #include "common/cpu_convert.h"
 #include "shape_inference/custom/fullyconnected.hpp"
 
-#include <atomic>
 #include <string>
 #include <vector>
 
@@ -212,10 +209,6 @@ void FullyConnected::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
-
-    withBiases = getOriginalInputsNumber() == 3;
-
-    useSparseWeights = useSparseWeightsDecompression();
 
     inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
