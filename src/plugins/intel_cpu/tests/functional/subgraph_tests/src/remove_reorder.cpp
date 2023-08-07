@@ -75,15 +75,17 @@ public:
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        configuration.insert({"ENFORCE_BF16", "YES"});
         ElementType inType;
         std::vector<InputShape> inputShapes;
         std::vector<ov::Shape> targetShapes;
         std::tie(inType, inputShapes, targetShapes) = this->GetParam();
 
         if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+            configuration.insert({"INFERENCE_PRECISION_HINT", "bf16"});
+        } else if (inType == ElementType::f16) {
+            configuration.insert({"INFERENCE_PRECISION_HINT", "f16"});
         }
+
         init_input_shapes(inputShapes);
         auto input_params = ngraph::builder::makeDynamicParams(ov::element::f32, inputDynamicShapes);
         auto zero = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
@@ -124,7 +126,7 @@ const std::vector<std::vector<ov::Shape>> target_shapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoveUselessReorderCPUTest,
                          RemoveUselessReorderCPUTest,
-                         ::testing::Combine(::testing::Values(ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(target_shapes)),
                          RemoveUselessReorderCPUTest::getTestCaseName);
