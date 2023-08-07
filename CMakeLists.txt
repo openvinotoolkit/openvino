@@ -69,16 +69,22 @@ if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
     message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
 endif()
 
-# remove file with exported developer targets to force its regeneration
+# remove file with exported targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-foreach(component IN LISTS openvino_export_components)
-    file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
-    file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
-    unset(${component} CACHE)
-endforeach()
-unset(openvino_export_components CACHE)
+
+# remove exported developer targets to force its regeneration
+macro(ov_clean_dev_targets)
+    foreach(component IN LISTS openvino_export_components)
+        file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+        file(REMOVE "${CMAKE_BINARY_DIR}/ov_${component}_dev_targets.cmake")
+        unset(${component} CACHE)
+    endforeach()
+    unset(openvino_export_components CACHE)
+    unset(openvino_installed_targets CACHE)
+endmacro()
+ov_clean_dev_targets()
 
 #
 # Build
@@ -124,7 +130,7 @@ endif()
 include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(samples)
 endif()
 

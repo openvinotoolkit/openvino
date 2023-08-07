@@ -21,7 +21,7 @@ public:
 
     VectorBuffer(const ov::element::Type element_type = ov::element::f32);
 
-    bool visit_attributes(AttributeVisitor& visitor) override { return true;}
+    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 

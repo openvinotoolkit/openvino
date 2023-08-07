@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about BinaryConvolution-1 - a 2D convolution operation, which 
+                can be performed on binary input and binary kernel tensors in OpenVINO.
+
 **Versioned name**: *BinaryConvolution-1*
 
 **Category**: *Convolution*
@@ -99,7 +103,8 @@ Computation algorithm for mode *xnor-popcount*:
 
 2D Convolution
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer type="BinaryConvolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" mode="xnor-popcount" pad_value="0" auto_pad="explicit"/>

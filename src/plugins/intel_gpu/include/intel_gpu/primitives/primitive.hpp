@@ -35,8 +35,8 @@ struct primitive_info;
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
     input_info() : pid(""), idx(0) {}
-    input_info(primitive_id pid) : pid(pid), idx(0) {}
-    input_info(primitive_id pid, int idx) : pid(pid), idx(idx) {}
+    input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
+    input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
     /// @brief Copy assignment.
     input_info& operator=(const input_info& other) {
@@ -237,7 +237,7 @@ public:
             bool has_value;
             ib >> has_value;
             if (has_value) {
-                data_types data_type;
+                data_types data_type = data_types();
                 ib >> make_data(&data_type, sizeof(data_types));
                 output_data_types.emplace_back(optional_data_type(data_type));
             } else {

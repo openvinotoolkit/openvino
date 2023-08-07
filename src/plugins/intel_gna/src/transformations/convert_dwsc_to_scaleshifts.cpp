@@ -53,16 +53,16 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
 
     // Move filter over input performing multiplication and addition (scaleshift), take padding, stride, dilation and
     // bias into account
-    for (int32_t input_position = static_cast<int32_t>(-pads_begin), o = 0; o < output_width;
+    for (int32_t input_position = static_cast<int32_t>(-pads_begin), o = 0; o < static_cast<int32_t>(output_width);
          input_position += static_cast<int32_t>(stride_width), o++) {
         std::shared_ptr<ngraph::Node> previous_layer_output, last_layer_output;
         int32_t filter_end = static_cast<int32_t>(input_position + filter_width * dilation_width);
         bool first = true;
 
-        filter_end = filter_end < input_width ? filter_end : static_cast<int32_t>(input_width);
+        filter_end = filter_end < static_cast<int32_t>(input_width) ? filter_end : static_cast<int32_t>(input_width);
 
         for (int32_t filter_pos = input_position, filter_idx = 0; filter_pos < filter_end;
-             filter_pos += dilation_width, filter_idx++) {
+             filter_pos += static_cast<int32_t>(dilation_width), filter_idx++) {
             if (filter_pos >= 0) {
                 auto conv_input_slice =
                     FlatCrop(flat_input_plane, filter_pos * input_channel_count, input_channel_count);

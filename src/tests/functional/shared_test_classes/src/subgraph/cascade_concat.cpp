@@ -15,9 +15,9 @@ std::string CascadeConcat::getTestCaseName(const testing::TestParamInfo<CascadeC
     std::tie(input1, input2, input3, netPrecision, multioutput, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input1[0]) << "_";
-    results << CommonTestUtils::vec2str(input2[0]) << "_";
-    results << CommonTestUtils::vec2str(input3[0]) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input1[0]) << "_";
+    results << ov::test::utils::vec2str(input2[0]) << "_";
+    results << ov::test::utils::vec2str(input3[0]) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "Multioutput=" << multioutput << "_";
     results << "targetDevice=" << targetName << "_";
@@ -65,7 +65,7 @@ std::string CascadeConcatWithMultiConnReshape::getTestCaseName(const testing::Te
     std::tie(inputShape, netPrecision, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const& configItem : additional_config) {

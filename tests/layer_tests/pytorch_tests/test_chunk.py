@@ -120,3 +120,41 @@ class TestChunk(PytorchLayerTest):
             for idx in [0, 1, output_chunks - 1]:
                 self._test(aten_chunk_getitem(chunks, dim, idx), None, "aten::chunk", 
                             ie_device, precision, ir_version)
+
+
+class aten_chunk_loop_getitem(torch.nn.Module):
+    def __init__(self, num_chunks) -> None:
+        torch.nn.Module.__init__(self)
+        self.num_chunks = num_chunks
+
+    def forward(self, input_tensor):
+        chunks = torch.chunk(torch.arange(
+            input_tensor.shape[0]), self.num_chunks)
+
+        for inds in chunks:
+            input_tensor[inds] *= 10
+        return input_tensor
+
+
+class TestChunkLoopGetitem(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.rand(*self.input_shape),)
+
+    @pytest.mark.parametrize("input_shape", [
+        (4, 4),
+        (5, 9, 7),
+        (10, 13, 11),
+        (8, 7, 6, 5, 4),
+    ])
+    @pytest.mark.parametrize("chunks", [
+        2,
+        3,
+        4
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_chunk_loop_getitem(self, input_shape, chunks, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+
+        self._test(aten_chunk_loop_getitem(chunks), None, ["aten::chunk", "prim::Loop", "aten::__getitem__"],
+                   ie_device, precision, ir_version)

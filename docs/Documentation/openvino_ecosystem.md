@@ -2,11 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ is an ecosystem of utilities that have advanced capabilities, which help develop deep learning solutions.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    ote_documentation
+   datumaro_documentation
    ovsa_get_started
    openvino_docs_tuning_utilities
 
@@ -49,27 +54,32 @@ More resources:
 A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
-
-* `Documentation on GitHub <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__  
+ 
+* :doc:`Overview <datumaro_documentation>`
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
+* `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ 
 
 **Compile Tool** 
 
 
 Compile tool is now deprecated. If you need to compile a model for inference on a specific device, use the following script: 
 
-.. tab:: python
+.. tab-set::
 
-    .. doxygensnippet:: docs/snippets/export_compiled_model.py
-       :language: python
-       :fragment: [export_compiled_model]
+   .. tab-item:: Python
+      :sync: py
 
-.. tab:: cpp
+      .. doxygensnippet:: docs/snippets/export_compiled_model.py
+         :language: python
+         :fragment: [export_compiled_model]
 
-    .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
-       :language: cpp
-       :fragment: [export_compiled_model]
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+         :language: cpp
+         :fragment: [export_compiled_model]
 
 
 To learn which device supports the import / export functionality, see the :doc:`feature support matrix <openvino_docs_OV_UG_Working_with_devices>`.

@@ -1,14 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import tempfile
 import unittest
-
+import os
 from generator import generator, generate
 
 from openvino.tools.mo.convert import convert_model
-
 
 @generator
 class TestMoFreezePlaceholderTFFE(unittest.TestCase):
@@ -33,7 +31,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def test_conversion_fake_pb_model(self, use_new_frontend, use_legacy_frontend, framework):
         with self.assertRaisesRegex(Exception,
                                     "Internal error or inconsistent input model: the frontend supports frozen formats"
-                                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\) formats."):
+                                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."):
             path = os.path.dirname(__file__)
             input_model = os.path.join(path, "test_models", "fake.pb")
 
@@ -51,7 +49,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             (
                     False, False, "tf",
                     r"Internal error or inconsistent input model: the frontend supports frozen formats"
-                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\) formats."
+                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."
             ),
             # new frontend
             (
@@ -61,7 +59,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             (
                     True, False, "tf",
                     r"Internal error or inconsistent input model: the frontend supports frozen formats"
-                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\) formats."
+                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."
             ),
         ],
     )
@@ -83,7 +81,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             (
                     False, False, "tf",
                     r"Internal error or inconsistent input model: the frontend supports frozen formats"
-                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\) formats."
+                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."
             ),
             # new frontend
             (
@@ -93,7 +91,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             (
                     True, False, "tf",
                     r"Internal error or inconsistent input model: the frontend supports frozen formats"
-                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\) formats."
+                    " \(.pb and .pbtxt\), SavedModel and MetaGraph \(.meta\), and v1 checkpoints."
             ),
         ],
     )

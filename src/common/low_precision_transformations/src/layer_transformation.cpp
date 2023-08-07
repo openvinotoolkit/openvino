@@ -16,6 +16,7 @@
 #include <vector>
 #include <queue>
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -139,9 +140,9 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
 
-    if (ov::is_type<opset1::Constant>(parent)) {
+    if (ov::is_type<ov::opset1::Constant>(parent)) {
         return true;
-    } else if (ov::is_type<opset1::Convert>(parent) && ov::is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
         const auto constant = parent->get_input_node_shared_ptr(0);
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
@@ -337,6 +338,10 @@ DataPrecision LayerTransformation::getDataPrecision(
                 precisionDetailsAtOutputIntervals.precision :
                 *requiredPrecisions.begin();
 
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
@@ -347,6 +352,11 @@ DataPrecision LayerTransformation::getDataPrecision(
         // FakeQuantize optimal precision is not deined
         if (!requiredPrecisions.empty()) {
             const element::Type resultPrecision = *requiredPrecisions.begin();
+
+            if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
+                return DataPrecision();
+            }
+
             return DataPrecision(
                 resultPrecision,
                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
@@ -403,7 +413,7 @@ void LayerTransformation::updateOutput(
     // TODO: not tested!!!
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
-            if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
+            if (ov::is_type<ov::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);
@@ -428,9 +438,9 @@ void LayerTransformation::updateOutput(
     }
 }
 
-void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
+void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
     MATCHER_SCOPE(SingleNodeMatcher);
-    ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
+    ov::graph_rewrite_callback internal_callback = [this, &context](ov::pass::pattern::Matcher &m) {
         const bool result = transform(context, m);
         (void)result;
 #ifdef LPT_DISPLAY_PRECISION
@@ -446,15 +456,15 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
         return false;
     };
     // TODO: better name for matcher? required?
-    auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(patternRoot, matcher_name);
     auto match_pass = std::make_shared<ov::pass::MatcherPass>(
             m->get_name(),
             m,
             [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
-                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
                 OV_PASS_CALLBACK(m);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
                     bool status = internal_callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GatherTree-1 - a data movement operation, 
+                which can be performed on four required input tensors.
+
 **Versioned name**: *GatherTree-1*
 
 **Category**: *Data movement*
@@ -16,7 +20,8 @@ first decoded ``end_token`` all values are filled in with ``end_token``.
 
 The algorithm in pseudocode is as follows:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    final_ids[ :, :, :] = end_token
    for batch in range(BATCH_SIZE):
@@ -68,7 +73,8 @@ The algorithm in pseudocode is as follows:
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="GatherTree" ...>
        <input>

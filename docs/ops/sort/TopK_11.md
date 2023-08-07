@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about TopK-11 - a sorting and maximization operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *TopK-11*
 
 **Category**: *sorting and maximization*

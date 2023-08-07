@@ -63,7 +63,7 @@ public:
         actualFunction = get(precision, shape, testValues.inputLowConst, testValues.inpuHighConst, testValues.outputLowConst, testValues.outputHighConst);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = get(precision, shape, testValues.inputLowConst, testValues.inpuHighConst, testValues.outputLowConst, testValues.outputHighConst);
@@ -88,7 +88,7 @@ private:
         const bool inpuHighConst,
         const bool outputLowConst,
         const bool outputHighConst) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         input->set_friendly_name("input");
 
         const auto constantPresition = element::f32;
@@ -97,40 +97,40 @@ private:
         const std::vector<float> high = { 1.f };
 
         const auto inputLow = inputLowConst ?
-            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, low)) :
-            std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
+            std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto inputHigh = inputLowConst ?
-            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, high)) :
-            std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
+            std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto outputLow = outputLowConst ?
-            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, low)) :
-            std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, low)) :
+            std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto outputHigh = outputHighConst ?
-            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Constant>(constantPresition, constantShape, high)) :
-            std::make_shared<ngraph::opset1::Parameter>(constantPresition, constantShape);
+            std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ov::op::v0::Constant>(constantPresition, constantShape, high)) :
+            std::make_shared<ov::op::v0::Parameter>(constantPresition, constantShape);
 
         const auto levels = 256ul;
 
-        auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLow, inputHigh, outputLow, outputHigh, levels);
+        auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, inputLow, inputHigh, outputLow, outputHigh, levels);
         fakeQuantize->set_friendly_name("fakeQuantize");
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
+        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
 
         ngraph::ParameterVector inputs{ input };
-        if (as_type_ptr<ngraph::opset1::Parameter>(inputLow)) {
-            inputs.push_back(as_type_ptr<ngraph::opset1::Parameter>(inputLow));
+        if (as_type_ptr<ov::op::v0::Parameter>(inputLow)) {
+            inputs.push_back(as_type_ptr<ov::op::v0::Parameter>(inputLow));
         }
-        if (as_type_ptr<ngraph::opset1::Parameter>(inputHigh)) {
-            inputs.push_back(as_type_ptr<ngraph::opset1::Parameter>(inputHigh));
+        if (as_type_ptr<ov::op::v0::Parameter>(inputHigh)) {
+            inputs.push_back(as_type_ptr<ov::op::v0::Parameter>(inputHigh));
         }
-        if (as_type_ptr<ngraph::opset1::Parameter>(outputLow)) {
-            inputs.push_back(as_type_ptr<ngraph::opset1::Parameter>(outputLow));
+        if (as_type_ptr<ov::op::v0::Parameter>(outputLow)) {
+            inputs.push_back(as_type_ptr<ov::op::v0::Parameter>(outputLow));
         }
-        if (as_type_ptr<ngraph::opset1::Parameter>(outputHigh)) {
-            inputs.push_back(as_type_ptr<ngraph::opset1::Parameter>(outputHigh));
+        if (as_type_ptr<ov::op::v0::Parameter>(outputHigh)) {
+            inputs.push_back(as_type_ptr<ov::op::v0::Parameter>(outputHigh));
         }
 
         return std::make_shared<ngraph::Function>(results, inputs, "FakeQuantizeWithDynamicIntervalsTransformation");

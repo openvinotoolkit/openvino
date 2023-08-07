@@ -69,8 +69,12 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             const auto& input_expr = input_tensor->get_source().get_expr();
             const auto& input_expr_input_tensors = input_expr->get_input_port_connectors();
             for (const auto& tensor : input_expr_input_tensors) {
-                if (ov::is_type<op::VectorBuffer>(tensor->get_source().get_expr()->get_node())) {
+                const auto parent_expr = tensor->get_source().get_expr();
+                if (ov::is_type<op::Fill>(parent_expr->get_node())) {
                     manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
+                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                        manually_assigned_vecs[parent_expr->get_input_port_connector(0)] = static_cast<Reg>(accumulator_reg);
+                }
                 }
             }
             const auto& output_tensor = expr->get_output_port_connector(0);
@@ -100,9 +104,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default capture mode has been specified"
     // the same problem with all the other lambdas in this file
     auto enumerate_out_tensors = [=] (const ExpressionPtr& expr,
-                                                              decltype(regs_vec)& reg_map,
-                                                              const std::map<tensor, Reg>& manually_assigned_regs,
-                                                              size_t& counter) {
+                                      decltype(regs_vec)& reg_map,
+                                      const std::map<tensor, Reg>& manually_assigned_regs,
+                                      size_t& counter) {
         for (const auto& out_tensor : expr->get_output_port_connectors()) {
             // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
             // so we have to check that the tensor has not been enumerated already

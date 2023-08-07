@@ -14,6 +14,7 @@
 #include <ngraph/pass/serialize.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <openvino/op/util/attr_types.hpp>
+#include <openvino/op/util/pad_base.hpp>
 #include <openvino/util/env_util.hpp>
 #include <pruning.hpp>
 #include <queue>
@@ -21,12 +22,14 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"
 
 using namespace testing;
 using namespace ngraph;
+using namespace ov::opset12;
 
 void compare_masks(const Mask& mask, const Mask& ref_mask) {
     ASSERT_EQ(mask.size(), ref_mask.size());
@@ -579,6 +582,98 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
                                                             CoordinateDiff(2, 0),
                                                             CoordinateDiff(2, 0),
                                                             Strides(2, 1));
+        function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    }
+    if (VISUALIZE_TESTS_TREE)
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg")
+            .run_on_model(function);
+    {
+        pass::Manager m;
+        m.register_pass<pass::InitMasks>();
+        m.register_pass<pass::PropagateMasks>();
+        m.run_passes(function);
+    }
+    compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(conv_1->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(clamp->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
+    compare_masks(*getMask(max_pool->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
+
+    manager.register_pass<pass::ShrinkWeights>();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
+    Shape input_shape{1, 3, 64, 64};
+    Shape weights_shape{8, 3, 3, 3};
+    Shape weight_shape2{3, 8, 3, 3};
+    auto input = std::make_shared<Parameter>(element::f32, input_shape);
+    input->set_friendly_name("input");
+    auto weights_const_1 = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}, {}, {}});
+    weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
+
+    auto conv_1 = std::make_shared<Convolution>(input,
+                                                weights_const_1,
+                                                Strides(2, 1),
+                                                CoordinateDiff(2, 0),
+                                                CoordinateDiff(2, 0),
+                                                Strides(2, 1));
+    conv_1->set_friendly_name("conv_1");
+
+    // Adding a couple of PassThrough operations
+    auto relu = std::make_shared<Relu>(conv_1);
+    relu->set_friendly_name("relu");
+
+    auto clamp = std::make_shared<Clamp>(relu, 0, 6);
+    clamp->set_friendly_name("clamp");
+
+    auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, -1});
+    auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, -2});
+    auto pad = std::make_shared<ov::op::v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
+    auto max_pool = std::make_shared<MaxPool>(pad, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
+    max_pool->set_friendly_name("max_pool");
+
+    auto weights2 = Constant::create(element::f32, weight_shape2, {0});
+    auto conv2 = std::make_shared<Convolution>(max_pool,
+                                               weights2,
+                                               Strides(2, 1),
+                                               CoordinateDiff(2, 0),
+                                               CoordinateDiff(2, 0),
+                                               Strides(2, 1));
+    function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
+    {
+        auto input = std::make_shared<Parameter>(element::f32, input_shape);
+        auto weights_const_1 =
+            create_constant_with_zeros({weights_shape[0] - 3, weights_shape[1], weights_shape[2], weights_shape[3]},
+                                       {{}, {}, {}, {}});
+        weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
+
+        auto conv_1 = std::make_shared<Convolution>(input,
+                                                    weights_const_1,
+                                                    Strides(2, 1),
+                                                    CoordinateDiff(2, 0),
+                                                    CoordinateDiff(2, 0),
+                                                    Strides(2, 1));
+        // Adding a couple of PassThrough operations
+        auto relu = std::make_shared<Relu>(conv_1);
+
+        auto clamp = std::make_shared<Clamp>(relu, 0, 6);
+
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, -2});
+        auto pad = std::make_shared<ov::op::v12::Pad>(clamp, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto max_pool =
+            std::make_shared<MaxPool>(pad, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{1, 1}, Shape{4, 4});
+
+        auto weights2 = Constant::create(element::f32,
+                                         {weight_shape2[0], weight_shape2[1] - 3, weight_shape2[2], weight_shape2[3]},
+                                         {0});
+        auto conv2 = std::make_shared<Convolution>(max_pool,
+                                                   weights2,
+                                                   Strides(2, 1),
+                                                   CoordinateDiff(2, 0),
+                                                   CoordinateDiff(2, 0),
+                                                   Strides(2, 1));
         function_ref = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)

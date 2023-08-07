@@ -2,13 +2,17 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the list of acronyms, abbreviations and terms used in 
+                 Intel® Distribution of OpenVINO™ toolkit.
+
 
 Acronyms and Abbreviations
 #################################################
 
-==================  ==================================================
+==================  ===========================================================================
  Abbreviation        Description     
-==================  ==================================================
+==================  ===========================================================================
  API                 Application Programming Interface                
  AVX                 Advanced Vector Extensions                       
  clDNN               Compute Library for Deep Neural Networks         
@@ -32,7 +36,7 @@ Acronyms and Abbreviations
  LRN                 Local Response Normalization                     
  mAP                 Mean Average Precision                           
  Intel® OneDNN       Intel® OneAPI Deep Neural Network Library        
- MO                  Model Optimizer                                  
+ `mo`                Command-line tool for model conversion, CLI for ``tools.mo.convert_model``
  MVN                 Mean Variance Normalization                      
  NCDHW               Number of images, Channels, Depth, Height, Width 
  NCHW                Number of images, Channels, Height, Width        
@@ -55,7 +59,7 @@ Acronyms and Abbreviations
  VGG                 Visual Geometry Group                            
  VOC                 Visual Object Classes                            
  WINAPI              Windows Application Programming Interface        
-==================  ==================================================
+==================  ===========================================================================
 
 
 Terms
@@ -67,14 +71,17 @@ Glossary of terms used in OpenVINO™
 | *Batch* 
 |   Number of images to analyze during one call of infer. Maximum batch size is a property of the model set before its compilation. In NHWC, NCHW, and NCDHW image data layout representations, the 'N' refers to the number of images in the batch.
 
-| *Device Affinitity* 
+| *Device Affinity* 
 |   A preferred hardware device to run inference (CPU, GPU, GNA, etc.).
 
 | *Extensibility mechanism, Custom layers* 
-|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and Model Optimizer so that they can work with models containing operations that are not yet supported.
+|   The mechanism that provides you with capabilities to extend the OpenVINO™ Runtime and model conversion API so that they can work with models containing operations that are not yet supported.
 
 | *layer / operation*
 |   In OpenVINO, both terms are treated synonymously. To avoid confusion, "layer" is being pushed out and "operation" is the currently accepted term. 
+
+| *Model conversion API* 
+|   A component of OpenVINO Development Tools. The API is used to import, convert, and optimize models trained in popular frameworks to a format usable by other OpenVINO components. In ``openvino.tools.mo`` namespace, model conversion API is represented by a Python ``mo.convert_model()`` method  and ``mo`` command-line tool.
 
 | *OpenVINO™ <code>Core</code>* 
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.    

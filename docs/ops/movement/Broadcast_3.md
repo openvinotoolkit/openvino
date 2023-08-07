@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Broadcast-3 - a data movement operation, 
+                which can be performed on two required and one optional input tensor.
+
 **Versioned name**: *Broadcast-3*
 
 **Category**: *Data movement*
@@ -53,7 +57,8 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Broadcast" ...>
        <data mode="numpy"/>

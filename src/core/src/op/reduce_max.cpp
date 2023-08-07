@@ -16,11 +16,14 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maxop {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     runtime::reference::max(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
@@ -61,10 +64,10 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTens
     OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return maxop::evaluate_max(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }

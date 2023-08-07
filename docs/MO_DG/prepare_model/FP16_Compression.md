@@ -2,16 +2,31 @@
 
 @sphinxdirective
 
-Model Optimizer can convert all floating-point weights to the ``FP16`` data type. 
+By default, when IR is saved all relevant floating-point weights are compressed to ``FP16`` data type during model conversion.
 It results in creating a "compressed ``FP16`` model", which occupies about half of 
-the original space in the file system. The compression may introduce a drop in accuracy.
+the original space in the file system. The compression may introduce a minor drop in accuracy,
 but it is negligible for most models.
+In case if accuracy drop is significant user can disable compression explicitly.
 
-To compress the model, use the `--compress_to_fp16` or `--compress_to_fp16=True` option:
+To disable compression, use the ``compress_to_fp16=False`` option:
 
-.. code-block:: sh
+.. tab-set::
 
-   mo --input_model INPUT_MODEL --compress_to_fp16
+    .. tab-item:: Python
+       :sync: py
+
+       .. code-block:: py
+          :force:
+
+          from openvino.runtime import save_model
+          ov_model = save_model(INPUT_MODEL, compress_to_fp16=False)
+
+    .. tab-item:: CLI
+       :sync: cli
+
+       .. code-block:: sh
+
+          mo --input_model INPUT_MODEL --compress_to_fp16=False
 
 
 For details on how plugins handle compressed ``FP16`` models, see 
@@ -26,9 +41,9 @@ For details on how plugins handle compressed ``FP16`` models, see
 
 .. note::
 
-   Some large models (larger than a few GB) when compressed to ``FP16`` may consume enormous amount of RAM on the loading
-   phase of the inference. In case if you are facing such problems, please try to convert them without compression: 
-   `mo --input_model INPUT_MODEL --compress_to_fp16=False`
+   Some large models (larger than a few GB) when compressed to ``FP16`` may consume an overly large amount of RAM on the loading
+   phase of the inference. If that is the case for your model, try to convert it without compression: 
+   ``convert_model(INPUT_MODEL, compress_to_fp16=False)`` or ``convert_model(INPUT_MODEL)``
 
 
 @endsphinxdirective

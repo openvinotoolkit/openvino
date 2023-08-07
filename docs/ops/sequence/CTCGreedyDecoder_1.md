@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about CTCGreedyDecoder-1 - a sequence processing operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *CTCGreedyDecoder-1*
 
 **Category**: *Sequence processing*
@@ -43,7 +47,8 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CTCGreedyDecoder" ...>
        <data ctc_merge_repeated="true" />

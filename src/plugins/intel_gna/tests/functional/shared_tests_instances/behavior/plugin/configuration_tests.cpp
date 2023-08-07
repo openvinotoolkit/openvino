@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> inconfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          IncorrectConfigTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(inconfigs)),
                          IncorrectConfigTests::getTestCaseName);
 
@@ -33,7 +33,7 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          IncorrectConfigAPITests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(Inconfigs)),
                          IncorrectConfigAPITests::getTestCaseName);
 }  // namespace

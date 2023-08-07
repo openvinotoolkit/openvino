@@ -4,6 +4,9 @@
 
 #include "tensor_data_accessor.hpp"
 
+#include "ngraph/runtime/host_tensor.hpp"
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 template <>
 Tensor TensorAccessor<TensorVector>::operator()(size_t port) const {

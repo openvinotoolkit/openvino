@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 #include <ngraph/op/util/op_annotations.hpp>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/op/broadcast.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
@@ -340,6 +341,52 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+float cast_eps_to_float(double eps_d) {
+    auto eps_f = static_cast<float>(eps_d);
+    if (eps_d > 0.) {  // zero is fine; negative values have no sense
+        if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
+            eps_f = std::numeric_limits<float>::min();
+        else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                 static_cast<double>(std::numeric_limits<float>::max()))
+            eps_f = std::numeric_limits<float>::max();
+    }
+    return eps_f;
+}
+
+bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (const auto& constant = ov::get_constant_from_source(output)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& values = constant->cast_vector<int64_t>();
+        return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
+            return i == v;
+        });
+    }
+    return false;
+}
+
+bool is_on_constant_path(const ov::Output<ov::Node>& output) {
+    auto status = true;
+    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
+
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+
+        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                nodes_to_calculate.push_front(input_node);
+            }
+        }
+    }
+    return status;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

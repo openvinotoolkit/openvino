@@ -34,15 +34,9 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
         const auto& input_connector = expr->get_input_port_connector(0);
         const auto& parent_expr = input_connector->get_source().get_expr();
         const auto parent_loop_ids = parent_expr->get_loop_ids();
-        int outer_loop_id = static_cast<int>(parent_loop_ids.size()) - 1;
-        for (; outer_loop_id >= 0; --outer_loop_id) {
-            if (parent_loop_ids[outer_loop_id] != Expression::LOOP_NULL_ID) {
-                break;
-            }
-        }
 
         // Parent is out of Loop: just verify that Result is after Parent
-        if (outer_loop_id < 0) {
+        if (parent_loop_ids.empty()) {
             const auto parent_it = std::find(forward_it, linear_ir.cend(), parent_expr);
             // If Parent is found after Result, we should move Result
             if (parent_it != linear_ir.cend()) {
@@ -52,17 +46,21 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
                 linear_ir.move(result_it, insertion_pos);
                 modified = true;
             }
+            // The Result is executed out of Loop
+            expr->set_loop_ids({});
             continue;
         }
 
         LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, parent_loop_ids[outer_loop_id], loop_begin_pos, loop_end_pos);
+        loop_manager->get_loop_bounds(linear_ir, *(parent_loop_ids.cbegin()), loop_begin_pos, loop_end_pos);
         // If the Result isn't found after Outer LoopEnd, need to move it to there
         if (std::find(loop_end_pos, linear_ir.cend(), expr) == linear_ir.cend()) {
             expr_it = std::prev(expr_it);  // save iterator before moving
             linear_ir.move(forward_it, loop_end_pos);
             modified = true;
         }
+        // The Result is executed out of Loop
+        expr->set_loop_ids({});
     }
 
     return modified;

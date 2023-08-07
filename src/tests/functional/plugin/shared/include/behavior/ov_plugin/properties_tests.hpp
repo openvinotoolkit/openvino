@@ -103,6 +103,7 @@ using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityCo
 using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
 
 using OVGetConfigTest = OVClassBaseTestP;
+using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
 using OVGetAvailableDevicesPropsTest = OVClassBaseTestP;
 using OVGetMetricPropsTest = OVClassBaseTestP;
@@ -123,7 +124,7 @@ public:
         APIBaseTest::SetUp();
         pluginName += IE_BUILD_POSTFIX;
         if (pluginName == (std::string("openvino_template_plugin") + IE_BUILD_POSTFIX)) {
-            pluginName = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName);
+            pluginName = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName);
         }
     }
 };

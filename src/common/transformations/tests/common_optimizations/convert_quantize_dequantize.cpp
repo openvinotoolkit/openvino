@@ -37,13 +37,13 @@ std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape,
     auto output_low = opset1::Constant::create(element::f32, Shape{}, {out_low});
     auto output_high = opset1::Constant::create(element::f32, Shape{}, {out_high});
     auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
-    auto convert1 = std::make_shared<opset1::Convert>(fq, element::from<LowPrecision>());
+    auto convert1 = std::make_shared<opset1::Convert>(fq, ov::element::from<LowPrecision>());
     auto convert2 = std::make_shared<opset1::Convert>(convert1, element::f32);
     const std::shared_ptr<Node> zero_point =
-        element::from<T>() == element::f32
-            ? opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values)
+        ov::element::from<T>() == element::f32
+            ? opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values)
             : std::dynamic_pointer_cast<Node>(std::make_shared<opset1::Convert>(
-                  opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values),
+                  opset1::Constant::create(ov::element::from<T>(), zero_point_shape, zero_point_values),
                   element::f32));
     auto sub = std::make_shared<opset1::Subtract>(convert2, zero_point);
     auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);

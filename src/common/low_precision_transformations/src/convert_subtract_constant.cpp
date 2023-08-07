@@ -44,11 +44,15 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
     auto multiplyConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
     auto multiplyWrapper = ngraph::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto weightsConvert = opsMap.at(weightsConvertWrapper).get_node_shared_ptr();
         const auto quantizePrecision = weightsConvert->get_input_element_type(0);
         const auto dequantizationPrecision = weightsConvert->get_output_element_type(0);
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
 
         // validation by Convert operation input precisions
         if (!constantPrecisions.empty()) {

@@ -99,6 +99,7 @@
 /tools/legacy/ @openvinotoolkit/openvino-samples-maintainers
 /tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
 /tools/mo/  @openvinotoolkit/openvino-mo-maintainers
+/tools/ovc/  @openvinotoolkit/openvino-mo-maintainers
 /tools/pot/  @openvinotoolkit/openvino-pot-maintainers
 /thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers @openvinotoolkit/openvino-pot-maintainers
 

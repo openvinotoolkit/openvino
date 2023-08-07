@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MVN-1 - a normalization operation, which can be 
+                performed on a single input tensor.
+
 **Versioned name**: *MVN-1*
 
 **Category**: *Normalization*
@@ -107,7 +111,8 @@ where :math:`\sigma_{k}^2` is the variance calculated based on mean value, :math
 
 *Example: with* ``across_channels`` *attribute*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MVN">
        <data across_channels="true" eps="1e-9" normalize_variance="true"/>
@@ -132,7 +137,8 @@ where :math:`\sigma_{k}^2` is the variance calculated based on mean value, :math
 
 *Example: with* ``reduction_axes`` *attribute*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MVN">
        <data reduction_axes="2,3" eps="1e-9" normalize_variance="true"/>

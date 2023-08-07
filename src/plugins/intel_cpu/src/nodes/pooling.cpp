@@ -16,6 +16,7 @@
 #include <utils/general_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/node_config.h"
 #include <common/primitive_hashing_utils.hpp>
 
 // to access and change C pooling primitive desc internal padding field
@@ -358,7 +359,7 @@ void Pooling::getSupportedDescriptors() {
                                    memory::format_tag::ncw : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        if (inputDataType != memory::data_type::bf16) {
+        if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }
@@ -387,8 +388,8 @@ void Pooling::prepareParams() {
     }
 
     if (useACL) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
         if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -409,8 +410,8 @@ void Pooling::prepareParams() {
                                                                                             *attr);
         selected_pd->setImplementationType(execPtr->getImplType());
     } else {
-        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
+        auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
+        auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<DnnlMemoryDesc>();
 
         if (isDynamicNode()) {
             if (poolingAttrs.auto_pad) {
@@ -467,9 +468,9 @@ void Pooling::prepareParams() {
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+        primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
 
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
@@ -576,15 +577,14 @@ void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     const auto& out_candidate = dnnlOutDesc.getDnnlDesc();
 
     auto desc = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
-    descs.emplace_back(desc);
+
+    if (desc)
+        descs.emplace_back(desc);
 }
 
 void Pooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    dnnl::primitive_attr attr;
-    setPostOps(attr);
 
     if (useACL) {
         auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -599,65 +599,73 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory = std::make_shared<PoolingExecutorFactory>(
                 poolingAttrs,
                 srcMemoryDescs,
                 dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef, factory);
         };
+
         pushDesc(LayoutType::ncsp);
-    } else {
-        for (auto& desc : descs) {
-            auto itpd = desc;
 
-            while (static_cast<bool>(itpd)) {
-                NodeConfig config;
-                for (size_t i = 0; i < descInputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
+        return;
+    }
 
-                    config.inConfs.push_back(dataConfig);
-                }
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
-                for (size_t i = 0; i < descOutputNumbers(); i++) {
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-
-                    config.outConfs.push_back(dataConfig);
-                }
-
-                // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-                if (isMaxPool8) {
-                    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-                    PortConfig dataConfig;
-                    dataConfig.inPlace(-1);
-                    dataConfig.constant(false);
-                    dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().getMemDesc()->getPrecision(),
-                                                                                            getOutputShapeAtPort(1)));
-
-                    config.outConfs.push_back(dataConfig);
-                }
-
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-                if (!itpd.next_impl())
-                    break;
-            }
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+            inConfs.emplace_back(desc);
         }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+            // PortConfig in{desc, inPlaceOutPort};
+            outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, inPlaceOutPort);
+        }
+
+        // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
+        if (isMaxPool8) {
+            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+            const auto outputPrecision = outConfs.front().getMemDesc()->getPrecision();
+            auto desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(1));
+
+            outConfs.emplace_back(desc);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    for (auto& desc : descs) {
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
+
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 

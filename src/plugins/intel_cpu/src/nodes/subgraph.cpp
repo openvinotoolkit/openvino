@@ -25,12 +25,15 @@
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -41,38 +44,6 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-/* This class implementation is a temporal WA
-   TODO: revise the implementation to remove the node reference*/
-class SnippetShapeInfer : public ShapeInferEmptyPads {
-public:
-    SnippetShapeInfer(Snippet* node) : m_node(node) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_node->shapeInfer(), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    Snippet* m_node;
-};
-
-class SnippetShapeInferFactory : public ShapeInferFactory {
-public:
-    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<SnippetShapeInfer>(m_node);
-    }
-
-private:
-    Snippet* m_node;
-};
-} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
@@ -107,7 +78,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::I8, Precision::U8 };
+    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8 };
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -181,7 +152,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
             const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
-                                     context->getConfig().enforceBF16 &&
+                                     context->getConfig().inferencePrecision == ov::element::bf16 &&
                                      snippet->has_domain_sensitive_ops()) ?
                 static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
                 originalInputPrecision;
@@ -191,7 +162,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -207,7 +178,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -235,14 +206,14 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -318,7 +289,7 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
 }
 ov::PartialShape Snippet::canonicalizeBody() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
-        const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        const auto blockedDesc = edge->getMemory().getDescWithType<BlockedMemoryDesc>();
         std::vector<Dimension> dims;
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
@@ -410,7 +381,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         return success;
     };
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
+        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().getShape().getDims()};
         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
             inDims.insert(inDims.end(), 1);
         // todo: this is a simple master_shape inference for shape-agnostic operations,
@@ -426,7 +397,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
         errorMessage << ". Input shapes = ( ";
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
+            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().getShape().toString() << ", ";
         }
         errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
         IE_THROW() << errorMessage.str();
@@ -474,7 +445,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numInputs; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
+            start_offset_in[i] =  memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
         }
         const size_t numOutputs = outputShapes.size();
         start_offset_out.resize(numOutputs);
@@ -482,7 +453,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numOutputs; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
+            start_offset_out[i] = memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
         }
     };
     // initialize start offsets to src and dst memory
@@ -549,7 +520,7 @@ bool Snippet::created() const {
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
     pre_dialect.register_pass<ConvertToSwishCPU>();
-    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+    if (context->getConfig().inferencePrecision == ov::element::bf16 && snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
@@ -559,10 +530,14 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
 
     ov::pass::Manager post_dialect;
     CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
     ov::pass::Manager post_precision;
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
@@ -571,16 +546,17 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         pre_dialect,
         post_dialect,
         post_precision,
+        control_flow_markup_pipeline,
         control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->getData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->getData()) + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =

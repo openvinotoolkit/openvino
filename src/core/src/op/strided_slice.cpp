@@ -158,9 +158,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -189,8 +188,10 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace strided_slice {
 namespace {
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
 {
@@ -228,6 +229,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                            ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 }  // namespace strided_slice
 

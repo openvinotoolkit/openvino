@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about OpenVINO™ telemetry, that with your explicit consent 
+                 collects only usage data to simplify debugging and further development.
+
+
 To facilitate debugging and further development, OpenVINO™ asks its users for 
 a permission to collect telemetry data. It will not be collected 
 without an explicit consent on your part and will cover only OpenVINO™ usage information.
@@ -54,27 +59,31 @@ You can change your data collection decision with the following command lines:
 Telemetry Data Collection Details
 ###########################################################
 
+.. tab-set::
 
-.. tab:: Telemetry Data Collected 
-
-   * Failure reports 
-   * Error reports 
-   * Usage data 
-
-.. tab:: Tools Collecting Data
-
-   * Model Optimizer 
-   * Model Downloader 
-   * Accuracy Checker 
-   * Post-Training Optimization Toolkit 
-   * Neural Network Compression Framework
-   * Model Converter
-   * Model Quantizer
-
-.. tab:: Telemetry Data Retention
-
-   Telemetry data is retained in Google Analytics for a maximum of 26 months.
-   Any raw data that has reached the 26-month threshold is deleted from Google Analytics on a monthly basis.  
+   .. tab-item:: Telemetry Data Collected
+      :sync: telemetry-data-collected
+   
+      * Failure reports 
+      * Error reports 
+      * Usage data 
+   
+   .. tab-item:: Tools Collecting Data
+      :sync: tools-collecting-data
+   
+      * Model conversion API 
+      * Model Downloader 
+      * Accuracy Checker 
+      * Post-Training Optimization Toolkit 
+      * Neural Network Compression Framework
+      * Model Converter
+      * Model Quantizer
+   
+   .. tab-item:: Telemetry Data Retention
+      :sync: telemetry-data-retention
+   
+      Telemetry data is retained in Google Analytics for a maximum of 26 months.
+      Any raw data that has reached the 26-month threshold is deleted from Google Analytics on a monthly basis.  
 
 
 @endsphinxdirective

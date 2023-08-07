@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/strides.hpp"
+#include "openvino/core/strides.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
     s << "Strides{";
-    s << ngraph::join(strides);
+    s << ov::util::join(strides);
     s << "}";
     return s;
 }

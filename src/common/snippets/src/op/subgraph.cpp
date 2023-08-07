@@ -14,7 +14,6 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/set_softmax_ports.hpp"
@@ -25,6 +24,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
@@ -38,6 +38,8 @@
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/insert_loops.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -74,24 +76,31 @@ auto snippets::op::Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::No
 }
 
 void snippets::op::Subgraph::init_config() {
+    auto update = [](bool& flag, bool status) { flag = flag || status; };
     const auto ops = body_ptr()->get_ops();
     for (const auto& op : ops) {
-        config.m_is_quantized = config.m_is_quantized ||
-            ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
-            is_domain_sensitive_op(op);
+        update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
+        update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
     }
 }
 
 auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
     // The count of potential unique Buffers - it's hidden virtual ports as well
     // We should go through Subgraph and calculate potential non-inplace Buffers count.
-    // These Buffers can be only around Loops (for example, around MatMul they may be inplace because MatMul doesn't change registers).
-    // So we should check for element type size of nodes which are used Buffer to get rating from above for unique Buffer count.
+    // These Buffers can be in 2 cases:
+    // 1. Around Loops: we should check for element type size of nodes which use Buffer to get rating from above for unique Buffer count.
+    // 2. Around MatMul: all buffers around Matmul must not be inplace because MatMul blocking implementation changes registers during computations.
     // The count is estimated because when we calculate this number, we have only original graph representation
     // and where will be Loops - we can just predict.
     // Note: The ops that create Buffers: MatMul, Transpose and Softmax (always FP32)
     std::vector<size_t> used_precision_size;
+
+    auto push_prc_size = [&used_precision_size](size_t precision_size) {
+        if (used_precision_size.empty() || used_precision_size.back() != precision_size) {
+            used_precision_size.push_back(precision_size);
+        }
+    };
+
     for (const auto& op : ops) {
         if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(op)) {
             // At the moment Transposes are supported only on Results and Parameters but
@@ -105,34 +114,23 @@ auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& op
                                                            }) ||
                                               !ov::is_type<ov::op::v0::Parameter>(transpose->get_input_node_shared_ptr(0));
             if (are_prev_or_next_ops) {
-                const auto prc_size = transpose->get_element_type().size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
+                push_prc_size(transpose->get_element_type().size());
             }
         } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
-            // Softmax always uses 2 FP32 Buffers
-            const auto prc_size = ov::element::f32.size();
-            if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                used_precision_size.push_back(prc_size);
-            }
+            // Softmax always uses 2 FP32 Buffers after decomposition.
+            // They are inplace and the same so we can push precision size only once
+            push_prc_size(ov::element::f32.size());
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
-            // First input check is enough because MatMul requires the same prc size on inputs
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)) ||
-                !ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1))) {
-                const auto prc_size = matmul->get_input_element_type(0).size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
-            }
+            // Since all buffers around Matmul must be unique, we explicitely add values to the vector without any checks
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)))
+                used_precision_size.push_back(matmul->get_input_element_type(0).size());
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1)))
+                used_precision_size.push_back(matmul->get_input_element_type(1).size());
 
             const auto consumers = matmul->get_output_target_inputs(0);
             if (std::none_of(consumers.begin(), consumers.end(),
                              [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v0::Result>(in.get_node()); })) {
-                const auto prc_size = matmul->get_element_type().size();
-                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
-                    used_precision_size.push_back(prc_size);
-                }
+                used_precision_size.push_back(matmul->get_element_type().size());
             }
         }
     }
@@ -432,10 +430,26 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
         if (body_results[i]->get_input_element_type(0) != needed_out_type) {
-            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
-            body_results[i]->set_argument(0, convert);
-            body_results[i]->validate_and_infer_types();
+            auto parent_output = body_results[i]->get_input_source_output(0);
+            std::shared_ptr<ov::Node> consumer = body_results[i];
+
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert before Transpose (if there is) on Subgraph outputs
+            const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent_output.get_node_shared_ptr());
+            if (transpose) {
+                OPENVINO_ASSERT(parent_output.get_target_inputs().size() == 1,
+                                "If Result has Transpose on input, this Result must be single consumer of the Transpose");
+                parent_output = transpose->get_input_source_output(0);
+                consumer = transpose;
+            }
+
+            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, needed_out_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            consumer->set_argument(0, convert);
+            consumer->validate_and_infer_types();
+            if (consumer != body_results[i])
+                body_results[i]->validate_and_infer_types();
         }
     }
 
@@ -444,23 +458,37 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto needed_in_type = std::get<2>(inputShapes[i]);
         const auto& parameter = parameters[i];
-        if (parameter->get_element_type() != needed_in_type) {
-            const auto parameter_output = parameter->output(0);
-            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                parameter_output,
-                parameter_output.get_element_type());
-            ov::copy_runtime_info(parameter, convert);
+        const auto original_type = parameter->get_element_type();
+        if (original_type != needed_in_type) {
+            parameter->set_element_type(needed_in_type);
+            parameter->validate_and_infer_types();
 
-            for (const auto input : parameter_output.get_target_inputs()) {
+            auto parent_output = parameter->output(0);
+            auto consumer_inputs = parent_output.get_target_inputs();
+
+            // Snippets supports Transpose only after Parameter or before Result nodes
+            // So we have to insert Convert after Transpose (if there is) on Subgraph inputs
+            if (std::any_of(consumer_inputs.cbegin(), consumer_inputs.cend(),
+                [](const ov::Input<ov::Node>& input) { return ov::is_type<ov::op::v1::Transpose>(input.get_node()); })) {
+                OPENVINO_ASSERT(consumer_inputs.size() == 1,
+                                "If Parameter has Transpose on output, this Transpose must be single consumer of the Parameter");
+                const auto transpose = consumer_inputs.begin()->get_node()->shared_from_this();
+                transpose->validate_and_infer_types();
+
+                parent_output = transpose;
+                consumer_inputs = parent_output.get_target_inputs();
+            }
+
+            const auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, original_type);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+
+            for (const auto input : consumer_inputs) {
                 const auto& input_node = input.get_node();
                 if (input_node == convert.get()) {
                     continue;
                 }
                 input_node->set_argument(input.get_index(), convert->output(0));
             }
-
-            parameter->set_element_type(needed_in_type);
-            parameter->validate_and_infer_types();
         }
     }
 }
@@ -511,6 +539,7 @@ void snippets::op::Subgraph::data_flow_transformations(ov::pass::Manager& pre_co
 }
 
 void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
+                                                          lowered::pass::PassPipeline& target_markup_pipeline,
                                                           lowered::pass::PassPipeline& target_pipeline) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
@@ -518,19 +547,23 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
-    // Note: The pass InitLoops uses LoopInfo that contains entry and exit points of the corresponding Loop.
-    //       To avoid the Loop information corruption, we should call the passes with Load/Store work
-    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (InitLoops())
+    // Ticket: 113666
+    // TODO: Make pass pipeline with backend passes more flexible
+    target_markup_pipeline.run(linear_ir);
+
     lowered::pass::PassPipeline common_pipeline;
     common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
     common_pipeline.register_pass<lowered::pass::FuseLoops>();
+    common_pipeline.register_pass<lowered::pass::SplitLoops>();
     common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
     common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
-    common_pipeline.register_pass<lowered::pass::InitLoops>();
     common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    common_pipeline.register_pass<lowered::pass::ValidateLoops>();
+    common_pipeline.register_pass<lowered::pass::InitLoops>();
+    common_pipeline.register_pass<lowered::pass::InsertLoops>();
     common_pipeline.run(linear_ir);
 
     target_pipeline.run(linear_ir);
@@ -562,22 +595,24 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
                                                     ov::pass::Manager& pre_common,
                                                     ov::pass::Manager& post_common,
                                                     ov::pass::Manager& post_precision,
+                                                    lowered::pass::PassPipeline& target_lowered_markup_pipeline,
                                                     lowered::pass::PassPipeline& target_lowered_pipeline,
                                                     const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(pre_common, post_common, post_precision, target_lowered_pipeline, compile_params);
+    return generate(pre_common, post_common, post_precision, target_lowered_markup_pipeline, target_lowered_pipeline, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const void* compile_params) {
     auto mngr = ov::pass::Manager();
     auto lowered = lowered::pass::PassPipeline();
-    return generate(mngr, mngr, mngr, lowered, compile_params);
+    return generate(mngr, mngr, mngr, lowered, lowered, compile_params);
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(
     ov::pass::Manager& pre_common,
     ov::pass::Manager& post_common,
     ov::pass::Manager& post_precision,
+    lowered::pass::PassPipeline& target_lowered_markup_pipeline,
     lowered::pass::PassPipeline& target_lowered_pipeline,
     const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
@@ -592,7 +627,7 @@ snippets::Schedule snippets::op::Subgraph::generate(
     lowering_config.m_loop_depth = tileRank;
 
     lowered::LinearIR linear_ir = lowered::LinearIR(body_ptr(), lowering_config);
-    control_flow_transformations(linear_ir, target_lowered_pipeline);
+    control_flow_transformations(linear_ir, target_lowered_markup_pipeline, target_lowered_pipeline);
 
     // actual code emission
     const auto& lowering_result = m_generator->generate(linear_ir, lowering_config, compile_params);

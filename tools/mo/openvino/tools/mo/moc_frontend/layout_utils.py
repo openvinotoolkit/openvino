@@ -19,7 +19,7 @@ def update_layout_to_dict(inputs: list, layout: [list, dict], get_names_func: Ca
             if len(input_names) > 1:
                 raise Error('Layout without name can be specified for models with only one input, '
                             'but provided model has {} inputs: \'{}\'. '
-                            'Please specify explicitly input/output name for --layout option'
+                            'Please specify explicitly input/output name for "layout" option'
                             .format(len(input_names), input_names))
             layout = {
                 input_names[0]: {

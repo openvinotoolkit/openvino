@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about NonMaxSuppression-1 - a sorting and maximization 
+                operation, which can be performed on two required and three 
+                optional input tensors.
+
 **Versioned name**: *NonMaxSuppression-1*
 
 **Category**: *Sorting and maximization*

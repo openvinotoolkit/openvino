@@ -26,13 +26,13 @@ class Transformations {
 public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
-                    const bool                        enableBF16,
+                    const ov::element::Type           inferencePrecision,
                     const bool                        isLegacyApi,
                     const Config::SnippetsMode&       snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
-          enableBF16(enableBF16),
+          inferencePrecision(inferencePrecision),
           isLegacyApi(isLegacyApi),
           snippetsMode(snippetsMode),
           config(config) {
@@ -45,7 +45,7 @@ public:
 private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
-    const bool    enableBF16;
+    const ov::element::Type inferencePrecision;
     const bool    isLegacyApi;
     const Config::SnippetsMode snippetsMode;
     const Config& config;

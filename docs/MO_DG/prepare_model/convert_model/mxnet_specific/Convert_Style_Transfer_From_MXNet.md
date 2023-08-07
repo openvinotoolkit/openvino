@@ -2,12 +2,14 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a Style Transfer 
+                 model from MXNet to the OpenVINO Intermediate Representation.
+
 
 .. warning::
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
-
-   
 
 This article provides instructions on how to generate a model for style transfer, using the public MXNet neural style transfer sample.
 
@@ -141,7 +143,7 @@ The ``models/13`` string in the code above is composed of the following substrin
 
 Any style can be selected from `collection of pre-trained weights <https://pan.baidu.com/s/1skMHqYp>`__. On the Chinese-language page, click the down arrow next to a size in megabytes. Then wait for an overlay box to appear, and click the blue button in it to download. The ``generate()`` function generates ``nst_vgg19-symbol.json`` and ``vgg19-symbol.json`` files for the specified shape. In the code, it is ``[1024 x 768]`` for a 4:3 ratio. You can specify another, for example, ``[224,224]`` for a square ratio.
 
-**Step 6**: Run the Model Optimizer to generate an Intermediate Representation (IR):
+**Step 6**: Run model conversion to generate an Intermediate Representation (IR):
 
 1. Create a new directory. For example:
 
@@ -166,7 +168,7 @@ Any style can be selected from `collection of pre-trained weights <https://pan.b
       Make sure that all the ``.params`` and ``.json`` files are in the same directory as the ``.nd`` files. Otherwise, the conversion process fails.
 
 
-3. Run the Model Optimizer for Apache MXNet. Use the ``--nd_prefix_name`` option to specify the decoder prefix and ``--input_shape`` to specify input shapes in ``[N,C,W,H]`` order. For example:
+3. Run model conversion for Apache MXNet. Use the ``--nd_prefix_name`` option to specify the decoder prefix and ``input_shape`` to specify input shapes in ``[N,C,W,H]`` order. For example:
 
    .. code-block:: sh
 

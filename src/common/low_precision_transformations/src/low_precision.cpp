@@ -27,6 +27,7 @@
 #include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_parameters.hpp"
 
+#include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -139,9 +140,9 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
                     OV_PASS_CALLBACK(m);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes

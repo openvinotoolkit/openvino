@@ -9,7 +9,7 @@
 #include <queue>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/log.hpp"
@@ -59,6 +59,7 @@ public:
                      const std::shared_ptr<VariablesIndex>& variables_index,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                      const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                     const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                      const bool native_format = false);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
@@ -86,6 +87,7 @@ public:
     std::shared_ptr<VariablesIndex> get_variables_index() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
+    std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
 private:
     void load_places();
@@ -110,6 +112,7 @@ private:
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_input_names;
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
+    std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     bool m_native_format;
     bool m_custom_inputs;
@@ -211,6 +214,14 @@ void InputModel::InputModelTFImpl::load_places() {
                                              producer_op_name,
                                              producer_output_port_name,
                                              producer_output_port_idx);
+                if (is_conditional_edge(producer_op_name)) {
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_op_name = producer_op_name.substr(1);
+                }
+
                 op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
@@ -226,20 +237,38 @@ void InputModel::InputModelTFImpl::load_places() {
             m_telemetry->send_event("op_count", "tf_" + op.first, static_cast<int>(op.second));
         }
     }
+    m_graph_iterator->reset();
+    m_outputs.clear();
 
+    // SavedModel, MetaGraph formats have model signature that provides a concrete list of outputs
+    // some output can place among intermediate layers (i.e. it can have its output consumers)
+    // so just terminal nodes may not cover the whole list of outputs
+    if (m_saved_model_output_names) {
+        for (const auto& map_name : *m_saved_model_output_names) {
+            const auto& output_internal_tensor_name = map_name.first;
+            auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                              ov::PartialShape({}),
+                                                              ov::element::dynamic,
+                                                              std::vector<std::string>{output_internal_tensor_name});
+            m_tensor_places[output_internal_tensor_name] = output_place;
+            m_outputs.push_back(output_place);
+        }
+        return;
+    }
+
+    // treat terminal nodes as the models outputs for the frozen TF1 format
     std::set<std::string> op_names_without_consumers;
     std::set_difference(all_op_names.begin(),
                         all_op_names.end(),
                         op_names_with_consumers.begin(),
                         op_names_with_consumers.end(),
                         std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
-    m_graph_iterator->reset();
 
-    m_outputs.clear();
-    for (auto& output_name : op_names_without_consumers) {
-        std::vector<std::string> output_names = {output_name};
-        auto output_place =
-            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape({}), ov::element::dynamic, output_names);
+    for (const auto& output_name : op_names_without_consumers) {
+        auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                          ov::PartialShape({}),
+                                                          ov::element::dynamic,
+                                                          std::vector<std::string>{output_name});
         m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
@@ -254,6 +283,10 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl
 
 std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl::get_saved_model_output_names() const {
     return m_saved_model_output_names;
+}
+
+std::shared_ptr<CheckpointV1Reader> InputModel::InputModelTFImpl::get_checkpoint_v1_reader() const {
+    return m_checkpoint_v1_reader;
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() {
@@ -323,9 +356,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                     "', expected input port index: " + std::to_string(producer_output_port_idx) + '\n');
                 }
 
-                // skip conditional edges for all operators
                 if (is_conditional_edge(producer_name)) {
-                    continue;
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_name = producer_name.substr(1);
                 }
 
                 // is_input is a flag to leave producer operation node or not.
@@ -417,6 +453,7 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
     const std::shared_ptr<VariablesIndex>& variables_index,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
     const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+    const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
     const bool native_format)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
@@ -424,6 +461,7 @@ InputModel::InputModelTFImpl::InputModelTFImpl(
       m_variables_index(variables_index),
       m_saved_model_input_names(saved_model_input_names),
       m_saved_model_output_names(saved_model_output_names),
+      m_checkpoint_v1_reader(checkpoint_v1_reader),
       m_native_format(native_format) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     m_input_names = graph_iterator->get_input_names();
@@ -602,6 +640,7 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<VariablesIndex>& variables_index,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
                        const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names,
+                       const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader,
                        const bool native_format)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator,
                                                *this,
@@ -609,6 +648,7 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                                                variables_index,
                                                saved_model_input_names,
                                                saved_model_output_names,
+                                               checkpoint_v1_reader,
                                                native_format)} {}
 
 std::shared_ptr<VariablesIndex> InputModel::get_variables_index() {
@@ -621,6 +661,10 @@ std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_
 
 std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_output_names() const {
     return _impl->get_saved_model_output_names();
+}
+
+std::shared_ptr<CheckpointV1Reader> InputModel::get_checkpoint_v1_reader() const {
+    return _impl->get_checkpoint_v1_reader();
 }
 
 std::vector<std::string> InputModel::get_input_names() const {

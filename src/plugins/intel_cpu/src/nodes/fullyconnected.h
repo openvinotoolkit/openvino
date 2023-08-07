@@ -33,7 +33,7 @@ public:
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
@@ -44,8 +44,8 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -55,10 +55,13 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
+    bool canBeExecutedInInt8() const override;
 
-    bool withBiasFused() const {
-        return withBiases;
-    }
+    void fuseDecompressionMultiply(const NodePtr& constData);
+    const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
+
+    void fuseDecompressionSubtract(const NodePtr& constData);
+    const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -96,13 +99,25 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
+    void fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues);
 
     // sparse weights
     bool useSparseWeights = false;
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
-    bool isINT8 = false;
+    VectorDims expectedBiasDims {};
+    bool useMlas = false;
+#ifdef OV_CPU_WITH_MLAS
+    int64_t M, N, K;
+    MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
+#endif
+
+    bool useWeightsDecompressionImpl = false;
+    std::vector<float> decompressionSubtract;
+    std::vector<float> decompressionMultiply;
 };
 
 }   // namespace node

@@ -53,9 +53,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     ShapeType end_shape = end_data.empty() ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{ end_data.size() };
     ShapeType strides_shape = strides_data.empty() ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{ strides_data.size() };
 
-    std::vector<ShapeType> output_shapes = {ShapeType{}};
+    std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
-        input0_shape,
+        std::move(input0_shape),
         begin_shape,
         end_shape,
         strides_shape
@@ -68,6 +68,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     op.set_ellipsis_mask_mask(desc->ellipsis_mask);
 
     std::map<size_t, ngraph::HostTensorPtr> const_data;
+    const auto ta = ov::make_tensor_accessor(const_data);
     if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
         auto begin_tensor = make_host_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
         auto end_tensor = make_host_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
@@ -77,7 +78,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         const_data.emplace(2, end_tensor);
         const_data.emplace(3, strides_tensor);
 
-        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
     } else {
         auto begin_mem = constant_mem.at(1);
         auto end_mem = constant_mem.at(2);
@@ -95,7 +96,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         const_data.emplace(2, end_tensor);
         const_data.emplace(3, strides_tensor);
 
-        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
     }
 
     auto output_format = format::get_default_format(output_shapes[0].size());

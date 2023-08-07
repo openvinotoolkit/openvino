@@ -2,39 +2,56 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models with images in NV12 color format using  
+                 Synchronous Inference Request (C++) API.
+
+
 This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-| Feature                             | API                                                         | Description                               |
-+=====================================+=============================================================+===========================================+
-| Node Operations                     | ``ov::Output::get_any_name``                                | Get a layer name                          |
-+-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-| Infer Request Operations            | ``ov::InferRequest::set_tensor``,                           | Operate with tensors                      |
-|                                     | ``ov::InferRequest::get_tensor``                            |                                           |
-+-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
-| Preprocessing                       | ``ov::preprocess::InputTensorInfo::set_color_format``,      | Change the color format of the input data |
-|                                     | ``ov::preprocess::PreProcessSteps::convert_element_type``,  |                                           |
-|                                     | ``ov::preprocess::PreProcessSteps::convert_color``          |                                           |
-+-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
+   .. tab-item:: Requirements 
+
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+      | Options                             | Values                                                                                           |
+      +=====================================+==================================================================================================+
+      | Validated Models                    | :doc:`alexnet <omz_models_model_alexnet>`                                                        |
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+      | Model Format                        | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                  |
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+      | Validated images                    | An uncompressed image in the NV12 color format - \*.yuv                                          |
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+      | Supported devices                   | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                             |
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+      | Other language realization          | :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README>` |
+      +-------------------------------------+--------------------------------------------------------------------------------------------------+
+
+   .. tab-item:: C++ API 
+
+      The following C++ API is used in the application:
+
+      +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
+      | Feature                             | API                                                         | Description                               |
+      +=====================================+=============================================================+===========================================+
+      | Node Operations                     | ``ov::Output::get_any_name``                                | Get a layer name                          |
+      +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
+      | Infer Request Operations            | ``ov::InferRequest::set_tensor``,                           | Operate with tensors                      |
+      |                                     | ``ov::InferRequest::get_tensor``                            |                                           |
+      +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
+      | Preprocessing                       | ``ov::preprocess::InputTensorInfo::set_color_format``,      | Change the color format of the input data |
+      |                                     | ``ov::preprocess::PreProcessSteps::convert_element_type``,  |                                           |
+      |                                     | ``ov::preprocess::PreProcessSteps::convert_color``          |                                           |
+      +-------------------------------------+-------------------------------------------------------------+-------------------------------------------+
 
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
 
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
-| Options                             | Values                                                                                           |
-+=====================================+==================================================================================================+
-| Validated Models                    | :doc:`alexnet <omz_models_model_alexnet>`                                                        |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
-| Model Format                        | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                  |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
-| Validated images                    | An uncompressed image in the NV12 color format - \*.yuv                                          |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
-| Supported devices                   | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                             |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
-| Other language realization          | :doc:`C <openvino_inference_engine_ie_bridges_c_samples_hello_nv12_input_classification_README>` |
-+-------------------------------------+--------------------------------------------------------------------------------------------------+
+   .. tab-item:: Sample Code
+   
+      .. doxygensnippet:: samples/cpp/hello_nv12_input_classification/main.cpp  
+         :language: cpp
 
 How It Works
 ############
@@ -62,7 +79,7 @@ To run the sample, you need to specify a model and image:
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an uncompressed NV12 image using FFmpeg:
 
-.. code-block:: bash
+.. code-block:: sh
    
    ffmpeg -i cat.jpg -pix_fmt nv12 car.yuv
 
@@ -70,8 +87,8 @@ The sample accepts an uncompressed image in the NV12 color format. To run the sa
 .. note::
   
    - Because the sample reads raw image files, you should provide a correct image size along with the image path. The sample expects the logical size of the image, not the buffer size. For example, for 640x480 BGR/RGB image the corresponding NV12 logical image size is also 640x480, whereas the buffer size is 640x720.
-   - By default, this sample expects that model input has BGR channels order. If you trained your model to work with RGB order, you need to reconvert your model using the Model Optimizer tool with ``--reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`Model Optimizer tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   - By default, this sample expects that model input has BGR channels order. If you trained your model to work with RGB order, you need to reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -147,7 +164,7 @@ See Also
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
 - :doc:`Using OpenVINO™ Toolkit Samples <openvino_docs_OV_UG_Samples_Overview>`
 - :doc:`Model Downloader <omz_tools_downloader>`
-- :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 
 @endsphinxdirective
 

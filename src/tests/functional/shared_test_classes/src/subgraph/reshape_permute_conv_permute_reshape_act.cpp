@@ -17,8 +17,8 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
-        results << "KS=" << CommonTestUtils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
+        results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
+        results << "KS=" << ov::test::utils::vec2str(std::vector<size_t>(kernel_shape.begin(), kernel_shape.end())) << "_";
         results << "OC=" << output_channels << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName;
@@ -96,11 +96,6 @@ namespace SubgraphTestsDefinitions {
             FuncTestUtils::fillInputsBySinValues(blob);
             inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
-        }
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-            auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(batchSize);
         }
         inferRequest.Infer();
 

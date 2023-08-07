@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about NonMaxSuppression-5 - a sorting and maximization 
+                operation, which can be performed on two required and four 
+                optional input tensors.
+
 **Versioned name**: *NonMaxSuppression-5*
 
 **Category**: *Sorting and maximization*

@@ -73,7 +73,7 @@ public:
             opset_version);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MVNTransformation, ngraph::opset1::Interpolate>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MVNTransformation, ov::op::v0::Interpolate>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MVNFunction::getReference(

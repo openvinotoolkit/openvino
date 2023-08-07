@@ -17,7 +17,7 @@ namespace low_precision {
 
 ClampTransformation::ClampTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ClampTransformation);
-    auto matcher = pattern::wrap_type<opset1::Clamp>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<ov::opset1::Clamp>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -45,9 +45,9 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto newClamp = ov::as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
 
-    std::shared_ptr<ngraph::opset1::Clamp> replacement;
+    std::shared_ptr<ov::opset1::Clamp> replacement;
     {
         double min = newClamp->get_min();
         double max = newClamp->get_max();
@@ -67,7 +67,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
             max += shift;
         }
 
-        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->input_value(0), min, max);
+        replacement = std::make_shared<ov::opset1::Clamp>(newClamp->input_value(0), min, max);
     }
 
     replace_node_update_name(newClamp, replacement);

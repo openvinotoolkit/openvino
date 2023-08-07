@@ -14,6 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace clamp {
 namespace {
 template <element::Type_t ET, typename T>
@@ -32,6 +33,7 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
     };
 
     bool rc = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     switch (arg->get_element_type()) {
         TYPE_CASE(i8)
         (arg, out, double_to_int<int8_t>(min, ceil_func), double_to_int<int8_t>(max, floor_func), count);
@@ -69,6 +71,7 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
         break;
     }
     return rc;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace
 }  // namespace clamp

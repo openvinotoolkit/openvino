@@ -24,14 +24,12 @@ from tests_compatibility import (
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39658,
-    xfail_issue_39662,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_45180,
     xfail_issue_47323,
     xfail_issue_73538,
     xfail_issue_48052,
-    xfail_issue_49207,
     xfail_issue_52463,
     xfail_issue_58033,
     xfail_issue_63033,
@@ -64,6 +62,7 @@ from tests_compatibility import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
+    xfail_issue_113506,
     skip_dynamic_model,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
@@ -116,24 +115,8 @@ globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
     (
-        xfail_issue_49207,
-        "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
-        "OnnxBackendNodeModelTest.test_simple_rnn_defaults_cpu",
-        "OnnxBackendNodeModelTest.test_simple_rnn_with_initial_bias_cpu",
-        "OnnxBackendNodeModelTest.test_gru_defaults_cpu",
-        "OnnxBackendNodeModelTest.test_gru_seq_length_cpu",
-        "OnnxBackendNodeModelTest.test_gru_with_initial_bias_cpu",
-        "OnnxBackendNodeModelTest.test_lstm_defaults_cpu",
-        "OnnxBackendNodeModelTest.test_lstm_with_initial_bias_cpu",
-        "OnnxBackendNodeModelTest.test_lstm_with_peepholes_cpu",
-    ),
-    (
         xfail_issue_39658,
         "OnnxBackendNodeModelTest.test_tile_cpu",
-    ),
-    (
-        xfail_issue_39662,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
     ),
     (
         xfail_issue_38091,
@@ -460,7 +443,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_82038,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_duplicate_indices_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_add_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_multiply_cpu",
     ),
@@ -703,8 +685,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99970,
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_max_cpu",
-        "OnnxBackendNodeModelTest.test_scatter_elements_with_reduction_min_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),
@@ -718,6 +698,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
+    ),
+    (
+        xfail_issue_113506,
+        "OnnxBackendNodeModelTest.test_lstm_with_peepholes_cpu",
     ),
 ]
 

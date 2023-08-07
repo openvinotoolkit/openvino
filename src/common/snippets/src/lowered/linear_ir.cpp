@@ -91,7 +91,9 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     for (auto it = begin; it != end; it++)
         original_nodes.push_back((*it)->get_node());
     ngraph::NodeMap node_map;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::clone_nodes(original_nodes,  node_map);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     for (auto it = begin; it != end; it++) {
         // copy by value, so result shared_pointer point to new objects
         Expression new_expr = **it;
@@ -257,6 +259,27 @@ void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
     // Instead of `insert()` + `erase()`, we use `splice()` for the same list
     m_expressions.splice(to, m_expressions, from);
 }
+
+LinearIR::constExprIt LinearIR::find(const ExpressionPtr& target) const {
+    return find(cbegin(), cend(), target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_before(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(cbegin(), it, target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_before(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(crbegin(), it, target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_after(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(it, cend(), target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_after(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(it, crend(), target);
+}
+
 
 }// namespace lowered
 }// namespace snippets

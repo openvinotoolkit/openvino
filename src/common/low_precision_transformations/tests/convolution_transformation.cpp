@@ -28,7 +28,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ov::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
@@ -36,7 +36,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ov::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
@@ -83,7 +83,7 @@ public:
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-            testValues.expected.weights = ov::as_type_ptr<opset1::Constant>(convertedWeights);
+            testValues.expected.weights = ov::as_type_ptr<ov::op::v0::Constant>(convertedWeights);
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(

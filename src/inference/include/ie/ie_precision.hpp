@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -16,11 +26,12 @@
 #include "ie_common.h"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief This class holds precision value and provides precision related operations
  */
-class Precision {
+class INFERENCE_ENGINE_1_0_DEPRECATED Precision {
 public:
     /** Enum to specify of different  */
     enum ePrecision : uint8_t {
@@ -151,6 +162,15 @@ public:
     bool operator==(const Precision& p) const noexcept {
         return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
                areSameStrings(precisionInfo.name, p.precisionInfo.name);
+    }
+
+    /**
+     * @brief Inequality operator with Precision object
+     * @param p A value of Precision to compare with
+     * @return `true` if values represent different precisions, `false` otherwise
+     */
+    bool operator!=(const Precision& p) const noexcept {
+        return !(*this == p);
     }
 
     /**
@@ -364,118 +384,118 @@ protected:
  * @brief Particular precision traits
  */
 template <Precision::ePrecision p>
-struct PrecisionTrait {};
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait {};
 
 /** @cond INTERNAL */
 template <>
-struct PrecisionTrait<Precision::FP32> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::FP32> {
     using value_type = float;
     enum { is_float = true };
 };
 
 template <>
-struct PrecisionTrait<Precision::FP64> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::FP64> {
     using value_type = double;
     enum { is_float = true };
 };
 
 template <>
-struct PrecisionTrait<Precision::FP16> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
     enum { is_float = true };
 };
 template <>
-struct PrecisionTrait<Precision::BF16> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::BF16> {
     using value_type = int16_t;
     enum { is_float = true };
 };
 template <>
-struct PrecisionTrait<Precision::Q78> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::I16> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::I16> {
     using value_type = int16_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::U16> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::U16> {
     using value_type = uint16_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::U4> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::U4> {
     using value_type = uint8_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::U8> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::U8> {
     using value_type = uint8_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::I4> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::I4> {
     using value_type = int8_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::I8> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::I8> {
     using value_type = int8_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::BOOL> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::BOOL> {
     using value_type = uint8_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::I32> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::U32> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::U32> {
     using value_type = uint32_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::I64> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::U64> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::U64> {
     using value_type = uint64_t;
     enum { is_float = false };
 };
 template <>
-struct PrecisionTrait<Precision::BIN> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::BIN> {
     using value_type = int8_t;
     enum { is_float = false };
 };
 
 template <class T>
-inline uint8_t type_size_or_zero() {
+INFERENCE_ENGINE_1_0_DEPRECATED inline uint8_t type_size_or_zero() {
     return sizeof(T);
 }
 
 template <>
-struct PrecisionTrait<Precision::UNSPECIFIED> {
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::UNSPECIFIED> {
     using value_type = void;
     enum { is_float = false };
 };
 
 template <>
-struct PrecisionTrait<Precision::MIXED> : PrecisionTrait<Precision::UNSPECIFIED> {};
+struct INFERENCE_ENGINE_1_0_DEPRECATED PrecisionTrait<Precision::MIXED> : PrecisionTrait<Precision::UNSPECIFIED> {};
 
 template <>
-inline uint8_t type_size_or_zero<void>() {
+INFERENCE_ENGINE_1_0_DEPRECATED inline uint8_t type_size_or_zero<void>() {
     return 0;
 }
 
 template <Precision::ePrecision precision>
-inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     Precision::PrecisionInfo info;
     info.name = name;
 
@@ -506,7 +526,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<Precision>& 
     return os;
 }
 
-inline constexpr uint32_t getPrecisionMask(
+INFERENCE_ENGINE_1_0_DEPRECATED inline constexpr uint32_t getPrecisionMask(
     InferenceEngine::Precision::ePrecision precision1,
     InferenceEngine::Precision::ePrecision precision2,
     InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
@@ -516,4 +536,5 @@ inline constexpr uint32_t getPrecisionMask(
 
 /** @endcond */
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

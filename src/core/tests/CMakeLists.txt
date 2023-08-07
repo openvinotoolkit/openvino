@@ -38,8 +38,7 @@ ov_add_test_target(
             # process models
             test_model_zoo
         LINK_LIBRARIES
-            engines_test_util
-            commonTestUtils
+            common_test_utils
             ngraph_reference
             ngraph::builder
             openvino::util

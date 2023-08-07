@@ -112,15 +112,6 @@ inputInfo->setLayout(InferenceEngine::Layout::NHWC);
     }
 
     {
-    //! [color_space]
-auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
-// Inference Engine supposes NV12 as two inputs which need to be passed
-// as InferenceEngine::NV12Blob composed of two Y and UV planes
-preProcess.setColorFormat(InferenceEngine::NV12);
-    //! [color_space]
-    }
-
-    {
     //! [image_scale]
 auto preProcess = network.getInputsInfo()[operation_name]->getPreProcess();
 // Inference Engine supposes input for resize is always in NCHW layout

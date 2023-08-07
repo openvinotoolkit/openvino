@@ -39,6 +39,7 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
                 linear_ir.move(forward_it, consumer_it);
                 modified = true;
             }
+            expr->set_loop_ids(consumer_expr->get_loop_ids());
         }
     }
     return modified;

@@ -4,6 +4,7 @@
 
 #include "ngraph/op/tan.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/divide.hpp"
@@ -29,31 +30,24 @@ shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Tan>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace tanop {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::tan<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
+struct Evaluate : ov::element::NoAction<bool> {
+    using ov::element::NoAction<bool>::visit;
+
+    template <element::Type_t ET>
+    static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+        ngraph::runtime::reference::tan(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        return true;
+    }
+};
 
 bool evaluate_tan(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    bool rc = true;
     out->set_unary(arg0);
 
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_tan, i32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tan, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tan, u32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tan, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tan, f16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_tan, f32, arg0, out, count);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<Evaluate>(arg0->get_element_type(), arg0, out, count);
 }
 }  // namespace
 }  // namespace tanop

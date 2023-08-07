@@ -1,4 +1,4 @@
-# Installation of OpenVINO™ Notebooks {#notebooks-installation}
+# Installation of OpenVINO™ Notebooks {#notebooks_installation}
 
 
 @sphinxdirective
@@ -9,9 +9,6 @@
    :description: An installation guide for Jupyter notebooks on which Python 
                  tutorials run. The tutorials serve as introduction to the 
                  OpenVINO™ toolkit. 
-   :keywords: OpenVINO™ toolkit, Jupyter notebooks, Jupyter, Python, Python API, 
-              installation guide, tutorials, install notebooks, local 
-              installation, OpenVINO™ Notebooks, run notebooks
 
 
 The notebooks run almost anywhere, from browsers and desktops to even a cloud VM or a Docker container. 
@@ -22,10 +19,10 @@ Follow the guide below in order to run and manage the notebooks on your machine.
 Contents:
 
 - `Installation Guide <#-installation-guide>`__
--  `Run the Notebooks <#-run-the-notebooks>`__
--  `Manage the notebooks <#-manage-the-notebooks>`__
--  `Troubleshooting <#-troubleshooting>`__
--  `FAQ <#-faq>`__
+- `Run the Notebooks <#-run-the-notebooks>`__
+- `Manage the notebooks <#-manage-the-notebooks>`__
+- `Troubleshooting <#-troubleshooting>`__
+- `FAQ <#-faq>`__
 
 --------------------
 
@@ -63,389 +60,428 @@ operating system or environment.
 `Installing prerequisites`_
 ----------------------------
 
-.. tab:: WINDOWS
+.. tab-set::
 
-   1. **Install Python**
+   .. tab-item:: Windows
+      :sync: windows
 
-      Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from  `python.org`_. 
+      1. **Install Python**
+       
+         Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org <https://www.python.org/downloads/windows/>`__
+         
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
+         
+         While installing, make sure you check the box to *add Python to system PATH*.
 
-      .. _python.org: https://www.python.org/downloads/windows/
-
-      Run the installer by double clicking it. Follow the installation steps to set up the software.
+         .. note::  
       
-      While installing, make sure you check the box to *add Python to system PATH*.
+            Python software available in the Microsoft Store is not recommended. It may require additional packages.
+      
+      2. **Install GIT**
+
+         Download 64 bit version of GIT from `git-scm.org <https://github.com/git-for-windows/git/releases/download/v2.36.0.windows.1/Git-2.36.0-64-bit.exe>`__
+   
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
+
+      3. **Install C++ Redistributable (For Python 3.8 only)**
+
+         Download 64 bit version of  C++ Redistributable from `here <https://download.visualstudio.microsoft.com/download/pr/4100b84d-1b4d-487d-9f89-1354a7138c8f/5B0CBB977F2F5253B1EBE5C9D30EDBDA35DBD68FB70DE7AF5FAAC6423DB575B5/VC_redist.x64.exe>`__
+   
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
+
+   .. tab-item:: Linux
+      :sync: linux
+
+      1. **Install Python and GIT**
+
+         .. note::
+            
+            Linux Systems may require installation of additional libraries.
+      
+         The following installation steps should work on a clean install of Ubuntu Desktop 20.04, and should also work on Ubuntu 22.04 and 20.10, and on Ubuntu Server.
+      
+         .. code-block:: sh
+      
+            sudo apt-get update
+            sudo apt-get upgrade
+            sudo apt-get install python3-venv build-essential python3-dev git-all
+      
+         For an Intel Integrated Graphics Card, you can install the `Intel Graphics Compute Runtime <https://github.com/intel/compute-runtime>`__ to enable inference on this device. The command for Ubuntu 20.04 is:
+      
+         .. note::
+      
+            Only execute this command if you do not yet have OpenCL drivers installed.
+      
+         .. code-block:: sh
+      
+            sudo apt-get install intel-opencl-icd
       
       
+         The following installation steps should work on a clean install of Red Hat, CentOS, Amazon Linux 2 or Fedora. If any issues occur, see the `Troubleshooting <#-troubleshooting>`__ section.
+      
+         .. code-block:: sh
+      
+            sudo yum update
+            sudo yum upgrade
+            sudo yum install python36-devel mesa-libGL
+
+   .. tab-item:: macOS
+      :sync: macos
+
+      Alternatively, you may skip steps 1-3 if you prefer to manually install `Python 3 <https://www.python.org/>`__ and `Git <https://git-scm.com/>`__.
+
+      1. **Install Xcode Command Line Tools**
+
+         .. code-block:: sh
+   
+            xcode-select --install
+
+      2. **Install Homebrew**
+
+         .. code-block:: sh
+   
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            After you install it, follow the instructions from the Homebrew installation to set it up.
+
+      3. **Install Python and dependencies**
+   
+         .. code-block:: sh
+   
+            brew install python@3.9
+            brew install protobuf
+   
+   
+         Run each step below in a terminal.
+   
+         .. note::
+   
+            If OpenVINO is installed globally, do not run any of these commands in a terminal where ``setupvars.sh`` is sourced.
+
+   .. tab-item:: Azure ML
+      :sync: azure-ml
+
       .. note::  
-      
-         Python software available in the Microsoft Store is not recommended. It may require additional packages.
-
-
-   2. **Install GIT**
-
-      Download 64 bit version of GIT from `git-scm.org`_
-      
-      .. _git-scm.org: https://github.com/git-for-windows/git/releases/download/v2.36.0.windows.1/Git-2.36.0-64-bit.exe
-
-      Run the installer by double clicking it. Follow the installation steps to set up the software.
-
-
-   3. **Install C++ Redistributable (For Python 3.8 only)**
-
-      Download 64 bit version of  C++ Redistributable from `here`_
-      
-      .. _here: https://download.visualstudio.microsoft.com/download/pr/4100b84d-1b4d-487d-9f89-1354a7138c8f/5B0CBB977F2F5253B1EBE5C9D30EDBDA35DBD68FB70DE7AF5FAAC6423DB575B5/VC_redist.x64.exe
-
-      Run the installer by double clicking it. Follow the installation steps to set up the software.
-
-
-.. tab:: Linux Systems 
-
-   1. **Install Python and GIT**
-
-   .. note::
-      
-      Linux Systems may require installation of additional libraries.
-
-   The following installation steps should work on Ubuntu Desktop 18.04, 20.04, 20.10, and on Ubuntu Server.
-
-   .. code-block::
-
-      sudo apt-get update
-      sudo apt-get upgrade
-      sudo apt-get install python3-venv build-essential python3-dev git-all
-
-   The following installation steps should work on a clean install of Red Hat, CentOS, Amazon Linux 2 or Fedora. If any issues occur, see the `Troubleshooting <#-troubleshooting>`__ section.
-
-   .. code-block::
-
-      sudo yum update
-      sudo yum upgrade
-      sudo yum install python36-devel mesa-libGL
-
-.. tab:: macOS 
-
-   1. **Install Python**
-
-      Download Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org`. For example, this `installer`_.
-
-      .. _installer: https://www.python.org/ftp/python/3.7.9/python-3.7.9-macosx10.9.pkg
-
-      Run the installer by double clicking it. Follow the installation steps to set up the software.
-
-      .. note::  
-      
-         Refer to the "Important Information" displayed during installation for information about SSL/TLS certificate validation and running the "Install Certificates.command". These certificates are required to run some of the notebooks.
-
-.. tab:: Azure ML 
-
-   .. note::  
       
          An Azure account and access to `Azure ML Studio <https://ml.azure.com/>`__ are required.
 
-   1. **Adding a Compute Instance**
+      1. **Adding a Compute Instance**
+   
+         In Azure ML Studio, `add a compute instance <https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-manage-compute-instance?tabs=python>`__ and pick any CPU-based instance. At least 4 CPU cores and 8GB of RAM are recommended.
+   
+         |ml-studio-1|
+   
+      2. **Start the Terminal**
+   
+         Once the compute instance has started, open the terminal window and then follow the installation steps below.
+   
+         |ml-studio-2|
 
-      In Azure ML Studio, `add a compute instance <https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-manage-compute-instance?tabs=python>`__ and pick any CPU-based instance. At least 4 CPU cores and 8GB of RAM are recommended.
+   .. tab-item:: Docker 
+      :sync: docker
+      
+      To run the notebooks inside a Linux-based Docker container, use the Dockerfile:
 
-      |ml-studio-1|
+      .. code-block:: sh
 
-   2. **Start the Terminal**
-
-      Once the compute instance has started, open the terminal window and then follow the installation steps below.
-
-      |ml-studio-2|
-
-.. tab:: Docker 
-
-   To run the notebooks inside a Linux-based Docker container, use the Dockerfile:
-
-   .. code-block:: bash
-      :caption: Source: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/Dockerfile
-
-      FROM quay.io/thoth-station/s2i-thoth-ubi8-py38:v0.29.0
-
-      LABEL name="OpenVINO(TM) Notebooks" \
-      maintainer="helena.kloosterman@intel.com" \
-      vendor="Intel Corporation" \
-      version="0.2.0" \
-      release="2021.4" \
-      summary="OpenVINO(TM) Developer Tools and Jupyter Notebooks" \
-      description="OpenVINO(TM) Notebooks Container"
-
-      ENV JUPYTER_ENABLE_LAB="true" \
-      ENABLE_MICROPIPENV="1" \
-      UPGRADE_PIP_TO_LATEST="1" \
-      WEB_CONCURRENCY="1" \
-      THOTH_ADVISE="0" \
-      THOTH_ERROR_FALLBACK="1" \
-      THOTH_DRY_RUN="1" \
-      THAMOS_DEBUG="0" \
-      THAMOS_VERBOSE="1" \
-      THOTH_PROVENANCE_CHECK="0"
-
-      USER root
-
-      # Upgrade NodeJS > 12.0
-      # Install dos2unix for line end conversion on Windows
-      RUN curl -sL https://rpm.nodesource.com/setup_14.x | bash -  && \
-      yum remove -y nodejs && \
-      yum install -y nodejs mesa-libGL dos2unix libsndfile && \
-      yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical --sec-severity=Moderate
-
-      # Copying in override assemble/run scripts
-      COPY .docker/.s2i/bin /tmp/scripts
-      # Copying in source code
-      COPY .docker /tmp/src
-      COPY .ci/patch_notebooks.py /tmp/scripts
-
-      # Git on Windows may convert line endings. Run dos2unix to enable
-      # building the image when the scripts have CRLF line endings.
-      RUN dos2unix /tmp/scripts/*
-      RUN dos2unix /tmp/src/builder/*
-
-      # Change file ownership to the assemble user. Builder image must support chown command.
-      RUN chown -R 1001:0 /tmp/scripts /tmp/src
-      USER 1001
-      RUN mkdir /opt/app-root/notebooks
-      COPY notebooks/ /opt/app-root/notebooks
-      RUN /tmp/scripts/assemble
-      RUN pip check
-      USER root
-      RUN dos2unix /opt/app-root/bin/*sh
-      RUN yum remove -y dos2unix
-      RUN chown -R 1001:0 .
-      RUN chown -R 1001:0 /opt/app-root/notebooks
-      USER 1001
-      # RUN jupyter lab build
-      CMD /tmp/scripts/run
-
+         :caption: Source: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/Dockerfile
+   
+         FROM quay.io/thoth-station/s2i-thoth-ubi8-py38:v0.29.0
+   
+         LABEL name="OpenVINO(TM) Notebooks" \
+           maintainer="helena.kloosterman@intel.com" \
+           vendor="Intel Corporation" \
+           version="0.2.0" \
+           release="2021.4" \
+           summary="OpenVINO(TM) Developer Tools and Jupyter Notebooks" \
+           description="OpenVINO(TM) Notebooks Container"
+   
+         ENV JUPYTER_ENABLE_LAB="true" \
+           ENABLE_MICROPIPENV="1" \
+           UPGRADE_PIP_TO_LATEST="1" \
+           WEB_CONCURRENCY="1" \
+           THOTH_ADVISE="0" \
+           THOTH_ERROR_FALLBACK="1" \
+           THOTH_DRY_RUN="1" \
+           THAMOS_DEBUG="0" \
+           THAMOS_VERBOSE="1" \
+           THOTH_PROVENANCE_CHECK="0"
+   
+         USER root
+   
+         # Upgrade NodeJS > 12.0
+         # Install dos2unix for line end conversion on Windows
+         RUN curl -sL https://rpm.nodesource.com/setup_14.x | bash -  && \
+           yum remove -y nodejs && \
+           yum install -y nodejs-14.18.1 mesa-libGL dos2unix libsndfile && \
+           yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical --sec-severity=Moderate
+   
+         # GPU drivers
+         RUN dnf install -y 'dnf-command(config-manager)' && \
+             dnf config-manager --add-repo  https://repositories.intel.com/graphics/rhel/8.5/intel-graphics.repo
+   
+         RUN rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm && \
+             dnf install --refresh -y \
+             intel-opencl-22.28.23726.1-i419.el8.x86_64 intel-media intel-mediasdk libmfxgen1 libvpl2 \
+             level-zero intel-level-zero-gpu \
+             intel-metrics-library intel-igc-core intel-igc-cm \
+             libva libva-utils  intel-gmmlib && \
+             rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm && \
+             rpm -ivh https://download-ib01.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/c/clinfo-3.0.21.02.21-4.el8.x86_64.rpm
+   
+         # Copying in override assemble/run scripts
+         COPY .docker/.s2i/bin /tmp/scripts
+         # Copying in source code
+         COPY .docker /tmp/src
+         COPY .ci/patch_notebooks.py /tmp/scripts
+         COPY .ci/validate_notebooks.py /tmp/scripts
+         COPY .ci/ignore_treon_docker.txt /tmp/scripts
+   
+         # Git on Windows may convert line endings. Run dos2unix to enable
+         # building the image when the scripts have CRLF line endings.
+         RUN dos2unix /tmp/scripts/*
+         RUN dos2unix /tmp/src/builder/*
+   
+         # Change file ownership to the assemble user. Builder image must support chown command.
+         RUN chown -R 1001:0 /tmp/scripts /tmp/src
+         USER 1001
+         RUN mkdir /opt/app-root/notebooks
+         COPY notebooks/ /opt/app-root/notebooks
+         RUN /tmp/scripts/assemble
+         RUN pip check
+         USER root
+         RUN dos2unix /opt/app-root/bin/*sh
+         RUN yum remove -y dos2unix
+         RUN chown -R 1001:0 .
+         RUN chown -R 1001:0 /opt/app-root/notebooks
+         USER 1001
+         # RUN jupyter lab build
+         CMD /tmp/scripts/run
+   
 
 `Installing notebooks`_
 ------------------------
 
-.. tab:: WINDOWS
+.. tab-set::
 
-   1. **Create a Virtual Environment**
-
-      If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
-      .. code-block::
-
-         python -m venv openvino_env
+   .. tab-item:: Windows
+      :sync: windows
       
-   2. **Activate the Environment** 
+      1. **Create a Virtual Environment**
 
-      .. code-block::
-         
-         openvino_env\Scripts\activate
-
-
-   3. **Clone the Repository**
-
-      Using the --depth=1 option for git clone reduces download size.
-
-      .. code-block::
-         
-         git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
-         cd openvino_notebooks
-
-   4. **Upgrade PIP**
-
-      .. code-block::
-
-         python -m pip install --upgrade pip
-      
+         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
    
-   5. **Install required packages**
-
-      .. code-block::
-      
-         pip install -r requirements.txt
-      
-
-   6. **Install the virtualenv Kernel in Jupyter**
-
-      .. code-block::
-      
-         python -m ipykernel install --user --name openvino_env
-      
-
-.. tab:: Linux Systems 
-
-   1. **Create a Virtual Environment**
-
-      If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
-      .. code-block::
-
-         python3 -m venv openvino_env
-         
-   2. **Activate the Environment**
-
-      .. code-block::
-         
-         source openvino_env/bin/activate
-
-   3. **Clone the Repository**
-
-      Using the --depth=1 option for git clone reduces download size.
-
-      .. code-block::
-         
-         git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
-         cd openvino_notebooks
-
-   4. **Upgrade PIP**
-
-      .. code-block::
-
-         python -m pip install --upgrade pip
-      
+         .. code-block:: sh
    
-   5. **Install required packages**
-
-      .. code-block::
-      
-         pip install -r requirements.txt
-
-   6. **Install the virtualenv Kernel in Jupyter**
-
-      .. code-block::
-      
-         python -m ipykernel install --user --name openvino_env
-
-.. tab:: macOS 
-
-   1. **Create a Virtual Environment**
-
-      If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
-      .. code-block::
-
-         python3 -m venv openvino_env
-         
-   2. **Activate the Environment**
-
-      .. code-block::
-         
-         source openvino_env/bin/activate
-
-   3. **Clone the Repository**
-
-      Using the --depth=1 option for git clone reduces download size.
-
-      .. code-block::
-         
-         git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
-         cd openvino_notebooks
-
-   4. **Upgrade PIP**
-
-      .. code-block::
-
-         python -m pip install --upgrade pip
-      
+            python -m venv openvino_env
    
-   5. **Install required packages**
-
-      .. code-block::
-      
-         pip install -r requirements.txt
-
-   6. **Install the virtualenv Kernel in Jupyter**
-
-      .. code-block::
-      
-         python -m ipykernel install --user --name openvino_env
-
-.. tab:: Azure ML 
-
-   1. **Create a Virtual Environment**
-
-      If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
-      .. code-block::
-
-         python3 -m venv openvino_env
-         
-   2. **Activate the Environment**
-
-      .. code-block::
-         
-         source openvino_env/bin/activate
-
-   3. **Clone the Repository**
-
-      Using the --depth=1 option for git clone reduces download size.
-
-      .. code-block::
-         
-         git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
-         cd openvino_notebooks
-
-   4. **Upgrade PIP**
-
-      .. code-block::
-
-         python -m pip install --upgrade pip
-      
+      2. **Activate the Environment**
    
-   5. **Install required packages**
-
-      .. code-block::
-      
-         pip install -r requirements.txt
-
-   6. **Install the virtualenv Kernel in Jupyter**
-
-      .. code-block::
-      
-         python -m ipykernel install --user --name openvino_env
-
-.. tab:: Docker 
-
-   1. **Clone the Repository**
-
-      .. code-block::
-
-         git clone https://github.com/openvinotoolkit/openvino_notebooks.git
-         cd openvino_notebooks
-
-   2. **Build the Docker Image**
-
-      .. code-block::
-
-         docker build -t openvino_notebooks .
+         .. code-block:: sh
    
-   3. **Run the Docker Image**
+            openvino_env\Scripts\activate
+   
+      3. **Clone the Repository**
+   
+         Using the --depth=1 option for git clone reduces download size.
+   
+         .. code-block:: sh
+   
+            git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+   
+      4. **Upgrade PIP**
+   
+         .. code-block:: sh
+   
+            python -m pip install --upgrade pip wheel setuptools
+   
 
-      .. code-block::
+      5. **Install required packages**
+   
+         .. code-block:: sh
+   
+            pip install -r requirements.txt
 
-         docker run -it -p 8888:8888 openvino_notebooks
+   .. tab-item:: Linux
+      :sync: linux
 
-      .. note:: 
+      1. **Create a Virtual Environment**
+
+         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
+   
+         .. code-block:: sh
+   
+            python3 -m venv openvino_env
+   
+      2. **Activate the Environment**
+   
+         .. code-block:: sh
+   
+            source openvino_env/bin/activate
+   
+      3. **Clone the Repository**
+   
+         Using the --depth=1 option for git clone reduces download size.
+   
+         .. code-block:: sh
+   
+            git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+   
+      4. **Upgrade PIP**
+   
+         .. code-block:: sh
+   
+            python -m pip install --upgrade pip
+            pip install wheel setuptools
+   
+      5. **Install required packages**
+   
+         .. code-block:: sh
+   
+            pip install -r requirements.txt
+
+   .. tab-item:: macOS
+      :sync: macos
       
-         For using model training notebooks, allocate additional memory: 
-         
-         .. code-block::
-            
-            docker run -it -p 8888:8888 --shm-size 8G openvino_notebooks
+      1. **Create a Virtual Environment**
 
-   4. **Start the browser**
+         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
+   
+         .. code-block:: sh
+   
+            python3 -m venv openvino_env
+   
+      2. **Activate the Environment**
+   
+         .. code-block:: sh
+   
+            source openvino_env/bin/activate
+   
+      3. **Clone the Repository**
+   
+         Using the --depth=1 option for git clone reduces download size.
+   
+         .. code-block:: sh
+   
+            git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+   
+      4. **Upgrade PIP**
+   
+         .. code-block:: sh
+   
+            python -m pip install --upgrade pip wheel setuptools
+   
+      5. **Install required packages**
+   
+         .. code-block:: sh
+   
+            pip install -r requirements.txt
+   
 
-      Copy the URL printed in the terminal window and open in a browser. |br| 
-      If it is a remote machine, replace 127.0.0.1 with the correct IP address.
+   .. tab-item:: Azure ML
+      :sync: azure-ml
 
-      |docker-terminal-1|
+      1. Create a Conda environment
 
-      The Dockerfile can be used to run a local image on Windows, Linux or macOS. 
-      It is also compatible with Open Data Hub and Red Hat OpenShift Data Science. 
-      The base layer is a `UBI 8 <https://catalog.redhat.com/software/containers/ubi8/5c647760bed8bd28d0e38f9f?container-tabs=overview>`__-based image provided by `Project Thoth <https://thoth-station.ninja/>`__.
+         .. code-block:: sh
+   
+            conda create --name openvino_env python=3.8 -y
+   
+      2. Activate the environment
+   
+         .. code-block:: sh
+   
+            conda activate openvino_env
+   
+      3. Clone OpenVINO notebooks
+   
+         .. code-block:: sh
+   
+            git clone https://github.com/openvinotoolkit/openvino_notebooks.git
+   
+      4. Change directory to ``openvino_notebooks``
+   
+         .. code-block:: sh
+   
+            cd openvino_notebooks
+   
+      5. Upgrade ``pip`` and install required dependencies.
+   
+         .. code-block:: sh
+   
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+   
+      6. Add ``openvino_env`` to PATH
+   
+         .. code-block:: sh
+   
+            set PATH="/anaconda/envs/openvino_env/bin;%PATH%"
+   
+      7. Run the notebooks.
+   
+         To run the notebooks, click on Notebooks and refresh your Files:
+   
+         .. image:: https://user-images.githubusercontent.com/15709723/117580814-a725c300-b0ae-11eb-93bf-007779c26075.png
+   
+         .. image:: https://user-images.githubusercontent.com/15709723/117559447-2af19800-b03a-11eb-8bd6-8813b7a8814f.png
+   
+         .. image:: https://user-images.githubusercontent.com/15709723/117580973-37640800-b0af-11eb-91ae-7194b9b4e505.png
+   
+         .. note::
+   
+            Make sure you are using the ``openvino_env`` environment (not Python 3).
+   
+         .. image:: https://user-images.githubusercontent.com/1720147/162269003-7937b47c-484f-416c-97c7-bb869376ff68.png
+   
+   
+   .. tab-item:: Docker 
+      :sync: docker
+      
+      1. **Clone the Repository**
 
-      .. note::
-
-         While running the container on Windows and macOS, only CPU devices can be used. To access the iGPU, install the notebooks locally, following the instructions above.
-
+         .. code-block:: sh
+   
+            git clone https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+   
+      2. **Build the Docker Image**
+   
+         .. code-block:: sh
+   
+            docker build -t openvino_notebooks .
+   
+      3. **Run the Docker Image**
+   
+         .. code-block:: sh
+   
+            docker run -it -p 8888:8888 openvino_notebooks
+   
+         .. note::
+   
+            For using model training notebooks, allocate additional memory:
+   
+            .. code-block:: sh
+   
+               docker run -it -p 8888:8888 --shm-size 8G openvino_notebooks
+   
+      4. **Start the browser**
+   
+         Copy the URL printed in the terminal window and open in a browser. |br| 
+         If it is a remote machine, replace 127.0.0.1 with the correct IP address.
+   
+         |docker-terminal-1|
+   
+         The Dockerfile can be used to run a local image on Windows, Linux or macOS. 
+         It is also compatible with Open Data Hub and Red Hat OpenShift Data Science. 
+         The base layer is a `UBI 8 <https://catalog.redhat.com/software/containers/ubi8/5c647760bed8bd28d0e38f9f?container-tabs=overview>`__-based image provided by `Project Thoth <https://thoth-station.ninja/>`__.
+   
+         .. note::
+   
+            While running the container on Windows and macOS, only CPU devices can be used. To access the iGPU, install the notebooks locally, following the instructions above.
+   
 
 --------------------
 
@@ -464,7 +500,7 @@ If you want to launch only one notebook, such as the *Monodepth* notebook, run t
 
 .. code:: bash
 
-   jupyter 201-vision-monodepth.ipynb
+   jupyter lab notebooks/201-vision-monodepth/201-vision-monodepth.ipynb
 
 Launch All Notebooks
 --------------------------
@@ -509,23 +545,28 @@ Reactivate Virtual Environment
 
 To reactivate your environment, run: 
 
-.. tab:: WINDOWS
+.. tab-set::
 
-   .. code:: bash
+   .. tab-item:: Windows
+      :sync: windows
 
-      source openvino_env\Scripts\activate
+      .. code:: bash
+   
+         source openvino_env\Scripts\activate
 
-.. tab:: Linux Systems
+   .. tab-item:: Linux
+      :sync: linux
 
-   .. code:: bash 
+      .. code:: bash 
+   
+         source openvino_env/bin/activate
 
-      source openvino_env/bin/activate
+   .. tab-item:: macOS
+      :sync: macos
 
-.. tab:: macOS
-
-   .. code:: bash 
-
-      source openvino_env/bin/activate
+      .. code:: bash 
+   
+         source openvino_env/bin/activate
 
 
 Then type ``jupyter lab`` or ``jupyter notebook`` to launch the notebooks again.
@@ -535,19 +576,24 @@ Delete Virtual Environment
 
 This operation is optional. However, if you want to remove your virtual environment, simply delete the ``openvino_env`` directory:
 
-   .. tab:: WINDOWS
+.. tab-set::
+
+   .. tab-item:: Windows
+      :sync: windows
 
       .. code:: bash
 
          rmdir /s openvino_env
 
-   .. tab:: Linux Systems
+   .. tab-item:: Linux
+      :sync: linux
 
       .. code:: bash 
 
          rm -rf openvino_env
 
-   .. tab:: macOS
+   .. tab-item:: macOS
+      :sync: macos
 
       .. code:: bash 
 

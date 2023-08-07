@@ -32,7 +32,7 @@
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-#include <utils/shape_inference/shape_inference_cpu.hpp>
+#include <shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 
@@ -76,15 +76,11 @@ private:
 
 class NodeDesc {
 public:
-    NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
-        implementationType = type;
-        executorFactory = nullptr;
-    }
+    NodeDesc(NodeConfig conf, impl_desc_type type):
+        config(std::move(conf)), implementationType(type), executorFactory(nullptr) {}
 
-    NodeDesc(const NodeConfig& conf, impl_desc_type type, ExecutorFactoryPtr factory): config(conf) {
-        implementationType = type;
-        executorFactory = factory;
-    }
+    NodeDesc(NodeConfig conf, impl_desc_type type, ExecutorFactoryPtr factory):
+        config(std::move(conf)), implementationType(type), executorFactory(factory) {}
 
     const NodeConfig& getConfig() const {
         return config;
@@ -192,6 +188,9 @@ public:
     const std::vector<EdgePtr> getParentEdgesAtPort(size_t idx) const;
     const std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
 
+    int inPlaceInputPort(int portIdx) const;
+    int inPlaceOutPort(int portIdx) const;
+
     bool isDropped() {
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
     }
@@ -200,7 +199,7 @@ public:
         return engine;
     }
 
-    bool isInPlace();
+    bool isInPlace() const;
 
     // must be called only after Graph::InitEdges()
     virtual bool isExecutable() const {
@@ -354,11 +353,11 @@ public:
         inplace = InPlaceType::Unknown;
     }
 
-    std::string getPrimitiveDescriptorType();
+    std::string getPrimitiveDescriptorType() const;
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    void resolveInPlaceEdges();
+    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
     virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
@@ -373,7 +372,7 @@ public:
      * @brief Filters supportedPrimitiveDescriptors according to the input layouts specified in inputMemoryFormatsFilter
      * and output layouts specified in outputMemoryFormatsFilter
      */
-    virtual void filterSupportedPrimitiveDescriptors();
+    void filterSupportedPrimitiveDescriptors();
 
     virtual void createPrimitive();
 
@@ -539,7 +538,7 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
-    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    void fuseDQScales(const float* scaleData, const size_t scaleSize);
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
@@ -550,6 +549,10 @@ public:
      */
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
+    virtual bool canBeExecutedInInt8() const {
+        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        return false;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -560,8 +563,8 @@ protected:
 
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
+    virtual MemoryDescPtr getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
@@ -574,7 +577,7 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
-    std::vector <impl_desc_type> implPriorities;
+    std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
@@ -598,7 +601,7 @@ protected:
         Const,
         NoConst
     };
-    InPlaceType inplace = InPlaceType::Unknown;
+    mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
@@ -619,7 +622,11 @@ protected:
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
-    virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
+    /* returns default implementaion prioirity */
+    virtual const std::vector<impl_desc_type>& getDefaultImplPriority();
+    /* returns custom implementation priority + default implementation priority appended as a fallback
+     * if custom implementaiton priority is not specified, returns default implementation priority */
+    const std::vector<impl_desc_type>& getImplPriority();
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
@@ -724,9 +731,7 @@ private:
     // copies of same content with different layouts.
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
-#ifdef CPU_DEBUG_CAPS
-    friend class Verbose;
-#endif
+    CPU_DEBUG_CAP_ENABLE(friend class Verbose);
 };
 
 template <class... T>

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Tanh-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Tanh-1*
 
 **Category**: *Arithmetic unary*
@@ -37,7 +41,8 @@ For each element from the input tensor calculates corresponding element in the o
 
 *Example 1*
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="Tanh">
         <input>

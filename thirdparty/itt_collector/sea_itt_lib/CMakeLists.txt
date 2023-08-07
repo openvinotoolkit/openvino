@@ -27,7 +27,7 @@ add_library(${TARGET_NAME} SHARED ${SOURCES})
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME IntelSEAPI)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ittapi::ittapi)
+target_link_libraries(${TARGET_NAME} PRIVATE ittapi::ittnotify)
 
 if(UNIX)
     target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})

@@ -69,7 +69,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
         ov::op::v1::VariadicSplit op;
-        shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::split) {
         std::map<size_t, ngraph::HostTensorPtr> const_data;
 
@@ -80,7 +80,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         ov::op::v1::Split op;
         op.set_num_splits(desc->num_splits);
-        shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::none) {
         // Legacy usage
         if (in_layout.is_dynamic()) {
@@ -102,9 +102,9 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
             const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-            return {layout{out_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
+            return {layout{out_sizes.get_partial_shape(in_layout.get_partial_shape().size(), in_layout.get_rank()), in_layout.data_type, in_layout.format}};
         }
-        return {layout{ref_in_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
+        return {layout{ref_in_sizes.get_partial_shape(in_layout.get_partial_shape().size(), in_layout.get_rank()), in_layout.data_type, in_layout.format}};
     }
 
     bool is_output_static = false;

@@ -15,8 +15,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/op/util/pad_base.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
 namespace ngraph {
@@ -78,17 +80,17 @@ public:
             auto b_mask = getMask(m_b);
 
             if (!a_mask && !b_mask) {
-                NGRAPH_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
             if (!b_mask) {
-                NGRAPH_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
                 return false;
             }
 
             const auto matmul_range = m_matmul.get_shape().size();
             if (matmul_range < 2) {
-                NGRAPH_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
+                OPENVINO_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
                 return false;
             }
 
@@ -216,7 +218,7 @@ public:
             // Weights mask for convolution should be initialized in the InitMasks pass (and propagate after it).
             // If mask isn't initialized - this weights (and hence all convolution) can't be pruned for some reason.
             if (!weights_mask) {
-                NGRAPH_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
                 return false;
             }
             auto weights_mask_row = weights_mask.get();
@@ -309,8 +311,8 @@ public:
                     weights_mask = std::make_shared<Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
-                    NGRAPH_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
-                                 << *m_output.get_node() << "\n";
+                    OPENVINO_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
+                                   << *m_output.get_node() << "\n";
                     return false;
                 }
             }
@@ -401,7 +403,7 @@ public:
             const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
             OPENVINO_SUPPRESS_DEPRECATED_END
             if (!constant) {
-                NGRAPH_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
+                OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
             }
             auto input_mask_row = input_mask.get();
@@ -440,7 +442,7 @@ public:
             const auto concat = std::make_shared<opset10::Concat>(
                 NodeVector{opset10::Constant::create(m_shape.get_element_type(), {2}, {-1, 1}), gather},
                 0);
-            for (auto consumer : m_shape_consumers)
+            for (auto& consumer : m_shape_consumers)
                 consumer.replace_source_output(concat);
 
             // This transformation propagates only Reshape mask and doesn't do anything with GroupConvolution.
@@ -479,8 +481,8 @@ public:
                 return false;
 
             if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
-                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                             << " because node is using unsupported broadcast mode." << std::endl;
+                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                               << " because node is using unsupported broadcast mode." << std::endl;
                 return false;
             }
             // Case when input masks should be united instead of intersection
@@ -526,13 +528,13 @@ public:
                              std::inserter(weights_shape_mask, weights_shape_mask.begin()),
                              ge_zero_pred);
 
-                for (auto& elem : weights_shape_broadcasted_dims) {
+                for (const auto elem : weights_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + input_shape_size_diff;
                     if (shifted_elem >= 0)
                         input_shape_mask.insert(shifted_elem);
                 }
 
-                for (auto& elem : input_shape_broadcasted_dims) {
+                for (const auto elem : input_shape_broadcasted_dims) {
                     const auto shifted_elem = elem + weights_shape_size_diff;
                     if (shifted_elem >= 0)
                         weights_shape_mask.insert(shifted_elem);
@@ -541,8 +543,8 @@ public:
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
-                NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                             << " because both input shapes contains broadcasted dims." << std::endl;
+                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
+                               << " because both input shapes contains broadcasted dims." << std::endl;
                 return false;
             }
 
@@ -562,14 +564,14 @@ public:
             }
 
             if (!input_mask) {
-                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
             if (!weights_mask) {
                 // Set dummy mask to weight input in case this input has no mask
                 // and has broadcastable dimentions
                 if (!weights_shape_broadcasted_dims.size()) {
-                    NGRAPH_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                    OPENVINO_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                     return false;
                 }
                 weights_mask = std::make_shared<Mask>(m_weights.get_partial_shape().rank().get_length());
@@ -610,7 +612,7 @@ public:
             weights_mask->add_callback(
                 [input_mask_row, weights_shape_mask](Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_mask);
-                    for (auto& dim : weights_shape_mask)
+                    for (const auto dim : weights_shape_mask)
                         cur_mask->at(dim).clear();
                     return true;
                 },
@@ -664,7 +666,7 @@ public:
 
             // Input mask is the only source of pruning in FQ
             if (!input_mask) {
-                NGRAPH_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
+                OPENVINO_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
                 return false;
             }
 
@@ -713,7 +715,7 @@ public:
                 return false;
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
-                for (auto node : fq_params_nodes) {
+                for (const auto& node : fq_params_nodes) {
                     auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
@@ -733,7 +735,7 @@ public:
                 return true;
             };
 
-            for (auto fq_param : fq_params_nodes) {
+            for (const auto& fq_param : fq_params_nodes) {
                 auto mask = std::make_shared<Mask>(fq_param->get_shape().size());
                 mask->add_callback(fq_params_mask_callback, input_mask);
                 input_mask->add_callback(
@@ -804,7 +806,7 @@ public:
 
                 for (size_t i = 0; i < input_sizes.size(); ++i) {
                     if (input_masks_row.count(i)) {
-                        for (auto idx : input_masks_row.at(i)->at(axis)) {
+                        for (const auto idx : input_masks_row.at(i)->at(axis)) {
                             cur_mask->at(axis).insert(idx + cur_size);
                         }
                     }
@@ -821,7 +823,7 @@ public:
                         min_val += input_sizes[i];
                     }
                     uint64_t max_val = min_val + input_sizes[input_idx];
-                    for (auto idx : output_mask_row->at(axis)) {
+                    for (const auto idx : output_mask_row->at(axis)) {
                         if (idx < max_val && idx >= min_val) {
                             cur_mask->at(axis).insert(idx - min_val);
                         }
@@ -874,7 +876,7 @@ public:
                                            opset10::MaxPool,
                                            opset10::ROIPooling,
                                            opset10::PSROIPooling,
-                                           opset10::Pad,
+                                           ov::op::util::PadBase,
                                            opset10::MVN,
                                            op::v0::Gelu,
                                            opset10::Gelu>();
@@ -1035,7 +1037,7 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
     auto squized_mask_res = std::set<uint64_t>();
     auto unsquized_mask = std::map<uint64_t, std::set<uint64_t>>();
     auto suspicious_elems = std::set<uint64_t>();
-    for (auto& unsquized_dim : unsquized_dims) {
+    for (const auto unsquized_dim : unsquized_dims) {
         unsquized_mask[unsquized_dim] = std::set<uint64_t>();
         auto squized_mask_dim_copy = std::set<uint64_t>();
         const auto unsquized_shift = unsquized_dim - unsquized_dims[0];
@@ -1128,7 +1130,7 @@ public:
 
             // Check if this reshape is before group convolution
             // In such case this reshape should be processed by GroupConvolutionReshape pass
-            for (const auto inp : m_output.get_target_inputs())
+            for (const auto& inp : m_output.get_target_inputs())
                 if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
@@ -1138,9 +1140,9 @@ public:
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!constant) {
-                    NGRAPH_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
-                                 << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                                 << " as shape input.";
+                    OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
+                                   << " with no constant node " << m_weights.get_node()->get_friendly_name()
+                                   << " as shape input.";
                     return false;
                 }
             }
@@ -1244,9 +1246,9 @@ public:
                         [=](Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 cur_mask->at(in_dim).clear();
-                                for (auto& out_dim : dims_map[in_dim]) {
+                                for (const auto out_dim : dims_map[in_dim]) {
                                     const auto unsquized_shift = out_dim - dims_map[in_dim][0];
-                                    for (auto& ch : weights_mask_row->at(out_dim)) {
+                                    for (const auto ch : weights_mask_row->at(out_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
                                         for (const auto& coord : iter)
@@ -1266,7 +1268,7 @@ public:
                                                               dims_map[in_dim],
                                                               dims_attrs,
                                                               dims_shape[in_dim]);
-                                for (auto& dim : map.unsquized_mask)
+                                for (const auto& dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
                                     cur_mask->initialize_dependencies();
@@ -1304,7 +1306,7 @@ public:
                                                               dims_map[out_dim],
                                                               dims_attrs,
                                                               dims_shape[out_dim]);
-                                for (auto& dim : map.unsquized_mask)
+                                for (const auto& dim : map.unsquized_mask)
                                     cur_mask->at(dim.first) = dim.second;
                                 if (map.should_init)
                                     cur_mask->initialize_dependencies();
@@ -1317,9 +1319,9 @@ public:
                         [=](Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 cur_mask->at(out_dim).clear();
-                                for (auto& in_dim : dims_map[out_dim]) {
+                                for (const auto in_dim : dims_map[out_dim]) {
                                     const auto unsquized_shift = in_dim - dims_map[out_dim][0];
-                                    for (auto& ch : input_mask_row->at(in_dim)) {
+                                    for (const auto ch : input_mask_row->at(in_dim)) {
                                         NGRAPH_SUPPRESS_DEPRECATED_START
                                         auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
                                         for (const auto& coord : iter)
@@ -1385,19 +1387,19 @@ public:
             const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
             OPENVINO_SUPPRESS_DEPRECATED_END
             if (!input_order_node) {
-                NGRAPH_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
-                             << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                             << " as input_order input.";
+                OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
+                               << " with no constant node " << m_weights.get_node()->get_friendly_name()
+                               << " as input_order input.";
                 return false;
             }
 
             const auto input_mask = getMask(m_input);
             if (!input_mask) {
-                NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
             if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
-                NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
+                OPENVINO_DEBUG << "Transpose which change tensor rank is not supported yet.";
                 return false;
             }
 
@@ -1415,7 +1417,7 @@ public:
             output_mask->add_callback(
                 [input_mask_row, forward_order](Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
-                    for (auto& dim : forward_order)
+                    for (const auto dim : forward_order)
                         cur_mask->push_back(input_mask_row->at(dim));
                     return true;
                 },
@@ -1423,7 +1425,7 @@ public:
             input_mask->add_callback(
                 [output_mask_row, backward_order](Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
-                    for (auto& dim : backward_order)
+                    for (const auto dim : backward_order)
                         cur_mask->push_back(output_mask_row->at(dim));
                     return true;
                 },
@@ -1463,7 +1465,7 @@ static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr inpu
             for (size_t j = 0; j < output_mask_raw->size(); j++) {
                 const auto& dim_mask = output_mask_raw->at(j);
                 if (static_cast<int64_t>(j) == axis) {
-                    for (auto d : dim_mask)
+                    for (const auto d : dim_mask)
                         cur_mask->at(j).insert(d + split_start);
                 } else {
                     cur_mask->at(j) = dim_mask;
@@ -1627,8 +1629,8 @@ public:
 
                     // Invalidate current mask and its parent masks
                     output_mask->apply_callback(input_mask);
-                    NGRAPH_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
-                                 << " is in scope of stop ops.\n";
+                    OPENVINO_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
+                                   << " is in scope of stop ops.\n";
                     any_input_with_masks = true;
                 }
             }

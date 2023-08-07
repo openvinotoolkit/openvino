@@ -28,9 +28,6 @@ ov::PartialShape get_port_planar_shape(const Input<Node>& out);
 ov::PartialShape get_port_planar_shape(const Output<Node>& out);
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
 
-// Copy runtime info using default ngraph method but delete PortDescriptors which may be transferred after copying
-void safe_copy_runtime_info(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>& to);
-
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }

@@ -22,6 +22,7 @@
 #include "ie_common.h"
 #include "ie_precision.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @ingroup    ie_dev_api_xml
  * @brief      Defines convinient for-each based cycle to iterate over node children
@@ -296,3 +297,5 @@ inline parse_result ParseXml(const char* file_path) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }
+
+IE_SUPPRESS_DEPRECATED_END

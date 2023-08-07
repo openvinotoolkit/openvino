@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Roll-7 - a data movement operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *Roll-7*
 
 **Category**: *Data movement*
@@ -79,7 +83,8 @@ No attributes available.
 
 *Example 1: "shift" and "axes" are 1D tensors.*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Roll">
         <input>
@@ -109,7 +114,8 @@ No attributes available.
 
 *Example 2: "shift" value is a scalar and multiple axes are specified.*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Roll">
         <input>

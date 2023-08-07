@@ -343,22 +343,18 @@ endmacro()
 macro(_ov_find_intel_cpu_dependencies)
     set(_OV_ENABLE_CPU_ACL "@DNNL_USE_ACL@")
     if(_OV_ENABLE_CPU_ACL)
-        if(_ov_as_external_package)
+        set(_ov_in_install_tree "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
+        if(_ov_in_install_tree)
             set_and_check(ARM_COMPUTE_LIB_DIR "@PACKAGE_ARM_COMPUTE_LIB_DIR@")
-            set(_ov_find_acl_options NO_DEFAULT_PATH)
-            set(_ov_find_acl_path "${CMAKE_CURRENT_LIST_DIR}")
+            set(ACL_DIR "${CMAKE_CURRENT_LIST_DIR}")
         else()
-            set_and_check(_ov_find_acl_path "@PACKAGE_FIND_ACL_PATH@")
+            set_and_check(ACL_DIR "@PACKAGE_FIND_ACL_PATH@")
         endif()
 
-        _ov_find_dependency(ACL
-                            NO_MODULE
-                            PATHS "${_ov_find_acl_path}"
-                            ${_ov_find_acl_options})
+        _ov_find_dependency(ACL)
 
+        unset(_ov_in_install_tree)
         unset(ARM_COMPUTE_LIB_DIR)
-        unset(_ov_find_acl_path)
-        unset(_ov_find_acl_options)
     endif()
     unset(_OV_ENABLE_CPU_ACL)
 endmacro()
@@ -395,9 +391,11 @@ endmacro()
 
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
+    set(_OV_PROTOBUF_PACKAGE_CONFIG "@protobuf_config@")
     if(_OV_ENABLE_SYSTEM_PROTOBUF)
-        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES Protobuf protobuf)
+        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT ${_OV_PROTOBUF_PACKAGE_CONFIG})
     endif()
+    unset(_OV_PROTOBUF_PACKAGE_CONFIG)
     unset(_OV_ENABLE_SYSTEM_PROTOBUF)
 endmacro()
 
@@ -413,7 +411,7 @@ macro(_ov_find_tensorflow_frontend_dependencies)
 endmacro()
 
 macro(_ov_find_onnx_frontend_dependencies)
-    set(_OV_ENABLE_SYSTEM_ONNX "@ENABLE_SYSTEM_ONNX@")
+    set(_OV_ENABLE_SYSTEM_ONNX "@ONNX_FOUND@")
     if(_OV_ENABLE_SYSTEM_ONNX)
         _ov_find_dependency(ONNX @ONNX_VERSION@ EXACT)
     endif()
@@ -421,15 +419,17 @@ macro(_ov_find_onnx_frontend_dependencies)
 endmacro()
 
 function(_ov_target_no_deprecation_error)
-    if(NOT MSVC)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # older macOS x86_64 does not support this linker option
+        if(CMAKE_CROSSCOMPILING AND NOT APPLE)
+            set_target_properties(${ARGV} PROPERTIES
+                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
+
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             set(flags "-diag-warning=1786")
         else()
             set(flags "-Wno-error=deprecated-declarations")
-        endif()
-        if(CMAKE_CROSSCOMPILING)
-            set_target_properties(${ARGV} PROPERTIES
-                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
         endif()
 
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
@@ -439,6 +439,14 @@ endfunction()
 #
 # OpenVINO config
 #
+
+cmake_policy(PUSH)
+# we need CMP0057 to allow IN_LIST in if() command
+if(POLICY CMP0057)
+    cmake_policy(SET CMP0057 NEW)
+else()
+    message(FATAL_ERROR "OpenVINO requires CMake 3.3 or newer")
+endif()
 
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
@@ -559,3 +567,5 @@ unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND)
+
+cmake_policy(POP)

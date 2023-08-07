@@ -40,13 +40,22 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                     for (size_t i = 0; i < fin_offsets.size(); i++)
                         per_port_connector_offset[loop_inputs[i]] = i;
 
+                    const auto outer_increment = static_cast<int64_t>(outer_loop_end->get_increment());
                     auto outer_ptr_increments = outer_loop_end->get_ptr_increments();
                     const auto& outer_loop_inputs = next_expr_it->get()->get_input_port_connectors();
                     for (size_t i = 0; i < outer_ptr_increments.size(); i++) {
                         const auto& managed_connector = outer_loop_inputs[i];
                         const auto& found = per_port_connector_offset.find(managed_connector);
                         if (found != per_port_connector_offset.end()) {
-                            outer_ptr_increments[i] += fin_offsets[found->second];
+                            // Since data ptr is incremented on [ptr_increment x increment],
+                            // we should guarantee proportionality of ptr shifts
+                            // For example,
+                            // Inner Loop: WA = 32, Inc = 1, ptr_increment[0] = 20, final_offset[0] = -640
+                            // Outer Loop: WA = 70, Inc = 32, ptr_increment[0] = 20, final_offset[0] = -1400
+                            // To save data ptr shift proportionality, we have to calculate so:
+                            //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) / outer_Inc
+                            //    outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
+                            outer_ptr_increments[i] = (fin_offsets[found->second] + outer_ptr_increments[i] * outer_increment) / outer_increment;
                             fin_offsets[found->second] = 0;
                             is_modified = true;
                         }

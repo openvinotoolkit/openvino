@@ -20,6 +20,6 @@ void RTInfoDeserializer::on_adapter(const std::string& name, ValueAccessor<void>
         str_to_set_of_strings(val, ss);
         a->set(ss);
     } else {
-        IE_THROW() << "Not implemented";
+        OPENVINO_NOT_IMPLEMENTED;
     }
 }

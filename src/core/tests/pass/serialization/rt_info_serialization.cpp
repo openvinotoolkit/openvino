@@ -12,19 +12,19 @@
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
-class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
+class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
     std::string m_out_xml_path;
     std::string m_out_bin_path;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+        ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
     std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {

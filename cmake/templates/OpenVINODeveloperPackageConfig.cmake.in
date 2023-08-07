@@ -15,7 +15,7 @@ list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                        CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
                        CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX
                        CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET
-                       CMAKE_CONFIGURATION_TYPES CMAKE_DEFAULT_BUILD_TYPE)
+                       CPACK_GENERATOR)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from OpenVINO Developer package")
@@ -71,8 +71,11 @@ foreach(component @openvino_export_components@)
 endforeach()
 
 # inherit OpenCV from main OpenVINO project if enabled
-if ("@OpenCV_FOUND@")
-    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+if("@OpenCV_FOUND@")
+    # Use OpenCV_DIR from cache only if user doesn't define OpenCV_DIR
+    if(NOT OpenCV_DIR)
+        load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+    endif()
     find_dependency(OpenCV)
 endif()
 

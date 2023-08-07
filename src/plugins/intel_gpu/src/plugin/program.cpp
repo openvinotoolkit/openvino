@@ -6,12 +6,12 @@
 #include <malloc.h>
 #endif
 
-#include "intel_gpu/plugin/program.hpp"
-#include "ngraph/ops.hpp"
-#include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/system_conf.hpp"
+
+#include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -31,6 +31,7 @@ const cldnn::primitive_id Program::m_meanValuesTag("_cldnn_mean_values");
 const cldnn::primitive_id Program::m_preCustomLayerTag("_cldnn_custom_preprocess");
 const cldnn::primitive_id Program::m_postCustomLayerTag("_cldnn_custom_postprocess");
 Program::factories_map_t Program::factories_map = {};
+std::mutex Program::m_mutex = {};
 
 std::string layer_type_lower(const ngraph::Node* op) {
     std::string layerType = op->get_type_name();
@@ -121,18 +122,22 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 
 Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild,
-    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs,
+    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor, bool innerProgram)
     : m_curBatch(-1)
     , m_config(config)
     , m_engine(engine)
-    , queryMode(false) {
+    , queryMode(false)
+    , m_task_executor(task_executor) {
+    if (m_task_executor == nullptr)
+        m_task_executor = cldnn::program::make_task_executor(m_config);
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
     auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
 
     auto func = network.getFunction();
     if (!func) {
-        IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
+        OPENVINO_THROW("Function pointer inside CNNNetwork is nullptr");
     }
 
     // locate global custom kernel config
@@ -170,27 +175,17 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     bool dyn_shape_batch_found = false;
     std::map<std::string, ngraph::PartialShape> shapes;
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
-    if (enable_dynamic_batch) {
-        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
-        // in case of legacy dynamic batch,
-        // we assume 4D input with 0 batch dim
-        auto param = func->get_parameters().front();
-        auto pname = getParamName(param);
-        shapes[pname] = param->get_output_partial_shape(0);
-        batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
-    } else {
-        dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
-        if (dyn_shape_batch_found) {
-            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
-        }
+
+    dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
+    if (dyn_shape_batch_found) {
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
     m_max_batch = static_cast<int>(m_config.get_property(ov::intel_gpu::max_dynamic_batch));
 
-    if (dyn_shape_batch_found || m_max_batch > 1) {
+    // Do not apply dynamic batch for inner program (only single batch is allowed)
+    if (!innerProgram && (dyn_shape_batch_found || m_max_batch > 1)) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
@@ -301,7 +296,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             m_input_batch_dim = batch_dim;
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild, innerProgram));
     }
 }
 
@@ -312,6 +307,7 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
+    m_task_executor = cldnn::program::make_task_executor(m_config);
     if (inputs != nullptr)
         m_networkInputs = *inputs;
     if (outputs != nullptr)
@@ -339,7 +335,7 @@ int Program::GetMaxBatchSizeForSingleProgram() {
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
     if (program_id >= static_cast<int32_t>(m_programs.size()))
-        IE_THROW() << "Invalid program ID";
+        OPENVINO_THROW("Invalid program ID");
 
     return m_programs[program_id];
 }
@@ -367,14 +363,20 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
-                                                      bool createTopologyOnly, bool partialBuild) {
+                                                      bool createTopologyOnly, bool partialBuild, bool innerProgram) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
-
+    // std::cout << "BuildProgram " << createTopologyOnly << ", " << partialBuild << ", " << innerProgram << std::endl;
+    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
+    // So, do not check allow_new_shape_infer for inner program build
     for (const auto& op : ops) {
         if (requires_new_shape_infer(*op)) {
             allow_new_shape_infer = true;
             break;
         }
+    }
+
+    if (innerProgram) {
+        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
     }
 
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
@@ -394,7 +396,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config, get_task_executor());
         } catch (std::exception& e) {
             OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
         }
@@ -456,9 +458,9 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 
     if (!is_created) {
-        IE_THROW() << "Operation: " << op->get_friendly_name()
-                   << " of type " << op->get_type_name()
-                   << "(op::v" << op->get_type_info().version_id << ") is not supported";
+        OPENVINO_THROW("Operation: ", op->get_friendly_name(),
+                       " of type ", op->get_type_name(),
+                       "(", op->get_type_info().version_id, ") is not supported");
     }
 }
 
@@ -483,7 +485,7 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
 
         if (!queryMode) {
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
-                IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
+                OPENVINO_THROW("Input ", prevName, " hasn't been found in primitive_ids map");
             }
             inputInfo.push_back(
                 cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: static_cast<int>(op->get_input_source_output(i).get_index())));
@@ -592,9 +594,9 @@ void validate_inputs_count(const std::shared_ptr<ngraph::Node>& op, std::vector<
         }
     }
 
-    IE_THROW() << "Invalid inputs count (" << op->get_input_size() << ") in "
-               << op->get_friendly_name() << " (" << op->get_type_name()
-               << " op::v" << op->get_type_info().version_id << ")";
+    OPENVINO_THROW("Invalid inputs count (", op->get_input_size(), ") in )",
+                   op->get_friendly_name(), " (", op->get_type_name(),
+                   " ", op->get_type_info().version_id, ")");
 }
 
 }  // namespace intel_gpu

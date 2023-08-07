@@ -5,14 +5,13 @@
 #
 # Common cmake options
 #
+ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
 ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
 
 ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
-
-ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
@@ -24,9 +23,9 @@ endif()
 
 ie_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
-    # oneDNN doesn't support old compilers and android builds for now, so we'll
-    # build GPU plugin without oneDNN
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0) OR NOT BUILD_SHARED_LIBS)
+    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
+    # also, in case of static build CPU's and GPU's oneDNNs will conflict, so we are disabling GPU's one in this case
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
@@ -55,7 +54,11 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-find_package(PkgConfig QUIET)
+if(NOT ANDROID)
+    # on Android build FindPkgConfig.cmake finds host system pkg-config, which is not appropriate
+    find_package(PkgConfig QUIET)
+endif()
+
 ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
@@ -107,8 +110,6 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
-ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
-
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
@@ -122,7 +123,7 @@ ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SNAPPY_COMPRESSION "Enables compression support for TF FE" ON
-    "ENABLE_OV_TF_FRONTEND" ON)
+    "ENABLE_OV_TF_FRONTEND" OFF)
 
 if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems
@@ -130,13 +131,6 @@ if(CMAKE_HOST_LINUX AND LINUX)
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
-endif()
-
-# try to search TBB from brew by default
-if(APPLE AND AARCH64)
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
-else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
 if(BUILD_SHARED_LIBS)
@@ -148,9 +142,20 @@ else()
     set(ENABLE_SYSTEM_PUGIXML_DEFAULT OFF)
 endif()
 
+if(ANDROID)
+    # when protobuf from /usr/include is used, then Android toolchain ignores include paths
+    # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
+    # the /usr/include folders, we can still use 'system' flatbuffers
+    set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT OFF)
+else()
+    set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT ON)
+endif()
+
 # users wants to use his own TBB version, specific either via env vars or cmake options
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
 ie_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
@@ -159,8 +164,8 @@ ie_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYS
 # available out of box on all systems (like RHEL, UBI)
 ie_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" ${ENABLE_SYSTEM_PUGIXML_DEFAULT})
 # the option is on by default, because we use only flatc compiler and don't use any libraries
-ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ON
-    "ENABLE_OV_TF_LITE_FRONTEND;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 ie_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
@@ -170,6 +175,10 @@ ie_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 # the option is turned off by default, because we don't want to have a dependency on libsnappy.so
 ie_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
+
+# temporary option until we enable this by default when review python API distribution
+ie_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
+    "ENABLE_PYTHON;UNIX" OFF)
 
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 

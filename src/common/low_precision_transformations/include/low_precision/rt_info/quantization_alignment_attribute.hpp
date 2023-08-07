@@ -9,10 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
-
 #include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
 

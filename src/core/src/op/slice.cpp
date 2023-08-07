@@ -90,9 +90,8 @@ void op::v8::Slice::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
@@ -145,6 +144,7 @@ bool op::v8::Slice::has_evaluate() const {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_Slice_evaluate);
     OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
@@ -153,16 +153,15 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     OPENVINO_ASSERT(inputs[0]->get_partial_shape().is_static(),
                     "Can't evaluate Slice elements without static HostTensor data shape.");
 
-    auto constant_data = std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>{};
     auto input_shapes = std::vector<PartialShape>();
     input_shapes.reserve(inputs.size());
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto&& tensor = inputs[i];
         input_shapes.push_back(tensor->get_partial_shape());
-        constant_data.emplace(i, tensor);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto starts = host_tensor_2_vector<int64_t>(inputs[1]);
     const auto stops = host_tensor_2_vector<int64_t>(inputs[2]);
     const auto steps = host_tensor_2_vector<int64_t>(inputs[3]);
@@ -174,9 +173,9 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     } else {
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    auto output_shapes = std::vector<PartialShape>(1);
-    shape_infer(this, input_shapes, output_shapes, constant_data);
+    const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
     OPENVINO_ASSERT(output_shapes.front().is_static(), "Can't calculate static output shape for Slice evaluation.");
 
     outputs[0]->set_shape(output_shapes.front().to_shape());
@@ -192,6 +191,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
                                       axes);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 bool slice_input_check(const ov::Node* node) {

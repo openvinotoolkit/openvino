@@ -97,7 +97,7 @@ desired device.
     ie_core = Core()
     # Read the network from a file.
     model = ie_core.read_model(model_path)
-    # Let the AUTO device decide where to load the model (you can use CPU, GPU or MYRIAD as well).
+    # Let the AUTO device decide where to load the model (you can use CPU or GPU).
     compiled_model = ie_core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "LATENCY"})
     
     # Get the input and output names of nodes.
@@ -383,8 +383,8 @@ Run the pose estimation:
 
 .. parsed-literal::
 
-    [ WARN:0@3.079] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@3.080] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@2.610] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@2.611] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 Run Pose Estimation on a Video File

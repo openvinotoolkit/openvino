@@ -5,7 +5,6 @@
 #include "ngraph/op/reshape.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
 #include "bound_evaluate.hpp"
@@ -14,11 +13,13 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reshapeop {
 namespace {
 bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
@@ -184,7 +185,9 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
     outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const AxisVector order = get_default_order(inputs[0]->get_shape());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
 }
 
@@ -258,13 +261,13 @@ Dimension resolve_minus_one(const Node* reshape_node,
     Dimension input_const_part(1), output_const_part(1);
 
     for (const auto& dim : output_product)
-        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+        if (dim.is_static()) {
             output_const_part *= dim;
             to_delete_from_output.push_back(dim);
         }
 
     for (const auto& dim : input_product)
-        if (!ov::DimensionTracker::get_label(dim) && dim.is_static()) {
+        if (dim.is_static()) {
             input_const_part *= dim;
             to_delete_from_input.push_back(dim);
         }

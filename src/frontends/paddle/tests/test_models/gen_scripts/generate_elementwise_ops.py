@@ -121,6 +121,28 @@ def elementwise_mul(name : str, x, y, axis, in_dtype):
 
     return outs[0]
 
+def elementwise_mul_bool(name : str, x, y, in_dtype='bool'):
+    import paddle
+    paddle.enable_static()
+
+    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+        node_x = paddle.static.data(name = 'x', shape = x.shape, dtype = in_dtype)
+        node_y = paddle.static.data(name = 'y', shape = y.shape, dtype = in_dtype)
+        mul = node_x * node_y
+        out = paddle.cast(mul, 'float32')
+
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+
+        # startup program will call initializer to initialize the parameters.
+        exe.run(paddle.static.default_startup_program())
+        outs = exe.run(
+        feed={'x': x, 'y': y},
+        fetch_list=[out])
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
+
+    return outs[0]
+
 
 def elementwise_min(name : str, x, y, axis, in_dtype):
     import paddle
@@ -272,6 +294,11 @@ def main():
         elementwise_floordiv("elementwise_floordiv_" + dtype + "_3", 
                         data_x.astype(dtype), data_y.astype(dtype), axis, dtype)
 
+    # test for elementwise_mul with bool data type
+    sample_arr = [True, False]
+    data_x = np.random.choice(sample_arr, size=(2,3,4))
+    data_y = np.random.choice(sample_arr, size=(1,3,4))
+    elementwise_mul_bool("elementwise_mul_bool1", data_x, data_y)
 
 if __name__ == "__main__":
     main()

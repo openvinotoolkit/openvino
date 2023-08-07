@@ -58,7 +58,7 @@ public:
         const auto input = actualFunction->get_parameters()[0];
         const auto fakeQuantizes = input->output(0).get_target_inputs();
         const auto it = fakeQuantizes.begin();
-        const auto fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(it->get_node()->shared_from_this());
+        const auto fakeQuantize = ngraph::as_type_ptr<ov::op::v0::FakeQuantize>(it->get_node()->shared_from_this());
         low_precision::NetworkHelper::composeFakeQuantize(fakeQuantize);
 
         referenceFunction = ngraph::builder::subgraph::ComposeFakeQuantizeFunction::get(

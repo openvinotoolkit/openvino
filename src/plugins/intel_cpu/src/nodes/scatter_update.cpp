@@ -254,23 +254,23 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-    auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
+    auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
-    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
-    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
+    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
+    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->getData());
+    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->getData());
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
     if (axisRelaxed) {
-        auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
-        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetPtr());
+        auto axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
+        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->getData());
         if (axisSize == 4) {
             auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;
@@ -292,9 +292,10 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue =  getIndicesValue(indicesPtr, i);
-                if (idxValue >= static_cast<int64_t>(srcDimAxis) || idxValue < 0) {
+                if (idxValue >= static_cast<int64_t>(srcDimAxis) ||
+                    (idxValue < 0 && scatterUpdateMode != ScatterUpdateMode::ScatterElementsUpdate)) {
                     IE_THROW() << errorPrefix
-                    << " have indices value that points to non-existing output tensor element";
+                               << " have indices value that points to non-existing output tensor element";
                 }
             }
         });
@@ -418,7 +419,11 @@ void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
         for (size_t i = 0; i < k; i++) {
-            size_t idxValue = getIndicesValue(indices, indicesOffset + i);
+            int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
+            if (idxValue < 0) {
+                // Negative value for indices means counting backwards from the end.
+                idxValue += srcDataDim[i];
+            }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
         dstOffset *= dataSize;
@@ -455,7 +460,10 @@ void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int
 
         for (size_t iwork = start; iwork < end; iwork++) {
             int64_t idxValue = getIndicesValue(indices, iwork);
-            if (idxValue < static_cast<int64_t>(srcDataDim[axis]))
+            int64_t axisDim = static_cast<int64_t>(srcDataDim[axis]);
+            if (idxValue < 0)
+                idxValue += axisDim;
+            if (0 <= idxValue && idxValue < axisDim)
                 cpu_memcpy(dstData + dataSize * (dst_idx + idxValue * srcBlockND[axis + 1]),
                             update + iwork * dataSize, dataSize);
 

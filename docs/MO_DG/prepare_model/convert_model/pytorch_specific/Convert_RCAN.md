@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a RCAN model
+                 from Pytorch to the OpenVINO Intermediate Representation.
+
+
 `RCAN <https://github.com/yulunzhang/RCAN>`__ : Image Super-Resolution Using Very Deep Residual Channel Attention Networks
 
 Downloading and Converting the Model to ONNX
@@ -10,7 +15,8 @@ Downloading and Converting the Model to ONNX
 To download the pre-trained model or train the model yourself, refer to the `instruction <https://github.com/yulunzhang/RCAN/blob/master/README.md>`__ in the RCAN model repository. First, convert the model to ONNX format. Create and run the script with the following content in the root
 directory of the model repository:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from argparse import Namespace
 

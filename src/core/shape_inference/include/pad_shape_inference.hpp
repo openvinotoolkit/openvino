@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/pad.hpp>
-
 #include "dimension_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {
-namespace v1 {
-
-template <class TShape>
-std::vector<TShape> shape_infer(const Pad* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::PadBase* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 || input_shapes.size() == 4);
 
     const auto& pad_mode = op->get_pad_mode();
@@ -50,9 +48,10 @@ std::vector<TShape> shape_infer(const Pad* op,
     const auto& arg_shape = input_shapes[0];
     const auto& arg_shape_rank = arg_shape.rank();
 
-    TShape output_shape;
-    const auto pads_begin_coord = get_input_bounds<TShape, int64_t>(op, 1, constant_data);
-    const auto pads_end_coord = get_input_bounds<TShape, int64_t>(op, 2, constant_data);
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
+    const auto pads_begin_coord = get_input_bounds<TRShape, int64_t>(op, 1, tensor_accessor);
+    const auto pads_end_coord = get_input_bounds<TRShape, int64_t>(op, 2, tensor_accessor);
 
     if (arg_shape_rank.is_static()) {
         const auto arg_rank_len = arg_shape_rank.get_length();
@@ -136,21 +135,11 @@ std::vector<TShape> shape_infer(const Pad* op,
                 ").");
             output_shape.resize(arg_shape_rank.get_length());
         }
-
-        return {output_shape};
     } else {
-        return {PartialShape::dynamic()};
+        output_shape = PartialShape::dynamic();
     }
-}
 
-template <class TShape>
-void shape_infer(const Pad* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes,
-                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    return output_shapes;
 }
-
-}  // namespace v1
 }  // namespace op
 }  // namespace ov

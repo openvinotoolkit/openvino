@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -29,17 +39,17 @@ using ov::pass::Manager;
 using ov::pass::PassBase;
 using ov::pass::PassProperty;
 using ov::pass::PassPropertyMask;
-NGRAPH_DEPRECATED("This variable is deprecated and will be removed soon.")
+NGRAPH_API_DEPRECATED
 const PassPropertyMask all_pass_property_off;
 
-class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API NodePass : public PassBase {
+class NGRAPH_API_DEPRECATED NGRAPH_API NodePass : public PassBase {
 public:
     NGRAPH_RTTI_DECLARATION;
     ~NodePass() override;
     virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
 };
 
-enum class NGRAPH_DEPRECATED("FusionType is no longer used anywhere. Please do no use it.") FusionType : uint32_t {
+enum class NGRAPH_API_DEPRECATED FusionType : uint32_t {
     //`DIFFERENTIABLE_FUSIONS` produce ops that support autodiff
     // i.e. implement `generate_adjoints`
     DIFFERENTIABLE_FUSIONS = 0x1,

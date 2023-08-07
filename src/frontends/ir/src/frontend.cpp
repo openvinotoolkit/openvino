@@ -8,12 +8,13 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "mmap_object.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
+#include "openvino/util/mmap_object.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;
@@ -116,6 +117,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -201,16 +203,20 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::load_mmap_object(weights_path);
-        else {
+        if (enable_mmap) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights =
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                               mapped_memory->size(),
+                                                                                               mapped_memory);
+        } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
 #else
-                IE_THROW() << "Weights file " + weights_path + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
 #endif
 
             bin_stream.seekg(0, std::ios::end);
@@ -227,6 +233,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 aligned_weights_buffer);
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return create_input_model();
 }
@@ -234,11 +241,19 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
-    return ir_model->convert();
+    const auto& converted_model = ir_model->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 std::string FrontEnd::get_name() const {
     return "ir";
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 }  // namespace ir

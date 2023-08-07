@@ -272,14 +272,14 @@ public:
     }
 
     template <class T>
-    void AdvanceOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+    void AdvanceOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, size_t i, T*& operation) {
         if (i == cmp.size() - 1 || cmp[i + 1].operation != kDnnPiecewiselinearOp) {
             ++operation;
         }
     }
 
     template <class T>
-    void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+    void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, size_t i, T*& operation) {
         if (i == cmp.size() - 1 ||
             ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
             operation++;
@@ -287,7 +287,7 @@ public:
     }
 
     template <class T>
-    void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+    void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, size_t i, T*& operation) {
         if (i == cmp.size() - 1 ||
             ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
             operation++;

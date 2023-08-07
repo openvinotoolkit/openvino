@@ -62,3 +62,41 @@ TEST(StaticShapeInferenceTest, TileSmallDataRankTestRepeatsInConstMap) {
 
     ASSERT_EQ(output_shapes.front(), StaticShape({3, 32, 10}));
 }
+
+TEST(StaticShapeInferenceTest, TileStaticShapeRepeatsAsConst) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    auto param1 = ov::op::v0::Constant::create(element::i64, Shape{2}, {4, 1});
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+
+    auto dims = std::vector<VectorDims>{{6, 8, 10}, {2}};
+    auto in_shapes = std::vector<StaticShapeRef>(dims.begin(), dims.end());
+
+    const auto op_infer = make_shape_inference(tile);
+    const auto outputs = op_infer->infer(in_shapes, ov::make_tensor_accessor());
+
+    ASSERT_TRUE(outputs);
+    EXPECT_EQ(outputs->size(), 1);
+    EXPECT_EQ(outputs->front(), StaticShape({6, 32, 10}));
+    EXPECT_EQ(*outputs->front(), VectorDims({6, 32, 10}));
+}
+
+TEST(StaticShapeInferenceTest, TileNewApiInputsStaticRank) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+
+    int32_t repeats[] = {3, 4, 1, 2};
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
+        {1, std::make_shared<HostTensor>(element::i32, Shape{4}, repeats)}};
+
+    auto dims = std::vector<VectorDims>{{8, 10}, {4}};
+    auto in_shapes = std::vector<StaticShapeRef>(dims.begin(), dims.end());
+
+    const auto op_infer = make_shape_inference(tile);
+    const auto outputs = op_infer->infer(in_shapes, ov::make_tensor_accessor(constant_data));
+
+    ASSERT_TRUE(outputs);
+    EXPECT_EQ(outputs->size(), 1);
+    EXPECT_EQ(outputs->front(), StaticShape({3, 4, 8, 20}));
+    EXPECT_EQ(*outputs->front(), VectorDims({3, 4, 8, 20}));
+}

@@ -100,7 +100,7 @@ public:
             addConvolution);
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-               ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+               ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                    {{0}, testValues.params.precisionsOnActivations},
                    {{1}, testValues.params.precisionsOnWeights},
                })
@@ -109,13 +109,13 @@ public:
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithSplitedIntermediate(

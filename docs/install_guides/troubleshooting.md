@@ -2,10 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A collection of troubleshooting steps and solutions to possible 
+                 problems that may occur during the installation and configuration 
+                 of OpenVINO™ on your system.
+
+
 .. toctree::
    :maxdepth: 2
    :hidden:
-   
+
    Issues & Solutions <openvino_docs_get_started_guide_troubleshooting_issues>
    Troubleshooting Steps <openvino_docs_get_started_guide_troubleshooting_steps>
 

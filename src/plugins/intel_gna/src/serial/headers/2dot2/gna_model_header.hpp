@@ -107,7 +107,7 @@ struct RuntimeEndPoint {
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
 
     RuntimeEndPoint() = default;
-    RuntimeEndPoint(double scaleFactor,
+    RuntimeEndPoint(float scaleFactor,
                     void* descriptor_ptr,
                     uint32_t element_size,
                     uint32_t elements_count,

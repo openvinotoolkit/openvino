@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about BatchToSpace-2 - a data movement operation, 
+                which can be performed on four required input tensors.
+
 **Versioned name**: *BatchToSpace-2*
 
 **Category**: *Data movement*
@@ -72,7 +76,8 @@ Where
 
 Example: 2D input tensor ``data``
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer type="BatchToSpace" ...>
        <input>
@@ -100,7 +105,8 @@ Example: 2D input tensor ``data``
 
 Example: 5D input tensor ``data``
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer type="BatchToSpace" ...>
        <input>

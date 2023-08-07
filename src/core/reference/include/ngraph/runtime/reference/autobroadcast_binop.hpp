@@ -378,9 +378,11 @@ void autobroadcast_select(const U* arg0,
             const auto output_strides = row_major_strides(output_shape);
 
             for (const Coordinate& output_coord : output_transform) {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
                 const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
                 const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 const size_t arg0_idx =
                     std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
@@ -455,8 +457,10 @@ void autobroadcast_select(const U* arg0,
         const auto output_strides = row_major_strides(arg1_shape);
 
         for (const Coordinate& output_coord : output_transform) {
+            NGRAPH_SUPPRESS_DEPRECATED_START
             const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
             const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
+            NGRAPH_SUPPRESS_DEPRECATED_END
 
             const size_t arg0_idx =
                 std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));

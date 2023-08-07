@@ -104,8 +104,15 @@ public:
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
     virtual void visit_subgraph(std::function<void(std::shared_ptr<TorchDecoder>)> node_visitor) const = 0;
 
-    /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
+    /// Probably this together with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const = 0;
+
+    /// \brief Returns if output may contain alias of input in AliasDB
+    virtual bool may_produce_alias(size_t in_index, size_t out_index) const = 0;
+
+    /// Returns new nodes for inputs inlined in the op itself
+    // Used in Torch.FX decoder
+    virtual OutputVector inlined_inputs(size_t start_index) const = 0;
 };
 
 }  // namespace pytorch

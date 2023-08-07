@@ -4,9 +4,9 @@
 
 #include <openvino/opsets/opset10.hpp>
 
+#include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
-#include "test_common.hpp"
 #include "tf_utils.hpp"
 
 using namespace std;
@@ -112,5 +112,48 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
         auto x = make_shared<Parameter>(element::f32, Shape{20, 5});
         auto result = make_shared<Result>(x);
         model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
+    { model = convert_model("saved_model_broadcast_issue"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
+
+        model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
+    // The test verifies loading of MetaGraph with empty tags as default
+    // And verifies loading variables with no corresponding RestoreV2
+    { model = convert_model("saved_model_multi-graph"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) {
+    // The test aims to check that output from intermediate layers presented in the model signature
+    // must be preserved
+    {
+        model = convert_model("saved_model_intermediate_output");
+        ASSERT_TRUE(model->get_results().size() == 2);
+    }
+    {
+        // create a reference graph
+        auto input1 = make_shared<Parameter>(element::f32, Shape{2});
+        auto input2 = make_shared<Parameter>(element::f32, Shape{2});
+        auto add = make_shared<Add>(input1, input2);
+        auto sub = make_shared<Subtract>(input2, add);
+        auto result1 = make_shared<Result>(add);
+        auto result2 = make_shared<Result>(sub);
+        model_ref = make_shared<Model>(OutputVector{result1, result2}, ParameterVector{input1, input2});
     }
 }

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "opencl_helper_instance.hpp"
 #include "ocl/ocl_device.hpp"
 
@@ -60,6 +61,7 @@ void createReferenceDataNV12(const T* arg_y, const T* arg_uv, U* out_ptr,
 }
 
 TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     int width = 224;
     int height = 448;
@@ -67,8 +69,8 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     auto input_y = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 1, width, height } });
     auto input_uv = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, width / 2 , height / 2 } });
 
-    std::vector<float> input_y_data = generate_random_1d<float>(width * height, 0, 255);
-    std::vector<float> input_uv_data = generate_random_1d<float>(width * height / 2, 0, 255);
+    std::vector<float> input_y_data = rg.generate_random_1d<float>(width * height, 0, 255);
+    std::vector<float> input_uv_data = rg.generate_random_1d<float>(width * height / 2, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_uv, input_uv_data);
@@ -99,6 +101,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
 }
 
 TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     int width = 224;
     int height = 224;
@@ -106,8 +109,8 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
     auto input_y = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 1, width, height } });
     auto input_uv = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 2, width / 2 , height / 2 } });
 
-    std::vector<float> input_y_data = generate_random_1d<float>(width * height, 0, 255);
-    std::vector<float> input_uv_data = generate_random_1d<float>(width * height / 2, 0, 255);
+    std::vector<float> input_y_data = rg.generate_random_1d<float>(width * height, 0, 255);
+    std::vector<float> input_uv_data = rg.generate_random_1d<float>(width * height / 2, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_uv, input_uv_data);
@@ -139,6 +142,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
 }
 
 TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     int width = 224;
     int height = 224;
@@ -146,8 +150,8 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
     auto input_y = engine.allocate_memory({ data_types::u8, format::byxf, { 1, 1, width, height } });
     auto input_uv = engine.allocate_memory({ data_types::u8, format::byxf, { 1, 2, width / 2 , height / 2 } });
 
-    std::vector<uint8_t> input_y_data = generate_random_1d<uint8_t>(width * height, 0, 255);
-    std::vector<uint8_t> input_uv_data = generate_random_1d<uint8_t>(width * height / 2, 0, 255);
+    std::vector<uint8_t> input_y_data = rg.generate_random_1d<uint8_t>(width * height, 0, 255);
+    std::vector<uint8_t> input_uv_data = rg.generate_random_1d<uint8_t>(width * height / 2, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_uv, input_uv_data);
@@ -179,6 +183,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
 }
 
 TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     int width = 224;
     int height = 224;
@@ -186,8 +191,8 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     auto input_y = engine.allocate_memory({ data_types::f16, format::byxf, { 1, 1, width, height } });
     auto input_uv = engine.allocate_memory({ data_types::f16, format::byxf, { 1, 2, width / 2 , height / 2 } });
 
-    std::vector<FLOAT16> input_y_data = generate_random_1d<FLOAT16>(width * height, 0, 255);
-    std::vector<FLOAT16> input_uv_data = generate_random_1d<FLOAT16>(width * height / 2, 0, 255);
+    std::vector<FLOAT16> input_y_data = rg.generate_random_1d<FLOAT16>(width * height, 0, 255);
+    std::vector<FLOAT16> input_uv_data = rg.generate_random_1d<FLOAT16>(width * height / 2, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_uv, input_uv_data);
@@ -219,6 +224,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
 }
 
 TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     int width = 224;
@@ -228,7 +234,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
     auto input = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 1, width, input_height } });
 
     int data_size = width * (height + height / 2);
-    std::vector<float> input_data = generate_random_1d<float>(data_size, 0, 255);
+    std::vector<float> input_data = rg.generate_random_1d<float>(data_size, 0, 255);
     set_values(input, input_data);
 
     layout output_layout(data_types::f32, cldnn::format::byxf, { 1, 3, width, height });
@@ -255,6 +261,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
 }
 
 TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     int width = 224;
@@ -264,7 +271,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
     auto input = engine.allocate_memory({ data_types::u8, format::byxf, { 1, 1, width, input_height } });
 
     int data_size = width * (height + height / 2);
-    std::vector<uint8_t> input_data = generate_random_1d<uint8_t>(data_size, 0, 255);
+    std::vector<uint8_t> input_data = rg.generate_random_1d<uint8_t>(data_size, 0, 255);
     set_values(input, input_data);
 
     layout output_layout(data_types::u8, cldnn::format::byxf, { 1, 3, width, height });
@@ -291,6 +298,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
 }
 
 TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
+    tests::random_generator rg(GET_SUITE_NAME);
     int width = 224;
     int height = 448;
 
@@ -309,7 +317,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     cl_int err;
 
     int data_size = width * (height + height / 2);
-    std::vector<uint8_t> data = generate_random_1d<uint8_t>(data_size, 0, 255);
+    std::vector<uint8_t> data = rg.generate_random_1d<uint8_t>(data_size, 0, 255);
 
     cl_image_format image_format;
     image_format.image_channel_order = CL_R;
@@ -371,6 +379,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
 }
 
 TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
+    tests::random_generator rg(GET_SUITE_NAME);
     int width = 224;
     int height = 448;
     int input_height = height + height / 2;
@@ -389,7 +398,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     cl_int err;
 
     int data_size = width * (height + height / 2);
-    std::vector<uint8_t> input_data = generate_random_1d<uint8_t>(data_size, 0, 255);
+    std::vector<uint8_t> input_data = rg.generate_random_1d<uint8_t>(data_size, 0, 255);
 
     cl_image_format image_format;
     image_format.image_channel_order = CL_R;
@@ -484,6 +493,7 @@ void createReferenceDataI420(const T* arg_y, const T* arg_u, const T* arg_v, U* 
 }
 
 TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     int width = 224;
     int height = 448;
@@ -492,9 +502,9 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     auto input_u = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 1, width / 2 , height / 2 } });
     auto input_v = engine.allocate_memory({ data_types::f32, format::byxf, { 1, 1, width / 2 , height / 2 } });
 
-    std::vector<float> input_y_data = generate_random_1d<float>(width * height, 0, 255);
-    std::vector<float> input_u_data = generate_random_1d<float>(width * height / 4, 0, 255);
-    std::vector<float> input_v_data = generate_random_1d<float>(width * height / 4, 0, 255);
+    std::vector<float> input_y_data = rg.generate_random_1d<float>(width * height, 0, 255);
+    std::vector<float> input_u_data = rg.generate_random_1d<float>(width * height / 4, 0, 255);
+    std::vector<float> input_v_data = rg.generate_random_1d<float>(width * height / 4, 0, 255);
 
     set_values(input_y, input_y_data);
     set_values(input_u, input_u_data);
@@ -529,6 +539,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
 
 template <typename T>
 void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test) {
+    tests::random_generator rg(GET_SUITE_NAME);
     int width = 224;
     int height = 448;
 
@@ -545,7 +556,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
     }
 
     int data_size = width * (height + height / 2);
-    std::vector<uint8_t> data = generate_random_1d<uint8_t>(data_size, 0, 255);
+    std::vector<uint8_t> data = rg.generate_random_1d<uint8_t>(data_size, 0, 255);
 
     cl_int err;
     cl_image_format image_format;

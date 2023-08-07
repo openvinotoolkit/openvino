@@ -89,6 +89,7 @@ public:
     bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
     bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
     bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
+    bool use_explicit_padding() const { return get_primitive()->auto_pad == ov::op::PadType::EXPLICIT; }
 
     // Currently convolution with constant weight is only supported for dynamic shape
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
@@ -192,7 +193,7 @@ public:
     void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
-    int32_t _deform_conv_dep_offset;
+    int32_t _deform_conv_dep_offset = 0;
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;

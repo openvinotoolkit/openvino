@@ -14,7 +14,7 @@
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -302,8 +302,8 @@ void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MatrixNms::execute(dnnl::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
+    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
+    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
 
     InferenceEngine::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -380,9 +380,9 @@ void MatrixNms::execute(dnnl::stream strm) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
-    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
-    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
+    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->getData());
+    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->getData());
+    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->getData());
     for (size_t i = 0; i < m_numPerBatch.size(); i++)
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
 

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronGenerateProposalsSingleImage-6 - 
+                an object detection operation, which can be performed on four 
+                required input tensors.
+
 **Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-6*
 
 **Category**: *Object detection*
@@ -71,7 +76,8 @@ Height and width for third and fourth inputs should be equal. **Required.**
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="ExperimentalDetectronGenerateProposalsSingleImage" version="opset6">
        <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>

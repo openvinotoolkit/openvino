@@ -114,6 +114,8 @@ public:
     constexpr operator Type_t() const {
         return m_type;
     }
+    // Return element type in string representation
+    std::string to_string() const;
 
 private:
     Type_t m_type{Type_t::undefined};
@@ -178,7 +180,7 @@ constexpr Type u64(Type_t::u64);
 
 template <typename T>
 Type from() {
-    throw std::invalid_argument("Unknown type");
+    OPENVINO_THROW("Unknown type");
 }
 template <>
 OPENVINO_API Type from<char>();
