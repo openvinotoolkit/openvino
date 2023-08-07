@@ -379,10 +379,10 @@ class TorchScriptPythonDecoder (Decoder):
                 padding = pt_value.padding()
                 dilation = pt_value.dilation()
                 groups = pt_value.groups()
-                res += ivalue_to_constant(stride, shared_memory=self._shared_memory) + \
-                       ivalue_to_constant(padding, shared_memory=self._shared_memory) + \
-                       ivalue_to_constant(dilation, shared_memory=self._shared_memory) + \
-                       ivalue_to_constant(groups, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(stride, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(padding, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(dilation, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(groups, shared_memory=self._shared_memory)
             except:
                 pass
             return res
