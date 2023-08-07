@@ -24,7 +24,7 @@ $ docker run -it --rm -v `pwd`:/openvino emscripten/emsdk bash
 3. (CMake configure) Run cmake configure step using helper emscripten command:
 ```sh
 $ mkdir build && cd build
-$ emcmake cmake -DCMAKE_BUILD_TYPE=Release /openvino
+$ emcmake cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_MLAS_FOR_CPU=OFF /openvino
 ```
 4. (CMake build) Build OpenVINO project:
 ```sh
