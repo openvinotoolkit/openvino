@@ -189,6 +189,7 @@ debug_configuration::debug_configuration()
         , disable_async_compilation(0)
         , disable_dynamic_impl(0)
         , disable_runtime_buffer_fusing(0)
+        , disable_memory_reuse(0)
         , disable_build_time_weight_reorder_for_dynamic_nodes(0)
         , disable_runtime_skip_reorder(0) {
 #ifdef GPU_DEBUG_CONFIG
