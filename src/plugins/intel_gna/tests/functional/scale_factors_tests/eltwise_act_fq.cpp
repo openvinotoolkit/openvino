@@ -89,8 +89,8 @@ protected:
         const ngraph::Shape shape = {1, 128};
         auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
 
-        auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
-        auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});
+        auto lowNodeIn = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
+        auto highNodeIn = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});
         auto fqIn = std::make_shared<ngraph::opset8::FakeQuantize>(params[0],
                                                                    lowNodeIn,
                                                                    highNodeIn,
@@ -98,20 +98,20 @@ protected:
                                                                    highNodeIn,
                                                                    levels16);
 
-        auto constant = ngraph::builder::makeConstant<float>(
+        auto constant = ov::test::utils::builder::makeConstant<float>(
             ngPrc,
             shape,
             ov::test::utils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
         auto add = std::make_shared<ngraph::opset8::Add>(fqIn, constant);
 
-        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
-        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMax});
+        auto lowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
+        auto highNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMax});
         auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode, lowNode, highNode, levels32);
 
         auto tanh = ngraph::builder::makeActivation(fq, ngPrc, act);
 
-        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMin)});
-        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMax)});
+        auto lowNodeOut = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMin)});
+        auto highNodeOut = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {std::tanh(2 * inputDataMax)});
         auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(tanh,
                                                                     lowNodeOut,
                                                                     highNodeOut,

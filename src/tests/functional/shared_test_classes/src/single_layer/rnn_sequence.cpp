@@ -79,11 +79,10 @@ namespace LayerTestsDefinitions {
             seq_lengths_node = param;
         } else if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
                    m_mode == ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
-            seq_lengths_node = ngraph::builder::makeConstant(ov::element::i64, inputShapes[2], {}, true,
-                                                             static_cast<float>(seq_lengths), 0.f);
+            seq_lengths_node = ov::test::utils::builder::makeConstant<float>(ov::element::i64, inputShapes[2], {}, true, seq_lengths, 0);
         } else {
             std::vector<float> lengths(batch, seq_lengths);
-            seq_lengths_node = ngraph::builder::makeConstant(ov::element::i64, inputShapes[2], lengths, false);
+            seq_lengths_node = ov::test::utils::builder::makeConstant(ov::element::i64, inputShapes[2], lengths, false);
         }
 
         const auto& W_shape = inputShapes[3];
@@ -102,9 +101,9 @@ namespace LayerTestsDefinitions {
             params.push_back(R_param);
             params.push_back(B_param);
         } else {
-            W = ngraph::builder::makeConstant<float>(ngPrc, W_shape, {}, true);
-            R = ngraph::builder::makeConstant<float>(ngPrc, R_shape, {}, true);
-            B = ngraph::builder::makeConstant<float>(ngPrc, B_shape, {}, true);
+            W = ov::test::utils::builder::makeConstant<float>(ngPrc, W_shape, {}, true);
+            R = ov::test::utils::builder::makeConstant<float>(ngPrc, R_shape, {}, true);
+            B = ov::test::utils::builder::makeConstant<float>(ngPrc, B_shape, {}, true);
         }
 
         auto rnn_sequence = std::make_shared<ov::op::v5::RNNSequence>(params[0], params[1], seq_lengths_node, W, R, B, hidden_size, direction,

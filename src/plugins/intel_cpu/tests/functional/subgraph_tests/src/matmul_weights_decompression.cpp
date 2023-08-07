@@ -107,7 +107,7 @@ protected:
         };
 
         auto weights_shape = transpose_if_necessary(inputShapes[1].to_shape());
-        auto weights = ngraph::builder::makeConstant<uint8_t>(weights_precision, weights_shape, {}, true);
+        auto weights = ov::test::utils::builder::makeConstant<uint8_t>(weights_precision, weights_shape, {}, true);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ngraph::opset1::Convert>(weights, data_precision);
 
@@ -116,7 +116,7 @@ protected:
         auto scaleshift_target_shape = transpose_if_necessary(ov::Shape{1, output_channels});
         auto scaleshift_const_shape = reshape_on_decompression ? ov::Shape{output_channels} : scaleshift_target_shape;
         if (add_subtract) {
-            auto shift_const = ngraph::builder::makeConstant<uint8_t>(weights_precision, scaleshift_const_shape, {}, true);
+            auto shift_const = ov::test::utils::builder::makeConstant<uint8_t>(weights_precision, scaleshift_const_shape, {}, true);
             std::shared_ptr<ov::Node> shift_convert = std::make_shared<ngraph::opset1::Convert>(shift_const, data_precision);
             if (reshape_on_decompression) {
                 auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
@@ -126,7 +126,7 @@ protected:
             mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
         }
 
-        std::shared_ptr<ov::Node> scale_const = ngraph::builder::makeConstant<float>(data_precision, scaleshift_const_shape, {}, true);
+        std::shared_ptr<ov::Node> scale_const = ov::test::utils::builder::makeConstant<float>(data_precision, scaleshift_const_shape, {}, true);
         if (reshape_on_decompression) {
             auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
             auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);

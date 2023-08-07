@@ -40,10 +40,13 @@ void ReverseSequenceLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
-    auto secondPrc = ngraph::element::Type_t::i32; //according to the specification
-    auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
+    auto secondPrc = ov::element::i32; //according to the specification
+    std::shared_ptr<ngraph::Node> secondaryInput;
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        secondaryInput = std::make_shared<ov::op::v0::Parameter>(secondPrc, ov::Shape(secondInputShape));
+        paramsIn.push_back(std::static_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
+    } else {
+        secondaryInput = std::make_shared<ov::op::v0::Constant>(secondPrc, ov::Shape(secondInputShape));
     }
 
     auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);

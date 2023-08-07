@@ -29,7 +29,7 @@ protected:
             const op::PadType paddingType = op::PadType::EXPLICIT;
             conv = builder::makeConvolution(paramOuts[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation, paddingType, numOutChannels);
         }
-        const auto sharedNode = builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
+        const auto sharedNode = ov::test::utils::builder::makeConstant(element::f32, {1, 16, 1, 1}, std::vector<float>{}, true);
         const auto postOpCandidate = builder::makeEltwise(conv, sharedNode, EltwiseTypes::ADD);
 
         const auto secondConsumpt = builder::makeEltwise(paramOuts[1], sharedNode, EltwiseTypes::ADD);

@@ -45,7 +45,7 @@ std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
     attrs.framework = framework;
     attrs.infer_probs = true;
 
-    auto image_shape = makeConstant(ngraph::element::Type_t::f32, {3}, image_info);
+    auto image_shape = ov::test::utils::builder::makeConstant(ngraph::element::Type_t::f32, {3}, image_info);
 
     return std::make_shared<opset4::Proposal>(class_probs, class_logits, image_shape, attrs);
 }

@@ -47,7 +47,7 @@ protected:
         params[0] = ov::test::utils::builder::makeParams(rtPrc, {inpShape})[0];
         params[1] = ov::test::utils::builder::makeParams(ov::element::i32, {secShape})[0];
         auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
-        auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
+        auto c = ov::test::utils::builder::makeConstant<float>(rtPrc, {}, {1.0f});
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, params[1], false);
         ov::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape->output(0))};

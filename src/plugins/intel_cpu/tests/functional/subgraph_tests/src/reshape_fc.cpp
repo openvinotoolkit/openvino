@@ -82,10 +82,10 @@ protected:
         init_input_shapes(shapes);
 
         auto params = ov::test::utils::builder::makeDynamicParams(prc, {inputDynamicShapes.front()});
-        auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
+        auto reshapeData = ov::test::utils::builder::makeConstant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapeData, true);
 
-        auto weight = ngraph::builder::makeDynamicInputLayer(prc, ngraph::helpers::InputLayerType::CONSTANT, inputDynamicShapes.back());
+        auto weight = std::make_shared<ov::op::v0::Constant>(prc, inputDynamicShapes.back().get_shape());
         auto matMul = ngraph::builder::makeMatMul(reshape, weight, false, false);
 
         function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");

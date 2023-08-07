@@ -74,10 +74,10 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
                                           float fq_max,
                                           std::size_t levels) {
         //
-        auto fq_inp_min = makeConstant<float>(type, {1}, {fq_min});
-        auto fq_inp_max = makeConstant<float>(type, {1}, {fq_max});
-        auto fq_out_min = makeConstant<float>(type, {1}, {fq_min});
-        auto fq_out_max = makeConstant<float>(type, {1}, {fq_max});
+        auto fq_inp_min = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_min});
+        auto fq_inp_max = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_max});
+        auto fq_out_min = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_min});
+        auto fq_out_max = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_max});
         return make_shared<FakeQuantize>(node, fq_inp_min, fq_inp_max, fq_out_min, fq_out_max, levels);
     }
 
@@ -133,14 +133,14 @@ protected:
 
         auto reshape = CreateReshapeNode(ngraph::element::Type_t::i32, input_fq, {width, 1});
 
-        auto mm_const = makeConstant<float>(precision, {height, width}, {}, true);
+        auto mm_const = ov::test::utils::builder::makeConstant<float>(precision, {height, width}, {}, true);
         auto mm_const_fq = CreateFQNode(precision, mm_const, fq_min_max[1][0], fq_min_max[1][1], fq_levels);
 
         auto matmul = makeMatMul(mm_const_fq, reshape);
         auto matmul_fq = CreateFQNode(precision, matmul, fq_min_max[2][0], fq_min_max[2][1], fq_levels);
         auto add_mm_reshape = CreateReshapeNode(ngraph::element::Type_t::i32, matmul, {height});
 
-        auto add_const = makeConstant<float>(precision, {height}, {}, true);
+        auto add_const = ov::test::utils::builder::makeConstant<float>(precision, {height}, {}, true);
         auto add_const_fq = CreateFQNode(precision, add_const, fq_min_max[3][0], fq_min_max[3][1], fq_levels);
 
         auto add = make_shared<Add>(add_const_fq, add_mm_reshape);

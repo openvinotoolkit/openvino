@@ -19,10 +19,10 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
     const auto blankIndexNode = [&] {
         if (idxPrecision == element::i32) {
             const auto blankIdxDataI32 = std::vector<int32_t>{blankIndex};
-            return makeConstant(idxPrecision, {1}, blankIdxDataI32);
+            return ov::test::utils::builder::makeConstant(idxPrecision, {1}, blankIdxDataI32);
         } else if (idxPrecision == element::i64) {
             const auto blankIdxDataI64 = std::vector<int64_t>{blankIndex};
-            return makeConstant(idxPrecision, {1}, blankIdxDataI64);
+            return ov::test::utils::builder::makeConstant(idxPrecision, {1}, blankIdxDataI64);
         }
         throw std::logic_error("Unsupported index precision");
     }();
@@ -46,10 +46,10 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
 
         if (idxPrecision == element::i32) {
             const auto sequenceLengthI32 = std::vector<int32_t>(N, T);
-            return makeConstant(idxPrecision, {N}, sequenceLengthI32);
+            return ov::test::utils::builder::makeConstant(idxPrecision, {N}, sequenceLengthI32);
         } else if (idxPrecision == element::i64) {
             const auto sequenceLengthI64 = std::vector<int64_t>(N, T);
-            return makeConstant(idxPrecision, {N}, sequenceLengthI64);
+            return ov::test::utils::builder::makeConstant(idxPrecision, {N}, sequenceLengthI64);
         }
         throw std::logic_error("Unsupported index precision");
     }();

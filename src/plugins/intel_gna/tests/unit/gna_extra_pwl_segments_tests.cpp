@@ -136,7 +136,7 @@ void GNAPWLExtraSegmentsTestFixture::SetUp() {
     filter_shape.insert(filter_shape.end(), kernel.begin(), kernel.end());
 
     auto input = std::make_shared<Parameter>(precision, input_shape);
-    auto filter = ngraph::builder::makeConstant<float>(precision, filter_shape, {1.f}, true);
+    auto filter = ov::test::utils::builder::makeConstant<float>(precision, filter_shape, {1.f}, true);
 
     auto conv = std::make_shared<Convolution>(input, filter, stride, pad_begin, pad_end, dilation);
 

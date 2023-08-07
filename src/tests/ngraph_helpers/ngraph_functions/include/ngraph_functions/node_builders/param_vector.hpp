@@ -19,7 +19,6 @@ ov::ParameterVector makeDynamicParams(const std::vector<ov::element::Type>& type
 
 ov::ParameterVector makeParams(const ov::element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
 
-
 }  // namespace builder
 }  // namespace utils
 }  // namespace test

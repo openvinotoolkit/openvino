@@ -83,7 +83,7 @@ void Mvn6LayerTest::SetUp() {
 
     auto param = ov::test::utils::builder::makeParams(dataType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto axesNode = ov::test::utils::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");

@@ -130,13 +130,13 @@ protected:
                                             const std::vector<int8_t>& weiData) {
         using namespace ngraph;
         auto inputParamsFP32 = ov::test::utils::builder::makeDynamicParams(element::f32, {A.get_partial_shape()});
-        auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto matrixBFP32 = std::make_shared<ov::op::v0::Constant>(element::f32, inShapeB.get_shape());
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
             *as_type_ptr<opset3::MatMul>(builder::makeMatMul(inputParamsFP32[0], matrixBFP32, transpose_a, transpose_b)),
             element::f32);
 
-        auto matrixB = ngraph::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = ov::test::utils::builder::makeConstant<int8_t>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 
@@ -192,7 +192,7 @@ protected:
         auto params = ov::test::utils::builder::makeDynamicParams(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
-        auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
+        auto matrixB = std::make_shared<ov::op::v0::Constant>(element::f32, inShapeB.get_shape());
 
         auto weiData = generateSparseVector(ngraph::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(paramOuts[0], inShapeB, weiType, transpA, transpB, weiData);

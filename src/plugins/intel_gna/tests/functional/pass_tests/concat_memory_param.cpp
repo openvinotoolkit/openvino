@@ -77,7 +77,8 @@ protected:
         vi.data_type = ov::element::Type_t::f32;
         const auto var = std::make_shared<ov::op::util::Variable>(vi);
         std::vector<float> initial_state = ov::test::utils::generate_float_numbers(in_total_dims_size, -3.f, 3.f);
-        auto initial_state_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, input_shape, initial_state);
+        auto initial_state_node =
+            ov::test::utils::builder::makeConstant(ov::element::Type_t::f32, input_shape, initial_state);
         auto readValue = std::make_shared<ngraph::opset9::ReadValue>(initial_state_node, var);
 
         const int axis = 1;
@@ -88,7 +89,8 @@ protected:
         const auto concat_shape_size = ov::shape_size(concat_shape);
 
         auto etlwise_data = ov::test::utils::generate_float_numbers(concat_shape_size, -1.f, 1.f);
-        auto etlwise_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, concat_shape, etlwise_data);
+        auto etlwise_node =
+            ov::test::utils::builder::makeConstant(ov::element::Type_t::f32, concat_shape, etlwise_data);
         auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
 
         ov::ResultVector results{std::make_shared<ngraph::opset9::Result>(etlwise_result_node)};

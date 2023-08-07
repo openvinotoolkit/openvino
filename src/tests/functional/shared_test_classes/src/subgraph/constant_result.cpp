@@ -45,14 +45,14 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, c
     ResultVector results;
     switch (type) {
         case ConstantSubgraphType::SINGLE_COMPONENT: {
-            auto input = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            auto input = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, {}, true);
             results.push_back(std::make_shared<opset3::Result>(input));
             break;
         }
         case ConstantSubgraphType::SEVERAL_COMPONENT: {
-            auto input1 = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            auto input1 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, {}, true);
             results.push_back(std::make_shared<opset3::Result>(input1));
-            auto input2 = builder::makeConstant<float>(ngPrc, inputShape, {}, true);
+            auto input2 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, {}, true);
             results.push_back(std::make_shared<opset3::Result>(input2));
             break;
         }

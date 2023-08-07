@@ -32,7 +32,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
     filterWeightsShape[1] /= numGroups;
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode = ov::test::utils::builder::makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
     return makeGroupConvolution(in, filterWeightsNode, type, strides, padsBegin, padsEnd, dilations, autoPad, addBiases, biasesWeights);
 }
@@ -50,7 +50,7 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
     auto conv = std::make_shared<opset1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::builder::makeConstant(type, {}, biasesWeights, randomBiases);
         auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
         return add;
     } else {

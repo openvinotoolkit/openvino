@@ -20,10 +20,10 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node>& boxes,
                                       const bool& sortResDescend,
                                       const ngraph::element::Type& outType) {
     auto maxOutBoxesPerClassNode =
-        makeConstant(maxBoxesPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
-    auto iouThrNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
-    auto scoreThrNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
-    auto softNmsSigmaNode = makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        ov::test::utils::builder::makeConstant(maxBoxesPrec, ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass})->output(0);
+    auto iouThrNode = ov::test::utils::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{iouThr})->output(0);
+    auto scoreThrNode = ov::test::utils::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{scoreThr})->output(0);
+    auto softNmsSigmaNode = ov::test::utils::builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
 
     typename NmsOperation::BoxEncodingType boxEncodingType =
         isCenter ? NmsOperation::BoxEncodingType::CENTER : NmsOperation::BoxEncodingType::CORNER;

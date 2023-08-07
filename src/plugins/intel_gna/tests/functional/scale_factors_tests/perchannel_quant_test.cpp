@@ -72,9 +72,9 @@ protected:
             weightsMax.push_back(rowMax);
         }
 
-        auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, weights);
-        auto wLowNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMin});
-        auto wHighNode = ngraph::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMax});
+        auto constant = ov::test::utils::builder::makeConstant<float>(ngPrc, constShape, weights);
+        auto wLowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMin});
+        auto wHighNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {constShape.front()}, {weightsMax});
         auto wFq = std::make_shared<ngraph::opset8::FakeQuantize>(constant,
                                                                   wLowNode,
                                                                   wHighNode,

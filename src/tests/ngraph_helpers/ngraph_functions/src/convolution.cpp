@@ -26,12 +26,12 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node> &in,
     auto shape = in.get_partial_shape();
     std::vector<size_t> filterWeightsShape = {numOutChannels, static_cast<size_t>(shape[1].get_length())};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode = ov::test::utils::builder::makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
     auto conv = std::make_shared<opset1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
                                                       autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::builder::makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
         auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
         return add;
     } else {
@@ -61,7 +61,7 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node>& in_data,
                                                       autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
-        auto biasesWeightsNode = makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
+        auto biasesWeightsNode = ov::test::utils::builder::makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
         auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
         return add;
     } else {

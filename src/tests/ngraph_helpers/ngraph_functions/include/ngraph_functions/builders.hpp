@@ -23,53 +23,10 @@
 #include "openvino/core/partial_shape.hpp"
 
 #include "ngraph_functions/node_builders/param_vector.hpp"
+#include "ngraph_functions/node_builders/constant.hpp"
 
 namespace ngraph {
 namespace builder {
-
-template<typename T>
-std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
-                                   const std::vector<T> &data, bool random = false,
-                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
-    std::shared_ptr<ngraph::Node> weightsNode;
-
-#define makeNode(TYPE) \
-        case TYPE: \
-            weightsNode = std::make_shared<ngraph::opset1::Constant>( \
-                    type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>( \
-                                ngraph::shape_size(shape), \
-                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(upTo), \
-                                ngraph::helpers::nGraphTypesTrait<TYPE>::value_type(startFrom), \
-                                seed) \
-                           : NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
-            break;
-    switch (type) {
-        makeNode(ngraph::element::Type_t::bf16);
-        makeNode(ngraph::element::Type_t::f16);
-        makeNode(ngraph::element::Type_t::f32);
-        makeNode(ngraph::element::Type_t::f64);
-        makeNode(ngraph::element::Type_t::i8);
-        makeNode(ngraph::element::Type_t::i16);
-        makeNode(ngraph::element::Type_t::i32);
-        makeNode(ngraph::element::Type_t::i64);
-        makeNode(ngraph::element::Type_t::u8);
-        makeNode(ngraph::element::Type_t::u16);
-        makeNode(ngraph::element::Type_t::u32);
-        makeNode(ngraph::element::Type_t::u64);
-        makeNode(ngraph::element::Type_t::boolean);
-#undef makeNode
-        default:
-            throw std::runtime_error("Unhandled precision");
-    }
-    return weightsNode;
-}
-
-std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
-                                             const std::vector<size_t>& shape);
-
-std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
-                                                    const ov::PartialShape& shape);
 
 std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::Output<Node> &target_shape,

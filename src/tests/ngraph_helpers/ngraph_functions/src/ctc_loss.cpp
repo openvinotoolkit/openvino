@@ -29,10 +29,10 @@ std::shared_ptr<Node> makeCTCLoss(
     for (int i = 0; i < labels.size(); i++)
         std::copy(labels[i].begin(), labels[i].end(), labelsOneD.data() + i * T);
 
-    auto logitsLengthNode = makeConstant(iType, {N}, logitsLength);
-    auto labelsNode = makeConstant(iType, {N, T}, labelsOneD);
-    auto labelsLengthNode = makeConstant(iType, {N}, labelsLength);
-    auto blankIndexNode = makeConstant<int>(iType, {}, {blankIndex});
+    auto logitsLengthNode = ov::test::utils::builder::makeConstant(iType, {N}, logitsLength);
+    auto labelsNode = ov::test::utils::builder::makeConstant(iType, {N, T}, labelsOneD);
+    auto labelsLengthNode = ov::test::utils::builder::makeConstant(iType, {N}, labelsLength);
+    auto blankIndexNode = ov::test::utils::builder::makeConstant<int>(iType, {}, {blankIndex});
 
     auto ctcLossNode = std::make_shared<opset4::CTCLoss>(logitsNode, logitsLengthNode, labelsNode,
         labelsLengthNode, blankIndexNode, preprocessCollapseRepeated, ctcMergeRepeated, unique);

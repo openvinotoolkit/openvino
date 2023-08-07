@@ -88,9 +88,9 @@ protected:
 
         auto paramsIn = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
         if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
-            inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
-            inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);
-            inp4 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[3]);
+            inp2 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
+            inp3 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[2]);
+            inp4 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[3]);
 
             paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp2));
             paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset1::Parameter>(inp3));
@@ -98,9 +98,9 @@ protected:
         } else if (ngraph::helpers::InputLayerType::CONSTANT == secondaryInputType) {
             auto maxBeamIndex = inputShape.second.front().at(2) - 1;
 
-            inp2 = ngraph::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
-            inp3 = ngraph::builder::makeConstant<float>(netPrecision, {inputShape.second.front().at(1)}, {}, true, maxBeamIndex);
-            inp4 = ngraph::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
+            inp2 = ov::test::utils::builder::makeConstant<float>(netPrecision, inputShape.second.front(), {}, true, maxBeamIndex);
+            inp3 = ov::test::utils::builder::makeConstant<float>(netPrecision, {inputShape.second.front().at(1)}, {}, true, maxBeamIndex);
+            inp4 = ov::test::utils::builder::makeConstant<float>(netPrecision, {}, {}, true, maxBeamIndex);
         } else {
             throw std::runtime_error("Unsupported inputType");
         }

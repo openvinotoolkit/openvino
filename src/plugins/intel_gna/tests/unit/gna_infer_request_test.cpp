@@ -43,11 +43,11 @@ protected:
         std::vector<size_t> shape = {1, 10};
         auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
         auto shape_size = ov::shape_size(shape);
-        auto add_const =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 shape,
-                                                 ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
-                                                 false);
+        auto add_const = ov::test::utils::builder::makeConstant<float>(
+            ngPrc,
+            shape,
+            ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
+            false);
 
         auto add = std::make_shared<ngraph::opset9::Add>(params[0], add_const);
         auto res = std::make_shared<ngraph::op::Result>(add);

@@ -73,8 +73,8 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::tie(inputDataMin, inputDataMax) = inputMinMax;
-        auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
-        auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
+        auto inputLowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
+        auto inputHighNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
 
         auto inputVector = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         auto inputFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],

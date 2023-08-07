@@ -65,7 +65,7 @@ void ConcatConvTest::SetUp() {
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
     auto const_values = ov::test::utils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, inputShape, const_values);
+    auto constant = ov::test::utils::builder::makeConstant(ngPrc, inputShape, const_values);
     auto concat = ngraph::builder::makeConcat({constant, relu1}, 1);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, 2 * inputShape[0] * inputShape[1] / inputChannels};

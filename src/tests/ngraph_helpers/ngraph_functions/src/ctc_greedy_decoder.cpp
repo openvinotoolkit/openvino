@@ -28,7 +28,7 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
         }
     }
 
-    auto sequenceMaskNode = makeConstant(inputData.get_element_type(), {T, B}, sequenceMaskData);
+    auto sequenceMaskNode = ov::test::utils::builder::makeConstant(inputData.get_element_type(), {T, B}, sequenceMaskData);
 
     auto CTCGreedyDecoderNode = std::make_shared<opset1::CTCGreedyDecoder>(inputData, sequenceMaskNode, mergeRepeated);
 

@@ -87,10 +87,10 @@ protected:
 
         std::tie(inputDataMin1, inputDataMax1) = inputMinMax1;
         std::tie(inputDataMin2, inputDataMax2) = inputMinMax2;
-        auto inputLowNode1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin1});
-        auto inputHighNode1 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax1});
-        auto inputLowNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin2});
-        auto inputHighNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax2});
+        auto inputLowNode1 = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin1});
+        auto inputHighNode1 = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax1});
+        auto inputLowNode2 = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin2});
+        auto inputHighNode2 = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax2});
 
         auto inputVector = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
@@ -101,13 +101,13 @@ protected:
                                                                       inputHighNode1,
                                                                       levels);
 
-        auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {8, inputShape[1], 1, 8}, {1.0f});
-        auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32,
-                                                         std::vector<size_t>{1},
-                                                         std::vector<float>{inputDataMin1 * 35});
-        auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32,
-                                                          std::vector<size_t>{1},
-                                                          std::vector<float>{inputDataMax1 * 35});
+        auto filterWeightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {8, inputShape[1], 1, 8}, {1.0f});
+        auto convLowNode = ov::test::utils::builder::makeConstant(ngraph::element::f32,
+                                                                  std::vector<size_t>{1},
+                                                                  std::vector<float>{inputDataMin1 * 35});
+        auto convHighNode = ov::test::utils::builder::makeConstant(ngraph::element::f32,
+                                                                   std::vector<size_t>{1},
+                                                                   std::vector<float>{inputDataMax1 * 35});
         auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
                                                                                 convLowNode,
                                                                                 convHighNode,
@@ -123,7 +123,7 @@ protected:
                                                                   std::vector<ptrdiff_t>{0, 0},
                                                                   std::vector<size_t>{1, 1},
                                                                   ngraph::op::PadType::VALID);
-        auto biasesWeightsNode = ngraph::builder::makeConstant(ngPrc, {}, std::vector<float>{0.0f});
+        auto biasesWeightsNode = ov::test::utils::builder::makeConstant(ngPrc, {}, std::vector<float>{0.0f});
         auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
 
         auto convFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(add,
@@ -137,10 +137,12 @@ protected:
         if (reshape) {
             const auto& shape = conv->get_output_shape(0);
             size_t total = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
-            auto reshapeConst1 =
-                ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{2}, ngraph::Shape{1, total});
+            auto reshapeConst1 = ov::test::utils::builder::makeConstant(ngraph::element::i64,
+                                                                        std::vector<size_t>{2},
+                                                                        ngraph::Shape{1, total});
             auto reshapeNode1 = std::make_shared<ngraph::opset1::Reshape>(convFQNode, reshapeConst1, false);
-            auto reshapeConst2 = ngraph::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{4}, shape);
+            auto reshapeConst2 =
+                ov::test::utils::builder::makeConstant(ngraph::element::i64, std::vector<size_t>{4}, shape);
             auto reshapeNode2 = std::make_shared<ngraph::opset1::Reshape>(reshapeNode1, reshapeConst2, false);
             node_before_pooling = reshapeNode2;
         }

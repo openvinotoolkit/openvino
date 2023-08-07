@@ -66,14 +66,14 @@ protected:
 
         const size_t outChannels = 8;
         const size_t kernelSize = 8;
-        auto weights = ngraph::builder::makeConstant<float>(
+        auto weights = ov::test::utils::builder::makeConstant<float>(
             ngPrc,
             {outChannels, inputShape[1], 1, kernelSize},
             ov::test::utils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
                                                     weightsMinMax.first,
                                                     weightsMinMax.second));
-        auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.first * 2});
-        auto weightsHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * 2});
+        auto weightsLowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.first * 2});
+        auto weightsHighNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * 2});
         auto weightsFQ = std::make_shared<ngraph::opset7::FakeQuantize>(weights,
                                                                         weightsLowNode,
                                                                         weightsHighNode,
@@ -90,7 +90,7 @@ protected:
                                                                    ngraph::op::PadType::VALID);
         auto add1 = std::make_shared<ngraph::opset7::Add>(
             conv1,
-            ngraph::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
+            ov::test::utils::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
         auto conv2 = std::make_shared<ngraph::opset7::Convolution>(params[1],
                                                                    weightsFQ,
                                                                    std::vector<size_t>{1, 1},
@@ -100,12 +100,12 @@ protected:
                                                                    ngraph::op::PadType::VALID);
         auto add2 = std::make_shared<ngraph::opset7::Add>(
             conv2,
-            ngraph::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
+            ov::test::utils::builder::makeConstant<float>(ngPrc, {}, std::vector<float>{0.0f}));
 
         auto outLowNode =
-            ngraph::builder::makeConstant<float>(ngPrc, {1}, {-weightsMinMax.second * kernelSize * 10.0f});
+            ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {-weightsMinMax.second * kernelSize * 10.0f});
         auto outHighNode =
-            ngraph::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * kernelSize * 10.0f});
+            ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {weightsMinMax.second * kernelSize * 10.0f});
         auto fq1 = std::make_shared<ngraph::opset7::FakeQuantize>(add1,
                                                                   outLowNode,
                                                                   outHighNode,

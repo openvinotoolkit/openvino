@@ -77,8 +77,8 @@ protected:
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
-        auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
+        auto inputLowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
+        auto inputHighNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
         auto inputVector = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
 

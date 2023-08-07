@@ -85,7 +85,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto weightsRowNum = constShape[1][0];
     auto weightsColNum = inputShape[1];
     auto weightsData = generateFloatNumbers(weightsRowNum * weightsColNum, inputDataMin, inputDataMax);
-    auto const_param = ngraph::builder::makeConstant<float>(ngPrc, { constShape[1][0], inputShape[1] }, { 1.0f });
+    auto const_param = ov::test::utils::builder::makeConstant<float>(ngPrc, { constShape[1][0], inputShape[1] }, { 1.0f });
     auto inputMinRange = std::vector<float>{};
     auto inputMaxRange = std::vector<float>{};
     auto channelDataSize = constShape[1];
@@ -111,8 +111,8 @@ void FakeQuantizeSubgraphTest::SetUp() {
         FAIL() << "Invalid test configuration";
     }
 
-    auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
-    auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
+    auto lowNode = ov::test::utils::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMinRange, false);
+    auto highNode = ov::test::utils::builder::makeConstant(ngraph::element::f32, channelDataSize, inputMaxRange, false);
 
     auto inputFQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, levels[0], constShape[0],
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
@@ -125,7 +125,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(inputFQ, weightsFQ, false, true);
     std::shared_ptr<ngraph::Node> biases_node;
     if (biases) {
-        auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
+        auto const_bias = ov::test::utils::builder::makeConstant(ngPrc, {1, constShape[1][0]}, std::vector<float>{ -1.0f });
         biases_node = std::make_shared<ngraph::opset1::Add>(matmul, const_bias);
     } else {
         biases_node = matmul;

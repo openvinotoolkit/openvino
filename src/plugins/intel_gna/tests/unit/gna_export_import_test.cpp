@@ -107,11 +107,11 @@ protected:
         auto ngPrc = ngraph::element::f32;
         size_t shape = 10;
         auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, shape}});
-        auto mul_const =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 {shape, shape},
-                                                 ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
-                                                 false);
+        auto mul_const = ov::test::utils::builder::makeConstant<float>(
+            ngPrc,
+            {shape, shape},
+            ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
+            false);
 
         auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
         auto res = std::make_shared<ngraph::op::Result>(matmul);

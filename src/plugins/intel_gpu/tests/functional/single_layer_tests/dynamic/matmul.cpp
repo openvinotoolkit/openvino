@@ -118,9 +118,12 @@ protected:
 
         auto params = ov::test::utils::builder::makeDynamicParams(netType, {inShapeA});
 
-        auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
+        std::shared_ptr<ov::Node> matrixB;
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
-            params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
+            matrixB = std::make_shared<ov::op::v0::Parameter>(netType, inShapeB);
+            params.push_back(std::static_pointer_cast<ov::op::v0::Parameter>(matrixB));
+        } else {
+            matrixB = std::make_shared<ov::op::v0::Constant>(netType, inShapeB.get_shape());
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);

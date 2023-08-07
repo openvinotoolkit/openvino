@@ -94,9 +94,9 @@ void MemoryFqConcatPrelu::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto input = ov::test::utils::builder::makeParams(ngPrc, {inputs});
-    auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto memory_read = ov::test::utils::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
     auto read = std::make_shared<ngraph::opset3::ReadValue>(memory_read, "variable1");
-    auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
+    auto fake_constatnt = ov::test::utils::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
     auto fake = ngraph::builder::makeFakeQuantize(fake_constatnt, ngPrc,
         std::get<0>(fake_quantize_params),
         std::get<1>(fake_quantize_params),

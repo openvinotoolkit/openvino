@@ -112,7 +112,7 @@ protected:
 
           auto squeezeEmptyInputOp = std::make_shared<ngraph::opset1::Squeeze>(nonzeroEmptyResultOp, squeezeDimsConst);
 
-          auto axisNode = ngraph::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {0});
+          auto axisNode = ov::test::utils::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {0});
           auto gatherEmptyIndicesOp =
               std::make_shared<ov::op::v7::Gather>(paramOuts[0], squeezeEmptyInputOp, axisNode, 0);
           auto shapeofEmptyInputOp = std::make_shared<ngraph::opset3::ShapeOf>(gatherEmptyIndicesOp, ElementType::i32);

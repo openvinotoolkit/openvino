@@ -58,7 +58,7 @@ protected:
         auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape1});
         auto fakeQuantize1 =
             ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
-        auto constant = ngraph::builder::makeConstant<float>(ngPrc, inputShape2, {}, true);
+        auto constant = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape2, {}, true);
         auto fakeQuantize2 =
             ngraph::builder::makeFakeQuantize(constant, ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
         auto add = std::make_shared<ngraph::opset1::Add>(fakeQuantize1, fakeQuantize2);

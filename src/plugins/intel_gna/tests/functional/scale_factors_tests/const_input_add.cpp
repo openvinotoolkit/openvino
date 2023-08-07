@@ -68,7 +68,7 @@ protected:
         auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
 
         auto constant =
-            ngraph::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
+            ov::test::utils::builder::makeConstant<float>(ngPrc, shape, {}, true, constRange.second, constRange.first);
         auto eltwise = ngraph::builder::makeEltwise(constant, params[0], ngraph::helpers::EltwiseTypes::ADD);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise)};

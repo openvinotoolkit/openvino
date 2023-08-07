@@ -172,13 +172,13 @@ protected:
 
             auto ranges = rangesVec[i];
 
-            auto il = builder::makeConstant(ngInPrec, ranges[0], extendData(rangesBounds[0],
+            auto il = ov::test::utils::builder::makeConstant(ngInPrec, ranges[0], extendData(rangesBounds[0],
                 std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
-            auto ih = builder::makeConstant(ngInPrec, ranges[1], extendData(rangesBounds[1],
+            auto ih = ov::test::utils::builder::makeConstant(ngInPrec, ranges[1], extendData(rangesBounds[1],
                 std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
-            auto ol = builder::makeConstant(ngInPrec, ranges[2], extendData(rangesBounds[2],
+            auto ol = ov::test::utils::builder::makeConstant(ngInPrec, ranges[2], extendData(rangesBounds[2],
                 std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
-            auto oh = builder::makeConstant(ngInPrec, ranges[3], extendData(rangesBounds[3],
+            auto oh = ov::test::utils::builder::makeConstant(ngInPrec, ranges[3], extendData(rangesBounds[3],
                 std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
 
             auto fqNode = std::make_shared<opset5::FakeQuantize>(ngraphParam[i], il, ih, ol, oh, levels);
@@ -190,7 +190,7 @@ protected:
         std::shared_ptr<Node> lastNode1 = makeFQ(1);
 
         if (!reshapeShape.empty()) {
-            auto reshapeConstNode = builder::makeConstant(::element::Type(::element::Type_t::i32),
+            auto reshapeConstNode = ov::test::utils::builder::makeConstant(::element::Type(::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<opset5::Reshape>(lastNode1, reshapeConstNode, false);
         }

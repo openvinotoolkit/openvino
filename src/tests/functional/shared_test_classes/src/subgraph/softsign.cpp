@@ -67,9 +67,9 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
 
     auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
-    auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
+    auto constant_0 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
     auto add = std::make_shared<ngraph::op::v1::Add>(abs, constant_0);
-    auto constant_1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
+    auto constant_1 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
     auto power = std::make_shared<ngraph::op::v1::Power>(add, constant_1);
     auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
 

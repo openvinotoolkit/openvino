@@ -31,14 +31,14 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ov::test::utils::builder::makeParams(ngPrc, {inputs});
 
-        auto eltwise_const = ngraph::builder::makeConstant(ngPrc,
+        auto eltwise_const = ov::test::utils::builder::makeConstant(ngPrc,
                                                     ngraph::Shape{input[0]->get_shape()},
                                                      std::vector<float>{-1.0f});
         auto eltwise = std::make_shared<ngraph::opset1::Multiply>(input[0], eltwise_const);
         auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
         auto unsqueeze = ngraph::builder::makeSqueezeUnsqueeze(squeeze, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
-        auto eltwise_const2 = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
-        auto eltwise_const3 = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
+        auto eltwise_const2 = ov::test::utils::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
+        auto eltwise_const3 = ov::test::utils::builder::makeConstant(ngPrc, ngraph::Shape{1}, std::vector<float>{1.01f});
         auto eltwise2 = std::make_shared<ngraph::opset1::Multiply>(eltwise, eltwise_const2);
         auto eltwise3 = std::make_shared<ngraph::opset1::Multiply>(unsqueeze, eltwise_const3);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise2),

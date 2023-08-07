@@ -39,10 +39,10 @@ shared_ptr<FakeQuantize> create_fq_node(const Type& type,
                                         float fqMin,
                                         float fqMax,
                                         size_t levels) {
-    auto fqInpMin = makeConstant<float>(type, {1}, {fqMin});
-    auto fqInpMax = makeConstant<float>(type, {1}, {fqMax});
-    auto fqOutMin = makeConstant<float>(type, {1}, {fqMin});
-    auto fqOutMax = makeConstant<float>(type, {1}, {fqMax});
+    auto fqInpMin = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMin});
+    auto fqInpMax = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMax});
+    auto fqOutMin = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMin});
+    auto fqOutMax = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMax});
     return make_shared<FakeQuantize>(node, fqInpMin, fqInpMax, fqOutMin, fqOutMax, levels);
 }
 
@@ -61,7 +61,7 @@ struct ReLUConcatAxis {
         concatInputs.push_back(relu);
         size_t totalSize = ov::shape_size(inputShape);
         auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.1f, 0.1f);
-        auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
+        auto constNode = ov::test::utils::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
@@ -103,8 +103,8 @@ struct MatmulConcatAxis {
         std::vector<float> weights2(mulConstSize);
         std::iota(weights1.begin(), weights1.end(), 0.0f);
         std::iota(weights2.begin(), weights2.end(), 0.0f);
-        auto constMul1 = ngraph::builder::makeConstant<float>(ngPrc, mulConstShape, weights1);
-        auto constMul2 = ngraph::builder::makeConstant<float>(ngPrc, mulConstShape, weights2);
+        auto constMul1 = ov::test::utils::builder::makeConstant<float>(ngPrc, mulConstShape, weights1);
+        auto constMul2 = ov::test::utils::builder::makeConstant<float>(ngPrc, mulConstShape, weights2);
         auto matmul1 = std::make_shared<ov::opset10::MatMul>(params[0], constMul1, false, true);
         concatInputs.push_back(matmul1);
         auto matmul2 = std::make_shared<ov::opset10::MatMul>(params[0], constMul2, false, true);
@@ -149,7 +149,7 @@ struct ConvNCHWConcatAxis {
         concatInputs.push_back(conv);
         size_t totalSize = ov::shape_size(inputShape);
         auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
-        auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
+        auto constNode = ov::test::utils::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
@@ -195,7 +195,7 @@ struct ConvNHWCConcatAxis {
         concatInputs.push_back(transposeOut);
         size_t totalSize = ov::shape_size(inputShape);
         auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
-        auto constNode = ngraph::builder::makeConstant(ngPrc, {inputShape}, constValues);
+        auto constNode = ov::test::utils::builder::makeConstant(ngPrc, {inputShape}, constValues);
         concatInputs.push_back(constNode);
         auto concat = ngraph::builder::makeConcat(concatInputs, axis);
 
@@ -321,7 +321,7 @@ struct ConvConcatConcatNHWCAxis {
 
         size_t totalSize = ov::shape_size(squeeze->get_shape());
         auto constValues = ov::test::utils::generate_float_numbers(totalSize, -0.0001f, 0.0001f);
-        auto constNode = ngraph::builder::makeConstant(ngPrc, {squeeze->get_shape()}, constValues);
+        auto constNode = ov::test::utils::builder::makeConstant(ngPrc, {squeeze->get_shape()}, constValues);
 
         concat2Inputs.push_back(squeeze);
         concat2Inputs.push_back(constNode);
@@ -392,12 +392,13 @@ struct TransposeTransposeConcat {
         auto reshape_l1_const = make_shared<Constant>(i64, Shape{conv_input_shape.size()}, conv_input_shape);
         auto reshape_l1 = make_shared<Reshape>(inputs[0], reshape_l1_const, false);
 
-        auto conv_l1_weights = makeConstant<float>(ng_prc,
-                                                   {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
-                                                   {},
-                                                   true,
-                                                   1.0f,
-                                                   -1.0f);
+        auto conv_l1_weights = ov::test::utils::builder::makeConstant<float>(
+            ng_prc,
+            {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
+            {},
+            true,
+            1.0f,
+            -1.0f);
         auto conv_l1_weights_fq = create_fq_node(ng_prc, conv_l1_weights, -fq1, fq1, levels);
         auto conv_l1 = make_shared<Convolution>(reshape_l1,
                                                 conv_l1_weights_fq,

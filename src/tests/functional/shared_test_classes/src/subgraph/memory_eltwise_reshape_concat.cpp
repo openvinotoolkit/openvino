@@ -53,7 +53,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
+    auto memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
     auto memory_read = std::make_shared<ngraph::opset5::ReadValue>(memory_constant, "memory");
     memory_read->set_friendly_name("memory_read");
@@ -69,7 +69,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto reshape_1 = std::make_shared<ngraph::opset5::Reshape>(mul, reshape_1_pattern, false);
     reshape_1->set_friendly_name("reshape");
 
-    auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
+    auto concat_constant = ov::test::utils::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
     auto concat = ngraph::builder::makeConcat({concat_constant, reshape_1}, 0);
@@ -88,7 +88,7 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
+    auto memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
 
     auto mul = ngraph::builder::makeEltwise(input_parameter[0], memory_constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
@@ -104,7 +104,7 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(reshape, squeeze_const);
     squeeze->set_friendly_name("squeeze");
 
-    auto concat_constant = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
+    auto concat_constant = ov::test::utils::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals);
     concat_constant->set_friendly_name("concat_constant");
 
     auto concat = ngraph::builder::makeConcat({concat_constant, squeeze}, 0);

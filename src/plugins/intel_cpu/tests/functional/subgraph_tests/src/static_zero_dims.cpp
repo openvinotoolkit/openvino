@@ -30,7 +30,7 @@ protected:
 
         auto relu1 = std::make_shared<ngraph::opset5::Relu>(varSplit->output(0));
 
-        auto numInRoi = ngraph::builder::makeConstant(ngPrc, {0}, std::vector<float>{}, false);
+        auto numInRoi = ov::test::utils::builder::makeConstant(ngPrc, {0}, std::vector<float>{}, false);
         auto expDet = std::make_shared<ov::op::v6::ExperimentalDetectronTopKROIs>(varSplit->output(1), numInRoi, 10);
         auto relu2 = std::make_shared<ngraph::opset5::Relu>(expDet);
 

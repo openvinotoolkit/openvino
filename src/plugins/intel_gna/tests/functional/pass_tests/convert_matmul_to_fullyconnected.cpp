@@ -64,9 +64,10 @@ protected:
         auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape[1]});
         std::vector<float> weights =
             ov::test::utils::generate_float_numbers(inputShape[0][0] * inputShape[0][1], -0.2f, 0.2f);
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
+        auto const_mult2 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
 
-        auto const_eltwise = ngraph::builder::makeConstant<float>(ngPrc, {inputShape[0][0], inputShape[1][1]}, {1.0f});
+        auto const_eltwise =
+            ov::test::utils::builder::makeConstant<float>(ngPrc, {inputShape[0][0], inputShape[1][1]}, {1.0f});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(const_mult2, params[0], false, false);
 
         auto eltwise = std::make_shared<ngraph::opset1::Multiply>(matmul, const_eltwise);
@@ -118,7 +119,7 @@ protected:
 
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(
             params[0],
-            ngraph::builder::makeConstant(ngraph::element::i64, {inputShape[1].size()}, inputShape[1]),
+            ov::test::utils::builder::makeConstant(ngraph::element::i64, {inputShape[1].size()}, inputShape[1]),
             false);
         auto transpose1 = std::make_shared<ngraph::opset1::Transpose>(
             reshape1,
@@ -126,7 +127,7 @@ protected:
 
         std::vector<float> weights =
             ov::test::utils::generate_float_numbers(inputShape[0][0] * inputShape[0][1], -0.1f, 0.1f);
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
+        auto const_mult2 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(const_mult2, transpose1, false, false);
         auto relu = std::make_shared<ngraph::opset1::Relu>(matmul);
 
@@ -137,7 +138,7 @@ protected:
         ngraph::Shape output_shape = {1, transpose_output_shape[0] * transpose_output_shape[1]};
         auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(
             transpose2,
-            ngraph::builder::makeConstant(ngraph::element::i64, {output_shape.size()}, output_shape),
+            ov::test::utils::builder::makeConstant(ngraph::element::i64, {output_shape.size()}, output_shape),
             false);
 
         function = std::make_shared<ngraph::Function>(reshape2, params, "ConvertMatmulToFCWithTransposes");

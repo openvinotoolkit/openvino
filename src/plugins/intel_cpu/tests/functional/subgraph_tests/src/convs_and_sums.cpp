@@ -49,7 +49,7 @@ protected:
         auto FQ_1 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, 256, {}, {-2.122633457183838}, {2.106050491333008},
                                                       {-2.122633457183838}, {2.106050491333008});
 
-        auto Const = ngraph::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
+        auto Const = ov::test::utils::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
         auto FQ_2 = ngraph::builder::makeFakeQuantize(Const, ngPrc, 255, {128, 1, 1}, {-0.56387859582901}, {0.56387859582901},
                                                       {-0.56387859582901}, {0.56387859582901});
 
@@ -60,7 +60,7 @@ protected:
         auto FQ_11 = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, 256, {}, {-3.2050728797912598}, {3.1800332069396973},
                                                       {-3.2050728797912598}, {3.1800332069396973});
 
-        auto Const_ = ngraph::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.001183388871140778}, false);
+        auto Const_ = ov::test::utils::builder::makeConstant(ngPrc, {128, 512, 1}, std::vector<float>{-0.001183388871140778}, false);
         auto FQ_22 = ngraph::builder::makeFakeQuantize(Const_, ngPrc, 255, {128, 1, 1}, {-0.325547456741333}, {0.325547456741333},
                                                       {-0.325547456741333}, {0.325547456741333});
 

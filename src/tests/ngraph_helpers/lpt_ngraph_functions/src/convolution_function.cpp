@@ -74,24 +74,32 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
             transposeOnData ? std::make_shared<opset1::Transpose>(convertedWeights, constant) : convertedWeights,
             transposeOnInputLow ?
                 std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+                    ov::test::utils::builder::makeConstant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+                ov::test::utils::builder::makeConstant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
             transposeOnInputHigh ?
                 std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+                    ov::test::utils::builder::makeConstant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+                ov::test::utils::builder::makeConstant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
             transposeOnOutputLow ?
                 std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+                    ov::test::utils::builder::makeConstant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+                ov::test::utils::builder::makeConstant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
             transposeOnOutputHigh ?
                 std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+                    ov::test::utils::builder::makeConstant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+                ov::test::utils::builder::makeConstant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
             fqOnWeights.quantizationLevel);
     }
 

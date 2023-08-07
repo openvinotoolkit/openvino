@@ -213,7 +213,7 @@ const auto fusingReluAdd = fusingSpecificParams{std::make_shared<postNodesMgr>(s
             }, "Relu"},
             {[](postNodeConfig& cfg){
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
 
@@ -223,24 +223,24 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
             }, "Relu"},
             {[](postNodeConfig& cfg){
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
             }, "Multiply(PerChannel)"},
             {[](postNodeConfig& cfg){
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
 
 const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
             }, "Multiply(PerChannel)"},
             {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
             }, "Add(PerChannel)"}}), {"Add"} };
 
@@ -253,7 +253,7 @@ const auto fusingClampRoundAddRelu = fusingSpecificParams{ std::make_shared<post
             }, "RoundHalfToEven"},
             {[](postNodeConfig& cfg){
                 ngraph::Shape secondMultInShape(1, 1);
-                auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+                auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, secondMultInput);
             }, "AddPerTensor"},
             {[](postNodeConfig& cfg){
@@ -263,12 +263,12 @@ const auto fusingClampRoundAddRelu = fusingSpecificParams{ std::make_shared<post
 const auto fusingScaleShiftAndFakeQuantizePerChannel = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
             }, "Multiply(PerChannel)"},
             {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.target);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
             }, "Add(PerChannel)"},
             {[](postNodeConfig& cfg){
@@ -388,68 +388,68 @@ const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(
 const auto fusingMultiplyPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::op::v1::Multiply>(cfg.input, secondMultInput);
         }, "Multiply(PerTensor)"}}), {"Multiply"}};
 
 const auto fusingMultiplyPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.target);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Multiply>(cfg.input, secondMultInput);
         }, "Multiply(PerChannel)"}}), {"Multiply"}};
 
 const auto fusingMultiplyAddPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingAddPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(cfg.input, secondMultInput);
         }, "Add(PerTensor)"}}), {"Add"}};
 
 const auto fusingAddPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.target);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(cfg.input, secondMultInput);
         }, "Add(PerChannel)"}}), {"Add"}};
 
 const auto fusingSubtractPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerTensor)"}}), {"Subtract"}};
 
 const auto fusingSubtractPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.target);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerChannel)"}}), {"Subtract"}};
 
 const auto fusingDividePerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerTensor)"}}), {"Divide"}};
 
 const auto fusingDividePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.target);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerChannel)"}}), {"Divide"}};
 
@@ -470,19 +470,19 @@ const auto fusingPRelu1DScaleShift = fusingSpecificParams{std::make_shared<postN
         }, "PRelu1D"},
         {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
                 ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
             size_t last_dim = cfg.input->get_output_partial_shape(0).rbegin()->get_length();
-            auto bias = ngraph::builder::makeConstant(cfg.type, ngraph::Shape{last_dim}, std::vector<float>{}, true);
+            auto bias = ov::test::utils::builder::makeConstant(cfg.type, ngraph::Shape{last_dim}, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(cfg.input, bias);
         }, "fusingBias"}}), {"Add"}};
 

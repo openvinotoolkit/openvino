@@ -623,10 +623,10 @@ class InsertIdentityForNonQuantizableConcatInputTest : public InsertIdentityLaye
                                        float fq_max,
                                        std::size_t levels) {
         //
-        auto fq_inp_min = makeConstant<float>(type, {1}, {fq_min});
-        auto fq_inp_max = makeConstant<float>(type, {1}, {fq_max});
-        auto fq_out_min = makeConstant<float>(type, {1}, {fq_min});
-        auto fq_out_max = makeConstant<float>(type, {1}, {fq_max});
+        auto fq_inp_min = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_min});
+        auto fq_inp_max = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_max});
+        auto fq_out_min = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_min});
+        auto fq_out_max = ov::test::utils::builder::makeConstant<float>(type, {1}, {fq_max});
         return make_shared<FakeQuantize>(node, fq_inp_min, fq_inp_max, fq_out_min, fq_out_max, levels);
     }
 

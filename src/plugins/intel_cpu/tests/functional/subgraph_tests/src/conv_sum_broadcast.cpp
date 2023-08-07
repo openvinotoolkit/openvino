@@ -102,7 +102,7 @@ public:
         auto conv = makeConv(inputParams);
 
         if (bias) {
-            auto biasNode = ngraph::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, _convOutChannels, 1, 1}), {}, true);
+            auto biasNode = ov::test::utils::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, _convOutChannels, 1, 1}), {}, true);
             conv = std::make_shared<ngraph::opset3::Add>(conv, biasNode);
         }
 
@@ -172,7 +172,7 @@ public:
         auto inpShape = inputParams.front()->get_partial_shape();
         Shape filterShape = {_convOutChannels, static_cast<size_t>(inpShape[1].get_length())};
         filterShape.insert(filterShape.end(), _kernel.begin(), _kernel.end());
-        auto filterWeightsNode = builder::makeConstant<int8_t>(element::i8, filterShape, {}, true);
+        auto filterWeightsNode = ov::test::utils::builder::makeConstant<int8_t>(element::i8, filterShape, {}, true);
 
         auto conv = convolutionNodeRelaxed->copy_with_new_inputs({inputParams.front(), filterWeightsNode});
 
@@ -238,12 +238,12 @@ namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
             ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"},
         {[](postNodeConfig& cfg){
@@ -253,24 +253,24 @@ const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNo
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ngraph::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerChannel)"},
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ngraph::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::builder::makeConstant(cfg.type, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerChannel)"},
         {[](postNodeConfig& cfg){

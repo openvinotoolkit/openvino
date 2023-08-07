@@ -71,7 +71,7 @@ protected:
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});
-        auto filter = ngraph::builder::makeConstant<float>(ng_precision, filter_shape, {1.f});
+        auto filter = ov::test::utils::builder::makeConstant<float>(ng_precision, filter_shape, {1.f});
         auto conv = std::make_shared<ngraph::opset8::Convolution>(input,
                                                                   filter,
                                                                   ov::Strides{1, 1},

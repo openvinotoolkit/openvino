@@ -24,11 +24,10 @@ protected:
 
         std::vector<size_t> inputShape {2, 4, 4, 1};
         auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
-        auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
-        std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
+        std::shared_ptr<ngraph::Node> secondaryInput = std::make_shared<ov::op::v0::Constant>(ngPrc, inputShape);
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");

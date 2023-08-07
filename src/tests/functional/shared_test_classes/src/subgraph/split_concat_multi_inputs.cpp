@@ -46,7 +46,7 @@ void SplitConcatMultiInputsTest::SetUp() {
     auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
 
     if (withFC) {
-        auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
+        auto mul_const = ov::test::utils::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
             ov::test::utils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
         auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");

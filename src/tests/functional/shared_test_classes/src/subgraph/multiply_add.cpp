@@ -30,9 +30,9 @@ void MultiplyAddLayerTest::SetUp() {
     std::vector<size_t> constShape(inputShape.size(), 1);
     constShape[1] = inputShape[1];
 
-    auto const_mul = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto const_mul = ov::test::utils::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto mul = std::make_shared<ngraph::opset3::Multiply>(paramOuts[0], const_mul);
-    auto const_add = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto const_add = ov::test::utils::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto add = std::make_shared<ngraph::opset3::Add>(mul, const_add);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");

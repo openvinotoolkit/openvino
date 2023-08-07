@@ -61,7 +61,7 @@ void TransposeConvTest::SetUp() {
     auto transpose1 = std::make_shared<ngraph::opset7::Transpose>(reshape, input_order1);
 
     float weight_val = 0.02;
-    auto filter_weights_node = ngraph::builder::makeConstant<float>(ng_prc, {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
+    auto filter_weights_node = ov::test::utils::builder::makeConstant<float>(ng_prc, {output_channels, input_channels, kernel_shape[0], kernel_shape[1]},
                                                                   { weight_val });
 
     auto conv = std::make_shared<ngraph::opset7::Convolution>(transpose1, filter_weights_node, strides, std::vector<ptrdiff_t>{ 0, 0 },

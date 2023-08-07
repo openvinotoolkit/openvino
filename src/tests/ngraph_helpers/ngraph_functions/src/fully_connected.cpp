@@ -24,14 +24,14 @@ std::shared_ptr<Node> makeFullyConnected(const ngraph::Output<Node>& in,
     }
 
     bool randomWeights = weights.empty();
-    auto weightsNode = makeConstant(type, shape, weights, randomWeights);
+    auto weightsNode = ov::test::utils::builder::makeConstant(type, shape, weights, randomWeights);
 
     auto fc = std::make_shared<ngraph::opset1::MatMul>(in, weightsNode, false, false);
     fc->set_friendly_name("FullyConnected");
 
     if (addBias) {
         bool randomBiasWeights = biasWeights.empty();
-        auto biasWeightsNode = makeConstant(type, {}, biasWeights, randomBiasWeights);
+        auto biasWeightsNode = ov::test::utils::builder::makeConstant(type, {}, biasWeights, randomBiasWeights);
         auto add = std::make_shared<ngraph::opset1::Add>(fc, biasWeightsNode);
 
         return add;

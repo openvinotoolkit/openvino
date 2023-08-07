@@ -200,7 +200,7 @@ inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
 
     auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
     auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
-    auto newShape = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
+    auto newShape = ov::test::utils::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
     auto reshape = std::make_shared<ngraph::opset4::Reshape>(convert, newShape, false);
     auto conv1 = ngraph::builder::makeConvolution(params[1], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);

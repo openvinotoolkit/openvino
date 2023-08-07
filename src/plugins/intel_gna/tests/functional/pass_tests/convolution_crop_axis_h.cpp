@@ -53,7 +53,8 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto reshape_pattern_size = ngraph::Shape{inputShape.size()};
-        auto reshape_pattern = ngraph::builder::makeConstant(ov::element::i64, reshape_pattern_size, inputShape);
+        auto reshape_pattern =
+            ov::test::utils::builder::makeConstant(ov::element::i64, reshape_pattern_size, inputShape);
         auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         auto input_reshape = std::make_shared<ngraph::opset9::Reshape>(params[0], reshape_pattern, false);
 

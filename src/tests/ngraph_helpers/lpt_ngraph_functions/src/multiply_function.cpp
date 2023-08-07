@@ -110,7 +110,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     }
 
     const std::shared_ptr<ngraph::Node> input2 = secondInputIsConstant ?
-        makeConstant(element::f32, Shape{}, std::vector<float>{0.5f}, false) :
+        ov::test::utils::builder::makeConstant(element::f32, Shape{}, std::vector<float>{0.5f}, false) :
         std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :

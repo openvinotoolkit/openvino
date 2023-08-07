@@ -63,7 +63,7 @@ protected:
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {10.}),
             static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
-        auto constant = ngraph::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
+        auto constant = ov::test::utils::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
         auto fq2 = std::make_shared<ngraph::opset8::FakeQuantize>(
             constant,
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-10}),

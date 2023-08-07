@@ -76,11 +76,11 @@ protected:
         std::shared_ptr<ngraph::Node> seqLengthsInput;
 
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            seqLengthsInput = ngraph::builder::makeDynamicInputLayer(seqLengthsPrc, secondaryInputType, inputDynamicShapes[1]);
-            paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(seqLengthsInput));
+            seqLengthsInput = std::make_shared<ov::op::v0::Parameter>(seqLengthsPrc, inputDynamicShapes[1]);
+            paramsIn.push_back(std::static_pointer_cast<ov::op::v0::Parameter>(seqLengthsInput));
         } else {
             const auto maxSeqLength = dataInputShape.second.front().at(seqAxisIndex);
-            seqLengthsInput = ngraph::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
+            seqLengthsInput = ov::test::utils::builder::makeConstant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
         }
 
         const auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);

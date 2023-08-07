@@ -39,9 +39,13 @@ namespace LayerTestsDefinitions {
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto input = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0]});
-        auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
+
+        std::shared_ptr<ngraph::Node> secondaryInput;
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+            secondaryInput = std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{inputShapes[1]});
+            input.push_back(std::static_pointer_cast<ov::op::v0::Parameter>(secondaryInput));
+        } else {
+            secondaryInput = std::make_shared<ov::op::v0::Constant>(ngPrc, ov::Shape{inputShapes[1]});
         }
 
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);

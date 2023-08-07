@@ -59,7 +59,7 @@ void ReduceEltwiseTest::SetUp() {
     std::vector<size_t> constShape(reduce.get()->get_output_partial_shape(0).rank().get_length(), 1);
     ASSERT_GT(constShape.size(), 2);
     constShape[2] = inputShape.back();
-    auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
+    auto constant = ov::test::utils::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltw)};
     function = std::make_shared<ngraph::Function>(results, params, "ReduceEltwise");

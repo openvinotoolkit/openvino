@@ -314,7 +314,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivation) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::test::utils::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
@@ -336,7 +336,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersMaxPool) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::test::utils::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
@@ -365,7 +365,7 @@ TEST_F(GNAMemoryOrderTest, orderingFusedLayersActivationMaxPool) {
     ov::Strides strides = {1, 1};
     ov::Strides dilations = {1, 1};
     ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
-    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
+    auto weights = ov::test::utils::builder::makeConstant<float>(ov::element::f32, {8, 16, 1, 1}, {1.f});
 
     auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
     auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);

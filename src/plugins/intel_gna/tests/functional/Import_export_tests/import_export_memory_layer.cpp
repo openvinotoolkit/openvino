@@ -102,7 +102,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, 336}});
-        auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
+        auto mem_c = ov::test::utils::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
 
         auto mul = std::make_shared<ngraph::opset1::Multiply>(params[0], mem_r);

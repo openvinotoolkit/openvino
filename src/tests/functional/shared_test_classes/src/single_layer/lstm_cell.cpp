@@ -75,7 +75,7 @@ void LSTMCellTest::SetUp() {
         W = param;
         params.push_back(param);
     } else {
-        W = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
+        W = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[0], {}, true);
     }
 
     std::shared_ptr<ov::Node> R;
@@ -84,7 +84,7 @@ void LSTMCellTest::SetUp() {
         R = param;
         params.push_back(param);
     } else {
-        R = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
+        R = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[1], {}, true);
     }
 
     std::shared_ptr<ov::Node> B;
@@ -93,7 +93,7 @@ void LSTMCellTest::SetUp() {
         B = param;
         params.push_back(param);
     } else {
-        B = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
+        B = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[2], {}, true);
     }
 
     auto lstm_cell = std::make_shared<ov::op::v4::LSTMCell>(params[0], params[1], params[2], W, R, B, hidden_size, activations,

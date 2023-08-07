@@ -183,12 +183,12 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
 }
 
 std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& reshape) {
-    auto constant = makeConstant(ngraph::element::i64, Shape({ reshape.values.size() }), reshape.values);
+    auto constant = ov::test::utils::builder::makeConstant(ngraph::element::i64, Shape({ reshape.values.size() }), reshape.values);
     return std::make_shared<ngraph::opset1::Reshape>(data, constant->output(0), reshape.special_zero);
 }
 
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& transpose) {
-    auto constant = makeConstant(ngraph::element::i64, Shape({ transpose.values.size() }), transpose.values);
+    auto constant = ov::test::utils::builder::makeConstant(ngraph::element::i64, Shape({ transpose.values.size() }), transpose.values);
     return std::make_shared<ngraph::opset1::Transpose>(data, constant->output(0));
 }
 
@@ -256,7 +256,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     std::shared_ptr<Node> inputHighNode;
 
     if (subgraphOnConstantPath) {
-        const auto topConstant = ngraph::builder::makeConstant(constantPrecision, ngraph::Shape{1}, std::vector<float>(1, 0.f), false);
+        const auto topConstant = ov::test::utils::builder::makeConstant(constantPrecision, ngraph::Shape{1}, std::vector<float>(1, 0.f), false);
         const auto convert = std::make_shared<opset1::Convert>(topConstant, element::f32);
 
         const auto subtractMin = std::make_shared<opset1::Subtract>(
@@ -279,7 +279,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
                 std::vector<float>{fqOnData.inputHighValues[0] / fqOnData.outputHighValues[0]}),
             subtractMax);
     } else {
-        inputLowNode = ngraph::builder::makeConstant(
+        inputLowNode = ov::test::utils::builder::makeConstant(
             constantPrecision,
             fqOnData.constantShapes.empty() ? ngraph::Shape{} : fqOnData.constantShapes[0],
             fqOnData.inputLowValues,
@@ -288,7 +288,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
             inputLowNode = ngraph::builder::makeConversion(inputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
         }
 
-        inputHighNode = ngraph::builder::makeConstant(
+        inputHighNode = ov::test::utils::builder::makeConstant(
             constantPrecision,
             fqOnData.constantShapes.empty() ?
                 ngraph::Shape{} :
@@ -300,7 +300,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         }
     }
 
-    auto outputLowNode = ngraph::builder::makeConstant(
+    auto outputLowNode = ov::test::utils::builder::makeConstant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ngraph::Shape{} :
@@ -311,7 +311,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         outputLowNode = ngraph::builder::makeConversion(outputLowNode, ov::element::f32, ngraph::helpers::ConversionTypes::CONVERT);
     }
 
-    auto outputHighNode = ngraph::builder::makeConstant(
+    auto outputHighNode = ov::test::utils::builder::makeConstant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ngraph::Shape{} :

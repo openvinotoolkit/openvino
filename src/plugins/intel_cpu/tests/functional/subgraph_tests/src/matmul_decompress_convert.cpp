@@ -209,7 +209,7 @@ protected:
 
         auto params = ov::test::utils::builder::makeDynamicParams(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
+        std::shared_ptr<Node> inputB = ov::test::utils::builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<opset1::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);

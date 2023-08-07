@@ -85,7 +85,7 @@ void ConstStridedSliceConcatTest::SetUp() {
 
     const auto totalConstantSize = constSlices * constSliceSize;
     auto constantValues = ov::test::utils::generate_float_numbers(totalConstantSize, -0.2f, 0.2f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
+    auto constant = ov::test::utils::builder::makeConstant(ngPrc, { 1, totalConstantSize }, constantValues);
 
     std::vector<ngraph::Output<ngraph::Node>> allToConcat;
     appendSlices(allToConcat, params[0], inputSliceSize, totalInputSize, ngPrc);

@@ -33,14 +33,14 @@ void MemoryTestGna::CreateCommonFunc() {
     const auto variable_info = VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
     auto variable = std::make_shared<Variable>(variable_info);
 
-    auto min55 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-55.001678466796875f});
-    auto max55 = ngraph::builder::makeConstant<float>(ngPrc, {}, {55.0f});
+    auto min55 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {-55.001678466796875f});
+    auto max55 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {55.0f});
 
-    auto min270 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-270.00823974609375f});
-    auto max270 = ngraph::builder::makeConstant<float>(ngPrc, {}, {270.0f});
+    auto min270 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {-270.00823974609375f});
+    auto max270 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {270.0f});
 
-    auto min325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-325.0099182128906f});
-    auto max325 = ngraph::builder::makeConstant<float>(ngPrc, {}, {325.0f});
+    auto min325 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {-325.0099182128906f});
+    auto max325 = ov::test::utils::builder::makeConstant<float>(ngPrc, {}, {325.0f});
 
     auto fq_from_Par225 = std::make_shared<FakeQuantize>(param.at(0), min55, max55, min55, max55, 65536);
 

@@ -1011,7 +1011,8 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         constant = op::Constant::create(constant_type, shape2, {1});
         break;
     case ConstantKind::RANDOM:
-        constant = builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+        constant =
+            ov::test::utils::builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
         break;
     }
 

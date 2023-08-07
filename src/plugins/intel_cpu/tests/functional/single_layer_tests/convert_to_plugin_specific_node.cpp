@@ -55,7 +55,7 @@ protected:
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
         const auto param = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(nonConstShape));
-        const auto constNode = builder::makeConstant(ngPrc, ngraph::Shape(constShape), std::vector<float>{}, true);
+        const auto constNode = ov::test::utils::builder::makeConstant(ngPrc, ngraph::Shape(constShape), std::vector<float>{}, true);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;

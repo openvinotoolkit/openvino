@@ -72,8 +72,8 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
     auto reshape1_shape = reshape1->output(0).get_shape();
-    auto H_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
-    auto C_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
+    auto H_init = ov::test::utils::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
+    auto C_init = ov::test::utils::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true, weights_range.second, weights_range.first);
     if (hidden_memory_init_out != nullptr) {
         *hidden_memory_init_out = std::static_pointer_cast<ngraph::opset1::Constant>(H_init)->cast_vector<float>();
     }
@@ -86,9 +86,10 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     C_t->set_friendly_name("cell_state_1");
     //Body
     auto X = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
-    auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, reshape1_shape[2] }, {}, true, weights_range.second, weights_range.first);
-    auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, {}, true, weights_range.second,
-                                                                       weights_range.first);
+    auto weightsNode = ov::test::utils::builder::makeConstant<float>(
+        ngPrc, { 4 * hiddenSize, reshape1_shape[2] }, {}, true, weights_range.second, weights_range.first);
+    auto reccurrenceWeightsNode = ov::test::utils::builder::makeConstant<float>(
+        ngPrc, { 4 * hiddenSize, hiddenSize }, {}, true, weights_range.second, weights_range.first);
 
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
     outFormShapes1 = { batch_size, reshape1_shape[2] };

@@ -44,9 +44,9 @@ public:
         init_input_shapes({inputShape});
         auto input_params = ov::test::utils::builder::makeDynamicParams(inType, {inputShape.first});
         auto convert = builder::makeConversion(input_params[0], element::f32, ::helpers::ConversionTypes::CONVERT);
-        auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto begin = ov::test::utils::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end = ov::test::utils::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride = ov::test::utils::builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
         auto slice = builder::makeStridedSlice(convert,
                                                begin,
                                                end,
@@ -86,8 +86,8 @@ public:
         auto input_params = ov::test::utils::builder::makeDynamicParams(inType, {inputShape.first});
 
         // Such complicated graph is necessary to cover the case when Convert has several children and connected to non zero output
-        const auto split_axis = builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
-        const auto split_lengths = builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
+        const auto split_axis = ov::test::utils::builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        const auto split_lengths = ov::test::utils::builder::makeConstant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::opset10::VariadicSplit>(input_params[0], split_axis, split_lengths);
         auto convert = builder::makeConversion(split->output(1), inType, ::helpers::ConversionTypes::CONVERT);
         auto relu = builder::makeActivation(convert, inType, ::helpers::ActivationTypes::Relu);

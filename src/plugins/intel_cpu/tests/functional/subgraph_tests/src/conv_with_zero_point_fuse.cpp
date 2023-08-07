@@ -76,7 +76,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
         const InferenceEngine::SizeVector weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ngraph::shape_size(weights_const_shape), 1);
-        const auto weights_const = ngraph::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
+        const auto weights_const = ov::test::utils::builder::makeConstant(ov::element::i8, weights_const_shape, weights_const_values);
 
         const auto weights_convert = ngraph::builder::makeConversion(
             weights_const,
@@ -85,7 +85,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
-            ngraph::builder::makeConstant(ov::element::f32,
+            ov::test::utils::builder::makeConstant(ov::element::f32,
                                             {numOutChannels, 1, 1, 1},
                                             std::vector<float>(numOutChannels, 1.0)));
 
@@ -108,7 +108,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                     fq_conv_data,
                     std::make_shared<ov::opset10::Reshape>(
                         weights_multiply,
-                        ngraph::builder::makeConstant(
+                        ov::test::utils::builder::makeConstant(
                             ov::element::i32,
                             {5},
                             std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),

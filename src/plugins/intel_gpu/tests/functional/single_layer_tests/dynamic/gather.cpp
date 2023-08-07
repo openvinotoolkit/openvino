@@ -96,7 +96,7 @@ protected:
             for (size_t i = 0; i < Shapes.inputShapes.second.size(); ++i) {
                 idx_range = std::min(static_cast<int64_t>(Shapes.inputShapes.second[i][axis_norm]), idx_range);
             }
-            indicesNode = ngraph::builder::makeConstant<int64_t>(
+            indicesNode = ov::test::utils::builder::makeConstant<int64_t>(
                 ngraph::element::i64,
                 Shapes.targetShapes.second[0],
                 {},
@@ -109,7 +109,7 @@ protected:
         }
 
         if (isAxisConstant) {
-            axisNode = ngraph::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {axis});
+            axisNode = ov::test::utils::builder::makeConstant<int64_t>(intInputsPrecision, ov::Shape({1}), {axis});
         } else {
             inputDynamicShapes.push_back({1});
             for (size_t i = 0lu; i < targetStaticShapes.size(); i++) {

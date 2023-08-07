@@ -88,7 +88,7 @@ protected:
                     idx_range = std::min(static_cast<int64_t>(Shapes.inputShapes.second[i][j]), idx_range);
                 }
             }
-            indicesNode = ngraph::builder::makeConstant<int64_t>(
+            indicesNode = ov::test::utils::builder::makeConstant<int64_t>(
                 ngraph::element::i64,
                 Shapes.targetShapes.second[0],
                 {},

@@ -174,7 +174,7 @@ protected:
                                                           256, fqInputShapes[1]);
         }
         if (needReshape) {
-            auto reshapeConstNode = ngraph::builder::makeConstant(::ngraph::element::Type(::ngraph::element::Type_t::i32),
+            auto reshapeConstNode = ov::test::utils::builder::makeConstant(::ngraph::element::Type(::ngraph::element::Type_t::i32),
                                                                   {reshapeShape.size()}, reshapeShape);
             lastNode1 = std::make_shared<ngraph::opset4::Reshape>(lastNode1, reshapeConstNode, false);
         }

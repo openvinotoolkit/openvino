@@ -42,7 +42,7 @@ void AdaPoolLayerTest::SetUp() {
     auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
     ngraph::Shape pooledShape = {pooledSpatialShape.size() };
-    auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
+    auto pooledParam = ov::test::utils::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
 
     // we cannot create abstract Op to use polymorphism
     auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);

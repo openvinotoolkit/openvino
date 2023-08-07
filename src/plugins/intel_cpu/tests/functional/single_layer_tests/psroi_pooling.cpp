@@ -86,7 +86,7 @@ protected:
 
         ngraph::Shape proposalShape = { proposal.size() / 5, 5 };
 
-        auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
+        auto coords = ov::test::utils::builder::makeConstant<float>(ngraph::element::f32, proposalShape, proposal);
         auto params = ov::test::utils::builder::makeParams(ngraph::element::f32, {featureMapShape});
 
         auto psroi = std::make_shared<ngraph::op::v0::PSROIPooling>(params[0], coords, outputDim, groupSize,

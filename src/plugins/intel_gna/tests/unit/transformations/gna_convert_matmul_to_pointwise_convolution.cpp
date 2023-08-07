@@ -148,7 +148,7 @@ void CreateAdd<ONE_DIMENSIONAL, ONE_CHANNEL>::updateGraph(Graph& graph) {
         axes.back() = shape.back();
     }
 
-    auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
+    auto bias = ov::test::utils::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
     auto add_node = std::make_shared<ngraph::opset7::Add>(graph.output, bias);
     graph.output = add_node;
 }
@@ -220,7 +220,7 @@ Graph createReferenceGraph() {
             axes[1] = 8;
         }
 
-        auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
+        auto bias = ov::test::utils::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
         auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
         parent_node = add_node;
     }

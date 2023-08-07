@@ -81,28 +81,28 @@ void ConvFqReluTest::SetUp() {
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
 
     float weightVal = 0.2;
-    auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {outputChannels, inputChannels, kernelShape[0], kernelShape[1]},
+    auto filterWeightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {outputChannels, inputChannels, kernelShape[0], kernelShape[1]},
                                                                   { weightVal });
     auto convLowNode =
-        ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{-convFQValue});
+        ov::test::utils::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{-convFQValue});
     auto convHighNode =
-        ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{convFQValue});
+        ov::test::utils::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{1}, std::vector<float>{convFQValue});
     auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
         convLowNode, convHighNode, convLowNode, convHighNode, levels);
     auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(convWeightsFQNode);
     auto conv = std::make_shared<ngraph::opset1::Convolution>(reshape1, convWeightsFQ, strides, std::vector<ptrdiff_t>{ 0, 0 },
                                                               std::vector<ptrdiff_t>{ 0, 0 }, std::vector<size_t>{ 1, 1 },
                                                               ngraph::op::PadType::VALID);
-    auto biasesWeightsNode = ngraph::builder::makeConstant(ngPrc, {}, std::vector<float>{ 0.0f });
+    auto biasesWeightsNode = ov::test::utils::builder::makeConstant(ngPrc, {}, std::vector<float>{ 0.0f });
     auto add_1 = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / strides[1] + 1;
     auto heightAfterConv = (convInputShape[2] - kernelShape[0]) / strides[0] + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterConv * heightAfterConv };
 
-    auto lowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 },
+    auto lowNode = ov::test::utils::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 },
         std::vector<float>{inputDataMin * weightVal * kernelShape[1] * 1.5f});
-    auto highNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 },
+    auto highNode = ov::test::utils::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 },
         std::vector<float>{inputDataMax * weightVal * kernelShape[1] * 1.5f});
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(add_1, lowNode, highNode, lowNode, highNode, levels);
 

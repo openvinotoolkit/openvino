@@ -60,8 +60,8 @@ protected:
 
         auto relu1 = std::make_shared<ngraph::opset8::Relu>(reshape1);
 
-        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
-        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
+        auto lowNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
+        auto highNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
         auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(relu1,
                                                                  lowNode,
                                                                  highNode,

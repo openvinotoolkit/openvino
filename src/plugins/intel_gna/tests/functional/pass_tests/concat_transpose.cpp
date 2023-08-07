@@ -75,7 +75,7 @@ protected:
 
         std::vector<float> mulConstWeights(1 * 576);
         std::iota(mulConstWeights.begin(), mulConstWeights.end(), 0.1f);
-        auto constMul1 = ngraph::builder::makeConstant<float>(m_net_type, ov::Shape{1, 576}, mulConstWeights);
+        auto constMul1 = ov::test::utils::builder::makeConstant<float>(m_net_type, ov::Shape{1, 576}, mulConstWeights);
         auto matmul1 = std::make_shared<ov::opset10::MatMul>(input_node, constMul1, false, false);
 
         auto split_axis = std::make_shared<Constant>(ov::element::u8, ov::Shape{1}, std::vector<uint8_t>{1});

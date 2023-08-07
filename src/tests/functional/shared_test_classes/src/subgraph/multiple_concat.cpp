@@ -43,10 +43,10 @@ void MultipleConcatTest::SetUp() {
 
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto const_1 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
+    auto const_1 = ov::test::utils::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
     auto concat_1 = ngraph::builder::makeConcat({const_1, input_parameter[0]}, 1);
 
-    auto const_2 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
+    auto const_2 = ov::test::utils::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
     auto concat_2 = ngraph::builder::makeConcat({concat_1, const_2}, 1);
 
     auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);

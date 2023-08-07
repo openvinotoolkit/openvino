@@ -39,15 +39,15 @@ public:
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{4}));
+            ov::test::utils::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{4}));
         mul1->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul2 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{5}));
+            ov::test::utils::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{5}));
         mul2->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
         auto mul3 = std::make_shared<ngraph::opset8::Multiply>(
             concat,
-            ngraph::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{6}));
+            ov::test::utils::builder::makeConstant(ngraph::element::f32, Shape{1}, std::vector<float>{6}));
         mul3->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(mul1),

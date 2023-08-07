@@ -50,7 +50,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
+        auto const_mult2 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
 
         auto mul = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
         function = std::make_shared<ngraph::Function>(mul, params, "EltwiseSplitOverChannelsPassTest");

@@ -168,7 +168,7 @@ protected:
             secondaryInput->set_friendly_name("param_2");
             inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
         } else {
-            secondaryInput = ngraph::builder::makeConstant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
+            secondaryInput = ov::test::utils::builder::makeConstant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
         }
 
         std::shared_ptr<ngraph::Node> shapeOps;

@@ -24,10 +24,10 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::element::Type precision = ov::element::f32;
 
     auto params = ov::test::utils::builder::makeParams(precision, {input_shape});
-    auto matmul_const = ngraph::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
+    auto matmul_const = ov::test::utils::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
     auto matmul = ngraph::builder::makeMatMul(params[0], matmul_const);
 
-    auto add_const = ngraph::builder::makeConstant(precision, {1, 1024}, std::vector<float>{}, true);
+    auto add_const = ov::test::utils::builder::makeConstant(precision, {1, 1024}, std::vector<float>{}, true);
     auto add = ngraph::builder::makeEltwise(matmul, add_const, ngraph::helpers::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 

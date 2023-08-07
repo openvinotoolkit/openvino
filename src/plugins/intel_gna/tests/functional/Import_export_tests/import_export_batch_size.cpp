@@ -32,7 +32,7 @@ protected:
 
         auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
-        auto mul_const_1 = ngraph::builder::makeConstant<float>(
+        auto mul_const_1 = ov::test::utils::builder::makeConstant<float>(
             ngPrc,
             {inputShape[1], 2048},
             ov::test::utils::generate_float_numbers(2048 * inputShape[1], -0.1f, 0.1f),
@@ -41,11 +41,11 @@ protected:
         auto matmul_1 = std::make_shared<ngraph::op::MatMul>(params[0], mul_const_1);
         auto sigmoid_1 = std::make_shared<ngraph::op::Sigmoid>(matmul_1);
 
-        auto mul_const_2 =
-            ngraph::builder::makeConstant<float>(ngPrc,
-                                                 {2048, 3425},
-                                                 ov::test::utils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f),
-                                                 false);
+        auto mul_const_2 = ov::test::utils::builder::makeConstant<float>(
+            ngPrc,
+            {2048, 3425},
+            ov::test::utils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f),
+            false);
 
         auto matmul_2 = std::make_shared<ngraph::op::MatMul>(sigmoid_1, mul_const_2);
 

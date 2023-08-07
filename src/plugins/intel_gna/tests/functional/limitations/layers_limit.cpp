@@ -51,7 +51,7 @@ protected:
         configuration.insert(conf.begin(), conf.end());
 
         auto params = ov::test::utils::builder::makeParams(net_type, shapes);
-        auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
+        auto add_const = ov::test::utils::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
         ov::ResultVector results;
 
         std::vector<std::vector<std::shared_ptr<Add>>> branches;

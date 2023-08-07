@@ -274,7 +274,7 @@ protected:
         // Body
         const auto axis = 1;
         auto s = ngraph::builder::makeSlice(body_params[0], {0}, {1}, {1}, {axis}, inType);
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto constant = ov::test::utils::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 
         auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, s, eltwise}, body_params);
@@ -339,7 +339,7 @@ protected:
         }
 
         // Body
-        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
+        auto constant = ov::test::utils::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], constant);
         auto concat = ngraph::builder::makeConcat({body_params[1], add}, 0);
 

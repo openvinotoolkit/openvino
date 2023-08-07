@@ -69,14 +69,15 @@ protected:
         std::vector<float> bias_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
-        auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
+        auto weightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
+        auto reccurrenceWeightsNode =
+            ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
+        auto biasNode = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
         std::vector<float> lengths(in[0].get_partial_shape()[0].get_min_length(),
                                    in[0].get_partial_shape()[1].get_min_length());
         std::shared_ptr<ngraph::Node> seq_length =
-            ngraph::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
+            ov::test::utils::builder::makeConstant(ngraph::element::i64, WRB[3], lengths, false);
 
         auto gru_sequence = std::make_shared<ngraph::opset8::GRUSequence>(in[0],
                                                                           in[1],

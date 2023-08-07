@@ -58,10 +58,10 @@ void MultipleLSTMCellTest::SetUp() {
 
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+    auto input_add_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-    auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+    auto input_mul_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_weights);
     auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -70,7 +70,7 @@ void MultipleLSTMCellTest::SetUp() {
     auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
     auto var_cell =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_1"});
     auto var_hidden =
@@ -78,7 +78,7 @@ void MultipleLSTMCellTest::SetUp() {
     auto cell_memory_read = std::make_shared<ReadValue>(cell_memory_constant, var_cell);
     cell_memory_read->set_friendly_name("cell_memory");
 
-    auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_read = std::make_shared<ReadValue>(hidden_memory_constant, var_hidden);
     hidden_memory_read->set_friendly_name("hidden_memory");
 
@@ -90,9 +90,9 @@ void MultipleLSTMCellTest::SetUp() {
     auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-    auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-    auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
     auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -134,11 +134,11 @@ void MultipleLSTMCellTest::SetUp() {
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "cell_state_2"});
     auto var_hidden_2 =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "hidden_state_2"});
-    auto cell_memory_2_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
     auto cell_memory_2_read = std::make_shared<ReadValue>(cell_memory_2_constant, var_cell_2);
     cell_memory_2_read->set_friendly_name("cell_memory_2");
 
-    auto hidden_memory_2_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_2_read = std::make_shared<ReadValue>(hidden_memory_2_constant, var_hidden_2);
     hidden_memory_2_read->set_friendly_name("hidden_memory_2");
 
@@ -150,9 +150,9 @@ void MultipleLSTMCellTest::SetUp() {
     auto squeeze_2_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze_2 = std::make_shared<Squeeze>(X_2, squeeze_2_const);
 
-    auto weightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
-    auto reccurrenceWeightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode_2 = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
+    auto reccurrenceWeightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<LSTMCell>(squeeze_2, H_t_2, C_t_2, weightsNode_2, reccurrenceWeightsNode_2, biasNode_2, hiddenSize);
 
     auto unsqueeze_2_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -209,26 +209,26 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
 
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+    auto input_add_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-    auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+    auto input_mul_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_weights);
     auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<Unsqueeze>(mul, unsqueeze_input_const);
 
     // Body 1 - layers
-    auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-    auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
     auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<Squeeze>(unsqueeze_input, squeeze_const);
 
-    auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-    auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<LSTMCell>(squeeze, hidden_memory_constant, cell_memory_constant, weightsNode,
                                                            reccurrenceWeightsNode, biasNode, hiddenSize);
 
@@ -244,16 +244,16 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
     auto inbetween_squeeze = std::make_shared<Squeeze>(first_reshape, inbetween_squeeze_const);
 
     // Body 2 - layers
-    auto cell_memory_2_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-    auto hidden_memory_2_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
     auto squeeze_2_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze_2 = std::make_shared<Squeeze>(inbetween_squeeze, squeeze_2_const);
 
-    auto weightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
-    auto reccurrenceWeightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode_2 = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
+    auto reccurrenceWeightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<LSTMCell>(squeeze_2, hidden_memory_2_constant, cell_memory_2_constant, weightsNode_2,
         reccurrenceWeightsNode_2, biasNode_2, hiddenSize);
 
@@ -282,10 +282,10 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
 
     auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
-    auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
+    auto input_add_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_bias);
     auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
 
-    auto input_mul_const = builder::makeConstant(ngPrc, input_dims, input_weights);
+    auto input_mul_const = ov::test::utils::builder::makeConstant(ngPrc, input_dims, input_weights);
     auto mul = builder::makeEltwise(add, input_mul_const, helpers::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -294,9 +294,9 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     auto permute_in_params = std::make_shared<Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-    auto hidden_memory_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
     // Body - inputs
     auto X = std::make_shared<Parameter>(ngPrc, Shape{1, 1, inputSize});
@@ -308,9 +308,9 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     auto squeeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<Squeeze>(X, squeeze_const);
 
-    auto weightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
-    auto reccurrenceWeightsNode = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, inputSize }, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<LSTMCell>(squeeze, H_t, C_t, weightsNode, reccurrenceWeightsNode, biasNode, hiddenSize);
 
     auto unsqueeze_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
@@ -345,9 +345,9 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     auto inbetween_squeeze = std::make_shared<Squeeze>(first_reshape, inbetween_squeeze_const);
 
     // Second TI
-    auto cell_memory_2_constant = builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
+    auto cell_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
 
-    auto hidden_memory_2_constant = builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
+    auto hidden_memory_2_constant = ov::test::utils::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
 
     // Body - inputs
     auto X_2 = std::make_shared<Parameter>(ngPrc, Shape{1, 1, hiddenSize});
@@ -359,9 +359,9 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     auto squeeze_2_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze_2 = std::make_shared<Squeeze>(X_2, squeeze_2_const);
 
-    auto weightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
-    auto reccurrenceWeightsNode_2 = builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
-    auto biasNode_2 = builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
+    auto weightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, weights_2_vals);
+    auto reccurrenceWeightsNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, reccurrenceWeights_vals);
+    auto biasNode_2 = ov::test::utils::builder::makeConstant<float>(ngPrc, {4 * hiddenSize}, bias_vals);
     auto lstm_2 = std::make_shared<LSTMCell>(squeeze_2, H_t_2, C_t_2, weightsNode_2, reccurrenceWeightsNode_2, biasNode_2, hiddenSize);
 
     auto unsqueeze_2_const = std::make_shared<Constant>(element::i64, Shape{1}, squeeze_axes);

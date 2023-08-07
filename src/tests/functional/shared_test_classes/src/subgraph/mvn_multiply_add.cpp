@@ -46,11 +46,11 @@ void MVNMultiplyAdd::SetUp() {
 
     auto param = ov::test::utils::builder::makeParams(dataType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto axesNode = ov::test::utils::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
-    auto gamma = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto gamma = ov::test::utils::builder::makeConstant<float>(dataType, constantShapes, {}, true);
     auto mul = std::make_shared<ngraph::opset7::Multiply>(mvn, gamma);
-    auto beta = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
+    auto beta = ov::test::utils::builder::makeConstant<float>(dataType, constantShapes, {}, true);
     auto add = std::make_shared<ngraph::opset7::Add>(mul, beta);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};

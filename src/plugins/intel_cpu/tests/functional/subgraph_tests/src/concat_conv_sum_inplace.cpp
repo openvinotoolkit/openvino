@@ -60,7 +60,7 @@ public:
 
         auto conv = ngraph::builder::makeConvolution(concat, ngraph::element::f32, kernel, stride, padBegin,
                                                      padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
-        auto bias = ngraph::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, convOutChannels, 1, 1}), {}, true);
+        auto bias = ov::test::utils::builder::makeConstant<float>(ngraph::element::Type_t::f32, ngraph::Shape({1, convOutChannels, 1, 1}), {}, true);
         auto convBiasAdd = std::make_shared<ngraph::opset3::Add>(conv, bias);
 
         auto sum = std::make_shared<ngraph::opset3::Add>(convBiasAdd, Relu1);

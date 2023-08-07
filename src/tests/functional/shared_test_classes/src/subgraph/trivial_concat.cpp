@@ -37,7 +37,7 @@ void TrivialConcatLayerTest::SetUp() {
     auto input = std::make_shared<ngraph::op::v1::Reshape>(input_relu, input_reshape_pattern, false);
 
     auto constant_values = ov::test::utils::generate_float_numbers(total_size, 15.5f, 16.1f);
-    auto constant = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
+    auto constant = ov::test::utils::builder::makeConstant(ngPrc, std::vector<size_t>({1, total_size}), constant_values);
 
     auto first_reshape = std::make_shared<ngraph::op::v1::Reshape>(constant, input_reshape_pattern, false);
 

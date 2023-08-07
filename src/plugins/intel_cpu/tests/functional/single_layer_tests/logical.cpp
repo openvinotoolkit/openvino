@@ -60,9 +60,12 @@ protected:
 
         std::shared_ptr<ngraph::Node> logicalNode;
         if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
+            std::shared_ptr<ngraph::Node> secondInput;
             if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
+                secondInput = std::make_shared<ov::op::v0::Parameter>(ngInputsPrc, ov::Shape(inputShapes.second));
+                inputs.push_back(std::static_pointer_cast<ov::op::v0::Parameter>(secondInput));
+            } else {
+                secondInput = std::make_shared<ov::op::v0::Constant>(ngInputsPrc, ov::Shape(inputShapes.second));
             }
             logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
         } else {

@@ -39,13 +39,13 @@ void LowPrecisionTest::SetUp() {
         weights1Data[i * 17] = 10.0f + i;
     }
 
-    auto weights1 = ngraph::builder::makeConstant<float>(ngPrc, weights1Shape, weights1Data);
+    auto weights1 = ov::test::utils::builder::makeConstant<float>(ngPrc, weights1Shape, weights1Data);
     auto fc1 = std::make_shared<ngraph::opset1::MatMul>(input, weights1);
     fc1->set_friendly_name("FullyConnected_1");
 
     // bias 1
     std::vector<float> bias1Data(ngraph::shape_size(inputShape), 0.0f);
-    auto bias1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, bias1Data);
+    auto bias1 = ov::test::utils::builder::makeConstant<float>(ngPrc, inputShape, bias1Data);
     auto add1 = std::make_shared<ngraph::opset1::Add>(fc1, bias1);
     add1->set_friendly_name("Add_1");
 #if 0
@@ -56,13 +56,13 @@ void LowPrecisionTest::SetUp() {
     //// fully connected 2
     std::vector<float> weights2Data(ngraph::shape_size(weights2Shape), 0.0f);
     std::fill(weights2Data.begin(), weights2Data.end(), 0.0001f);
-    auto weights2 = ngraph::builder::makeConstant<float>(ngPrc, weights2Shape, weights2Data);
+    auto weights2 = ov::test::utils::builder::makeConstant<float>(ngPrc, weights2Shape, weights2Data);
     auto fc2 = std::make_shared<ngraph::opset1::MatMul>(relu1, weights2);
     fc2->set_friendly_name("FullyConnected_2");
 
     //// bias 2
     std::vector<float> bias2Data(ngraph::shape_size(weights2Shape), 0.0f);
-    auto bias2 = ngraph::builder::makeConstant<float>(ngPrc, weights2Shape, bias2Data);
+    auto bias2 = ov::test::utils::builder::makeConstant<float>(ngPrc, weights2Shape, bias2Data);
     auto add2 = std::make_shared<ngraph::opset1::Add>(fc2, bias2);
     add2->set_friendly_name("Add_2");
 

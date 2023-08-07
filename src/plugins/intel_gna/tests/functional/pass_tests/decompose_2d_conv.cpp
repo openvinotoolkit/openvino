@@ -200,7 +200,7 @@ protected:
         } break;
 
         case modelType::TranspConvTranspBcastAddAct: {
-            biasConst = builder::makeConstant(ngPrc, transpBiasShape, biasWeights, true);
+            biasConst = ov::test::utils::builder::makeConstant(ngPrc, transpBiasShape, biasWeights, true);
             auto bcastAdd = std::make_shared<Add>(lastOp, biasConst);
             lastOp = std::make_shared<Relu>(bcastAdd);
         } break;

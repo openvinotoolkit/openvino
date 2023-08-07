@@ -44,8 +44,8 @@ void ActivationConcatsEltwise::SetUp() {
 
     auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
-    auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
-    auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
+    auto concat_const_1 = ov::test::utils::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
+    auto concat_const_2 = ov::test::utils::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
 
     auto concat_1 = ngraph::builder::makeConcat({concat_const_1, relu}, 1);
     auto concat_2 = ngraph::builder::makeConcat({concat_const_2, relu}, 1);

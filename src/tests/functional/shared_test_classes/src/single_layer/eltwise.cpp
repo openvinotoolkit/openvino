@@ -109,14 +109,14 @@ void EltwiseLayerTest::SetUp() {
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
                 std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
-                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+                secondaryInput = ov::test::utils::builder::makeConstant(netType, shape, data);
                 break;
             }
             case ngraph::helpers::EltwiseTypes::POWER:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
+                secondaryInput = ov::test::utils::builder::makeConstant<float>(netType, shape, {}, true, 3);
                 break;
             default:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
+                secondaryInput = ov::test::utils::builder::makeConstant<float>(netType, shape, {}, true);
         }
     }
 

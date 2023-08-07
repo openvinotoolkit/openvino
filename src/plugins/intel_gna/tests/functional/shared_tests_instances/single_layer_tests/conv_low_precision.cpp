@@ -80,10 +80,10 @@ public:
                                           float fqMin,
                                           float fqMax,
                                           std::size_t levels) {
-        auto fqInpMin = makeConstant<float>(type, {1}, {fqMin});
-        auto fqInpMax = makeConstant<float>(type, {1}, {fqMax});
-        auto fqOutMin = makeConstant<float>(type, {1}, {fqMin});
-        auto fqOutMax = makeConstant<float>(type, {1}, {fqMax});
+        auto fqInpMin = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMin});
+        auto fqInpMax = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMax});
+        auto fqOutMin = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMin});
+        auto fqOutMax = ov::test::utils::builder::makeConstant<float>(type, {1}, {fqMax});
         return make_shared<FakeQuantize>(node, fqInpMin, fqInpMax, fqOutMin, fqOutMax, levels);
     }
 
@@ -107,7 +107,13 @@ protected:
         // Create network
         auto inputVector = createInputVector(ngPrc, {inputShape});
         auto inputFQ = createFQNode(ngPrc, inputVector[0], fqMin, fqMax, levels);
-        auto kernelWeights = makeConstant<float>(ngPrc, {8, 8, kernelHeight, 2}, {}, true, 1.0f, -1.0f, 7235346);
+        auto kernelWeights = ov::test::utils::builder::makeConstant<float>(ngPrc,
+                                                                           {8, 8, kernelHeight, 2},
+                                                                           {},
+                                                                           true,
+                                                                           1.0f,
+                                                                           -1.0f,
+                                                                           7235346);
         auto weightsFQ = createFQNode(ngPrc, kernelWeights, fqMin, fqMax, levels);
         auto convolution = make_shared<Convolution>(inputFQ,
                                                     weightsFQ,

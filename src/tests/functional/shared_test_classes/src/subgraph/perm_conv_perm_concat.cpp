@@ -70,7 +70,7 @@ void PermConvPermConcat::SetUp() {
 
     auto permute_out_shape = permute_out->get_output_shape(0);
 
-    auto concat_const = ngraph::builder::makeConstant(ngPrc, {1, 1, 1, permute_out_shape[3]},
+    auto concat_const = ov::test::utils::builder::makeConstant(ngPrc, {1, 1, 1, permute_out_shape[3]},
                                                       ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
     auto concat = ngraph::builder::makeConcat({permute_out, concat_const}, 2);

@@ -37,10 +37,10 @@ public:
         InputShape inpShape1 = {{-1, -1, 768}, {{1, 544, 768}}};
         init_input_shapes({inpShape0, inpShape1});
         auto inputParams = ov::test::utils::builder::makeDynamicParams(element::f32, inputDynamicShapes);
-        auto end = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
-        auto stride  = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto indices = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
-        auto axes = builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
+        auto end = ov::test::utils::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{2147483647});
+        auto stride  = ov::test::utils::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto indices = ov::test::utils::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{1});
+        auto axes = ov::test::utils::builder::makeConstant(element::i64, {1}, std::vector<int64_t>{0});
         auto shapeOf = std::make_shared<opset9::ShapeOf>(inputParams[1]);
         auto gather = std::make_shared<opset9::Gather>(shapeOf, indices, axes);
         auto strided_slice = builder::makeStridedSlice(inputParams.front(), gather, end, stride, element::f32, {0}, {0});

@@ -65,9 +65,10 @@ protected:
         std::vector<float> bias_vals =
             ov::test::utils::generate_float_numbers(ngraph::shape_size(WRB[2]), -0.0001f, 0.0001f);
 
-        auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
-        auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
-        auto biasNode = ngraph::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
+        auto weightsNode = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[0], weights_vals);
+        auto reccurrenceWeightsNode =
+            ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[1], reccurrenceWeights_vals);
+        auto biasNode = ov::test::utils::builder::makeConstant<float>(ngPrc, WRB[2], bias_vals);
 
         auto gru_cell = std::make_shared<ngraph::opset8::GRUCell>(in[0],
                                                                   in[1],
