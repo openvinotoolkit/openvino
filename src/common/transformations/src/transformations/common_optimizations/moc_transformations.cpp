@@ -256,9 +256,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
             param->set_partial_shape(input_shapes.at(param.get()));
         }
         f->validate_nodes_and_infer_types();
-    }
-    else {
-        for (auto&&  result: f->get_results()) {
+    } else {
+        for (auto&& result : f->get_results()) {
             result->validate_and_infer_types();
         }
     }
