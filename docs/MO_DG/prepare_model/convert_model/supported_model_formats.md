@@ -35,7 +35,7 @@ Below you will find code examples for each method, for all supported model forma
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -67,7 +67,7 @@ Below you will find code examples for each method, for all supported model forma
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -202,7 +202,7 @@ Below you will find code examples for each method, for all supported model forma
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -320,7 +320,7 @@ Below you will find code examples for each method, for all supported model forma
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
@@ -435,7 +435,7 @@ Below you will find code examples for each method, for all supported model forma
 
             * The ``convert_model()`` method:
 
-              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
+              When you use the ``convert_model()`` method, you have more control and you can specify additional adjustments for ``ov.Model``. The ``read_model()`` and ``compile_model()`` methods are easier to use, however, they do not have such capabilities. With ``ov.Model`` you can choose to optimize, compile and run inference on it or serialize it into a file for subsequent use.
 
               .. dropdown:: List of supported formats:
 
