@@ -108,7 +108,6 @@ Below you will find code examples for each method, for all supported model forma
                    * SavedModel - ``<SAVED_MODEL_DIRECTORY>`` or ``<INPUT_MODEL>.pb``
                    * Checkpoint - ``<INFERENCE_GRAPH>.pb`` or ``<INFERENCE_GRAPH>.pbtxt``
                    * MetaGraph - ``<INPUT_META_GRAPH>.meta``
-                   * HDF5 - ``<INPUT_MODEL>.h5``
 
               .. code-block:: py
                  :force:
