@@ -115,6 +115,9 @@ Below you will find code examples for each method, for all supported model forma
                  ov_model = read_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
+              For a guide on how to run inference, see how to 
+              :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`. 
+              For TensorFlow format, see :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`.
 
          .. tab-item:: C++
             :sync: cpp
