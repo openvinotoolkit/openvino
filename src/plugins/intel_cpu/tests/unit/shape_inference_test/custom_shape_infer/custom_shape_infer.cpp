@@ -31,11 +31,6 @@ namespace {
 #define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
     registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
 
-class EltwiseShapeInferTestFactory : public node::EltwiseShapeInferFactory {
-public:
-    EltwiseShapeInferTestFactory(std::shared_ptr<ov::Node> op) : EltwiseShapeInferFactory() {}
-};
-
 class ShapeOfShapeInferTestFactory : public node::ShapeOfShapeInferFactory {
 public:
     ShapeOfShapeInferTestFactory(std::shared_ptr<ov::Node> op) : ShapeOfShapeInferFactory() {}
@@ -45,7 +40,7 @@ class CustomShapeInferFF : public openvino::cc::Factory<Type, ShapeInferFactory*
 public:
     CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::AdaptivePoolingShapeInferFactory, Type::AdaptivePooling);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(EltwiseShapeInferTestFactory, Type::Eltwise);
+    INTEL_CPU_CUSTOM_SHAPE_INFER(node::EltwiseShapeInferFactory, Type::Eltwise);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::FCShapeInferFactory, Type::FullyConnected);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
     INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf);
