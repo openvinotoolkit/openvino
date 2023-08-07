@@ -251,5 +251,33 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     }
 }
 
+void DnnlPostOpsComposer::appendDecompressionScales(const std::vector<float>& scales) {
+    if (scales.empty())
+        return;
+
+    int mask = scales.size() > 1 ? weightScaleMaskPerChannel : 0;
+    DEBUG_LOG("Set weights scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
+    attr.set_scales_mask(DNNL_ARG_WEIGHTS, mask);
+
+    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({scales.size()}));
+    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    memcpy(mem->getData(), scales.data(), scales.size() * sizeof(float));
+    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
+}
+
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const std::vector<float>& zero_points) {
+    if (zero_points.empty())
+        return;
+
+    int mask = zero_points.size() > 1 ? weightScaleMaskPerChannel : 0;
+    DEBUG_LOG("Set weights zero points mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", mask);
+    attr.set_zero_points_mask(DNNL_ARG_WEIGHTS, mask);
+
+    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({zero_points.size()}));
+    auto mem = std::make_shared<Memory>(engine, memoryDesc);
+    memcpy(mem->getData(), zero_points.data(), zero_points.size() * sizeof(float));
+    args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = mem;
+}
+
 }  // namespace intel_cpu
 }  // namespace ov

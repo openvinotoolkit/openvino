@@ -15,6 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const ov::Shape& shape, const AxisSet& axes) {
