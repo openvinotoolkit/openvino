@@ -725,6 +725,11 @@ jobs:
           sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}/install/tests/functional_test_utils/requirements.txt
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
