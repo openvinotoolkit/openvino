@@ -67,6 +67,10 @@ interface InferRequest {
   getOutputTensors(): Tensor[];
   getTensor(output: Output): Tensor;
   infer(inputData?: { [inputName: string]: Tensor }): void;
+  asyncInfer(
+    inputData: { [inputName: string]: Tensor },
+    callback: (err: Error | null, inputData: Tensor[]) => void,
+  ): InferRequest;
   setInputTensor(tensor: Tensor): void;
 }
 
