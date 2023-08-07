@@ -79,8 +79,8 @@ TEST_P(OneHotCpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
     const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
     const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, depth_tensor},
-                                                                                           {2, on_tensor},
-                                                                                           {3, off_tensor}};
+                                                                {2, on_tensor},
+                                                                {3, off_tensor}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
@@ -94,7 +94,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 using OneHotCpuShapeInferenceThrowExceptionTest = OneHotCpuShapeInferenceTest;
 TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
     const auto on = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     const auto off = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
@@ -108,12 +107,12 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
     const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
     const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, depth_tensor},
-                                                                                           {2, on_tensor},
-                                                                                           {3, off_tensor}};
+                                                                {2, on_tensor},
+                                                                {3, off_tensor}};
 
-    // TODO , implementation should throw exception
-    ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                 ov::Exception);
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+                    ov::Exception,
+                    testing::HasSubstr("OneHot depth value can't be negative"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
