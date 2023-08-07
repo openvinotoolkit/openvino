@@ -25,15 +25,15 @@ ov::pass::AddMeanImage::AddMeanImage(const MeanMap& inputInfoMap) {
         }
 
         auto mean_const = it->second;
-        NGRAPH_CHECK(mean_const->get_element_type() == ngraph::element::f32,
-                     "Mean for ",
-                     param->get_friendly_name(),
-                     " must have f32 type");
+        OPENVINO_ASSERT(mean_const->get_element_type() == ov::element::f32,
+                        "Mean for ",
+                        param->get_friendly_name(),
+                        " must have f32 type");
 
         auto copy_param = param->clone_with_new_inputs({});
         auto sub = std::make_shared<ov::op::v1::Subtract>(copy_param, mean_const);
 
-        ngraph::replace_node(param, sub);
+        ov::replace_node(param, sub);
         sub->set_argument(0, param);
 
         // Return true as the root node was changed
