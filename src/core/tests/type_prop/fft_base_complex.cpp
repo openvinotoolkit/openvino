@@ -252,10 +252,11 @@ public:
 
 TYPED_TEST_SUITE_P(FFTNonConstantAxesTest);
 
-TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes) {
+TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_no_signal_size) {
     for (auto params : this->test_params) {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
+
         auto dft = std::make_shared<TypeParam>(data, axes_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
@@ -263,7 +264,36 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes) {
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(FFTNonConstantAxesTest, non_constant_axes);
+TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_param_signal_size) {
+    for (auto params : this->test_params) {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+        auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
+        auto signal_size_input = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{2});
+
+        auto dft = std::make_shared<TypeParam>(data, axes_input, signal_size_input);
+
+        EXPECT_EQ(dft->get_element_type(), element::f32);
+        EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+    }
+}
+
+TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_const_signal_size) {
+    for (auto params : this->test_params) {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+        auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
+        auto signal_size_input = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {100, 200});
+
+        auto dft = std::make_shared<TypeParam>(data, axes_input);
+
+        EXPECT_EQ(dft->get_element_type(), element::f32);
+        EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+    }
+}
+
+REGISTER_TYPED_TEST_SUITE_P(FFTNonConstantAxesTest,
+                            non_constant_axes_no_signal_size,
+                            non_constant_axes_param_signal_size,
+                            non_constant_axes_const_signal_size);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, FFTNonConstantAxesTest, FFTBaseTypes);
 
 struct NonConstantSignalSizeTestParams {
