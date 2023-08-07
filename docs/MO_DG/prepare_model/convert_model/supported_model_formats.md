@@ -99,7 +99,7 @@ Below you will find code examples for each method, for all supported model forma
               and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__ 
               on this topic. 
 
-            * The ``read_model()`` method:
+            * The ``read_model()`` and ``compile_model()`` methods:
 
               .. dropdown:: List of supported formats:
 
