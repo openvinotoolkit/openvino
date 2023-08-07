@@ -169,6 +169,8 @@ See [How to build OpenVINO](./docs/dev/build.md) to get more information about t
 See [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502) for good first issues.
 
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
+## Take the issue
+If you want to take one issue, feel free to use `.take` in the issue comment   
 
 ## Get a support
 

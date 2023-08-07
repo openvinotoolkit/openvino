@@ -1,0 +1,24 @@
+name: Take_Issue
+
+on:
+  issue_comment:
+    types:
+      - created
+      - edited
+  workflow_call:
+
+jobs:
+  take-issue:
+    name: Take issue
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    timeout-minutes: 10
+    steps:
+      - name: take an issue
+        uses: bdougie/take-action@main
+        with:
+          message: Thanks for taking this on! If you have not already, PM us
+          issueCurrentlyAssignedMessage: Thanks for being interested in this issue. It looks like this ticket is already assigned to a contributor. Please communicate with the assigned contributor to confirm the status of the issue.
+          trigger: .take
+          token: ${{ secrets.GH_TOKEN }}
