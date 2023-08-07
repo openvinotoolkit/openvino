@@ -26,11 +26,11 @@
 #include "file_utils.h"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
-#include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -197,7 +197,7 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
@@ -209,13 +209,13 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
     return {exec._ptr, exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
 
     using ExportMagic = std::array<char, 4>;
     constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
@@ -239,7 +239,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::ImportNetwork");
 
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
