@@ -536,7 +536,7 @@ def create_keras_layer_with_input_shapes_case1(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [([1, 2, 3], ov.Type.f32), ([1, 2, 3], ov.Type.f32)]}
+    return model, model_ref, {'input': [([1, 2, 3], np.float32), ([1, 2, 3], np.float32)]}
 
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):

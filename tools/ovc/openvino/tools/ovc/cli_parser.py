@@ -37,7 +37,7 @@ def is_shape_type(value):
         return True
     return False
 
-def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type]):
+def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
     """
     Parses parameters of single input to InputCutInfo.
     :param input: input cut parameters of single input
@@ -65,7 +65,7 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type]
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, Type):
+            elif isinstance(val, (type, Type)):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
                 inp_type = val
@@ -82,7 +82,7 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type]
                              inp_type,
                              None)
     # Case when only type is set
-    if isinstance(input, Type):
+    if isinstance(input, (type, Type)):
         return _InputCutInfo(None, None, input, None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.

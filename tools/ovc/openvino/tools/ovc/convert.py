@@ -60,7 +60,7 @@ def convert_model(
         :param input:
             Information of model input required for model conversion.
             Input can be set by a list of tuples or a dictionary. Each tuple can contain optionally input name (string),
-            input type (ov.Type) or input shape (ov.Shape, ov.PartialShape, list, tuple).
+            input type (ov.Type, numpy.dtype) or input shape (ov.Shape, ov.PartialShape, list, tuple).
             Example: input=("op_name", PartialShape([-1, 3, 100, 100]), ov.Type.f32).
             Alternatively input can be set by a dictionary, where key - input name,
             value - tuple with input parameters (shape or type).

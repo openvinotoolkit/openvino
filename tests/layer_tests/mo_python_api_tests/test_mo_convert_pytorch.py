@@ -203,7 +203,7 @@ def create_pytorch_nn_module_case5(tmp_dir):
 
     sample_input = torch.zeros(3, 3, 10, 10)
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input': (inp_shape, ov.Type.f32)}
+                                 'input': (inp_shape, np.float32)}
 
 
 def create_pytorch_nn_module_case6(tmp_dir):
@@ -211,7 +211,7 @@ def create_pytorch_nn_module_case6(tmp_dir):
     shape = PartialShape([1, 3, Dimension(2, -1), Dimension(-1, 10)])
     ref_model = make_ref_pt_model_one_input(shape)
 
-    return pt_model, ref_model, {'input': (shape, ov.Type.f32)}
+    return pt_model, ref_model, {'input': (shape, np.float32)}
 
 
 def create_pytorch_nn_module_case7(tmp_dir):
@@ -222,14 +222,14 @@ def create_pytorch_nn_module_case7(tmp_dir):
     ref_model = make_ref_pt_model_one_input(
         PartialShape([1, 3, 20, 20]), dtype=np.int32)
 
-    return pt_model, ref_model, {'example_input': sample_input, "input": ([1, 3, 20, 20], ov.Type.i32)}
+    return pt_model, ref_model, {'example_input': sample_input, "input": ([1, 3, 20, 20], np.int32)}
 
 
 def create_pytorch_nn_module_torch_size(tmp_dir):
     pt_model = make_pt_model_one_input()
     ref_model = make_ref_pt_model_one_input([1, 3, 2, 10])
 
-    return pt_model, ref_model, {'input': (torch.Size([1, 3, 2, 10]), ov.Type.f32)}
+    return pt_model, ref_model, {'input': (torch.Size([1, 3, 2, 10]), np.float32)}
 
 
 def create_pytorch_nn_module_sample_input_int32(tmp_dir):
@@ -241,7 +241,7 @@ def create_pytorch_nn_module_sample_input_int32(tmp_dir):
     ref_model = make_ref_pt_model_one_input(shape, dtype=np.int32)
 
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input': (shape, ov.Type.i32)}
+                                 'input': (shape, np.int32)}
 
 
 def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
@@ -254,7 +254,7 @@ def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
     ref_model = make_ref_pt_model_two_inputs(
         [PartialShape([-1, 3, -1, -1]), inp_shapes[1]], dtype=np.int32)
 
-    return pt_model, ref_model, {'input': [(ov.Type.i32, inp_shapes[0]), (ov.Type.i32, inp_shapes[1])],
+    return pt_model, ref_model, {'input': [(np.int32, inp_shapes[0]), (np.int32, inp_shapes[1])],
                                  'example_input': sample_input}
 
 
@@ -265,7 +265,7 @@ def create_pytorch_jit_script_module(tmp_dir):
     scripted_model = torch.jit.script(net)
 
     model_ref = make_ref_pt_model_two_inputs([1, 3, 5, 5])
-    return scripted_model, model_ref, {'input': [([1, 3, 5, 5], ov.Type.f32), ([1, 3, 5, 5], ov.Type.f32)]}
+    return scripted_model, model_ref, {'input': [([1, 3, 5, 5], np.float32), ([1, 3, 5, 5], np.float32)]}
 
 
 def create_pytorch_jit_script_function(tmp_dir):
@@ -511,7 +511,7 @@ def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input': [([1, 3, 20, 20], ov.Type.f32), ([1, 3, 20, 20], ov.Type.f32)]}
+    return pt_model, ref_model, {'input': [([1, 3, 20, 20], np.float32), ([1, 3, 20, 20], np.float32)]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
@@ -561,7 +561,7 @@ def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir)
     pt_model = make_pt_model_one_input()
     inp_shapes = [Dimension(-1), 3, 20, Dimension(20, -1)]
     ref_model = make_ref_pt_model_one_input(inp_shapes)
-    return pt_model, ref_model, {'input': (inp_shapes, ov.Type.f32)}
+    return pt_model, ref_model, {'input': (inp_shapes, np.float32)}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
@@ -575,7 +575,7 @@ def create_pytorch_nn_module_shapes_list_static_single_input_via_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [1, 3, 20, 20]
     ref_model = make_ref_pt_model_one_input(inp_shapes)
-    return pt_model, ref_model, {'input': (inp_shapes, ov.Type.f32)}
+    return pt_model, ref_model, {'input': (inp_shapes, np.float32)}
 
 
 def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
@@ -590,7 +590,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10)),
-        'input': [([-1, -1, -1, -1], ov.Type.f32)]
+        'input': [([-1, -1, -1, -1], np.float32)]
     }
 
 
@@ -607,7 +607,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32),
-        'input': [([-1, -1, -1, -1], ov.Type.i32)]
+        'input': [([-1, -1, -1, -1], np.int32)]
     }
 
 
@@ -625,7 +625,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))],
-        'input': [([-1, -1, -1, -1], ov.Type.f32), ([-1, -1, -1, -1], ov.Type.f32)]
+        'input': [([-1, -1, -1, -1], np.float32), ([-1, -1, -1, -1], np.float32)]
     }
 
 
@@ -643,7 +643,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": {"x": torch.zeros((1, 3, 10, 10), dtype=torch.float32), "y": torch.ones((1, 3, 10, 10), dtype=torch.float32)},
-        'input': [([-1, -1, -1, -1], ov.Type.f32), ([-1, -1, -1, -1], ov.Type.f32)]
+        'input': [([-1, -1, -1, -1], np.float32), ([-1, -1, -1, -1], np.float32)]
     }
 
 
