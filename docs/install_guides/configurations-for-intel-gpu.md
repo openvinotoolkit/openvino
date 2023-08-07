@@ -8,12 +8,6 @@
                  OpenVINO™ toolkit on your system.
 
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   NVIDIA GPU <openvino_docs_install_guides_configurations_for_nvidia_gpu>
-
 .. _gpu guide:
 
 To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.
@@ -25,7 +19,7 @@ To use a GPU device for OpenVINO inference, you must install OpenCL runtime pack
 
 If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
 
-- For Arc GPU, kernel 6.2 or higher is recommended.
+- For Arc GPU, kernel 6.2 or higher is recommended. 
 - For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
 Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install the `Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/tag/23.22.26516.18>`__ and its dependencies: 

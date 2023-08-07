@@ -12,13 +12,15 @@
    :maxdepth: 2
    :hidden:
  
-   For GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
+   For Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
+   For NVIDIA GPU <openvino_docs_install_guides_configurations_for_nvidia_gpu>
    For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
 
 After you have installed OpenVINO™ Runtime, you may also need do some additional configurations for your device to work with OpenVINO™. See the following pages:
 
-* :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
+* :doc:`Configurations for Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
+* :doc:`Configurations for NVIDIA GPU <openvino_docs_install_guides_configurations_for_nvidia_gpu>`
 * :doc:`Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>`
 
 @endsphinxdirective
