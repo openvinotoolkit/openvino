@@ -249,10 +249,15 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     ov::DeviceIDParser device(deviceName_);
     std::string deviceName = device.get_device_name();
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
-    auto exec = _impl->get_plugin(deviceName)
-                    .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
-    return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    try {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
+        auto exec =
+            _impl->get_plugin(deviceName)
+                .import_model(networkModel, ov::legacy_convert::convert_remote_context(context), parsed._config);
+        return {ov::legacy_convert::convert_compiled_model(exec), exec._so};
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
@@ -287,10 +292,14 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     }
 
     ov::AnyMap conf = ov::any_copy(config);
-    if (deviceName.empty()) {
-        _impl->set_property_for_device(conf, std::string());
-    } else {
-        _impl->set_property_for_device(conf, deviceName);
+    try {
+        if (deviceName.empty()) {
+            _impl->set_property_for_device(conf, std::string());
+        } else {
+            _impl->set_property_for_device(conf, deviceName);
+        }
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
     }
 }
 
@@ -322,8 +331,12 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
+    try {
+        auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+        return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
@@ -335,18 +348,30 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName, {});
+    try {
+        _impl->register_plugin(pluginName, deviceName, {});
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    _impl->register_plugins_in_registry(xmlConfigFile);
+    try {
+        _impl->register_plugins_in_registry(xmlConfigFile);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what();
+    }
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
-    ov::DeviceIDParser parser(deviceName_);
-    std::string deviceName = parser.get_device_name();
+    try {
+        ov::DeviceIDParser parser(deviceName_);
+        std::string deviceName = parser.get_device_name();
 
-    _impl->unload_plugin(deviceName);
+        _impl->unload_plugin(deviceName);
+    } catch (const ov::Exception& ex) {
+        IE_THROW() << ex.what() << std::endl;
+    }
 }
 
 }  // namespace InferenceEngine
