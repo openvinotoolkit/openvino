@@ -76,7 +76,6 @@ Below you will find code examples for each method, for all supported model forma
                    * SavedModel - ``<SAVED_MODEL_DIRECTORY>`` or ``<INPUT_MODEL>.pb``
                    * Checkpoint - ``<INFERENCE_GRAPH>.pb`` or ``<INFERENCE_GRAPH>.pbtxt``
                    * MetaGraph - ``<INPUT_META_GRAPH>.meta``
-                   * HDF5 - ``<INPUT_MODEL>.h5``
 
                  * **Python objects**:
 
@@ -100,7 +99,7 @@ Below you will find code examples for each method, for all supported model forma
               and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__ 
               on this topic. 
 
-            * The ``read_model()`` method:
+            * The ``read_model()`` and ``compile_model()`` methods:
 
               .. dropdown:: List of supported formats:
 
@@ -109,29 +108,12 @@ Below you will find code examples for each method, for all supported model forma
                    * SavedModel - ``<SAVED_MODEL_DIRECTORY>`` or ``<INPUT_MODEL>.pb``
                    * Checkpoint - ``<INFERENCE_GRAPH>.pb`` or ``<INFERENCE_GRAPH>.pbtxt``
                    * MetaGraph - ``<INPUT_META_GRAPH>.meta``
-                   * HDF5 - ``<INPUT_MODEL>.h5``
 
               .. code-block:: py
                  :force:
 
                  ov_model = read_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
-
-            * The ``compile_model()`` method:
-
-              .. dropdown:: List of supported formats:
-
-                 * **Files**:
-
-                   * SavedModel - ``<SAVED_MODEL_DIRECTORY>`` or ``<INPUT_MODEL>.pb``
-                   * Checkpoint - ``<INFERENCE_GRAPH>.pb`` or ``<INFERENCE_GRAPH>.pbtxt``
-                   * MetaGraph - ``<INPUT_META_GRAPH>.meta``
-                   * HDF5 - ``<INPUT_MODEL>.h5``
-
-              .. code-block:: py
-                 :force:
-
-                 compiled_model = core.compile_model("saved_model.pb", "AUTO")
 
               For a guide on how to run inference, see how to 
               :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`. 
