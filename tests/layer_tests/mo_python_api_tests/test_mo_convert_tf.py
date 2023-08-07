@@ -949,6 +949,38 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"add:0": fw_infer2}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
+    def test_tensor_names(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
+                self.var3 = tf.Variable([5., 7., 3.], name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input + self.var1 + self.var2 + self.var3
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        from openvino.tools.ovc import convert_model
+        model = LayerModel()
+        ov_model = convert_model(model)
+
+        ov_model.outputs[0].get_tensor().set_names({"name1"})
+        assert ov_model.outputs[0].names == {"name1"}
+
+        ov_model.validate_nodes_and_infer_types()
+        assert ov_model.outputs[0].names == {"name1"}
+
+        ov_model.outputs[0].get_tensor().set_names({"name2"})
+        assert ov_model.outputs[0].names == {"name2"}
+
+
 
 class TFConvertTest(unittest.TestCase):
     @pytest.mark.nightly

@@ -257,6 +257,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
         }
         f->validate_nodes_and_infer_types();
     }
+    else {
+        for (auto&&  result: f->get_results()) {
+            result->validate_and_infer_types();
+        }
+    }
 
     return false;
 }
