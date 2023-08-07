@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
 #include "itt.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -13,7 +14,6 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
 
 #define POSTPONED_FP16_COMPRESSION 1
 
@@ -21,7 +21,6 @@ namespace {
 // TODO: Make this definitiion unique, now it is duplicated between this file and serialize.cpp
 const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
 }  // namespace
-
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
@@ -91,9 +90,12 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         auto c_type = const_node->get_element_type();
         std::shared_ptr<ov::Node> new_const;
         if (c_type == ov::element::f32) {
-            if(postponed) { // New optimized implemenation based on count_out_of_f16_range, replace postposed by false to disable
+            if (postponed) {  // New optimized implemenation based on count_out_of_f16_range, replace postposed by false
+                              // to disable
                 auto size = shape_size(const_node->get_output_shape(0));
-                auto num_out_of_range = ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+                auto num_out_of_range =
+                    ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(),
+                                                                       size);
 
                 // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
                 float keep_threshold = 0.75f;

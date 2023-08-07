@@ -243,10 +243,10 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
 }
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-    #if 0
+#    if 0
     // TODO: Implement it correctly
     convert_impl<float, float16, true>(arg, out, count);
-    #else
+#    else
     // Slow reference implementation
     for (size_t i = 0; i < count; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
@@ -260,13 +260,13 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
             out[i] = static_cast<ov::float16>(arg[i]);
         }
     }
-    #endif
+#    endif
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
-    #if 0
+#    if 0
     // TODO: Provide fast implementation
-    #else
+#    else
     // Slow reference implementation
     size_t num_out_of_range = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -280,7 +280,7 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
         }
     }
     return num_out_of_range;
-    #endif
+#    endif
 }
 
 }  // namespace reference
