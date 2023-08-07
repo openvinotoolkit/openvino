@@ -243,12 +243,44 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
 }
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
+    #if 0
+    // TODO: Implement it correctly
     convert_impl<float, float16, true>(arg, out, count);
+    #else
+    // Slow reference implementation
+    for (size_t i = 0; i < count; ++i) {
+        // if abs value is smaller than the smallest positive fp16, but not zero
+        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
+            out[i] = 0;
+        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
+    #endif
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
-    // FIXME: Provide real implementation instead of the stub below
-    return count > 100 ? 0 : count;
+    #if 0
+    // TODO: Provide fast implementation
+    #else
+    // Slow reference implementation
+    size_t num_out_of_range = 0;
+    for (size_t i = 0; i < count; ++i) {
+        // if abs value is smaller than the smallest positive fp16, but not zero
+        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
+            num_out_of_range++;
+        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            num_out_of_range++;
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            num_out_of_range++;
+        }
+    }
+    return num_out_of_range;
+    #endif
 }
 
 }  // namespace reference
