@@ -84,6 +84,7 @@ OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
@@ -109,6 +110,7 @@ OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
+OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pow);
@@ -149,6 +151,8 @@ OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
+OP_CONVERTER(translate_std);
+OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
@@ -328,6 +332,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
+        {"aten::linspace", op::translate_linspace},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
         {"aten::log_softmax", op::translate_log_softmax},
@@ -361,6 +366,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::numel", op::translate_numel},
         {"aten::ones", op::translate_ones},
         {"aten::ones_like", op::translate_ones_like},
+        {"aten::outer", op::translate_outer},
         {"aten::pad", op::translate_pad},
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
@@ -407,6 +413,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sqrt", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::quantizable_op<op::translate_squeeze>},
+        {"aten::std", op::translate_std},
+        {"aten::std_mean", op::translate_std_mean},
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::inplace_op<op::translate_sub>},
         {"aten::sum", op::translate_sum},
@@ -442,6 +450,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::quantizable_op<op::translate_reshape>},
+        {"aten::view_as", op::translate_reshape_as},
         {"aten::where", op::translate_where},
         {"aten::zero_", op::inplace_op<op::translate_zeros_like>},
         {"aten::zeros", op::translate_zeros},
