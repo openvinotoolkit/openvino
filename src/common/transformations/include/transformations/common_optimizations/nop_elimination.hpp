@@ -125,7 +125,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_comm on_api
+ * @ingroup ie_transformation_common_api
  * @brief EliminateSplit eliminates split+concat pairs which do nothing
  */
 class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
@@ -135,7 +135,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_comm on_api
+ * @ingroup ie_transformation_common_api
  * @brief EliminateNopBroadcast eliminates broadcast or tile with all ones on the second input
  */
 class ov::pass::EliminateNopBroadcast : public ov::pass::MatcherPass {
@@ -145,7 +145,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_comm on_api
+ * @ingroup ie_transformation_common_api
  * @brief NopSliceBeforeGatherElements eliminates slice before GElements if slicing from 0
  * It is valid since GatherElements doesn't support negative indices and Slice won't affect
  * indexing of elements in the original tensor that GatherElements would like to take
@@ -157,9 +157,9 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_comm on_api
+ * @ingroup ie_transformation_common_api
  * @brief PrepareShapeOpsForEliminationAroundBE works on the subgraph like
- *  Reshape/Squeeze/Unsqueeze -> BinaryOperation -> Reshape/Squeeze/Unsqueeze
+ *  Reshape/Squeeze/Unsqueeze -> BinaryElementwiseOperation -> Reshape/Squeeze/Unsqueeze
  *  and prepares it for the following optimizations by moving bottom op up through Binary op
  */
 class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::MatcherPass {

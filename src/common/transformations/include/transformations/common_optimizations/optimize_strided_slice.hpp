@@ -64,7 +64,7 @@ public:
  */
 class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
+    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

@@ -7,6 +7,8 @@
 #include <openvino/op/parameter.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
+#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -143,5 +145,75 @@ TEST_F(TransformationTestsF, GatherUnsqueezeMul) {
 
         const auto relu = std::make_shared<v0::Relu>(bea);
         model_ref = std::make_shared<Model>(OutputVector{relu}, ParameterVector{data, indices, scalar});
+    }
+}
+
+TEST_F(TransformationTestsF, GatherUnsqueezesMul) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+
+        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+
+        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+
+        auto unsqueeze_0 = std::make_shared<v0::Unsqueeze>(bea, axis);
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(bea, axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(bea, axis);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2}, 0);
+
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices, scalar});
+        manager.register_pass<pass::SimplifyShapeOfSubGraph>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+
+        auto updated_indices =
+            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
+
+        auto scalar = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto bea = std::make_shared<v1::Multiply>(gather, scalar);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{bea, bea, bea}, 0);
+
+        model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices, scalar});
+    }
+}
+TEST_F(TransformationTestsF, GatherUnsqueezes) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = v0::Constant::create(element::i32, Shape{1}, {0});
+
+        auto gather = std::make_shared<v8::Gather>(data, indices, axis);
+
+        auto unsqueeze_0 = std::make_shared<v0::Unsqueeze>(gather, axis);
+        auto unsqueeze_1 = std::make_shared<v0::Unsqueeze>(gather, axis);
+        auto unsqueeze_2 = std::make_shared<v0::Unsqueeze>(gather, axis);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{unsqueeze_0, unsqueeze_1, unsqueeze_2, axis}, 0);
+
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices});
+        manager.register_pass<pass::SharedOpOptimization>();
+        manager.register_pass<pass::EliminateGatherUnsqueeze>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1});
+        auto indices = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{});
+        auto axis = v0::Constant::create(element::i32, Shape{1}, {0});
+
+        auto updated_indices =
+            std::make_shared<v1::Reshape>(indices, v0::Constant::create(element::i32, {1}, {1}), false);
+        auto gather = std::make_shared<v8::Gather>(data, updated_indices, axis);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{gather, gather, gather, axis}, 0);
+
+        model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data, indices});
     }
 }
