@@ -188,8 +188,8 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
-        // Issue: 113727
-        R"(.*MatMulCompressedWeights.*)",
+        // TODO: for 22.2 (CVS-68949)
+        R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -212,6 +212,11 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    // TODO: fix CVS-115961
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_2_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -264,6 +269,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

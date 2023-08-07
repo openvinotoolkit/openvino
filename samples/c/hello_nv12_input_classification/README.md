@@ -10,37 +10,48 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
 
-Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications:
+Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications.
 
-+-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-| Feature                                 | API                                                       | Description                                            |
-+=========================================+===========================================================+========================================================+
-| Node Operations                         | ``ov_port_get_any_name``                                  | Get a layer name                                       |
-+-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-| Infer Request Operations                | ``ov_infer_request_set_tensor``,                          | Operate with tensors                                   |
-|                                         | ``ov_infer_request_get_output_tensor_by_index``           |                                                        |
-+-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
-| Preprocessing                           | ``ov_preprocess_input_tensor_info_set_color_format``,     | Change the color format of the input data              |
-|                                         | ``ov_preprocess_preprocess_steps_convert_element_type``,  |                                                        |
-|                                         | ``ov_preprocess_preprocess_steps_convert_color``          |                                                        |
-+-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
+.. tab-set::
+
+   .. tab-item:: Requirements 
+
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+      | Options                                 | Values                                                                                |
+      +=========================================+=======================================================================================+
+      | Validated Models                        | :doc:`alexnet <omz_models_model_alexnet>`                                             |
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+      | Model Format                            | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)        |
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+      | Validated images                        | An uncompressed image in the NV12 color format - \*.yuv                               |
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+      | Supported devices                       | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                  |
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+      | Other language realization              | :doc:`C++ <openvino_inference_engine_samples_hello_nv12_input_classification_README>` |
+      +-----------------------------------------+---------------------------------------------------------------------------------------+
+
+   .. tab-item:: C API 
+
+      +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
+      | Feature                                 | API                                                       | Description                                            |
+      +=========================================+===========================================================+========================================================+
+      | Node Operations                         | ``ov_port_get_any_name``                                  | Get a layer name                                       |
+      +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
+      | Infer Request Operations                | ``ov_infer_request_set_tensor``,                          | Operate with tensors                                   |
+      |                                         | ``ov_infer_request_get_output_tensor_by_index``           |                                                        |
+      +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
+      | Preprocessing                           | ``ov_preprocess_input_tensor_info_set_color_format``,     | Change the color format of the input data              |
+      |                                         | ``ov_preprocess_preprocess_steps_convert_element_type``,  |                                                        |
+      |                                         | ``ov_preprocess_preprocess_steps_convert_color``          |                                                        |
+      +-----------------------------------------+-----------------------------------------------------------+--------------------------------------------------------+
 
 
-Basic Inference Engine API is covered by :doc:`Hello Classification C sample <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`.
+      Basic Inference Engine API is covered by :doc:`Hello Classification C sample <openvino_inference_engine_ie_bridges_c_samples_hello_classification_README>`.
 
-+-----------------------------------------+---------------------------------------------------------------------------------------+
-| Options                                 | Values                                                                                |
-+=========================================+=======================================================================================+
-| Validated Models                        | :doc:`alexnet <omz_models_model_alexnet>`                                             |
-+-----------------------------------------+---------------------------------------------------------------------------------------+
-| Model Format                            | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)        |
-+-----------------------------------------+---------------------------------------------------------------------------------------+
-| Validated images                        | An uncompressed image in the NV12 color format - \*.yuv                               |
-+-----------------------------------------+---------------------------------------------------------------------------------------+
-| Supported devices                       | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`                  |
-+-----------------------------------------+---------------------------------------------------------------------------------------+
-| Other language realization              | :doc:`C++ <openvino_inference_engine_samples_hello_nv12_input_classification_README>` |
-+-----------------------------------------+---------------------------------------------------------------------------------------+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/c/hello_nv12_input_classification/main.c
+         :language: c
 
 How It Works
 ############

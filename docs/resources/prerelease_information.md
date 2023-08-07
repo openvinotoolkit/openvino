@@ -23,12 +23,68 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * Subject to change in the future.
    * Introduced to allow early testing and get early feedback from the community.
 
+   .. button-link:: https://github.com/openvinotoolkit/openvino/issues/new?assignees=octocat&labels=Pre-release%2Csupport_request&projects=&template=pre_release_feedback.yml&title=%5BPre-Release+Feedback%5D%3A
+      :color: primary
+      :outline:
+
+      :material-regular:`feedback;1.4em` Share your feedback
+
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230728
+   :animate: fade-in-slide-down
+   :color: primary
+   :open:
+   
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230728>`__ 
+   
+   **New features:**
+   
+   * Common:
+   
+     - Proxy & hetero plugins have been migrated to API 2.0, providing enhanced compatibility and stability. 
+     - Symbolic shape inference preview is now available, leading to improved performance for Large Language models (LLMs).
+
+   * CPU Plugin: Memory efficiency for output data between CPU plugin and the inference request has been significantly improved, 
+     resulting in better performance for LLMs.  
+   * GPU Plugin: 
+
+     - Enabled support for dynamic shapes in more models, leading to improved performance. 
+     - Introduced the 'if' and DetectionOutput operator to enhance model capabilities. 
+     - Various performance improvements for StableDiffusion, SegmentAnything, U-Net, and Large Language models. 
+     - Optimized dGPU performance through the integration of oneDNN 3.2 and fusion optimizations for MVN, Crop+Concat, permute, etc. 
+
+   * GNA Runtime: Addressed stability issues on the Gemini Lake platform related to GNA device plugin creation (ref: #115949). 
+
+   * Frameworks:
+
+     - PyTorch Updates: OpenVINO now supports originally quantized PyTorch models, including models produced with the Neural Network Compression Framework (NNCF).
+     - TensorFlow FE: Now supports Switch/Merge operations, bringing TensorFlow 1.x control flow support closer to full compatibility and enabling more models.
+     - Python API: Python Conversion API is now the primary conversion path, making it easier for Python developers to work with OpenVINO.
+
+   * NNCF: Enabled SmoothQuant method for Post-training Quantization, offering more techniques for quantizing models.
+
+   **Distribution:**
+
+   * Added conda-forge pre-release channel, simplifying OpenVINO pre-release installation with "conda install -c "conda-forge/label/openvino_dev" openvino" command.
+   * Python API is now distributed as a part of conda-forge distribution, allowing users to access it using the command above.
+   * Runtime can now be installed and used via vcpkg C++ package manager, providing more flexibility in integrating OpenVINO into projects.
+
+   **New models:**
+
+   * Enabled Large Language models such as open-llama, bloom, dolly-v2, GPT-J, llama-2, and more. We encourage users to try running their custom LLMs and share their feedback with us! 
+   * Optimized performance for Stable Diffusion v2.1 (FP16 and INT8 for GPU) and Clip (CPU, INT8) models, improving their overall efficiency and accuracy. 
+   
+   **New openvino_notebooks:**
+
+   * `242-freevc-voice-conversion <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/242-freevc-voice-conversion>`__ - High-Quality Text-Free One-Shot Voice Conversion with FreeVC
+   * `241-riffusion-text-to-music <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/241-riffusion-text-to-music>`__ - Text-to-Music generation using Riffusion
+   * `220-books-alignment-labse <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/220-cross-lingual-books-alignment>`__ - Cross-lingual Books Alignment With Transformers
+   * `243-tflite-selfie-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/243-tflite-selfie-segmentation>`__ - Selfie Segmentation using TFLite
 
 
 .. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230623
-   :open:
    :animate: fade-in-slide-down
-   :color: primary
+   :color: secondary
 
    The first pre-release for OpenVINO 2023.1, focused on fixing bugs and performance issues.
 

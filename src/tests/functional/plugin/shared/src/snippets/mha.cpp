@@ -115,6 +115,10 @@ std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMul::get_subgraph() {
     return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAQuantMatMul0::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAQuantMatMul0Function>(inputDynamicShapes);
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() {
     return std::make_shared<ov::test::snippets::MHAFQAfterMatMulFunction>(inputDynamicShapes);
 }
@@ -172,6 +176,12 @@ TEST_P(MHATransposedB, CompareWithRefImpl) {
 }
 
 TEST_P(MHAINT8MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAQuantMatMul0, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
