@@ -60,7 +60,7 @@ def parse_arguments():
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="")
     parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=False)
-    parser.add_argument("-pp", "--post_progress", help=post_progress_help, type=bool, required=False, default=False)
+    parser.add_argument("-pp", "--post_progress", help=post_progress_help, type=bool, required=False, default=True)
 
     return parser.parse_args()
 
@@ -290,24 +290,20 @@ class TestParallelRunner:
             logger.error(f"The test list file does not exists! Please check the process output!")
             exit(-1)
 
-        test_list = list()
+        tests_dict = dict()
         with open(test_list_file_name) as test_list_file:
             test_suite = ""
-            id = 0
             for test_name in test_list_file.read().split('\n'):
                 if "Running main() from" in test_name:
                     continue
                 if not ' ' in test_name:
                     test_suite = test_name
+                    fixed_suite_name = f'{self.__replace_restricted_symbols(test_suite)}'.replace(".", "")
                     if (self._split_unit == "suite") :
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
                         elif (test_suite) :
-                            if (id % 359 == 0) :
-                                test_list.append(f'"{self.__replace_restricted_symbols(test_suite)}"*:')
-                            else :
-                                test_list[-1] += f'"{self.__replace_restricted_symbols(test_suite)}"*:'
-                            id += 1
+                            tests_dict[fixed_suite_name] = 0
                     continue
                 pos = test_name.find('#')
                 if pos > 0 or test_suite != "":
@@ -315,65 +311,77 @@ class TestParallelRunner:
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif (self._split_unit == "test") :
-                        test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
+                        tests_dict[f'"{self.__replace_restricted_symbols(real_test_name)}":'] = -1
+                    elif (self._split_unit == "suite") :
+                        tests_dict[fixed_suite_name] = tests_dict.get(fixed_suite_name, 0) + 1
             test_list_file.close()
         os.remove(test_list_file_name)
-        logger.info(f"Len test_list_runtime (without disabled tests): {len(test_list)}")
-        if len(test_list) == 0:
+        logger.info(f"Len test_list_runtime (without disabled tests): {len(tests_dict)}")
+        if len(tests_dict) == 0:
             logger.warning(f"Look like there are not tests to run! Please check the filters!")
             exit(0)
         # remove duplicates
-        test_set = [*set(test_list)]
-        return test_set
+        # test_set = [*set(test_list)]
+        return tests_dict
 
     def __get_test_list_by_cache(self):
-        test_list_cache = list()
+        tests_dict_cache = dict()
         if os.path.isfile(self._cache_path):
             logger.info(f"Get test list from cache file: {self._cache_path}")
             with open(self._cache_path, "r") as cache_file:
                 for line in cache_file.readlines():
                     pos = line.find(":")
-                    time = line[:pos]
-                    test_name = line[pos+1:]
-                    if not constants.DISABLED_PREFIX in test_name:
-                        test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
-        logger.info(f"Len test_list_cache: {len(test_list_cache)}")
-        return test_list_cache
+                    time = int(line[:pos])
+                    test_name = line[pos+1:].replace("\n", "")
+                    test_suite = test_name[1:test_name.find(".")]
 
-    def __generate_test_lists(self, test_list_cache: list, test_list_runtime:list):
-        cached_test_list = list()
-        runtime_test_test = list()
-        cached_test_list_names = list()
+                    if (self._split_unit == "test") :
+                        if not constants.DISABLED_PREFIX in test_name:
+                            if (time != -1) :
+                                tests_dict_cache[test_name] = tests_dict_cache.get(test_name, 0) + time
+                    elif (self._split_unit == "suite") :
+                        if not constants.DISABLED_PREFIX in test_suite:
+                            itime = int(time)
+                            if (itime != -1) :
+                                tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, 0) + itime
 
-        for test in test_list_cache:
-            if test._name in test_list_runtime:
-                cached_test_list.append(test)
-                cached_test_list_names.append(test._name)
-        for test in test_list_runtime:
-            if not test in cached_test_list_names:
-                runtime_test_test.append(test)
+        logger.info(f"Len tests_dict_cache: {len(tests_dict_cache)}")
+        return tests_dict_cache
 
-        if len(runtime_test_test) > 0:
+    def __generate_test_lists(self, test_dict_cache: dict, test_dict_runtime: dict):
+        cached_test_dict = dict()
+        runtime_test_dict = dict()
+
+        for test in test_dict_cache:
+            if test in test_dict_runtime:
+                cached_test_dict[test] = test_dict_cache[test]
+
+        for test in test_dict_runtime:
+            if not test in cached_test_dict:
+                runtime_test_dict[test] = test_dict_runtime[test]
+
+        if len(runtime_test_dict) > 0:
             logger.warning(f'Cache file is not relevant the run. The will works in hybrid mode.')
-            logger.info(f'Test count from cache: {len(cached_test_list)}')
-            logger.info(f'Test count from runtime: {len(runtime_test_test)}')
-        return cached_test_list, runtime_test_test
+            logger.info(f'Test count from cache: {len(cached_test_dict)}')
+            logger.info(f'Test count from runtime: {len(runtime_test_dict)}')
+        return cached_test_dict, runtime_test_dict
 
-    def __prepare_smart_filters(self, proved_test_list:list):
+    def __prepare_smart_filters(self, proved_test_dict: dict):
         res_test_filters = list()
         def_length = len(self._command) + len(" --gtest_filter=")
-        idx = len(proved_test_list)
-        for i in range(len(proved_test_list)):
-            if proved_test_list[i]._time == -1:
+
+        idx = len(proved_test_dict)
+        for i in range(len(proved_test_dict)):
+            if proved_test_dict[list(proved_test_dict)[i]] == -1:
                 idx = i
                 break
 
         # Run crashed tests in a separed thread
-        if idx < len(proved_test_list):
-            while proved_test_list[idx]._time == -1:
-                test = proved_test_list.pop(idx)
-                res_test_filters.append(test._name)
-                if idx >= len(proved_test_list):
+        if idx < len(proved_test_dict):
+            while list(proved_test_dict.values())[idx] == -1:
+                res_test_filters.append(list(proved_test_dict.keys())[idx] + "*:")
+                proved_test_dict.pop(list(proved_test_dict.keys())[idx])
+                if idx >= len(proved_test_dict):
                     break
 
         longest_device = ""
@@ -381,49 +389,71 @@ class TestParallelRunner:
             if len(device) > len(longest_device):
                 longest_device = device
 
-        # prepare gtest filters per worker according command line length limitation
-        while len(proved_test_list) > 0:
-            test_times = []
-            is_not_full = True
-            worker_test_filters = list()
+        real_worker_num = self._worker_num * len(self._available_devices)
+        workers = [(0, "")] * real_worker_num
 
-            real_worker_num = self._worker_num * len(self._available_devices)
-
-            for _ in range(real_worker_num):
-                if len(proved_test_list) == 0:
+        tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
+        for test_item in tests_sorted :
+            test_pattern = f'"{self.__replace_restricted_symbols(test_item[0])}"*:'
+            test_time = test_item[1]
+            w_id = -1
+            for i in range(len(workers)) :
+                if len(workers[i][1]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
+                    w_id = i
                     break
-                worker_test_filters.append(f'"{self.__replace_restricted_symbols(proved_test_list[0]._name)}":')
-                test = proved_test_list.pop(0)
-                test_times.append(test._time)
-            while is_not_full and len(proved_test_list) > 0:
-                for i in range(real_worker_num):
-                    if i >= len(proved_test_list):
-                        break
-                    if i == 0:
-                        continue
-                    while test_times[0] > test_times[i] + proved_test_list[len(proved_test_list) - 1]._time:
-                        final_pos = len(proved_test_list) - 1
-                        filter = proved_test_list[final_pos]._name
-                        if len(worker_test_filters[i]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
-                            worker_test_filters[i] += f'"{self.__replace_restricted_symbols(filter)}":'
-                            test_times[i] += proved_test_list[final_pos]._time
-                            proved_test_list.pop(final_pos)
-                        else:
-                            is_not_full = False
-                            break
-                        if len(proved_test_list) == 0:
-                            break
-                if is_not_full and len(proved_test_list) > 0:
-                    filter = proved_test_list[0]._name
-                    if len(worker_test_filters[0]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
-                        worker_test_filters[0] += f'"{self.__replace_restricted_symbols(filter)}":'
-                        test_times[0] += proved_test_list[0]._time
-                        proved_test_list.pop(0)
-                    else:
-                        is_not_full = False
-            for filter in worker_test_filters:
-                res_test_filters.append(filter)
-            is_not_full = True
+
+            if w_id == -1 :
+                workers.append((test_time, test_pattern))
+            else :
+                workers[w_id] = (workers[w_id][0] + test_time, workers[w_id][1] + test_pattern)
+            workers.sort()
+
+        for filter in workers:
+            res_test_filters.append(filter[1])
+
+        # prepare gtest filters per worker according command line length limitation
+        # while len(proved_test_dict) > 0:
+            # test_times = []
+            # is_not_full = True
+            # worker_test_filters = list()
+
+
+
+            # for _ in range(real_worker_num):
+            #     if len(proved_test_dict) == 0:
+            #         break
+            #     test = list(proved_test_dict.items())[0]
+            #     worker_test_filters.append(f'"{self.__replace_restricted_symbols(test[0])}"*:')
+            #     test_times.append(test[1])
+            #     proved_test_dict.pop(test[0])
+            # while is_not_full and len(proved_test_dict) > 0:
+            #     for i in range(real_worker_num):
+            #         if i >= len(proved_test_dict):
+            #             break
+            #         if i == 0:
+            #             continue
+            #         while test_times[0] > test_times[i] + list(proved_test_dict.values())[-1] :
+            #             filter = list(proved_test_dict.keys())[-1]
+            #             if len(worker_test_filters[i]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
+            #                 worker_test_filters[i] += f'"{self.__replace_restricted_symbols(filter)}"*:'
+            #                 test_times[i] += list(proved_test_dict.values())[-1]
+            #                 proved_test_dict.pop(filter)
+            #             else:
+            #                 is_not_full = False
+            #                 break
+            #             if len(proved_test_dict) == 0:
+            #                 break
+            #     if is_not_full and len(proved_test_dict) > 0:
+            #         filter = list(proved_test_dict.keys())[0]
+            #         if len(worker_test_filters[0]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
+            #             worker_test_filters[0] += f'"{self.__replace_restricted_symbols(filter)}"*:'
+            #             test_times[0] += list(proved_test_dict.values())[0]
+            #             proved_test_dict.pop(filter)
+            #         else:
+            #             is_not_full = False
+            # for filter in worker_test_filters:
+            #     res_test_filters.append(filter)
+            # is_not_full = True
         # logging for debug
         for i in range(len(res_test_filters)):
             filter = res_test_filters[i]
@@ -437,20 +467,21 @@ class TestParallelRunner:
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
 
-        test_list_runtime = self.__get_test_list_by_runtime()
-        test_list_cache = self.__get_test_list_by_cache()
+        test_dict_runtime = self.__get_test_list_by_runtime()
+        test_dict_cache = self.__get_test_list_by_cache()
 
-        cached_test_list, runtime_test_list = self.__generate_test_lists(test_list_cache, test_list_runtime)
+        cached_test_dict, runtime_test_dist = self.__generate_test_lists(test_dict_cache, test_dict_runtime)
 
-        if len(cached_test_list) > 0:
+        if len(cached_test_dict) > 0:
             self._is_save_cache = False
-            cached_test_list = self.__prepare_smart_filters(cached_test_list)
-        if len(runtime_test_list) > 0:
+            cached_test_dict = self.__prepare_smart_filters(cached_test_dict)
+        if len(runtime_test_dist) > 0:
             self._is_save_cache = True
-            self._total_test_cnt += len(runtime_test_list)
-            runtime_test_list.reverse()
+            runtime_test_dist = self.__prepare_smart_filters(runtime_test_dist)
+            # self._total_test_cnt += len(runtime_test_list)
+            # runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
-        return cached_test_list, runtime_test_list
+        return cached_test_dict, runtime_test_dist
 
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
         commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
@@ -599,6 +630,7 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
+                        test_suite = test_name[:test_name.find(".")]
                         if self._device != None and self._available_devices != None:
                             for device_name in self._available_devices:
                                 if device_name in test_name:
