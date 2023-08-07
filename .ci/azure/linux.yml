@@ -535,6 +535,13 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/ovc_python_api_tests/  --junitxml=./TEST-test_ovc_convert.xmlTEST
+    displayName: 'OVC Python API Tests'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/  --junitxml=./TEST-test_mo_convert.xmlTEST
     displayName: 'MO Python API Tests'
 
