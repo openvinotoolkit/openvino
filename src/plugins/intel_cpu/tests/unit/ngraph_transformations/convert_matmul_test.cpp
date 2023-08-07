@@ -35,10 +35,14 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest1) {
     }
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
-        auto transpose_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 0, 2, 1 });
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(input1, transpose_constant);
+        auto transpose_constant1 = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 0, 2, 1 });
+        auto transpose1 = std::make_shared<ngraph::opset1::Transpose>(input1, transpose_constant1);
+
         auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 2, 2 }, { 1 });
-        auto matmul = std::make_shared<FullyConnectedNode>(transpose, input2, ngraph::Rank(3));
+        auto transpose_constant2 = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, { 1, 0 });
+        auto transpose2 = std::make_shared<ngraph::opset1::Transpose>(input2, transpose_constant2);
+
+        auto matmul = std::make_shared<FullyConnectedNode>(transpose1, transpose2, ngraph::Rank(3));
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
     }
@@ -311,8 +315,12 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_0) {
     }
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2, 2 }, { 1 });
-        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
+
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{ 2, 2 }, { 1 });
+        auto transpose_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, { 1, 0 });
+        auto transpose = std::make_shared<ngraph::opset1::Transpose>(input2, transpose_constant);
+        auto convert = std::make_shared<ngraph::opset1::Convert>(transpose, ngraph::element::f32);
+
         auto matmul = std::make_shared<FullyConnectedNode>(input1, convert, ngraph::Rank(3));
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
@@ -332,11 +340,15 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_1) {
     }
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
-        auto transpose_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 0, 2, 1 });
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(input1, transpose_constant);
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2, 2 }, { 1 });
-        auto convert = std::make_shared<ngraph::opset1::Convert>(input2, ngraph::element::f32);
-        auto matmul = std::make_shared<FullyConnectedNode>(transpose, convert, ngraph::Rank(3));
+        auto transpose_constant1 = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 0, 2, 1 });
+        auto transpose1 = std::make_shared<ngraph::opset1::Transpose>(input1, transpose_constant1);
+
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{ 2, 2 }, { 1 });
+        auto transpose_constant2 = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{ 2 }, { 1, 0 });
+        auto transpose2 = std::make_shared<ngraph::opset1::Transpose>(input2, transpose_constant2);
+        auto convert = std::make_shared<ngraph::opset1::Convert>(transpose2, ngraph::element::f32);
+
+        auto matmul = std::make_shared<FullyConnectedNode>(transpose1, convert, ngraph::Rank(3));
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ matmul }, ngraph::ParameterVector{ input1 });
     }

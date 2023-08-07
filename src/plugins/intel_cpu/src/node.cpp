@@ -865,28 +865,30 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
-MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         IE_THROW() << "Weight input is not const for node " << getName() << ".";
     auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
     if (!edgeMem)
         IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
 
-    auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+    if (!srcWeightDesc) {
+        auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+        auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+        weightSrcDesc = weightSrcDesc.reshape(dstWeightDesc->getDnnlDesc().get_dims());
+        srcWeightDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+    }
 
-        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->getData() };
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), weightDesc);
+    auto create = [&] () {
+        Memory srcMemory{ getEngine(), srcWeightDesc, edgeMem->getData() };
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
     };
 
     MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
+    const auto& format = dstWeightDesc->serializeFormat();
     auto itr = privateWeightCache.find(format);
     if (privateWeightCache.end() != itr) {
         ptr = itr->second;
