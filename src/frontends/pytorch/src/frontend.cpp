@@ -18,6 +18,7 @@
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
@@ -25,7 +26,6 @@
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
-#include "transforms/dequantize_node_remover.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
@@ -192,12 +192,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::DequantizeNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
     manager.run_passes(model);
 
     apply_pytorch_conversion_transforms(model);
@@ -255,6 +254,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
                             std::to_string(variants.size()),
                             " instead.");
+    FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
+                            "PyTorch Frontend doesn't support provided model type. Please provide supported model "
+                            "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
     FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");

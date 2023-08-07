@@ -27,6 +27,7 @@ shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Cos>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace cosop {
 namespace {
 template <element::Type_t ET>

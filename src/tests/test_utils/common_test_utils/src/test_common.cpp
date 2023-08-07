@@ -27,7 +27,7 @@ TestsCommon::~TestsCommon() {
 
 TestsCommon::TestsCommon()
 #ifdef ENABLE_CONFORMANCE_PGQL
-    : PGLink(new PostgreSQLLink(this))
+    : PGLink(new utils::PostgreSQLLink(this))
 #endif
 {
     auto memsize = ov::test::utils::getVmSizeInKB();

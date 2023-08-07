@@ -81,7 +81,8 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
              std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
              std::dynamic_pointer_cast<op::Scalar>(op) ||
              std::dynamic_pointer_cast<op::HorizonMax>(op) ||
-             std::dynamic_pointer_cast<op::HorizonSum>(op))
+             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
+             std::dynamic_pointer_cast<op::Fill>(op))
         return vec2vec;
     else
         return get_specific_op_reg_type(op);

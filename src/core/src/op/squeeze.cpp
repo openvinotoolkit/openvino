@@ -56,6 +56,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -83,6 +84,7 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
     }
     return false;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Squeeze::has_evaluate() const {
     OV_OP_SCOPE(v0_Squeeze_has_evaluate);

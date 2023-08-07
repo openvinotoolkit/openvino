@@ -69,8 +69,12 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             const auto& input_expr = input_tensor->get_source().get_expr();
             const auto& input_expr_input_tensors = input_expr->get_input_port_connectors();
             for (const auto& tensor : input_expr_input_tensors) {
-                if (ov::is_type<op::VectorBuffer>(tensor->get_source().get_expr()->get_node())) {
+                const auto parent_expr = tensor->get_source().get_expr();
+                if (ov::is_type<op::Fill>(parent_expr->get_node())) {
                     manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
+                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                        manually_assigned_vecs[parent_expr->get_input_port_connector(0)] = static_cast<Reg>(accumulator_reg);
+                }
                 }
             }
             const auto& output_tensor = expr->get_output_port_connector(0);
