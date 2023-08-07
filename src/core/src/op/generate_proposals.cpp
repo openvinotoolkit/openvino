@@ -66,4 +66,9 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
                           "The third output type must be int64 or int32.");
     set_output_type(2, roi_num_type, output_shapes[2]);
 }
+
+void op::v9::GenerateProposals::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
 }  // namespace ov
