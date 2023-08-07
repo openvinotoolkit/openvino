@@ -5,6 +5,8 @@ import numpy as np
 import openvino.runtime as ov
 import os
 import pytest
+import tempfile
+import unittest
 from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
@@ -12,7 +14,8 @@ from common.tf_layer_test_class import save_to_pb
 
 
 class TestComplexParams(CommonMOConvertTest):
-    def create_tf_model(self, tmp_dir):
+    @staticmethod
+    def create_tf_model(tmp_dir):
         #
         #   Create Tensorflow model with multiple inputs/outputs
         #
@@ -43,7 +46,8 @@ class TestComplexParams(CommonMOConvertTest):
         # save model to .pb and return path to the model
         return save_to_pb(tf_net, tmp_dir)
 
-    def create_tf_model_single_input_output(self, tmp_dir):
+    @staticmethod
+    def create_tf_model_single_input_output(tmp_dir):
         #
         #   Create Tensorflow model with single input/output
         #
@@ -85,7 +89,9 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
          'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
         {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
-         'params_ref': {'input': 'Input1{f32},Input2{f32}'}}
+         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
+        {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
+         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}}
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -139,3 +145,23 @@ class TestComplexParams(CommonMOConvertTest):
         test_params.update({'input_model': tf_net_path})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
+
+class NegativeCases(unittest.TestCase):
+    test_directory = os.path.dirname(os.path.realpath(__file__))
+
+    def test_input_output_cut_exceptions(self):
+        from openvino.tools.ovc import convert_model
+        with tempfile.TemporaryDirectory(dir=self.test_directory) as temp_dir:
+            tf_net_path = TestComplexParams.create_tf_model_single_input_output(temp_dir)
+
+            with self.assertRaisesRegex(Exception, ".*Name Relu is not found among model inputs.*"):
+                convert_model(tf_net_path, input='Relu')
+            with self.assertRaisesRegex(Exception, ".*Name Relu is not found among model outputs.*"):
+                convert_model(tf_net_path, output='Relu')
+
+            tf_net_path = TestComplexParams.create_tf_model(temp_dir)
+
+            with self.assertRaisesRegex(Exception, ".*Name Relu2 is not found among model inputs.*"):
+                convert_model(tf_net_path, input='Relu2')
+            with self.assertRaisesRegex(Exception, ".*Name Relu2 is not found among model outputs.*"):
+                convert_model(tf_net_path, output='Relu2')

@@ -64,7 +64,9 @@ def convert_model(
             Example: input=("op_name", PartialShape([-1, 3, 100, 100]), ov.Type.f32).
             Alternatively input can be set by a dictionary, where key - input name,
             value - tuple with input parameters (shape or type).
-            Example: input={"op_name_1": ([1, 2, 3], ov.Type.f32), "op_name_2": ov.Type.i32}
+            Example 1: input={"op_name_1": ([1, 2, 3], ov.Type.f32), "op_name_2": ov.Type.i32}
+            Example 2: input=[("op_name_1", [1, 2, 3], ov.Type.f32), ("op_name_2", ov.Type.i32)]
+            Example 3: input=[([1, 2, 3], ov.Type.f32), ov.Type.i32]
             The order of inputs in converted model will match the order of specified inputs.
             If data type is not specified explicitly then there are two options: if
             input node is a parameter, data type is taken from the original node data type,

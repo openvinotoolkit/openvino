@@ -8,7 +8,7 @@ def get_convert_model_help_specifics():
         'input_model':
             {'description':
                  'Input model file(s) from TensorFlow, ONNX, PaddlePaddle. '
-                 'Use openvino.convert_model in Python to convert models from Pytorch.'
+                 'Use openvino.convert_model in Python to convert models from PyTorch.'
                  '',
              'action': CanonicalizePathCheckExistenceAction,
              'type': readable_dirs_or_files_or_empty,
