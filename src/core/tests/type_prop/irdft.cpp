@@ -19,6 +19,7 @@
 #include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
+using namespace testing;
 
 struct IRDFTConstantAxesAndConstantSignalSizeTestParams {
     PartialShape input_shape;
@@ -52,11 +53,7 @@ TEST_P(IRDFTConstantAxesAndConstantSignalSizeTest, irdft_constant_axes_and_signa
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
-    if (params.expected_labels.empty()) {
-        EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), get_shape_labels(input_shape));
-    } else {
-        EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), (params.expected_labels));
-    }
+    EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), (params.expected_labels));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -242,7 +239,8 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToDummyParamName());
 
 TEST(type_prop, irdft_dynamic_axes) {
-    const auto input_shape = PartialShape{2, 180, 180, Dimension(1, 18)};
+    auto input_shape = PartialShape{2, 180, 180, Dimension(1, 18)};
+    set_shape_labels(input_shape, 10);
     const auto axes_shape = PartialShape::dynamic();
     const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
 
@@ -252,6 +250,7 @@ TEST(type_prop, irdft_dynamic_axes) {
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), ref_output_shape);
+    EXPECT_THAT(get_shape_labels(irdft->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 struct IRDFTNonConstantAxesTestParams {
@@ -264,13 +263,16 @@ struct IRDFTNonConstantAxesTest : ::testing::TestWithParam<IRDFTNonConstantAxesT
 
 TEST_P(IRDFTNonConstantAxesTest, irdft_non_constant_axes) {
     auto params = GetParam();
+    auto input_shape = params.input_shape;
+    set_shape_labels(input_shape, 10);
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
+    auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
     auto axes_input = std::make_shared<op::Parameter>(element::i64, params.axes_shape);
     auto irdft = std::make_shared<op::v9::IRDFT>(data, axes_input);
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
-    ASSERT_TRUE(irdft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
+    EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
+    EXPECT_THAT(get_shape_labels(irdft->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -330,12 +332,16 @@ struct IRDFTNonConstantSignalSizeTestParams {
     Shape signal_size_shape;
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
+    std::vector<ov::label_t> expected_labels;
 };
 
 struct IRDFTNonConstantSignalSizeTest : ::testing::TestWithParam<IRDFTNonConstantSignalSizeTestParams> {};
 
 TEST_P(IRDFTNonConstantSignalSizeTest, irdft_non_constant_signal_size) {
     auto params = GetParam();
+
+    auto input_shape = params.input_shape;
+    set_shape_labels(input_shape, 10);
 
     auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
     auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
@@ -344,6 +350,7 @@ TEST_P(IRDFTNonConstantSignalSizeTest, irdft_non_constant_signal_size) {
 
     EXPECT_EQ(irdft->get_element_type(), element::f32);
     EXPECT_EQ(irdft->get_output_partial_shape(0), params.ref_output_shape);
+    EXPECT_EQ(get_shape_labels(irdft->get_output_partial_shape(0)), params.expected_labels);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -353,18 +360,21 @@ INSTANTIATE_TEST_SUITE_P(
                                                            {2},
                                                            {2},
                                                            {2, Dimension(0, 200), Dimension::dynamic()},
-                                                           {1, 2}},
+                                                           {1, 2},
+                                                           {ov::no_label, ov::no_label, ov::no_label}},
                       IRDFTNonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
                                                            {2},
                                                            {2},
                                                            {Dimension::dynamic(), 180, Dimension(0, 400)},
-                                                           {2, 0}},
+                                                           {2, 0},
+                                                           {ov::no_label, ov::no_label, ov::no_label}},
                       IRDFTNonConstantSignalSizeTestParams{
                           {Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
                           {3},
                           {3},
                           {Dimension(8, 129), Dimension::dynamic(), 130, Dimension(0, 500)},
-                          {3, 0, 1}}),
+                          {3, 0, 1},
+                          {ov::no_label, ov::no_label, ov::no_label, ov::no_label}}),
     PrintToDummyParamName());
 
 TEST(type_prop, irdft_invalid_input) {
