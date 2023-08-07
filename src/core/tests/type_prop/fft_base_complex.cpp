@@ -341,6 +341,7 @@ struct NonConstantSignalSizeTestParams {
     Shape signal_size_shape;
     PartialShape ref_output_shape;
     std::vector<int64_t> axes;
+    std::vector<ov::label_t> expected_labels;
 };
 
 template <class TOp>
@@ -351,23 +352,27 @@ public:
                                         {2},
                                         {2},
                                         {2, Dimension::dynamic(), Dimension::dynamic(), 2},
-                                        {1, 2}},
+                                        {1, 2},
+                                        {10, no_label, no_label, 13}},
         NonConstantSignalSizeTestParams{{Dimension(0, 18), 180, Dimension(0, 400), 2},
                                         {2},
                                         {2},
                                         {Dimension::dynamic(), 180, Dimension::dynamic(), 2},
-                                        {2, 0}},
+                                        {2, 0},
+                                        {no_label, 11, no_label, 13}},
         NonConstantSignalSizeTestParams{{Dimension(8, 129), 50, 130, Dimension(0, 500), 2},
                                         {3},
                                         {3},
                                         {Dimension::dynamic(), Dimension::dynamic(), 130, Dimension::dynamic(), 2},
-                                        {3, 0, 1}}};
+                                        {3, 0, 1},
+                                        {no_label, no_label, 12, no_label, 14}}};
 };
 
 TYPED_TEST_SUITE_P(FFTNonConstantSignalSizeTest);
 
 TYPED_TEST_P(FFTNonConstantSignalSizeTest, non_constant_signal_size) {
     for (auto params : this->test_params) {
+        set_shape_labels(params.input_shape, 10);
         auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
         auto signal_size_input = std::make_shared<op::v0::Parameter>(element::i64, params.signal_size_shape);
@@ -375,6 +380,7 @@ TYPED_TEST_P(FFTNonConstantSignalSizeTest, non_constant_signal_size) {
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
+        EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), params.expected_labels);
     }
 }
 
