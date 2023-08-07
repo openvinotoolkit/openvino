@@ -164,19 +164,6 @@ private:
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
             ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size / 4);
-            /*
-            //#pragma omp parallel for
-            for (size_t i = 0; i < size / 4; ++i) {
-                // if abs value is smaller than the smallest positive fp16, but not zero
-                if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
-                    dst_data[i] = std::numeric_limits<ov::float16>::max();
-                } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
-                    dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-                } else {
-                    dst_data[i] = static_cast<ov::float16>(src_data[i]);
-                }
-            }
-            */
             return new_ptr;
         } else if (src_type == ov::element::f64) {
             *compressed_size = size / 4;
@@ -186,7 +173,9 @@ private:
             //#pragma omp parallel for
             for (size_t i = 0; i < size / 8; ++i) {
                 // if abs value is smaller than the smallest positive fp16, but not zero
-                if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
+                if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
+                    dst_data[i] = 0;
+                } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
                     dst_data[i] = std::numeric_limits<ov::float16>::max();
                 } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
                     dst_data[i] = std::numeric_limits<ov::float16>::lowest();
