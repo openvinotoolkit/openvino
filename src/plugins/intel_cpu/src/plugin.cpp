@@ -509,7 +509,17 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
     print_model(cloned_model, "AddPreprocess model:");
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    if (!is_cpu_map_available()) {
+        apply_performance_hints(config, cloned_model);
+    }
+
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+    conf.readProperties(config);
+    calculate_streams(conf, cloned_model);
+
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -522,18 +532,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
         }
     }
 
-    if (!is_cpu_map_available()) {
-        apply_performance_hints(config, cloned_model);
-    }
     transformations.CpuSpecificOpSet();
-
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-    conf.readProperties(config);
-    calculate_streams(conf, cloned_model);
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
         (cloned_model->outputs().size() != model->outputs().size())) {

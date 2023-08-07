@@ -40,7 +40,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
             }
 
             if (expected != actual) {
-                IE_THROW() << "Expected and actual results are different";
+                throw std::runtime_error("Expected and actual results are different");
             }
             summary.updateOPsImplStatus(function, true);
         } catch (const std::exception &e) {

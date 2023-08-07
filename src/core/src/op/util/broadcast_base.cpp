@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/broadcast_base.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <numeric>
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
-#include "ngraph/partial_shape.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
@@ -197,10 +195,10 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
 
     PartialShape output_shape;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    bool output_shape_defined = ngraph::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
+    bool output_shape_defined = ov::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
+    if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
         auto concat_inputs = concat->inputs();
 
         if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
@@ -208,7 +206,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
             auto output_partial_shape = vector<Dimension>{};
             for (const auto& concat_input : concat_inputs) {
                 auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
-                if (auto source_const_ptr = ov::as_type_ptr<ngraph::op::v0::Constant>(source_node_ptr)) {
+                if (auto source_const_ptr = ov::as_type_ptr<ov::op::v0::Constant>(source_node_ptr)) {
                     output_partial_shape.emplace_back(source_const_ptr->get_axis_vector_val()[0]);
                 } else {
                     output_partial_shape.push_back(Dimension::dynamic());
@@ -267,7 +265,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_num
     int64_t start_axis = ((broadcast_spec.m_type == op::BroadcastType::PDPD) && (broadcast_spec.m_axis != -1))
                              ? broadcast_spec.m_axis
                              : static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
-    NGRAPH_CHECK(start_axis >= 0);
+    OPENVINO_ASSERT(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
         if (i < static_cast<size_t>(start_axis) || result_shape[i] != arg_shape[i - start_axis]) {
             broadcast_axes.insert(i);
@@ -304,7 +302,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant) {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
             auto target_shape = get_input_shape(1);
-            NGRAPH_CHECK(target_shape.size() == 1);
+            OPENVINO_ASSERT(target_shape.size() == 1);
             return get_broadcast_axes_none(axes_mapping_val, target_shape[0]);
         }
     } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD) {
@@ -320,6 +318,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
     return std::make_pair(axes_known, broadcast_axes);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                      const HostTensorPtr& out,
                                                      const AxisSet& broadcast_axes) const {
@@ -376,11 +375,11 @@ void get_axis_vector_from_ht(const ngraph::HostTensorPtr& arg,
         OPENVINO_THROW("get_axis_vector_from_ht: type is not integral");
     }
     // Rank(arg_shape) == shape_size(axes_mapping)
-    NGRAPH_CHECK(axis_vector.size() == arg_shape.size(),
-                 "Broadcast axes_mapping shape ",
-                 axis_vector.size(),
-                 " doesn't match rank of input tensor ",
-                 arg_shape.size());
+    OPENVINO_ASSERT(axis_vector.size() == arg_shape.size(),
+                    "Broadcast axes_mapping shape ",
+                    axis_vector.size(),
+                    " doesn't match rank of input tensor ",
+                    arg_shape.size());
 }
 
 template <ov::element::Type_t ET>
@@ -445,8 +444,8 @@ ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& inp
 bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(util_BroadcastBase_evaluate);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 2) || ngraph::validate_host_tensor_vector(inputs, 3));
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2) || ngraph::validate_host_tensor_vector(inputs, 3));
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1));
     OPENVINO_SUPPRESS_DEPRECATED_END
     Shape target_shape = get_target_shape(inputs[1]);
 

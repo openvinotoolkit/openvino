@@ -73,6 +73,7 @@ NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSam
     return enum_names;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 template <element::Type_t DATA_ET, element::Type_t GRID_ET>

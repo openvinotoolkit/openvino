@@ -216,6 +216,8 @@ public:
                         uint32_t bilinear_interp : 1;
                         uint32_t cubic : 1;
                         uint32_t linear_onnx : 1;
+                        uint32_t bilinear_pillow : 1;
+                        uint32_t bicubic_pillow : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
@@ -685,7 +687,7 @@ struct base_params : public Params {
             out.SetDynamicShapeOffset(offset);
             if (out.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : out.GetDims()) {
+                for (auto& dim : out.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }

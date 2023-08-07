@@ -78,7 +78,7 @@ struct memory {
     virtual event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool blocking = true) = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) {
+    virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const {
         throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
     }
 #endif
@@ -123,7 +123,8 @@ private:
 
 template <class T, mem_lock_type lock_type = mem_lock_type::read_write>
 struct mem_lock {
-    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(mem), _stream(stream), _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
+    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(std::move(mem)), _stream(stream),
+                      _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
 
     ~mem_lock() {
         _ptr = nullptr;

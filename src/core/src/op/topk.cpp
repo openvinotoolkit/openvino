@@ -21,6 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>

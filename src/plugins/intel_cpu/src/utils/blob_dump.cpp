@@ -117,6 +117,13 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
+        case Precision::FP16: {
+            auto *pln_blob_ptr = reinterpret_cast<float16 *>(data.data());
+            auto *blob_ptr = reinterpret_cast<const float16 *>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
+            break;
+        }
         case Precision::I8:
         case Precision::U8: {
             auto *pln_blob_ptr = reinterpret_cast<int8_t*>(data.data());
@@ -172,6 +179,12 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
+        case Precision::I32: {
+            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
         case Precision::BF16: {
             auto *blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
@@ -180,8 +193,8 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
             }
             break;
         }
-        case Precision::I32: {
-            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+        case Precision::FP16: {
+            auto *blob_ptr = reinterpret_cast<const float16*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;

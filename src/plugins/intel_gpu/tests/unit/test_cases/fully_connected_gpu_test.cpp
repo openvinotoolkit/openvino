@@ -2512,7 +2512,9 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
     ASSERT_TRUE(reorder_kernel_params != nullptr);
     auto reorder_impl = network.get_program()->get_implementations_cache().get(*reorder_kernel_params);
-    ASSERT_TRUE(reorder_impl != nullptr);
+    // cldnn shape agnostic kernel reorder is done in build time
+    // therefore the reorder is no longer in cache, but the program_node of weight data is in the preferred format
+    ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
     ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment

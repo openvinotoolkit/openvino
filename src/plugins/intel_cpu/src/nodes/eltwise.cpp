@@ -46,6 +46,7 @@
 #include <map>
 #include <functional>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "shape_inference/custom/eltwise.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -926,64 +927,6 @@ private:
 };
 
 #endif // OPENVINO_ARCH_X86_64
-
-namespace {
-
-/**
- * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes
- * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
- *
- */
-class EltwiseShapeInfer : public ShapeInferEmptyPads {
-public:
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        size_t max_rank = 0;
-        size_t max_rank_idx = 0;
-        for (size_t i = 0; i < input_shapes.size(); ++i) {
-            auto item_rank = input_shapes[i].get().size();
-            if (item_rank > max_rank) {
-                max_rank = item_rank;
-                max_rank_idx = i;
-            }
-        }
-        auto output_shape = input_shapes[max_rank_idx].get();
-        // use NUMPY broadcast rule
-        for (size_t i = 0; i < input_shapes.size(); i++) {
-            if (i == max_rank_idx)
-                continue;
-
-            auto& input_shape = input_shapes[i].get();
-            if (input_shape.size() > output_shape.size()) {
-                IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
-            }
-            size_t offset = output_shape.size() - input_shape.size();
-            for (size_t j = 0; j < input_shape.size(); ++j) {
-                if (input_shape[j] != output_shape[offset + j]) {
-                    if (output_shape[offset + j] == 1) {
-                        output_shape[offset + j] = input_shape[j];
-                    } else {
-                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
-                    }
-                }
-            }
-        }
-        return { { std::move(output_shape) }, ShapeInferStatus::success };
-    }
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-};
-
-class EltwiseShapeInferFactory : public ShapeInferFactory {
-public:
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<EltwiseShapeInfer>();
-    }
-};
-
-}   // namespace
 
 Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op) {
     const auto const1 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
@@ -2021,6 +1964,28 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support BF16 precision on this target.";
     }
 
+#if defined(OV_CPU_WITH_ACL)
+    Precision forcedPrec;
+    //ACL implementation supports only identical precisions on inputs/outputs so they are aligned it to highest one
+    if (AclEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (!getParentEdgeAt(i)->getParent()->isConstant()) {
+                if (!forcedPrec || getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
+                    forcedPrec = getOriginalInputPrecisionAtPort(i);
+                }
+            }
+        }
+        if (!forcedPrec.is_float()) {
+            forcedPrec = Precision::FP32;
+        }
+    } else {
+        forcedPrec = Precision::FP32;
+    }
+    for (size_t i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = forcedPrec;
+    }
+    outputPrecision = forcedPrec;
+#else
     auto filterPrecision = [&](Precision& prc) {
         if (implType == EltwiseImplType::reference) {
             return Precision(Precision::FP32);
@@ -2041,6 +2006,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
     }
     outputPrecision = filterPrecision(outputPrecision);
+#endif
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)

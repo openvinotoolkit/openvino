@@ -33,6 +33,7 @@
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -43,38 +44,6 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-/* This class implementation is a temporal WA
-   TODO: revise the implementation to remove the node reference*/
-class SnippetShapeInfer : public ShapeInferEmptyPads {
-public:
-    SnippetShapeInfer(Snippet* node) : m_node(node) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_node->shapeInfer(), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    Snippet* m_node;
-};
-
-class SnippetShapeInferFactory : public ShapeInferFactory {
-public:
-    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<SnippetShapeInfer>(m_node);
-    }
-
-private:
-    Snippet* m_node;
-};
-} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
