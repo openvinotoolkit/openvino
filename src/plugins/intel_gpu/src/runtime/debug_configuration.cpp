@@ -190,7 +190,8 @@ debug_configuration::debug_configuration()
         , disable_dynamic_impl(0)
         , disable_runtime_buffer_fusing(0)
         , disable_memory_reuse(0)
-        , disable_build_time_weight_reorder_for_dynamic_nodes(0) {
+        , disable_build_time_weight_reorder_for_dynamic_nodes(0)
+        , disable_runtime_skip_reorder(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -226,6 +227,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableRuntimeBufferFusing", disable_runtime_buffer_fusing);
     get_gpu_debug_env_var("DisableMemoryReuse", disable_memory_reuse);
     get_gpu_debug_env_var("DisableBuildTimeWeightReorderForDynamicNodes", disable_build_time_weight_reorder_for_dynamic_nodes);
+    get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     std::string dump_iteration_str;
     get_gpu_debug_env_var("DumpIteration", dump_iteration_str);
     std::string mem_preallocation_params_str;

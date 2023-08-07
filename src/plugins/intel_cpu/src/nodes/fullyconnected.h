@@ -115,6 +115,7 @@ private:
     void prepackMLASWeight();
 #endif
 
+    bool useWeightsDecompressionImpl = false;
     std::vector<float> decompressionSubtract;
     std::vector<float> decompressionMultiply;
 };

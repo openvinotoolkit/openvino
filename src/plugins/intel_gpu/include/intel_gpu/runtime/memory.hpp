@@ -123,7 +123,8 @@ private:
 
 template <class T, mem_lock_type lock_type = mem_lock_type::read_write>
 struct mem_lock {
-    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(mem), _stream(stream), _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
+    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(std::move(mem)), _stream(stream),
+                      _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
 
     ~mem_lock() {
         _ptr = nullptr;

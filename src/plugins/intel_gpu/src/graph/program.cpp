@@ -155,7 +155,7 @@ program::program(engine& engine_ref,
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal),
       is_body_program(is_body_program) {
@@ -181,7 +181,7 @@ program::program(engine& engine_ref,
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
     _config.apply_user_properties(_engine.get_device_info());
@@ -624,8 +624,7 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
-        node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
@@ -823,7 +822,7 @@ void program::add_intermediate(std::shared_ptr<primitive> prim,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
+    add_intermediate(get_or_create(std::move(prim)), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
