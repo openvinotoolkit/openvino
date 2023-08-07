@@ -7,7 +7,7 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny
-from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map
+from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, torch_tensor_to_ov_const
 from openvino.runtime import opset11 as ops
 
 import typing
@@ -345,8 +345,8 @@ class TorchScriptPythonDecoder (Decoder):
             new_shape[axis] = -1
             zero_point_bc = np.reshape(zero_point, new_shape)
             scale_bc = np.reshape(scale, new_shape)
-
-            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=shared_memory)
+            
+            int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point_bc)
             return ops.multiply(sub, scale_bc).outputs()
@@ -355,7 +355,7 @@ class TorchScriptPythonDecoder (Decoder):
             scale = np.float32(qtensor.q_scale())
             zero_point = np.float32(qtensor.q_zero_point())
 
-            int8_const = op.Constant(int8_tensor.numpy(), shared_memory=shared_memory)
+            int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point)
             return ops.multiply(sub, scale).outputs()
@@ -370,7 +370,7 @@ class TorchScriptPythonDecoder (Decoder):
             weight, bias = pt_value.unpack()
             res = self.convert_quantized_tensor(weight, self._shared_memory)
             if isinstance(bias, torch.Tensor):
-                res += ivalue_to_constant(bias, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(bias)
             else:
                 res += ops.convert_like(ivalue_to_constant(torch.zeros(1))[0], res[0]).outputs()
             try:
