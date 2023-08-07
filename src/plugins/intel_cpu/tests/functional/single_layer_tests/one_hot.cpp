@@ -129,7 +129,7 @@ protected:
         compare(expectedOutputs, actualOutputs);
     }
     std::shared_ptr<ngraph::Function> createFunction(bool depthConst) {
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
+        auto params = ov::test::utils::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
         params.front()->set_friendly_name("ParamsIndices");
         std::shared_ptr<ov::Node> depth;
         if (depthConst) {

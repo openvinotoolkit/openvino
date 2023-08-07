@@ -42,7 +42,7 @@ void SliceConcatTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     size_t input_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<size_t>());
-    auto params = ngraph::builder::makeParams(ngPrc, {{1, input_size}});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, input_size}});
 
     ngraph::Output<ngraph::Node> input = params[0];
     if (inputShape[0] != 1 || inputShape.size() != 2) {

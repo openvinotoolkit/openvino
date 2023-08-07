@@ -22,7 +22,7 @@ namespace SubgraphTestsDefinitions {
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} , {1, 336}});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, { {1, 336} , {1, 336}});
 
         std::vector<size_t> outFormShapes1 = { 1, 1, 168, 2 };
         std::vector<size_t> outFormShapes2 = { 1, 336, 1, 1 };

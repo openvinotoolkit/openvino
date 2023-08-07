@@ -315,7 +315,7 @@ void MatrixNmsLayerTest::SetUp() {
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
-    const auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+    const auto params = ov::test::utils::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);

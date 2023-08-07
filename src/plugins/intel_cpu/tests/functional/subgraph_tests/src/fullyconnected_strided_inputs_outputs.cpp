@@ -46,7 +46,7 @@ protected:
         SizeVector splitShape{2, 16};
         if (rank == 3) bcastTo3D(splitShape);
 
-        auto params = builder::makeParams(ngPrec, {splitShape});
+        auto params = ov::test::utils::builder::makeParams(ngPrec, {splitShape});
 
         const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
         const auto splitAxis = rank == 3 ? 1 : 0;

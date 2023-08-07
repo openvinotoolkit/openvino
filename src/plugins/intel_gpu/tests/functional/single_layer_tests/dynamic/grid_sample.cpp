@@ -79,7 +79,7 @@ protected:
             rel_threshold = 0.01f;
         }
 
-        auto params = ngraph::builder::makeDynamicParams({dataPrecision, gridPrecision}, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams({dataPrecision, gridPrecision}, inputDynamicShapes);
         params[0]->set_friendly_name("data");
         params[1]->set_friendly_name("grid");
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));

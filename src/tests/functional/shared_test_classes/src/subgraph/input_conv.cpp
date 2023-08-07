@@ -77,7 +77,7 @@ void InputConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
 
     auto conv0 = ngraph::builder::makeConvolution(params[0],
                                                   ngPrc,

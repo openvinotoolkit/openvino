@@ -42,7 +42,7 @@ public:
         std::tie(inFmts, outFmts, priority, selectedType) =
             CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("ref", inType)};
         init_input_shapes({inputShape});
-        auto input_params = builder::makeDynamicParams(inType, {inputShape.first});
+        auto input_params = ov::test::utils::builder::makeDynamicParams(inType, {inputShape.first});
         auto convert = builder::makeConversion(input_params[0], element::f32, ::helpers::ConversionTypes::CONVERT);
         auto begin = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
         auto end = builder::makeConstant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
@@ -83,7 +83,7 @@ public:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({inputShape});
-        auto input_params = builder::makeDynamicParams(inType, {inputShape.first});
+        auto input_params = ov::test::utils::builder::makeDynamicParams(inType, {inputShape.first});
 
         // Such complicated graph is necessary to cover the case when Convert has several children and connected to non zero output
         const auto split_axis = builder::makeConstant(element::i64, ov::Shape{}, std::vector<int64_t>{1});

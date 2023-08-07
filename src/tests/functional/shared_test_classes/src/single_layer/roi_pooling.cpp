@@ -72,7 +72,7 @@ namespace LayerTestsDefinitions {
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, coordsShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0],

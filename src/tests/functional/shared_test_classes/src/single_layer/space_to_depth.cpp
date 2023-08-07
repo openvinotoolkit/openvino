@@ -45,7 +45,7 @@ void SpaceToDepthLayerTest::SetUp() {
     InferenceEngine::Precision inputPrecision;
     std::tie(inShape, inputPrecision, mode, blockSize, targetDevice) = this->GetParam();
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto params = ngraph::builder::makeParams(inPrc, {inShape});
+    auto params = ov::test::utils::builder::makeParams(inPrc, {inShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto s2d = ngraph::builder::makeSpaceToDepth(paramOuts[0], mode, blockSize);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};

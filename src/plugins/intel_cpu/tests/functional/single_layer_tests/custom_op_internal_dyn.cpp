@@ -86,7 +86,7 @@ protected:
 
         init_input_shapes({inputShapes});
         auto ngPrc = ngraph::element::f32;
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         auto customOp = std::make_shared<CustomOp>(paramOuts);
         auto shapeOf = std::make_shared<ov::opset10::ShapeOf>(customOp->output(1));

@@ -35,7 +35,7 @@ namespace SubgraphTestsDefinitions {
         for (size_t i = 0; i < hiddenSize; ++i)
             memory_init.emplace_back(static_cast<float>(dist(gen)));
 
-        auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
+        auto input = ov::test::utils::builder::makeParams(ngPrc, { {1, inputSize} });
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "memory");
@@ -58,7 +58,7 @@ namespace SubgraphTestsDefinitions {
         size_t hiddenSize;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, std::ignore) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
+        auto input = ov::test::utils::builder::makeParams(ngPrc, { {1, inputSize} });
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input[0], mem_c }, 1);

@@ -108,7 +108,7 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inPrc, inputDynamicShapes);
 
         std::shared_ptr<ngraph::Node> poolInput = params[0];
         if (isInt8) {
@@ -194,7 +194,7 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inPrc, inputDynamicShapes);
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0], stride, dilation, padBegin, padEnd,
                                                                                   kernel, roundingType, padType,
                                                                                   indexElementType, axis);

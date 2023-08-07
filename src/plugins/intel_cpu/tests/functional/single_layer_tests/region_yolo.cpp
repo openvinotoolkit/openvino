@@ -79,7 +79,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         selectedType = getPrimitiveType() + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        auto paramRegionYolo = ov::test::utils::builder::makeDynamicParams(inPrc, inputDynamicShapes);
 
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,

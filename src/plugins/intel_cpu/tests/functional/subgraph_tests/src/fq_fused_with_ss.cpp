@@ -46,7 +46,7 @@ protected:
 
         auto constShift = ngraph::opset5::Constant::create(ngraph::element::f32, sumShape, sumConstData);
         auto mmConst = ngraph::opset5::Constant::create(ngraph::element::f32, mmShape2, mmInData);
-        auto mmParams = builder::makeParams(ngPrec, {mmShape});
+        auto mmParams = ov::test::utils::builder::makeParams(ngPrec, {mmShape});
         const auto mmOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(mmParams));
 
         const auto mm = builder::makeMatMul(mmOutputNodes[0], mmConst, false, false);

@@ -57,7 +57,7 @@ protected:
         };
         m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
 
         std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5], inputShapes[2]};
 

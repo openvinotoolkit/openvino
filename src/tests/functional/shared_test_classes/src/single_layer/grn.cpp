@@ -36,7 +36,7 @@ void GrnLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, bias, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });
+    auto paramsIn = ov::test::utils::builder::makeParams(ngPrc, { inputShapes });
     auto paramsOut = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
     auto grn = std::make_shared<ngraph::opset1::GRN>(paramsOut[0], bias);

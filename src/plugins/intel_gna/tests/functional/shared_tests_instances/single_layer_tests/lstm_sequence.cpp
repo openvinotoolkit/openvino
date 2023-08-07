@@ -56,7 +56,7 @@ protected:
              {num_directions, 4 * hidden_size}},
         };
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
         auto in = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params));
 

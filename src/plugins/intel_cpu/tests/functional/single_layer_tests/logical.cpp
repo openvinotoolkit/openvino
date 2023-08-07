@@ -56,7 +56,7 @@ protected:
         auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());
 
-        auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
+        auto inputs = ov::test::utils::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
         std::shared_ptr<ngraph::Node> logicalNode;
         if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {

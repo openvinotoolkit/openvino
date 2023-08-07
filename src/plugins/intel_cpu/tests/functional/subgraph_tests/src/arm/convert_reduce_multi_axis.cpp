@@ -63,7 +63,7 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::vector<size_t> shapeAxes;
         shapeAxes.push_back(axes.size());

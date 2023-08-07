@@ -36,7 +36,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
 
     // first model
     const std::vector<std::vector<size_t>> shapes1{{1, 16, 720, 1280}};
-    auto params1 = ngraph::builder::makeParams(type, shapes1);
+    auto params1 = ov::test::utils::builder::makeParams(type, shapes1);
     const size_t convOutCh1 = 32;
     auto conv1 = ngraph::builder::makeConvolution(params1.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh1);
     conv1->set_friendly_name(convName);
@@ -45,7 +45,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
 
     // second model
     const std::vector<std::vector<size_t>> shapes2{{1, 32, 24, 24}};
-    auto params2 = ngraph::builder::makeParams(type, shapes2);
+    auto params2 = ov::test::utils::builder::makeParams(type, shapes2);
     const size_t convOutCh2 = 16;
     auto conv2 = ngraph::builder::makeConvolution(params2.front(), type, kernel, strides, padsBegin, padsEnd, dilations, autoPad, convOutCh2);
     conv2->set_friendly_name(convName);

@@ -56,7 +56,7 @@ struct ReLUConcatAxis {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
 
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         auto relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
         concatInputs.push_back(relu);
         size_t totalSize = ov::shape_size(inputShape);
@@ -82,7 +82,7 @@ struct MatmulConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         ov::Shape mulConstShape;
 
         switch (inputShape.size()) {
@@ -128,7 +128,7 @@ struct ConvNCHWConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
         size_t numOutChannels = 8;
         size_t kernelSize = 1;
@@ -170,7 +170,7 @@ struct ConvNHWCConcatAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
@@ -216,7 +216,7 @@ struct ConvConcatNHWCAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concatInputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
@@ -274,7 +274,7 @@ struct ConvConcatConcatNHWCAxis {
                                                             const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         ov::OutputVector concat1Inputs, concat2Inputs;
-        ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
         auto transposeInOrder = ov::opset10::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         auto transposeIn1 = std::make_shared<ov::opset10::Transpose>(params[0], transposeInOrder);
@@ -386,7 +386,7 @@ struct TransposeTransposeConcat {
         vector<size_t> conv_input_shape = {1, input_channels, 1, input_shapes[0] / input_channels};
 
         auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
-        auto inputs = makeParams(ng_prc, {{1, input_shapes[0]}, {1, input_shapes[1]}});
+        auto inputs = ov::test::utils::builder::makeParams(ng_prc, {{1, input_shapes[0]}, {1, input_shapes[1]}});
 
         // 1st concat input
         auto reshape_l1_const = make_shared<Constant>(i64, Shape{conv_input_shape.size()}, conv_input_shape);

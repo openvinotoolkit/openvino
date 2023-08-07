@@ -52,7 +52,7 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
     const size_t mid_idx = left_pad;
 
     ov::element::TypeVector input_precisions{data_et, idces_et};
-    auto params = ngraph::builder::makeDynamicParams(input_precisions, input_shapes);
+    auto params = ov::test::utils::builder::makeDynamicParams(input_precisions, input_shapes);
 
     auto shape_of = std::make_shared<ov::opset10::ShapeOf>(params[0], idces_et);
     auto shape_ss_begin = ov::opset1::Constant::create(idces_et, {1}, {0});

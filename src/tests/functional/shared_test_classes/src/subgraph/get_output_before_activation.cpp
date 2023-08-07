@@ -49,7 +49,7 @@ void OutputBeforeActivation::SetUp() {
 
     std::vector<size_t> input_dims { 1, inputSize };
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims, input_dims});
+    auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims, input_dims});
     auto input0 = input_parameter[0];
     auto input1 = input_parameter[1];
 

@@ -65,7 +65,7 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
     }
 
     ParameterVector CreateInputVector(const Type& type, const vector<std::size_t>& shapes) {
-        return makeParams(type, {shapes});
+        return ov::test::utils::builder::makeParams(type, {shapes});
     }
 
     shared_ptr<FakeQuantize> CreateFQNode(const Type& type,
@@ -128,7 +128,7 @@ protected:
 
         // Create network
 
-        auto input_vect = makeParams(precision, {input_shape});
+        auto input_vect = ov::test::utils::builder::makeParams(precision, {input_shape});
         auto input_fq = CreateFQNode(precision, input_vect[0], fq_min_max[0][0], fq_min_max[0][1], fq_levels);
 
         auto reshape = CreateReshapeNode(ngraph::element::Type_t::i32, input_fq, {width, 1});

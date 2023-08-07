@@ -37,7 +37,7 @@ void BatchNormLayerTest::SetUp() {
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
 

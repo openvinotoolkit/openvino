@@ -105,7 +105,7 @@ protected:
 class TransposeGatherTest : public GatherTransposeMergeBase {
 public:
     void init_test_model() override {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        auto params = ov::test::utils::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::vector<size_t> transpose_order = make_transpose_order(m_input_shape);
@@ -137,7 +137,7 @@ public:
     }
 
     void init_ref_model() override {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        auto params = ov::test::utils::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         ov::Shape shape_in = {1, input_shape_size};
@@ -162,7 +162,7 @@ public:
 class GatherTransposeTest : public GatherTransposeMergeBase {
 public:
     void init_test_model() override {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        auto params = ov::test::utils::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         ov::Shape shape_in = {1, input_shape_size};
@@ -196,7 +196,7 @@ public:
     }
 
     void init_ref_model() override {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        auto params = ov::test::utils::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         ov::Shape shape_in = {1, input_shape_size};

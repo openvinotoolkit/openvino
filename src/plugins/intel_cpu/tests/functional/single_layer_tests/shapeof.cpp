@@ -68,7 +68,7 @@ protected:
         outType = ElementType::i32;
         selectedType = makeSelectedTypeStr("ref", inType);
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ngraph::element::i32);
 

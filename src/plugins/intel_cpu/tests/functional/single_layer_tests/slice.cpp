@@ -98,7 +98,7 @@ protected:
                 targetShapes.push_back({sliceParams.axes.size()});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         std::shared_ptr<ngraph::Node> sliceNode;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             // Slice start, stop, step, axes are parameters.

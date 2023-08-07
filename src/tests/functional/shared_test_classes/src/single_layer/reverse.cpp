@@ -40,7 +40,7 @@ void ReverseLayerTest::SetUp() {
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     ngraph::ParameterVector paramsVector;
-    const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    const auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
     std::shared_ptr<ov::op::v0::Constant> axes_constant;
     if (mode == "index") {
         axes_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{axes.size()}, axes);

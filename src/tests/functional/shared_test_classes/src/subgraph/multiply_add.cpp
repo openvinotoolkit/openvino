@@ -23,7 +23,7 @@ void MultiplyAddLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

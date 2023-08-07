@@ -27,7 +27,7 @@ protected:
         auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto input = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 

@@ -21,7 +21,7 @@ protected:
         init_input_shapes({inputShapes});
 
         auto ngPrc = ngraph::element::f32;
-        auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
 
         auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
         std::vector<int> splitLenght = {1, 0, 6};

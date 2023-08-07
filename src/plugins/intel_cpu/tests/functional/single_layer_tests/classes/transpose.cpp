@@ -59,7 +59,7 @@ void TransposeLayerCPUTest::SetUp() {
 
     init_input_shapes({inputShapes});
 
-    auto params = ngraph::builder::makeDynamicParams(inType, {inputDynamicShapes[0]});
+    auto params = ov::test::utils::builder::makeDynamicParams(inType, {inputDynamicShapes[0]});
 
     const auto inputOrderOp =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({inputOrder.size()}), inputOrder);

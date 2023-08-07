@@ -91,11 +91,11 @@ namespace LayerTestsDefinitions {
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                auto outer_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                auto body_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
@@ -137,11 +137,11 @@ namespace LayerTestsDefinitions {
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                auto outer_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                auto body_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
@@ -181,11 +181,11 @@ namespace LayerTestsDefinitions {
                     // swap batch and seq_lengths
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                auto outer_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][sequence_axis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+                auto body_params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
                 std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
                 auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};

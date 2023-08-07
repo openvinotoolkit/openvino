@@ -55,7 +55,7 @@ protected:
 
        init_input_shapes({inputShapes});
 
-       auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+       auto param = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
        auto normalize = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, epsMode);
 

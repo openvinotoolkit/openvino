@@ -199,7 +199,7 @@ public:
 
         init_input_shapes({ inShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};

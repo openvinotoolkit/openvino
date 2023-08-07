@@ -15,7 +15,7 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = params;
     ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto functionParams = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto functionParams = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
     auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
@@ -83,7 +83,7 @@ void Gather7LayerTest::SetUp() {
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto functionParams = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
@@ -125,7 +125,7 @@ void Gather8LayerTest::SetUp() {
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto functionParams = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1,
@@ -168,7 +168,7 @@ void Gather8IndiceScalarLayerTest::SetUp() {
     int axis = std::get<0>(axis_batchIdx);
     int batchIdx = std::get<1>(axis_batchIdx);
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto functionParams = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto functionParams = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {inputShape[axis] - 1})->output(0);
 

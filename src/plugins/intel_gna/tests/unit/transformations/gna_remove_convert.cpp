@@ -207,7 +207,8 @@ public:
 
         // test function
         {
-            auto input = ngraph::builder::makeParams(target_precision_, {input_shape, input_shape, input_shape});
+            auto input =
+                ov::test::utils::builder::makeParams(target_precision_, {input_shape, input_shape, input_shape});
             auto convert1 =
                 ngraph::builder::makeConversion(input[0], net_precision_, ngraph::helpers::ConversionTypes::CONVERT);
             auto convert2 =
@@ -222,7 +223,7 @@ public:
 
         // ref function
         {
-            auto input = ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape});
+            auto input = ov::test::utils::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], mul1, ngraph::helpers::EltwiseTypes::ADD);
             auto result = std::make_shared<ngraph::opset8::Result>(mul2);
@@ -242,8 +243,8 @@ public:
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input = ov::test::utils::builder::makeParams(net_precision_,
+                                                              {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto convert1 =
@@ -259,8 +260,8 @@ public:
 
         // ref function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input = ov::test::utils::builder::makeParams(net_precision_,
+                                                              {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto result1 = std::make_shared<ngraph::opset8::Result>(mul1);
@@ -282,8 +283,8 @@ public:
         const ngraph::Shape input_shape{1, 10};
         // test function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input = ov::test::utils::builder::makeParams(net_precision_,
+                                                              {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
@@ -304,8 +305,8 @@ public:
 
         // ref function
         {
-            auto input =
-                ngraph::builder::makeParams(net_precision_, {input_shape, input_shape, input_shape, input_shape});
+            auto input = ov::test::utils::builder::makeParams(net_precision_,
+                                                              {input_shape, input_shape, input_shape, input_shape});
             auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
             auto mul2 = ngraph::builder::makeEltwise(input[2], input[3], ngraph::helpers::EltwiseTypes::ADD);
             auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);

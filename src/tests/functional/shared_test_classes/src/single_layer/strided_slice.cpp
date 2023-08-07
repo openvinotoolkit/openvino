@@ -43,7 +43,7 @@ void StridedSliceLayerTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {ssParams.inputShape});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {ssParams.inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,

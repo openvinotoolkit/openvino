@@ -152,14 +152,14 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::CreateTIFunc() {
-        auto param = builder::makeParams(ngPrc, {inputShape}).at(0);
+        auto param = ov::test::utils::builder::makeParams(ngPrc, {inputShape}).at(0);
         std::vector<std::vector<size_t>> shape = {{static_cast<size_t>(iteration_count), 1}};
-        auto iter_count = builder::makeParams(ngPrc, shape).at(0);
+        auto iter_count = ov::test::utils::builder::makeParams(ngPrc, shape).at(0);
 
         // Body
-        auto X = builder::makeParams(ngPrc, {inputShape}).at(0);
-        auto Y = builder::makeParams(ngPrc, {inputShape}).at(0);
-        auto Iter = builder::makeParams(ngPrc, {Shape{1, 1}}).at(0);
+        auto X = ov::test::utils::builder::makeParams(ngPrc, {inputShape}).at(0);
+        auto Y = ov::test::utils::builder::makeParams(ngPrc, {inputShape}).at(0);
+        auto Iter = ov::test::utils::builder::makeParams(ngPrc, {Shape{1, 1}}).at(0);
         auto add = std::make_shared<Add>(X, Y);
         auto res = std::make_shared<Result>(add);
         auto Iter_res = std::make_shared<Result>(Iter);
@@ -181,7 +181,7 @@ namespace LayerTestsDefinitions {
     }
 
     void MemoryTest::CreateCommonFunc() {
-        auto param = builder::makeParams(ngPrc, {inputShape});
+        auto param = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         const auto variable_info = targetDevice == ov::test::utils::DEVICE_GPU ?
             VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
         auto variable = std::make_shared<Variable>(variable_info);

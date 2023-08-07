@@ -93,7 +93,7 @@ void MemoryFqConcatPrelu::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ngraph::builder::makeParams(ngPrc, {inputs});
+    auto input = ov::test::utils::builder::makeParams(ngPrc, {inputs});
     auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
     auto read = std::make_shared<ngraph::opset3::ReadValue>(memory_read, "variable1");
     auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});

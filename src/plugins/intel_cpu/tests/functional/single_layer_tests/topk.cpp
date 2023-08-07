@@ -116,7 +116,7 @@ protected:
             }
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
 
         // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
         std::shared_ptr<ov::op::v11::TopK> topk;

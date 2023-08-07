@@ -47,7 +47,7 @@ void PermConvPermConcat::SetUp() {
     std::vector<size_t> permute_in_order = { 0, 3, 1, 2 };
     std::vector<size_t> permute_out_order = { 0, 2, 3, 1 };
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
     auto reshape_in_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
         ngraph::Shape{4},

@@ -49,7 +49,7 @@ public:
         const auto targetFormat = with_cpu_x86_avx512_core() ? nChw16c : nChw8c;
 
 
-        auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
+        auto inputParams = ov::test::utils::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
 
         auto Relu1 = std::make_shared<ngraph::opset3::Relu>(inputParams[0]);
         Relu1->get_rt_info() = CPUTestsBase::makeCPUInfo({targetFormat}, {targetFormat}, {});

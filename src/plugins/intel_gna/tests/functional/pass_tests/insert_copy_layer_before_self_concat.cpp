@@ -83,7 +83,7 @@ protected:
                  outLayout,
                  targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         ngraph::OutputVector concatInputs;
         for (int i = 0; i < inputsNum; ++i) {
             concatInputs.push_back(params[0]);

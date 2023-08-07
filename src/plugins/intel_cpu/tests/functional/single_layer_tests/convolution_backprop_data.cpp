@@ -168,7 +168,7 @@ public:
     }
 
     std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
-        auto params = ngraph::builder::makeDynamicParams(prec, {inShapes.front()});
+        auto params = ov::test::utils::builder::makeDynamicParams(prec, {inShapes.front()});
         std::shared_ptr<ov::Node> outShapeNode;
         if (!outShapeData.empty()) {
             if (outShapeType == ngraph::helpers::InputLayerType::PARAMETER) {

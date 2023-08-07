@@ -64,7 +64,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
 
         ngraph::ResultVector results;

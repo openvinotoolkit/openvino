@@ -15,7 +15,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
 
-        auto inputParams = builder::makeParams(element::f32, {{1, 3, 12, 9}, {1, 16, 12, 9}});
+        auto inputParams = ov::test::utils::builder::makeParams(element::f32, {{1, 3, 12, 9}, {1, 16, 12, 9}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         std::shared_ptr<Node> conv;

@@ -67,7 +67,7 @@ void LSTMCellTest::SetUp() {
     std::vector<ngraph::Shape> WRB = {inputShapes[3], inputShapes[4], inputShapes[5]};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
 
     std::shared_ptr<ov::Node> W;
     if (WType == InputLayerType::PARAMETER) {

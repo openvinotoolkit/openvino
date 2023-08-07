@@ -192,7 +192,7 @@ protected:
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
-        auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(netType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(

@@ -367,9 +367,9 @@ void MulticlassNmsLayerTest::SetUp() {
 
     ParameterVector params;
     if (inputDynamicShapes.size() > 2) {
-        params = ngraph::builder::makeDynamicParams({paramsPrec, paramsPrec, roisnumPrec}, inputDynamicShapes);
+        params = ov::test::utils::builder::makeDynamicParams({paramsPrec, paramsPrec, roisnumPrec}, inputDynamicShapes);
     } else {
-        params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        params = ov::test::utils::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
     }
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

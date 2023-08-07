@@ -79,7 +79,7 @@ public:
         auto& InputShapes = this->GetParam();
         ASSERT_EQ(InputShapes.size(), number_of_params) << "Unexpected number of input shapes";
         init_input_shapes(InputShapes);
-        auto input_params = ngraph::builder::makeDynamicParams(netPrc, inputDynamicShapes);
+        auto input_params = ov::test::utils::builder::makeDynamicParams(netPrc, inputDynamicShapes);
 
         ov::NodeVector first_level_reshapes;
 

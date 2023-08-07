@@ -79,7 +79,7 @@ protected:
 
         auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.first});
         auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputMinMax.second});
-        auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto inputVector = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
         auto split = ngraph::builder::makeSplit(inputVector[0], ngPrc, outputCount, 1);
 
         ngraph::ResultVector results;

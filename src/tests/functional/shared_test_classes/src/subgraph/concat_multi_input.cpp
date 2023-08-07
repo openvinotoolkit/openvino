@@ -38,7 +38,7 @@ void ConcatMultiInput::SetUp() {
 }
 
 void ConcatMultiInput::GenerateStridedSliceModel() {
-    auto params = ngraph::builder::makeParams(ngPrc, { paramSize });
+    auto params = ov::test::utils::builder::makeParams(ngPrc, { paramSize });
     auto stride = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, std::vector<int64_t>{ 1, 1 });
 
     std::vector<int64_t> newAxis = { 0, 0 };
@@ -91,7 +91,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
             total_size *= dim;
         }
         if (i == 0) {
-            input_vector = ngraph::builder::makeParams(ngPrc, {{1, total_size}});
+            input_vector = ov::test::utils::builder::makeParams(ngPrc, {{1, total_size}});
             auto relu = ngraph::builder::makeActivation(input_vector[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
             concatInputs.push_back(relu);
         } else {
@@ -110,7 +110,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
 void ConcatMultiInput::GenerateMemoryModel() {
     int axis = 1;
-    auto input = ngraph::builder::makeParams(ngPrc, { inputShapes[0] });
+    auto input = ov::test::utils::builder::makeParams(ngPrc, { inputShapes[0] });
 
     auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, "concat_input_memory"});
     auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);

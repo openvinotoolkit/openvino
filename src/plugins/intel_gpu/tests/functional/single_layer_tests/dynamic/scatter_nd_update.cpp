@@ -104,8 +104,8 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto dataParams = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
-        auto indicesParam = ngraph::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
+        auto dataParams = ov::test::utils::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
+        auto indicesParam = ov::test::utils::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
         dataParams[0]->set_friendly_name("Param_1");
         indicesParam[0]->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");

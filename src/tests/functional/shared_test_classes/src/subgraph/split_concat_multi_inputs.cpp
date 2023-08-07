@@ -38,7 +38,7 @@ void SplitConcatMultiInputsTest::SetUp() {
 
     inputShape[1] *= splitsNum;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
     ngraph::OutputVector concatInputs = split->outputs();

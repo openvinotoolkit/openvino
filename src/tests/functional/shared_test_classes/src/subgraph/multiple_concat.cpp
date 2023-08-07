@@ -41,7 +41,7 @@ void MultipleConcatTest::SetUp() {
     auto concat_1_vals = ov::test::utils::generate_float_numbers(constantSize, -2.0f, 2.0f);
     auto concat_2_vals = ov::test::utils::generate_float_numbers(constantSize, -5.0f, 5.0f);
 
-    auto input_parameter = ngraph::builder::makeParams(ngPrc, {input_dims});
+    auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
 
     auto const_1 = ngraph::builder::makeConstant(ngPrc, constant_dims, concat_1_vals);
     auto concat_1 = ngraph::builder::makeConcat({const_1, input_parameter[0]}, 1);

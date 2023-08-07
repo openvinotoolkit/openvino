@@ -111,7 +111,7 @@ protected:
         std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
 
         auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-        ParameterVector params = builder::makeDynamicParams(ngInPrec, inputDynamicShapes);
+        ParameterVector params = ov::test::utils::builder::makeDynamicParams(ngInPrec, inputDynamicShapes);
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
 
         auto il = builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());

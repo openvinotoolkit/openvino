@@ -158,7 +158,7 @@ protected:
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
-        auto params = builder::makeDynamicParams(netType, {inShapeA});
+        auto params = ov::test::utils::builder::makeDynamicParams(netType, {inShapeA});
 
         auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {

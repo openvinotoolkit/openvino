@@ -53,7 +53,7 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, 72}});
 
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =
@@ -102,7 +102,7 @@ protected:
 
         outPrc = InferenceEngine::Precision::FP32;
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, 72}, {1, 72}});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, 72}, {1, 72}});
 
         std::vector<size_t> outFormShapes1 = {1, 1, 6, 12};
         auto pattern1 =

@@ -37,7 +37,7 @@ void MatmulSqueezeAddTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
 
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, { outputSize, inputShape[1] },
         ov::test::utils::generate_float_numbers(outputSize * inputShape[1], 0, 1, seed), false);

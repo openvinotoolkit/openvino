@@ -113,7 +113,7 @@ protected:
         ngraph::ParameterVector inputParams;
         std::shared_ptr<Node> H;
 
-        inputParams = ngraph::builder::makeDynamicParams(ngPrec, inputDynamicShapes);
+        inputParams = ov::test::utils::builder::makeDynamicParams(ngPrec, inputDynamicShapes);
 
         const auto outputNodes = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(inputParams));
 

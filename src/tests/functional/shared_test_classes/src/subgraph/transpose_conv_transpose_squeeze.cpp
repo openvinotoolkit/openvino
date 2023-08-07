@@ -47,7 +47,7 @@ void TransposeConvTest::SetUp() {
     size_t input_channels, output_channels;
     std::tie(kernel_shape, strides, input_channels, output_channels) = conv_params;
     auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
-    auto params = ngraph::builder::makeParams(ng_prc, {input_shape});
+    auto params = ov::test::utils::builder::makeParams(ng_prc, {input_shape});
 
     std::vector<size_t> nchw_order = { 0, 3, 1, 2 };
     std::vector<size_t> nhwc_order = { 0, 2, 3, 1 };

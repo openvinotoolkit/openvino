@@ -54,7 +54,7 @@ protected:
 
         init_input_shapes({inputShape});
 
-        const auto paramsIn = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        const auto paramsIn = ov::test::utils::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
 
         auto shiftNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shift.size()}, shift)->output(0);
         auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes)->output(0);

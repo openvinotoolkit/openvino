@@ -34,7 +34,7 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
     // todo: implement conversion between std::vector<size_t> and std::vector<Shape>
-    auto input_params = ngraph::builder::makeParams(precision,
+    auto input_params = ov::test::utils::builder::makeParams(precision,
                                                     {input_shapes[0].get_shape(),
                                                      input_shapes[1].get_shape(),
                                                      input_shapes[2].get_shape()});

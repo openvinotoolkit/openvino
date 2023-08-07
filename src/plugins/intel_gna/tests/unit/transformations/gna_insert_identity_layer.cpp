@@ -634,7 +634,7 @@ public:
     void SetUp() override {
         InsertIdentityLayerTest::SetUp();
         {
-            auto inputs = makeParams(f32, {{m_input_shape}, {m_input_shape}});
+            auto inputs = ov::test::utils::builder::makeParams(f32, {{m_input_shape}, {m_input_shape}});
             auto fq = create_fq(f32, inputs[0], -1, 1, 256);
             auto relu = make_shared<Relu>(fq);
             auto reshape_const = make_shared<Constant>(i64, Shape{1}, m_input_shape);
@@ -645,7 +645,7 @@ public:
         }
 
         {
-            auto inputs = makeParams(f32, {{m_input_shape}, {m_input_shape}});
+            auto inputs = ov::test::utils::builder::makeParams(f32, {{m_input_shape}, {m_input_shape}});
             auto fq = create_fq(f32, inputs[0], -1, 1, 256);
             auto relu = make_shared<Relu>(fq);
             auto reshape_const = make_shared<Constant>(i64, Shape{1}, m_input_shape);

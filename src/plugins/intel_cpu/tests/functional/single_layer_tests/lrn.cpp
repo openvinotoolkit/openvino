@@ -55,7 +55,7 @@ protected:
         init_input_shapes({ inputShapes });
         selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes });
+        auto params = ov::test::utils::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes });
         auto axesNode = ngraph::opset1::Constant::create(ngraph::element::i32, { axes.size() }, axes);
         auto lrn = std::make_shared<ngraph::opset3::LRN>(params[0], axesNode, alpha, beta, bias, size);
         function = makeNgraphFunction(inputPrecision, params, lrn, "LRN");

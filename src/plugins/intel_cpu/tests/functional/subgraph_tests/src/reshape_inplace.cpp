@@ -44,8 +44,8 @@ protected:
         ngraph::ParameterVector params(2);
         targetStaticShapes = {{inpShape, secShape}};
         targetDevice = ov::test::utils::DEVICE_CPU;
-        params[0] = ngraph::builder::makeParams(rtPrc, {inpShape})[0];
-        params[1] = ngraph::builder::makeParams(ov::element::i32, {secShape})[0];
+        params[0] = ov::test::utils::builder::makeParams(rtPrc, {inpShape})[0];
+        params[1] = ov::test::utils::builder::makeParams(ov::element::i32, {secShape})[0];
         auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
         auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);

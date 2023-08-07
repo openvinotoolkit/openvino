@@ -16,7 +16,7 @@ protected:
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
 
         std::vector<size_t> outFormShapes1 = {1, 1, 168, 2};
         auto pattern1 =

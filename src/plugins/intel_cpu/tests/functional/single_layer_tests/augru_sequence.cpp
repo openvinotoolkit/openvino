@@ -104,7 +104,7 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
         const size_t batchSize = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
             inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
             inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :

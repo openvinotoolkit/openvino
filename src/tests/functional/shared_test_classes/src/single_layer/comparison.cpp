@@ -66,7 +66,7 @@ void ComparisonLayerTest::SetUp() {
     inPrc = ieInPrecision;
     outPrc = ieOutPrecision;
 
-    auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
+    auto inputs = ov::test::utils::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
     auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
     if (secondInputType == InputLayerType::PARAMETER) {

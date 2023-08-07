@@ -129,7 +129,7 @@ protected:
                                             bool transpose_b,
                                             const std::vector<int8_t>& weiData) {
         using namespace ngraph;
-        auto inputParamsFP32 = builder::makeDynamicParams(element::f32, {A.get_partial_shape()});
+        auto inputParamsFP32 = ov::test::utils::builder::makeDynamicParams(element::f32, {A.get_partial_shape()});
         auto matrixBFP32 = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);
 
         auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<opset3::MatMul>>(
@@ -189,7 +189,7 @@ protected:
         cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, element::i8);
 
-        auto params = builder::makeDynamicParams(inType, {inShapeA});
+        auto params = ov::test::utils::builder::makeDynamicParams(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
 
         auto matrixB = builder::makeDynamicInputLayer(element::f32, helpers::InputLayerType::CONSTANT, inShapeB);

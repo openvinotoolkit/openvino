@@ -74,7 +74,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto normalize = builder::makeNormalizeL2(params[0], axes, eps, epsMode);
         function = makeNgraphFunction(inType, params, normalize, "Normalize");
     }

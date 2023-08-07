@@ -29,7 +29,7 @@ protected:
 };
 
 void MemoryTestGna::CreateCommonFunc() {
-    auto param = builder::makeParams(ngPrc, {inputShape});
+    auto param = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
     const auto variable_info = VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
     auto variable = std::make_shared<Variable>(variable_info);
 

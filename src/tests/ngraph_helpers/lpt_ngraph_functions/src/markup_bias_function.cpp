@@ -15,7 +15,7 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
                                                    const ov::PartialShape& add_shape,
                                                    const std::string& layer_type,
                                                    const bool extra_multipy) {
-    auto input_params = builder::makeDynamicParams(precision, {input_shape});
+    auto input_params = ov::test::utils::builder::makeDynamicParams(precision, {input_shape});
     auto il = opset1::Constant::create(precision, {}, {0.f});
     auto ih = opset1::Constant::create(precision, {}, {12.5f});
     auto ol = opset1::Constant::create(precision, {}, {0.f});

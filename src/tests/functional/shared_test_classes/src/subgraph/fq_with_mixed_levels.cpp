@@ -46,7 +46,7 @@ void FqWithMixedLevelsTest::SetUp() {
         return ngraph::builder::makeFakeQuantize(add, ngPrc, level3, { 1 }, data3[0], data3[1], data3[2], data3[3]);
     };
 
-    auto params = ngraph::builder::makeParams(ngPrc, {{ 1, 8 }});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {{ 1, 8 }});
     auto input = ngraph::builder::makeFakeQuantize(params[0], ngPrc, std::numeric_limits<uint32_t>::max(), { 1 },
         { -10. }, { 10. }, { -10. }, { 10. });
     input = unit(input,

@@ -60,7 +60,7 @@ protected:
 
         init_input_shapes({ inputShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
         auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
         function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }

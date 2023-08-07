@@ -77,7 +77,7 @@ protected:
         std::shared_ptr<ngraph::Node> inp3;
         std::shared_ptr<ngraph::Node> inp4;
 
-        auto paramsIn = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        auto paramsIn = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
         if (ngraph::helpers::InputLayerType::PARAMETER == secondaryInputType) {
             inp2 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[1]);
             inp3 = ngraph::builder::makeDynamicInputLayer(netPrecision, secondaryInputType, inputDynamicShapes[2]);

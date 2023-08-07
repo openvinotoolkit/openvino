@@ -53,7 +53,7 @@ protected:
         init_input_shapes(input_shapes);
 
         ov::element::TypeVector input_precisions{input_precision, ov::element::i64};
-        const auto params = ngraph::builder::makeDynamicParams(input_precisions, inputDynamicShapes);
+        const auto params = ov::test::utils::builder::makeDynamicParams(input_precisions, inputDynamicShapes);
         const auto bcast_data = ov::opset10::Constant::create(input_precision, {}, {1.f});
         const auto bcast = std::make_shared<ov::opset10::Broadcast>(bcast_data, params[1]);
         const auto add = std::make_shared<ov::opset10::Add>(params[0], bcast);

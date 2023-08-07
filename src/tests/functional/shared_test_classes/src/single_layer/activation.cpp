@@ -39,7 +39,7 @@ void ActivationLayerTest::SetUp() {
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {shapes.first});
     params[0]->set_friendly_name("Input");
 
     if (activationType == ngraph::helpers::ActivationTypes::PReLu && constantsValue.empty()) {
@@ -152,23 +152,23 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
 ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
-            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            auto negativeSlopeParam = ov::test::utils::builder::makeParams(ngPrc, {inShape});
             negativeSlopeParam[0]->set_friendly_name("negativeSlope");
             return negativeSlopeParam;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
-            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            auto leakySlopeParam = ov::test::utils::builder::makeParams(ngPrc, {inShape});
             leakySlopeParam[0]->set_friendly_name("leakySlope");
             return leakySlopeParam;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
-            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            auto hardSigmoidParam = ov::test::utils::builder::makeParams(ngPrc, {inShape, inShape});
             hardSigmoidParam[0]->set_friendly_name("alpha");
             hardSigmoidParam[1]->set_friendly_name("beta");
             return hardSigmoidParam;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
-            auto seluParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            auto seluParam = ov::test::utils::builder::makeParams(ngPrc, {inShape, inShape});
             seluParam[0]->set_friendly_name("alpha");
             seluParam[1]->set_friendly_name("lambda");
             return seluParam;
@@ -209,7 +209,7 @@ void ActivationParamLayerTest::SetUp() {
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    auto params = ov::test::utils::builder::makeParams(ngPrc, {shapes.first});
     auto activationParams = createActivationParams(ngPrc, shapes.second);
 
     params[0]->set_friendly_name("Input");

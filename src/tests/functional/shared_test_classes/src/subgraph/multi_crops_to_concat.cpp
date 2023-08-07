@@ -38,7 +38,7 @@ void MultiCropsToConcatTest::SetUp() {
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
+    auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
 
     auto crop1 = ngraph::builder::makeStridedSlice(params[0], std::vector<int64_t>{0, offsets[0].first}, std::vector<int64_t>{1, offsets[0].second},
                                                 std::vector<int64_t>{1, 1}, ngPrc, std::vector<int64_t>{1, 0},

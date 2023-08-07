@@ -86,7 +86,7 @@ protected:
         size_t numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto groupConvolutionNode = ngraph::builder::makeGroupConvolution(paramOuts.front(), netType, kernel, stride, padBegin,

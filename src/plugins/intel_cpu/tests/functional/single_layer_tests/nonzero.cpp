@@ -82,7 +82,7 @@ protected:
         std::tie(startFrom, range) = genData;
 
         init_input_shapes({inputShape});
-        auto inputParams = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::makeDynamicParams(netType, inputDynamicShapes);
 
         auto nonZero = std::make_shared<ngraph::opset3::NonZero>(inputParams[0]);
         // I8 was used as a special placeholder during calculating of primitive type if input was U8,

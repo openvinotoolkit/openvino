@@ -62,7 +62,7 @@ protected:
         std::tie(inShapes, isFC, inType, outType, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         const auto ngPrec = element::f32;
-        auto inputParams = builder::makeParams(ngPrec, {inShapes});
+        auto inputParams = ov::test::utils::builder::makeParams(ngPrec, {inShapes});
 
         std::shared_ptr<Node> fq1;
         std::shared_ptr<Node> matMul;
