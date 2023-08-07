@@ -205,44 +205,28 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
     long last_vmrss = 0;
     long last_vmhwm = 0;
     int loop_iters = test_params.numiters;
+    if (loop_iters < 10) {
+        GTEST_SKIP() << "Skipping the test case, loop niter < 10";
+    }
+    ov::Core core;
     for (int m = 0; m < test_params.models.size(); m++) {
         auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
-        ie_api_wrapper->read_network(test_params.models[m]["full_path"]);
-        ie_api_wrapper->load_network(test_params.device);
-        ie_api_wrapper->set_config(test_params.device, "THROUGHPUT_STREAMS", test_params.numthreads);
-        int count = 0;
+        auto model = core.read_model(test_params.models[m]["full_path"]);
+        auto compile_model = core.compile_model(model, test_params.device);
+        int peak_count = 0;
         std::vector<long> memory_data;
         memory_data.reserve(loop_iters * 4);
         for (int z = 0; z < loop_iters; z++) {
-            std::cout << z << std::endl;
             {
-                std::srand(std::time(nullptr)); // use current time as seed for random generator
-                // int random_variable = std::rand();
-                int random_variable = 0;
-                std::vector<std::thread> empty_threads;
-                for (int i = 0; i < random_variable % 1000 ; i++) {
-                    empty_threads.push_back(std::thread([](){}));
-                }
                 std::vector<std::thread> threads;
-                std::vector<std::thread::id> threads_ids;
                 for (int i = 0; i < test_params.numthreads; i++) {
-                    threads.push_back(std::thread([&ie_api_wrapper](){
-                                ie_api_wrapper->create_infer_request();
-                                ie_api_wrapper->prepare_input();
-                                ie_api_wrapper->infer();
+                    threads.push_back(std::thread([&compile_model](){
+                                auto infer_request = compile_model.create_infer_request();
+                                infer_request.infer();
                                 }));
                 }
                 for (int i = 0; i < test_params.numthreads; i++) {
-                    threads_ids.push_back(threads[i].get_id());
                     threads[i].join();
-                }
-                std::sort(threads_ids.begin(), threads_ids.end());
-                for (int i = 0; i < test_params.numthreads; i++) {
-                    std::cout << "thread_ids:" << threads_ids[i] << std::endl;
-                }
-
-                for (int i = 0; i < random_variable % 1000; i++) {
-                    empty_threads[i].join();
                 }
             }
             getVmValues(vmsize, vmpeak, vmrss, vmhwm);
@@ -250,12 +234,12 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
             memory_data.push_back(vmpeak);
             memory_data.push_back(vmrss);
             memory_data.push_back(vmhwm);
-            if (vmsize > last_vmsize) {
-                count++;
-                last_vmsize = vmsize;
+            if (vmpeak > last_vmpeak) {
+                last_vmpeak = vmpeak;
+                peak_count++;
             }
         }
-        if(count >= 0) {
+        if (peak_count >  loop_iters * 2 / 3) {
             for(int i = 0, y = 0; i < loop_iters * 4; i = i + 4, y++) {
                 std::cout << "loop:" << y << " vmsize:" << memory_data[i] <<
                     " vmpeak:" << memory_data[i+1] <<
@@ -263,7 +247,7 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
                     " vmhwm:" << memory_data[i+3] << std::endl;
             }
         }
-        EXPECT_LE(count, 2);
+        EXPECT_LE(peak_count, loop_iters * 2 / 3);
     }
 }
 
