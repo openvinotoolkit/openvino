@@ -327,13 +327,13 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
-    auto valid = ::CheckStatic(network);
-    OPENVINO_ASSERT(std::get<0>(valid),
-                    "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
-                    "Use ov::Core::compile_model API instead. Dynamic inputs are :",
-                    std::get<1>(valid));
-
     try {
+        auto valid = ::CheckStatic(network);
+        OPENVINO_ASSERT(std::get<0>(valid),
+                        "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
+                        "Use ov::Core::compile_model API instead. Dynamic inputs are :",
+                        std::get<1>(valid));
+
         return _impl->QueryNetwork(network, deviceName, config);
     } catch (const ov::Exception& ex) {
         IE_THROW() << ex.what();
