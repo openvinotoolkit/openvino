@@ -9,6 +9,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <openvino/pass/constant_folding.hpp>
+#include <transformations/rt_info/decompression.hpp>
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& first_convert) {
     auto first_convert_users = first_convert->get_users();
@@ -65,6 +66,11 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
 
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input_type = fq->get_element_type();
+        const auto& fq_data_input = fq->get_input_node_shared_ptr(0);
+        bool are_weights_decompressed = is_decompression(fq_data_input);
+        if (are_weights_decompressed) {
+            unmark_as_decompression(fq_data_input);
+        }
 
         // skip dequantize part if there is already dequantization subgraph after FakeQuantize
         auto fq_users = fq->get_users();
@@ -83,6 +89,9 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                 }
                 return true;
             } else {
+                if (are_weights_decompressed) {
+                    mark_as_decompression(fq_data_input);
+                }
                 return false;
             }
         } else {
@@ -102,9 +111,6 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             const auto& weights_const = pattern_value_map.at(weights_const_pattern);
             Output<Node> input_low = pattern_value_map.at(input_low_pattern);
             Output<Node> input_high = pattern_value_map.at(input_high_pattern);
-            const auto& fq_data_input = pattern_value_map.count(weigths_convert_pattern)
-                                            ? pattern_value_map.at(weigths_convert_pattern)
-                                            : weights_const;
             auto quantize =
                 fq->clone_with_new_inputs({fq_data_input, input_low, input_high, new_output_low, new_output_high});
             // Convert quantized weights to low precision type
@@ -115,6 +121,9 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 new_weights = constant;
             } else {
+                if (are_weights_decompressed) {
+                    mark_as_decompression(fq_data_input);
+                }
                 return false;
             }
             new_weights->set_friendly_name(weights_const.get_node()->get_friendly_name());
