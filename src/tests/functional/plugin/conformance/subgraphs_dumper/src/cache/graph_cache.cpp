@@ -40,7 +40,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
                               std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
     // todo: check the number
-    if (m_graph_cache.size() > 1000) {
+    if (m_graph_cache.size() > 100) {
         serialize_cache();
         m_graph_cache.clear();
     }
