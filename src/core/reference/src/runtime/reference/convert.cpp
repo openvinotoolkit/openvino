@@ -15,7 +15,7 @@ namespace {
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
 
-template <typename src_t, typename dst_t>
+template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec_prepare(jit::Generator&) {}
 
 template <>
@@ -54,12 +54,32 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
+void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
+    auto addr = gen.r15;
+
+    static const float f16_max = std::numeric_limits<ov::float16>::max();
+    static const float f16_min = std::numeric_limits<ov::float16>::lowest();
+    static const float upper_bounds[8] = {f16_max, f16_max, f16_max, f16_max, f16_max, f16_max, f16_max, f16_max};
+    static const float lower_bounds[8] = {f16_min, f16_min, f16_min, f16_min, f16_min, f16_min, f16_min, f16_min};
+
+    gen.mov(addr, (size_t)upper_bounds);
+    gen.vmovdqu(upper_bound, gen.yword[addr]);
+    gen.mov(addr, (size_t)lower_bounds);
+    gen.vmovdqu(lower_bound, gen.yword[addr]);
+}
+
+template <>
 void jit_convert_vec<float, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
     auto f16vec = gen.xmm3;
     auto f32vec = gen.ymm4;
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
 
     gen.vmovups(f32vec, gen.yword[src]);
-    // FIXME: Add clamping here
+    gen.vminps(f32vec, f32vec, upper_bound);
+    gen.vmaxps(f32vec, f32vec, lower_bound);
     gen.vcvtps2ph(f16vec, f32vec, 0);
     gen.vmovdqu(gen.xword[dst], f16vec);
 }
@@ -186,13 +206,13 @@ public:
 
     typedef void (*fn_t)(const args_t*);
 
-    template <typename src_t, typename dst_t, bool clamp = true>
+    template <typename src_t, typename dst_t, bool clamp = false>
     static fn_t get() {
         if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16)) {
             static const jit_convert_array::context_t context{{sizeof(src_t), &jit::Generator::copy<src_t>},
                                                               {sizeof(dst_t), &jit::Generator::copy<dst_t>},
                                                               jit_convert_vec<src_t, dst_t, clamp>,
-                                                              jit_convert_vec_prepare<src_t, dst_t>};
+                                                              jit_convert_vec_prepare<src_t, dst_t, clamp>};
 
             static jit_convert_array generator(context);
 
@@ -215,6 +235,27 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
         }
     }
 }
+
+template <>
+void convert_impl<float, float16, true>(const float* arg, float16* out, size_t count) {
+    auto converter = jit_convert_array::get<float, float16, true>();
+
+    if (converter) {
+        jit_convert_array::args_t args = {arg, out, count};
+        converter(&args);
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+                out[i] = std::numeric_limits<ov::float16>::max();
+            } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+                out[i] = std::numeric_limits<ov::float16>::lowest();
+            } else {
+                out[i] = static_cast<ov::float16>(arg[i]);
+            }
+        }
+    }
+}
+
 }  // namespace
 
 template <>
@@ -243,24 +284,7 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
 }
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-#    if 0
-    // TODO: Implement it correctly
     convert_impl<float, float16, true>(arg, out, count);
-#    else
-    // Slow reference implementation
-    for (size_t i = 0; i < count; ++i) {
-        // if abs value is smaller than the smallest positive fp16, but not zero
-        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
-            out[i] = 0;
-        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-            out[i] = std::numeric_limits<ov::float16>::max();
-        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-            out[i] = std::numeric_limits<ov::float16>::lowest();
-        } else {
-            out[i] = static_cast<ov::float16>(arg[i]);
-        }
-    }
-#    endif
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
