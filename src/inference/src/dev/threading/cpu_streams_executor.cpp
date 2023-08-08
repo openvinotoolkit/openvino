@@ -316,11 +316,12 @@ struct CPUStreamsExecutor::Impl {
 #endif
     };
     // if the thread is created by CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class
-    // enumerable_thread_specific, the alias is ThreadLocal, the limit of ThreadLocal please refer to
+    // enumerable_thread_specific, the alias is ThreadLocal, the limitations of ThreadLocal please refer to
     // https://spec.oneapi.io/versions/latest/elements/oneTBB/source/thread_local_storage/enumerable_thread_specific_cls.html
     // if the thread is created by customer, the Impl::Stream of the thread will be stored in variable _stream_map, and
-    // will be count by thread_local t_stream_count_map when the customer's thread is destoried, the stream's count will
-    // became 1 and local() will reuse one of them, and release others.
+    // will be counted by thread_local t_stream_count_map. 
+    // when the customer's thread is destoryed, the stream's count will became 1,
+    // Call local() will reuse one of them, and release others.
     class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
