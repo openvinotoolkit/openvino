@@ -240,7 +240,7 @@ void FullyConnected::getSupportedDescriptors() {
 
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
-#if defined(OV_CPU_WITH_MLAS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+#if defined(OV_CPU_WITH_MLAS)
     // MLAS doesn't support post-ops fusing and only supports FP32. INT8 is not enabled yet
     // Disable MLAS when FC could fuse post-ops
     useMlas = !useSparseWeights && !useWeightsDecompressionImpl &&
