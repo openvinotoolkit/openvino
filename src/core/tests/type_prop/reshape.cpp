@@ -783,6 +783,27 @@ TEST(type_prop, reshape_label_propagation) {
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 22, 13, ov::no_label));
 }
 
+TEST(type_prop, reshape_label_propagation_minus_one_corner_case_zero_div_by_inf) {
+    auto param_shape = PartialShape{0, 0};
+    auto out_shape = PartialShape{-1, 2};
+    set_shape_labels(param_shape, 10);
+    set_shape_labels(out_shape, 20);
+
+    const auto data = make_shared<op::Parameter>(element::f32, param_shape);
+    const auto out = make_shared<op::Parameter>(element::f32, out_shape);
+    const auto shape_of = make_shared<op::v3::ShapeOf>(out);
+    auto dims_from_out_shape = make_shared<op::v1::Gather>(shape_of,
+                                                           op::Constant::create(element::i64, {2}, {0, 1}),
+                                                           op::Constant::create(element::i64, {}, {0}));
+    const auto special_volume = op::Constant::create(element::i64, {1}, {-1});
+    const auto shape = make_shared<op::Concat>(OutputVector{special_volume, dims_from_out_shape}, 0);
+
+    const auto op = make_shared<op::v1::Reshape>(data, shape, true);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, 2}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(ov::no_label, 20, 21));
+}
+
 TEST(type_prop, reshape_default_ctor) {
     auto param_shape = PartialShape{{1, 2}, {2, 4}, 6, {2, 4}, 8};
     auto out_shape = PartialShape{{3, 5}, 0, 1, 0};

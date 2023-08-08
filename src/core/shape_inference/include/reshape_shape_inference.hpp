@@ -97,6 +97,8 @@ TDim resolve_minus_one_dim(const Product<TDim>& product_in, const TDim& product_
         auto& out_interval = out.get_interval();
         if (product_out.get_min_length() != 0 && out_interval != Interval{} && product_out != TDim{}) {
             out_interval.set_max_val(out_interval.get_max_val() / product_out.get_min_length());
+        } else {
+            out_interval.set_max_val(Interval::s_max);
         }
         if (product_out.get_max_length() != 0) {
             out_interval.set_min_val(ceil_div(out_interval.get_min_val(), product_out.get_interval().get_max_val()));
