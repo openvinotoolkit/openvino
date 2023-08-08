@@ -36,7 +36,7 @@ The transformation function is a function that takes a sample from the dataset a
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
@@ -57,7 +57,7 @@ The transformation function is a function that takes a sample from the dataset a
          :fragment: [dataset]
 
    .. tab-item:: TensorFlow
-      :sync: tf
+      :sync: tensorflow
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
          :language: python
@@ -75,7 +75,7 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
@@ -96,7 +96,7 @@ See the `example section <#examples-of-how-to-apply-nncf-post-training-quantizat
          :fragment: [quantization]
 
    .. tab-item:: TensorFlow
-      :sync: tf
+      :sync: tensorflow
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
          :language: python
@@ -109,7 +109,7 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
@@ -130,7 +130,7 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
          :fragment:  [inference]
 
    .. tab-item:: TensorFlow
-      :sync: tf
+      :sync: tensorflow
 
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
          :language: python
