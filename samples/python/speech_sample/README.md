@@ -95,7 +95,7 @@ Several execution modes are supported via the ``-d`` flag:
 
 - ``CPU`` - All calculations are performed on CPU device using CPU Plugin.
 - ``GPU`` - All calculations are performed on GPU device using GPU Plugin.
-- ``VPU`` - All calculations are performed on VPU device using VPU Plugin.
+- ``VPUX`` - All calculations are performed on VPUX device using VPUX Plugin.
 - ``GNA_AUTO`` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - ``GNA_HW`` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - ``GNA_SW`` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -155,7 +155,7 @@ Usage message:
                            Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>.
                            Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.
      -d DEVICE, --device DEVICE
-                           Optional. Specify a target device to infer on. CPU, GPU, VPU, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
+                           Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
                            GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
                            HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.      
                            Default value is CPU.

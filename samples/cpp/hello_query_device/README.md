@@ -84,6 +84,8 @@ The application prints all available devices with their supported metrics and de
    [ INFO ]                CPU_THREADS_NUM : 0
    [ INFO ]                CPU_THROUGHPUT_STREAMS : 1
    [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT : ""
+   [ INFO ]                DYN_BATCH_ENABLED : NO
+   [ INFO ]                DYN_BATCH_LIMIT : 0
    [ INFO ]                ENFORCE_BF16 : NO
    [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS : NO
    [ INFO ]                PERFORMANCE_HINT : ""
