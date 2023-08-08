@@ -78,17 +78,16 @@ bool get_cpu_pinning(bool& input_value,
     int result_value;
     int num_sockets = get_default_latency_streams(latency_threading_mode);
     bool latency = num_streams <= num_sockets && num_streams > 0;
+    bool bind = bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA;
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
         proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
         result_value =
             input_changed
                 ? input_value
-                : ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
+                : (latency ? false : true);
     } else {
-        result_value = input_changed
-                           ? input_value
-                           : (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
+        result_value = input_changed ? input_value : true;
     }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 #    if defined(__APPLE__) || defined(_WIN32)

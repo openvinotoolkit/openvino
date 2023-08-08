@@ -165,7 +165,9 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->GetStreamId();
-        socketId = streamsExecutor->GetSocketId();
+        socketId = _cfg.streamExecutorConfig._threadBindingType == threading::IStreamsExecutor::ThreadBindingType::NUMA
+                       ? streamsExecutor->GetNumaNodeId()
+                       : streamsExecutor->GetSocketId();
     }
     auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {

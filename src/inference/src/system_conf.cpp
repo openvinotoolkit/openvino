@@ -324,7 +324,9 @@ int get_num_numa_nodes() {
 }
 
 int get_num_sockets() {
-    return cpu_info()._sockets;
+    CPU& cpu = cpu_info();
+    int max_num = std::max(cpu._sockets, cpu._numa_nodes);
+    return max_num;
 }
 
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
