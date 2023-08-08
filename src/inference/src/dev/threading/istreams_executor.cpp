@@ -151,7 +151,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             }
             _threadsPerStream = val_i;
         } else if (key == ov::internal::threads_per_stream) {
-            _threadsPerStream = value.as<size_t>();
+            _threadsPerStream = static_cast<int>(value.as<size_t>());
         } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
             int val_i;
             try {
