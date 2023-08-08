@@ -351,6 +351,7 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
+    bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
     event::ptr realloc_if_needed();
