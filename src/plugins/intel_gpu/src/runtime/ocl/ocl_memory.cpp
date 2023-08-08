@@ -436,18 +436,24 @@ event::ptr gpu_usm::fill(stream& stream) {
 
 event::ptr gpu_usm::copy_from(stream& stream, const memory& other, bool blocking) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
-    auto& casted = downcast<const gpu_usm>(other);
-    auto dst_ptr = get_buffer().get();
-    auto src_ptr = casted.get_buffer().get();
     auto ev = blocking ? stream.create_user_event(true) : stream.create_base_event();
     cl::Event* ev_ocl = blocking ? nullptr : &downcast<ocl_event>(ev.get())->get();
-    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
-                                              dst_ptr,
-                                              src_ptr,
-                                              _bytes_count,
-                                              blocking,
-                                              nullptr,
-                                              ev_ocl);
+    if (other.get_allocation_type() == allocation_type::cl_mem) {
+        // Copy cl_mem to usm_memory by cl::CommandQueue::enqueueReadBuffer()
+        auto& mem_inst = downcast<const gpu_buffer>(other);
+        cl_stream.get_cl_queue().enqueueReadBuffer(mem_inst.get_buffer(), blocking, 0, size(), this->buffer_ptr(), nullptr, ev_ocl);
+    } else {
+        auto& casted = downcast<const gpu_usm>(other);
+        auto dst_ptr = get_buffer().get();
+        auto src_ptr = casted.get_buffer().get();
+        cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
+                                                dst_ptr,
+                                                src_ptr,
+                                                _bytes_count,
+                                                blocking,
+                                                nullptr,
+                                                ev_ocl);
+    }
     return ev;
 }
 
