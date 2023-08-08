@@ -9,6 +9,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "iplugin_wrapper.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
@@ -138,6 +139,25 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;
+            }
+        }
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return {m_ptr->get_property(name, arguments), {m_so}};
+            } catch (const ov::Exception&) {
+                auto props =
+                    m_ptr->get_property(ov::supported_properties.name(), arguments).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+
+                return legacy_properties;
             }
         }
         return {m_ptr->get_property(name, arguments), {m_so}};
