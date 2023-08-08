@@ -406,15 +406,15 @@ int get_model_prefer_threads(const int num_streams,
     // latency
     if (num_streams <= sockets && num_streams > 0) {
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
-            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
 #ifdef __APPLE__
             if ((proc_type_table.size() == 1) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
                 model_prefer = proc_type_table[0][ALL_PROC];
             }
 #else
+            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
+            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                  (fp_intesive ? fp32_threshold : int8_threshold))
                                ? proc_type_table[0][MAIN_CORE_PROC]
