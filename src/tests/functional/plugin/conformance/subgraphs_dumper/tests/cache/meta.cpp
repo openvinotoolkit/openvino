@@ -190,6 +190,16 @@ TEST_F(MetaInfoUnitTest, serialize) {
     }
 }
 
+TEST_F(MetaInfoUnitTest, read_meta_from_file) {
+    std::string seriliazation_path(ov::util::path_join({test_artifacts_dir, "test_meta.meta"}));
+    this->extractors = { "extractor_0", "extractor_1" };
+    this->serialize(seriliazation_path);
+    auto new_meta = MetaInfo::read_meta_from_file(seriliazation_path);
+    ASSERT_TRUE(this->extractors.count(new_meta.get_any_extractor()));
+    ASSERT_EQ(new_meta.get_input_info(), this->input_info);
+    ASSERT_EQ(new_meta.get_model_info(), this->model_info);
+}
+
 TEST_F(MetaInfoUnitTest, update) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
     std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo(0, 1, true) }};

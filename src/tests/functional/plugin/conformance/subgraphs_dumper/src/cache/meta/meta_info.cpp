@@ -57,7 +57,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
             tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
             tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
             for (const auto& path : model_child.child("path")) {
-                tmp_model_info.model_paths.insert(std::string(path.child("model").attribute("path").value()));
+                tmp_model_info.model_paths.insert(std::string(path.attribute("path").value()));
             }
             model_info.insert({ std::string(model_child.attribute("name").value()), tmp_model_info });
         }
