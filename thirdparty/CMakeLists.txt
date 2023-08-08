@@ -600,7 +600,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES)
-    # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+    # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         # conan creates imported target nlohmann_json::nlohmann_json
@@ -610,7 +610,7 @@ if(ENABLE_SAMPLES)
     else()
         add_subdirectory(json)
 
-        # this is required only because of VPUX plugin reused this
+        # this is required only because of NPU plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
         # for nlohmann library versions older than v3.0.0

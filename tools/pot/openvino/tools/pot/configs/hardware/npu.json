@@ -1,5 +1,5 @@
 {
-    "target_device": "VPU",
+    "target_device": "NPU",
     "config": {
         "quantization": {
             "q8_tn": {

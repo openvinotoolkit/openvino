@@ -533,7 +533,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
     std::list<DeviceInformation> MYRIAD;
-    std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> NPU;
 
     for (auto& item : metaDevices) {
         if (item.deviceName.find("CPU") == 0) {
@@ -544,8 +544,8 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             MYRIAD.push_back(item);
             continue;
         }
-        if (item.deviceName.find("VPUX") == 0) {
-            VPUX.push_back(item);
+        if (item.deviceName.find("NPU") == 0) {
+            NPU.push_back(item);
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
@@ -566,14 +566,14 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
         }
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
+    // Priority of selecting device: dGPU > NPU > iGPU > MYRIAD > CPU
     std::list<DeviceInformation> devices;
     if (networkPrecision == "INT8") {
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), NPU);
         devices.splice(devices.end(), dGPU);
     } else {
         devices.splice(devices.end(), dGPU);
-        devices.splice(devices.end(), VPUX);
+        devices.splice(devices.end(), NPU);
     }
     devices.splice(devices.end(), iGPU);
     devices.splice(devices.end(), MYRIAD);
