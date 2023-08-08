@@ -775,21 +775,23 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto& desc = descs[dIdx];
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
 
+        auto add_supported_desc = [&](dnnl::primitive_desc& desc) {
+            addSupportedPrimitiveDescriptor(desc);
+            descIdx.push_back(dIdx);
+        };
+
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
                                                         return contains(getImplPriority(), implType);
                                                     },
-                                                    [&](dnnl::primitive_desc& desc) {
-                                                        addSupportedPrimitiveDescriptor(desc);
-                                                        descIdx.push_back(dIdx);
-                                                    });
+                                                    add_supported_desc);
 
         // fallback. if none of the primitive types is present in the priority list just add first implementation
         // @todo this fallback is not necessary if primitive priority list is filled correctly
         if (supportedPrimitiveDescriptors.empty())
-            addSupportedPrimitiveDescriptor(first_desc);
+            add_supported_desc(first_desc);
     }
 }
 
