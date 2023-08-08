@@ -136,6 +136,14 @@ const std::vector<InputShape>& inShapes_4D_static() {
     return inShapes_4D_static;
 }
 
+const std::vector<InputShape>& inShapes_7D_static() {
+    static const std::vector<InputShape> inShapes_7D_static = {
+        {{1, 2, 3, 4, 5, 6, 7}, {{1, 2, 3, 4, 5, 6, 7}}},
+        {{1, 1, 1, 1, 1, 1080, 1920}, {{1, 1, 1, 1, 1, 1080, 1920}}},
+    };
+    return inShapes_7D_static;
+}
+
 const std::vector<InputShape>& inShapes_4D_dynamic() {
     static const std::vector<InputShape> inShapes_4D_dynamic = {
             {
@@ -160,6 +168,32 @@ const std::vector<InputShape>& inShapes_4D_dynamic() {
             }
     };
     return inShapes_4D_dynamic;
+}
+
+const std::vector<InputShape>& inShapes_7D_dynamic() {
+    static const std::vector<InputShape> inShapes_7D_dynamic = {
+            {
+                // dynamic
+                {{-1, -1, -1, -1, -1, -1, -1}},
+                // target
+                {
+                    {2, 4, 4, 4, 3, 3, 1},
+                    {2, 17, 5, 4, 3, 2, 1},
+                    {1, 2, 3, 4, 5, 6, 7}
+                }
+            },
+            {
+                // dynamic
+                {{{1, 5}, {2, 22}, {2, 9}, {1, 4}, {1, 4}, {1, 4}, {1, 4}}},
+                // target
+                {
+                    {2, 17, 5, 4, 3, 1, 2},
+                    {5, 2, 3, 2, 4, 1, 3},
+                    {1, 10, 4, 1, 4, 2, 3},
+                }
+            }
+    };
+    return inShapes_7D_dynamic;
 }
 
 const std::vector<Precision>& precisions() {
