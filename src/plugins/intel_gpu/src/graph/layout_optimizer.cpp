@@ -1258,14 +1258,9 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
                               node.as<gemm>().get_input_layout(1).data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
-        auto input_fmt = node.get_input_layout(0).format;
         auto output_fmt = node.get_output_layout().format;
 
         // For mixed precision case, oneDNN is slower than clDNN
-        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
-        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
         if (output_fmt == format::bfyx && out_dt == data_types::f32)
             return false;
 
