@@ -501,6 +501,7 @@ def test_single_property_setting(device):
             properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.num_requests(): 12,
             "NUM_STREAMS": properties.streams.Num(5),
+            "ENABLE_MMAP": "NO",
         },
     ],
 )

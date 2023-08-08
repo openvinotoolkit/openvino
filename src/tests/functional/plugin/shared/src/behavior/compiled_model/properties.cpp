@@ -3,8 +3,10 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
-#include "openvino/runtime/properties.hpp"
+
 #include <cstdint>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -94,6 +96,16 @@ TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndChec
     }
 }
 
+TEST_P(OVClassCompileModelWithCorrectPropertiesTest, IgnoreEnableMMap) {
+    if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
+        target_device.find("BATCH:") == 0)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // Load available plugins
+    core->get_available_devices();
+    OV_ASSERT_NO_THROW(core->set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::enable_mmap(false)));
+}
+
 TEST_P(OVClassCompileModelWithCorrectPropertiesTest, CompileModelWithCorrectPropertiesTest) {
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
 }
@@ -137,7 +149,8 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+        ASSERT_EQ(default_property.second, property)
+            << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
 }
@@ -216,7 +229,6 @@ TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_SUPPORTED_CONFIG_KE
     ASSERT_EXEC_METRIC_SUPPORTED(ov::supported_properties);
 }
 
-
 TEST_P(OVClassCompiledModelGetPropertyTest, GetMetricNoThrow_NETWORK_NAME) {
     ov::Core ie = createCoreWithTemplate();
 
@@ -273,7 +285,6 @@ TEST_P(OVClassCompiledModelSetIncorrectConfigTest, canNotSetConfigToCompiledMode
     EXPECT_ANY_THROW(compiled_model.set_property(config));
 }
 
-
 // writeble
 TEST_P(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
@@ -310,13 +321,15 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     std::vector<std::string> expected_devices = util::split(expectedDeviceName, ',');
     std::vector<std::string> updatedExpectDevices;
     updatedExpectDevices.assign(expected_devices.begin(), expected_devices.end());
-    for (auto &iter : compileModelProperties) {
-        if ((iter.first == ov::hint::performance_mode && iter.second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ||
+    for (auto& iter : compileModelProperties) {
+        if ((iter.first == ov::hint::performance_mode &&
+             iter.second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ||
             ov::test::behavior::sw_plugin_in_target_device(target_device)) {
             for (auto& deviceName : expected_devices) {
                 for (auto&& device : deviceList) {
                     if (device.find(deviceName) != std::string::npos) {
-                        auto updatedExpectDevices_iter = std::find(updatedExpectDevices.begin(), updatedExpectDevices.end(), deviceName);
+                        auto updatedExpectDevices_iter =
+                            std::find(updatedExpectDevices.begin(), updatedExpectDevices.end(), deviceName);
                         if (updatedExpectDevices_iter != updatedExpectDevices.end())
                             updatedExpectDevices.erase(updatedExpectDevices_iter);
                         updatedExpectDevices.push_back(std::move(device));

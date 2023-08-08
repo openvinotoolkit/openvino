@@ -1277,6 +1277,18 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                 coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
+            // apply and remove core properties
+            auto it = config.find(ov::force_tbb_terminate.name());
+            if (it != config.end()) {
+                auto flag = it->second.as<bool>();
+                ov::threading::executor_manager()->set_property({{it->first, flag}});
+                config.erase(it);
+            }
+
+            it = config.find(ov::enable_mmap.name());
+            if (it != config.end()) {
+                config.erase(it);
+            }
         }
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
