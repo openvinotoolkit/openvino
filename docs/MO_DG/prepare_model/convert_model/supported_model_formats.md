@@ -19,7 +19,7 @@
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other model formats presented below will ultimately be converted to :doc:`OpenVINO IR <openvino_ir>`.
 
-**ONNX, Pytorch, PaddlePaddle, TensorFlow, and TensorFlow Lite** are supported directly, which means they may be used without any prior conversion and can be read directly by OpenVINO Runtime API by the use of ``read_model()`` or ``compile_model()``. Additional adjustment for the model can be performed using the ``convert_model()`` method, which allows you to set shapes, types or the layout of model inputs, cut parts of the model, freeze inputs etc. The detailed information of capabilities of  ``convert_model()`` can be found in :doc:`this <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` article.
+**ONNX, Pytorch, PaddlePaddle, TensorFlow, and TensorFlow Lite** may be used without any prior conversion and can be read directly by OpenVINO Runtime API by the use of ``read_model()`` or ``compile_model()``. Additional adjustment for the model can be performed using the ``convert_model()`` method, which allows you to set shapes, types or the layout of model inputs, cut parts of the model, freeze inputs etc. The detailed information of capabilities of  ``convert_model()`` can be found in :doc:`this <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` article.
 
 Below you will find code examples for each method, for all supported model formats.
 
