@@ -8,6 +8,17 @@
 #include "openvino/core/except.hpp"
 #include "precomp.hpp"
 
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    define _WINSOCKAPI_
+
+#    include <windows.h>
+
+#    include "psapi.h"
+#endif
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -34,11 +45,69 @@ std::string generateTestFilePrefix() {
     testName += testInfo->name();
     testName = std::to_string(std::hash<std::string>()(testName));
     std::stringstream ss;
-    auto ts = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+    auto ts = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::high_resolution_clock::now().time_since_epoch());
     ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
     testName = ss.str();
     return testName;
 }
+
+#ifdef _WIN32
+static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
+    static PROCESS_MEMORY_COUNTERS pmc;
+    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+    GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb);
+    return pmc;
+}
+
+size_t getVmSizeInKB() {
+    return getMemoryInfo().PagefileUsage / 1024;
+}
+
+size_t getVmRSSInKB() {
+    return getMemoryInfo().WorkingSetSize / 1024;
+}
+
+#else
+
+/// Parses number from provided string
+static int parseLine(std::string line) {
+    std::string res = "";
+    for (auto c : line)
+        if (isdigit(c))
+            res += c;
+    if (res.empty())
+        // If number wasn't found return -1
+        return -1;
+    return std::stoi(res);
+}
+
+size_t getSystemDataByName(char* name) {
+    FILE* file = fopen("/proc/self/status", "r");
+    size_t result = 0;
+    if (file != nullptr) {
+        char line[128];
+
+        while (fgets(line, 128, file) != NULL) {
+            if (strncmp(line, name, strlen(name)) == 0) {
+                result = parseLine(line);
+                break;
+            }
+        }
+        fclose(file);
+    }
+    return result;
+}
+
+size_t getVmSizeInKB() {
+    return getSystemDataByName(const_cast<char*>("VmSize:"));
+}
+
+size_t getVmRSSInKB() {
+    return getSystemDataByName(const_cast<char*>("VmRSS:"));
+}
+
+#endif
 
 }  // namespace utils
 }  // namespace test
