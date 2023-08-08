@@ -309,15 +309,6 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return true;
 }
 
-// count all the non-constant dimensions (what we need to validate and infer)
-// + count how many nodes we need to validate and infer to collect all the necessary shape information the old way
-//
-// collect all constant dimensions from Parameter (if there are any) and Constant shapes (label them)
-// perform validate_and_infer runs for all the nodes including body-graphs
-// count all the unknown dimension that will be needed for calculation (no duplicates allowed)
-// count the number of Operation that would be needed to be shape-inference-ed to get all the dimensions
-//
-
 void shape_work(ov::DimensionTracker& dt, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
@@ -617,71 +608,6 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 
     auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
     register_matcher(m, matcher_pass_callback);
-}
-
-ov::pass::ReshapeUpThroughBEAWithConstScalar::ReshapeUpThroughBEAWithConstScalar() {
-    MATCHER_SCOPE(ReshapeUpThroughBEAWithConstScalar);
-    auto bea = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
-        {pattern::any_input(pattern::rank_equals(0)), pattern::any_input(pattern::rank_equals(0))},
-        pattern::consumers_count(1));
-    auto reshape = pattern::wrap_type<op::v1::Reshape>({bea, pattern::any_input()}, pattern::rank_equals(1));
-
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& node_map = m.get_pattern_map();
-        auto bea_node = node_map.at(bea);
-        auto reshape_node = node_map.at(reshape);
-        auto new_bea = bea_node->clone_with_new_inputs(
-            {op::util::make_try_fold<op::v1::Reshape>(bea_node->input_value(0),
-                                                      op::v0::Constant::create(element::i32, {1}, {1}),
-                                                      false),
-             op::util::make_try_fold<op::v1::Reshape>(bea_node->input_value(1),
-                                                      op::v0::Constant::create(element::i32, {1}, {1}),
-                                                      false)});
-        reshape_node->output(0).replace(new_bea->output(0));
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
-    register_matcher(m, matcher_pass_callback);
-}
-
-bool pass_labels_through(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& output) {
-    const auto &in_shape = input.get_partial_shape(), &out_shape = output.get_partial_shape();
-    if (in_shape.rank().is_dynamic() || out_shape.rank().is_dynamic())
-        return false;
-    if (in_shape.size() != out_shape.size())
-        return false;
-    for (size_t i = 0; i < in_shape.size(); ++i)
-        if (!labels_eq_or_eq_static_dims(in_shape[i], out_shape[i]))
-            return false;
-    return true;
-}
-
-bool output_has_single_target_input_and_its_bea_node_has_only_one_output_on_zero_port(
-    const ov::Output<ov::Node>& output) {
-    auto target_inputs = output.get_target_inputs();
-    if (target_inputs.size() != 1)
-        return false;
-    auto node = target_inputs.begin()->get_node();
-    if (node->get_output_size() != 1)
-        return false;
-    if (node->outputs()[0].get_index() != 0)
-        return false;
-    if (!ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node))
-        return false;
-    return true;
-}
-
-bool are_equal_int_constants(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
-    if (lhs == rhs)
-        return true;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto lhs_constant = ov::get_constant_from_source(lhs);
-    auto rhs_constant = ov::get_constant_from_source(rhs);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (!lhs_constant || !rhs_constant)
-        return false;
-    return lhs_constant->template cast_vector<int64_t>() == rhs_constant->template cast_vector<int64_t>();
 }
 
 ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
@@ -1131,58 +1057,6 @@ bool inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lh
     return true;
 }
 
-bool gather_elements_perform_same(const std::shared_ptr<ov::op::v6::GatherElements>& lhs,
-                                  const std::shared_ptr<ov::op::v6::GatherElements>& rhs,
-                                  const size_t& max_const_size) {
-    // 0 input value is already checked -- it is the same, we only need to check input with idx 1 and axis value
-    return lhs->get_axis() == rhs->get_axis() &&
-           inputs_from_same_source_or_equal_int_constants(lhs, rhs, max_const_size);
-}
-
-template <class T>
-bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
-                                     bool (*are_equal)(const std::shared_ptr<T>&,
-                                                       const std::shared_ptr<T>&,
-                                                       const size_t&)) {
-    // only works for 0 index inputs
-    bool graph_rewritten = false;
-
-    std::map<ov::Output<ov::Node>, std::vector<std::shared_ptr<T>>> source_to_typed_op;
-    for (const auto& node : model->get_ordered_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= shared_node_optimization_helper<T>(sub_graph, are_equal);
-            }
-        }
-        if (auto op = ov::as_type_ptr<T>(node)) {
-            for (const auto& input : op->input_values()) {
-                if (!ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
-                    source_to_typed_op[input].push_back(op);
-                    break;
-                }
-            }
-        }
-    }
-    for (auto& pair : source_to_typed_op) {
-        if (pair.second.size() < 2)
-            continue;
-        auto root_op = pair.second[0];
-        for (auto& child_op : pair.second) {
-            if (root_op->get_instance_id() != child_op->get_instance_id() && are_equal(root_op, child_op, 10)) {
-                graph_rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
-            }
-        }
-    }
-    return graph_rewritten;
-}
-
-bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
-    return shared_node_optimization_helper<ov::op::v1::Transpose>(model,
-                                                                  inputs_from_same_source_or_equal_int_constants);
-}
-
 bool ov::pass::ApplyTableOfEquivalence::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(ApplyTableOfEquivalence);
 
@@ -1389,13 +1263,9 @@ bool ov::pass::OptimizeLabelsUsedAsValues::run_on_model(const std::shared_ptr<ov
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
+    // Do we really need this?
     ov::pass::Manager pre_symbolic_manager(get_pass_config());
     pre_symbolic_manager.set_per_pass_validation(false);
-    auto pre_optimizations_0 = pre_symbolic_manager.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER(pre_optimizations_0, transpose_sinking::TSSliceBackward)
-    pre_optimizations_0->set_name("ov::pass::GraphRewrite::PreSymbolicOptimizations::0");
-    REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
-    REGISTER_PASS(pre_symbolic_manager, ReshapeUpThroughBEAWithConstScalar)
     REGISTER_PASS(pre_symbolic_manager, NopElimination)
     pre_symbolic_manager.run_passes(m);
 
@@ -1414,11 +1284,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
 
     REGISTER_PASS(manager_1, NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
     REGISTER_PASS(manager_1, SharedOpOptimization)  // Shared GatherElements
-
-    auto optimizations_1 = manager_1.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER(optimizations_1, DeReshapeMatMul)
-    optimizations_1->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::1");
     //    REGISTER_PASS(manager_1, RPE_Optimization)
+    REGISTER_PASS(manager_1, DeReshapeMatMul)
     REGISTER_PASS(manager_1, LabelResolvingThroughSelect)
     REGISTER_PASS(manager_1, DeReshapeMatMulWithComplications)
     REGISTER_PASS(manager_1, ApplyTableOfEquivalence)

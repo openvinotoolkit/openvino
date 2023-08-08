@@ -18,10 +18,6 @@ class TRANSFORMATIONS_API FindBatch;
 
 class TRANSFORMATIONS_API SymbolicOptimizations;
 
-// pre-symbolic
-class TRANSFORMATIONS_API ReshapeUpThroughBEAWithConstScalar;  // To be added to NopOptimization
-class TRANSFORMATIONS_API SharedTransposeOptimization;         //  TS Slice Backward before and TS Slice Forward after
-
 // symbolic
 class TRANSFORMATIONS_API SymbolicPOC;
 class TRANSFORMATIONS_API ChainedMaximumOptimization;
@@ -98,12 +94,6 @@ public:
     LabelResolvingThroughSelect();
 };
 
-class ov::pass::ReshapeUpThroughBEAWithConstScalar : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ReshapeUpThroughBEAWithConstScalar", "0");
-    ReshapeUpThroughBEAWithConstScalar();
-};
-
 class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoEP_Optimization", "0");
@@ -114,12 +104,6 @@ class ov::pass::Fused_RPE_MHA_Replacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Fused_RPE_MHA_Replacer", "0");
     Fused_RPE_MHA_Replacer();
-};
-
-class ov::pass::SharedTransposeOptimization : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SharedTransposeOptimization", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 class ov::pass::ApplyTableOfEquivalence : public ov::pass::ModelPass {
