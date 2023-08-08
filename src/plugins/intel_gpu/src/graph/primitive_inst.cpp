@@ -19,6 +19,7 @@
 #include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
+#include "softmax_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -478,6 +479,17 @@ event::ptr primitive_inst::realloc_if_needed() {
     return ev;
 }
 
+bool primitive_inst::use_async_compilation() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+        return false;
+    }
+    return (_node->is_type<convolution>() ||
+            _node->is_type<fully_connected>() ||
+            _node->is_type<gemm>() ||
+            _node->is_type<softmax>());
+}
+
 bool primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -590,13 +602,6 @@ bool primitive_inst::update_impl() {
         }
         if (!cached_impl) {
             if (_dynamic_impl) {
-                auto use_async_compilation = [&]() {
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
-                        return false;
-                    }
-                    return true;
-                };
                 if (use_async_compilation()) {
                     auto& compilation_context = get_network().get_program()->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
@@ -611,10 +616,12 @@ bool primitive_inst::update_impl() {
                                 return;
                         }
 
-                        auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                         if (!can_be_optimized()) {
-                            auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
-                            impl->set_kernels(kernels);
+                            auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                            if (impl->get_kernels_source().size() > 0) {
+                                auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
+                                impl->set_kernels(kernels);
+                            }
                             cache.add(updated_params_no_dyn_pad, impl->clone());
                         }
                     });
