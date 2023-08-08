@@ -63,13 +63,18 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
-        OPENVINO_ASSERT(impl_param.memory_deps.count(2) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) split length values memory dependency");
-        auto split_length_mem = impl_param.memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
-        const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
+        if (impl_param.memory_deps.count(2) > 0) {
+            auto split_length_mem = impl_param.memory_deps.at(2);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.get_stream());
+            const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
-        ov::op::v1::VariadicSplit op;
-        output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+            ov::op::v1::VariadicSplit op;
+            output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+        } else {
+            auto input0_layout = impl_param.get_input_layout(0);
+            auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
+            return { layout{out_shape, input0_layout.data_type, input0_layout.format } };
+        }
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::split) {
         std::map<size_t, ngraph::HostTensorPtr> const_data;
 
