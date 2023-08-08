@@ -53,8 +53,6 @@ Please file a github Issue on these with the label “pre-release” so we can g
      - Various performance improvements for StableDiffusion, SegmentAnything, U-Net, and Large Language models. 
      - Optimized dGPU performance through the integration of oneDNN 3.2 and fusion optimizations for MVN, Crop+Concat, permute, etc. 
 
-   * GNA Runtime: Addressed stability issues on the Gemini Lake platform related to GNA device plugin creation (ref: #115949). 
-
    * Frameworks:
 
      - PyTorch Updates: OpenVINO now supports originally quantized PyTorch models, including models produced with the Neural Network Compression Framework (NNCF).
