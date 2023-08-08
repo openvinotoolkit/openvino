@@ -377,8 +377,8 @@ def create_tf_stateful_partioned_call_net(temp_dir):
 
     param1 = ov.opset8.parameter(data_shape, dtype=np.float32)
     param2 = ov.opset8.parameter(filters_shape, dtype=np.float32)
-    reshape = ov.opset8.reshape(param2, np.array([1, 1, 3, 3], dtype=np.int64), True)
-    conv = ov.opset11.convolution(param1, reshape, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
+    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1], dtype=np.int64))
+    conv = ov.opset11.convolution(param1, transpose2, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
 
     parameter_list = [param1, param2]
     model_ref = Model([conv], parameter_list, "test")
@@ -656,9 +656,10 @@ def shape_of_const_fold_test(temp_dir):
 
     # Ref model
     param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
-    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float16)
-    cast = ov.opset8.convert(mul_const, np.float32)
-    mul = ov.opset8.multiply(cast, param1)
+    shape_const = ov.opset8.constant([1, 4, 10, 10], dtype=np.int32)
+    reshape = ov.opset8.reshape(param1, shape_const, False)
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, reshape)
 
     parameter_list = [param1]
     model_ref = Model([mul], parameter_list, "test")
