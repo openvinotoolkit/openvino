@@ -210,7 +210,6 @@ TEST_P(MultiThreadLeak, inference_in_multi_thread) {
     }
     ov::Core core;
     for (int m = 0; m < test_params.models.size(); m++) {
-        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
         auto model = core.read_model(test_params.models[m]["full_path"]);
         auto compile_model = core.compile_model(model, test_params.device);
         int peak_count = 0;
