@@ -13,7 +13,6 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SimplifyShapeOfSubGraph;
-class TRANSFORMATIONS_API SharedShapeOf;
 class TRANSFORMATIONS_API GroupedGatherElimination;
 class TRANSFORMATIONS_API GatherNopElimination;
 class TRANSFORMATIONS_API SimplifyGatherShapeOf;
@@ -21,18 +20,6 @@ class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
 
 }  // namespace pass
 }  // namespace ov
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief SharedShapeOf transformation replaces group of ShapeOf
- * operations with the first ShapeOf in this group. All ShapeOfs in this group
- * must be equal and consume the same output port.
- */
-class ov::pass::SharedShapeOf : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SharedShapeOf", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
 
 /**
  * @ingroup ie_transformation_common_api
