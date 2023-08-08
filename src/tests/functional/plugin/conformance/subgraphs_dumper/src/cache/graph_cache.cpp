@@ -39,18 +39,20 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
                               std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
-    // todo: check the number
-    if (m_graph_cache.size() > 10) {
+    // todo: check the number 8GB
+    if (m_graph_cache_bytesize >>  33 > 0) {
+        std::cout << "[ GRAPH CACHE ][ WARNING ] Cache size > 8 GB. Serialize graph cache" << std::endl;
         serialize_cache();
         m_graph_cache.clear();
+        m_graph_cache_bytesize = 0;
     }
 
     std::shared_ptr<ov::Model> model_to_update = nullptr;
     auto graph_name = extracted_model->get_friendly_name();
     // if cached model was serialized
-    if (serialized_cache.count(graph_name)) {
-        auto cached_model_path = ov::util::path_join({ m_serialization_dir, serialized_cache[graph_name], graph_name});
-        serialized_cache.erase(graph_name);
+    if (m_serialized_cache.count(graph_name)) {
+        auto cached_model_path = ov::util::path_join({ m_serialization_dir, m_serialized_cache[graph_name], graph_name});
+        m_serialized_cache.erase(graph_name);
 
         auto xml_path = cached_model_path + ".xml";
         auto bin_path = cached_model_path + ".bin";
@@ -62,6 +64,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
         ov::test::utils::removeFile(bin_path);
         ov::test::utils::removeFile(meta_path);
         m_graph_cache.insert({ cached_model, cached_meta });
+        m_graph_cache_bytesize += cached_model->get_graph_size();
         model_to_update = cached_model;
         input_info = m_manager.align_input_info(extracted_model, model_to_update,
                                                 input_info, cached_meta.get_input_info());
@@ -80,12 +83,14 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     if (model_to_update == nullptr) {
         auto meta = MetaInfo(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
         m_graph_cache.insert({ extracted_model, meta });
+        m_graph_cache_bytesize += extracted_model->get_graph_size();
         return;
     }
     m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt, this_op_cnt, extractor_name);
     auto cached_model_size = model_to_update->get_graph_size();
     auto pattern_model_size = extracted_model->get_graph_size();
     if (pattern_model_size < cached_model_size) {
+        m_graph_cache_bytesize -= (cached_model_size - pattern_model_size);
         auto meta = m_graph_cache[model_to_update];
         m_graph_cache.erase(model_to_update);
         m_graph_cache.insert({extracted_model, meta});
@@ -95,7 +100,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 void GraphCache::serialize_cache() {
     for (const auto& cache_item : m_graph_cache) {
         auto rel_dir = ov::util::path_join({ "subgraph", cache_item.second.get_any_extractor() });
-        serialized_cache.insert({ cache_item.first->get_friendly_name(), rel_dir });
+        m_serialized_cache.insert({ cache_item.first->get_friendly_name(), rel_dir });
         serialize_model(cache_item, rel_dir);
     }
 }
