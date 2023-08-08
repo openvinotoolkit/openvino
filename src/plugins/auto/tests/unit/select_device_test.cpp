@@ -47,7 +47,7 @@ const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "C
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
 const DeviceInformation MYRIAD_INFO = {"MYRIAD", {}, 2, "01", "MYRIAD_01" };
-const DeviceInformation NPU_INFO = {CommonTestUtils::DEVICE_NPU, {}, 2, "01", "NPU_01" };
+const DeviceInformation NPU_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "NPU_01" };
 const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
 const std::vector<DeviceInformation>  int8DeviceVector = {NPU_INFO, DGPU_INFO, IGPU_INFO, CPU_INFO};
@@ -249,7 +249,7 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
        ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_NPU),
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(npuCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuArchitecture));
