@@ -69,14 +69,7 @@ endfunction()
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        # conan generates TBBConfig.cmake files, which follows cmake's
-        # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
-        # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
-        if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
-            set(_ov_minimal_tbb_version 2021.0)
-        else()
-            set(_ov_minimal_tbb_version 2017.0)
-        endif()
+        set(_ov_minimal_tbb_version 2017.0)
 
         if(NOT ENABLE_SYSTEM_TBB)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
