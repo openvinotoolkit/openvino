@@ -358,7 +358,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             GPU_CONFIG_KEY(NV12_TWO_INPUTS),
             GPU_CONFIG_KEY(MAX_NUM_THREADS),
             GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
-            GPU_CONFIG_KEY(DISABLE_WINOGRAD_CONVOLUTION),
         };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::optimal_number_of_infer_requests) {

@@ -131,13 +131,6 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 
 /**
- * @brief Turning on this key disables winograd convolution in iGPU.
- * Winograd convolution has different characteristics for accuracy and performance compared to other convolution
- * implementations. Default value is false.
- */
-INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(DISABLE_WINOGRAD_CONVOLUTION);
-
-/**
  * @brief These keys instruct the GPU plugin to use surface/buffer memory type.
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GPU_CONFIG_KEY(SURFACE);
