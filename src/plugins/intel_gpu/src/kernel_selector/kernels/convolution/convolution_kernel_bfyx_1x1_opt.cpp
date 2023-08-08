@@ -111,7 +111,7 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     if (cp.outputs[0].Feature().v % 64 != 0)
         return false;
 
-    if (cp.padding.x != 0 || cp.padding.y != 0)
+    if (cp.padding_begin.x != 0 || cp.padding_begin.y != 0)
         return false;
 
     if (cp.inputs[0].Feature().v % 2 != 0) {
