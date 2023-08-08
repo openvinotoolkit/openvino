@@ -238,7 +238,7 @@ public:
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
-       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
+       IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, npuCability, {"INT8"});
        IE_SET_METRIC(DEVICE_ARCHITECTURE, gpuArchitecture, "GPU: vendor=0x8086 arch=0");
        IE_SET_METRIC(DEVICE_TYPE, dGpuType, Metrics::DeviceType::discrete);
        IE_SET_METRIC(DEVICE_TYPE, iGpuType, Metrics::DeviceType::integrated);
@@ -250,7 +250,7 @@ public:
        ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_NPU),
-                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(npuCability));
        ON_CALL(*core, GetMetric(HasSubstr("GPU"),
                    StrEq(METRIC_KEY(DEVICE_ARCHITECTURE)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuArchitecture));
        ON_CALL(*core, GetMetric(StrEq("GPU"),

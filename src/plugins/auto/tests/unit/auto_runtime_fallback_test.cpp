@@ -43,27 +43,27 @@ public:
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkGPU_0;
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkGPU_1;
-    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkVPUX;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkNPU;
 
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternal;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalGPU_0;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalGPU_1;
-    std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalVPUX;
+    std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalNPU;
 
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNet;
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetGPU_0;
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetGPU_1;
-    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetVPUX;
+    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetNPU;
 
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequest;
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestGPU_0;
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestGPU_1;
-    std::shared_ptr<mockAsyncInferRequest>     mockInferrequestVPUX;
+    std::shared_ptr<mockAsyncInferRequest>     mockInferrequestNPU;
 
     std::shared_ptr<ImmediateExecutor>     mockExecutor;
     std::shared_ptr<ImmediateExecutor>     mockExecutorGPU_0;
     std::shared_ptr<ImmediateExecutor>     mockExecutorGPU_1;
-    std::shared_ptr<ImmediateExecutor>     mockExecutorVPUX;
+    std::shared_ptr<ImmediateExecutor>     mockExecutorNPU;
 
     size_t optimalNum;
 
@@ -110,19 +110,19 @@ public:
         inferReqInternal.reset();
         inferReqInternalGPU_0.reset();
         inferReqInternalGPU_1.reset();
-        inferReqInternalVPUX.reset();
+        inferReqInternalNPU.reset();
         mockIExeNet.reset();
         mockIExeNetGPU_0.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPUX.reset();
+        mockIExeNetNPU.reset();
         mockIExeNet.reset();
         mockIExeNetGPU_0.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPUX.reset();
+        mockIExeNetNPU.reset();
         mockExecutor.reset();
         mockExecutorGPU_0.reset();
         mockExecutorGPU_1.reset();
-        mockExecutorVPUX.reset();
+        mockExecutorNPU.reset();
     }
 
     void SetUp() override {
@@ -136,8 +136,8 @@ public:
         mockIExeNetGPU_1 = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         mockExeNetworkGPU_1 = {mockIExeNetGPU_1, {}};
 
-        mockIExeNetVPUX = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
-        mockExeNetworkVPUX = {mockIExeNetVPUX, {}};
+        mockIExeNetNPU = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
+        mockExeNetworkNPU = {mockIExeNetNPU, {}};
 
         // prepare mockicore and cnnNetwork for loading
         core = std::make_shared<NiceMock<MockICore>>();
@@ -173,7 +173,7 @@ public:
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_NPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        return mockExeNetworkVPUX; }));
+                        return mockExeNetworkNPU; }));
 
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
@@ -224,9 +224,9 @@ public:
         ON_CALL(*mockIExeNetGPU_1.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
 
-        inferReqInternalVPUX = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        mockExecutorVPUX = std::make_shared<ImmediateExecutor>();
-        ON_CALL(*mockIExeNetVPUX.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+        inferReqInternalNPU = std::make_shared<NiceMock<MockIInferRequestInternal>>();
+        mockExecutorNPU = std::make_shared<ImmediateExecutor>();
+        ON_CALL(*mockIExeNetNPU.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
     }
 };
@@ -276,11 +276,11 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                             return mockInferrequestGPU_1; }));
             }
         } else if (deviceName == "NPU") {
-            mockInferrequestVPUX = std::make_shared<mockAsyncInferRequest>(
-                inferReqInternalVPUX, mockExecutorVPUX, nullptr, ifThrow);
-            ON_CALL(*mockIExeNetVPUX.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
+            mockInferrequestNPU = std::make_shared<mockAsyncInferRequest>(
+                inferReqInternalNPU, mockExecutorNPU, nullptr, ifThrow);
+            ON_CALL(*mockIExeNetNPU.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                        return mockInferrequestVPUX; }));
+                        return mockInferrequestNPU; }));
         } else {
             return;
         }
