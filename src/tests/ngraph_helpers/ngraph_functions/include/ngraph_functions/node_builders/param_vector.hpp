@@ -24,3 +24,11 @@ ov::ParameterVector makeParams(const ov::element::Type &type, const std::vector<
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
+
+// WA for openvino_contrib repo
+namespace ngraph {
+namespace builder {
+using ov::test::utils::builder::makeParams;
+using ov::test::utils::builder::makeDynamicParams;
+}  // namespace builder
+}  // namespace ngraph
