@@ -1163,8 +1163,8 @@ public:
             m_completion.store(true, std::memory_order::memory_order_relaxed);
             throw;
         }
-        m_completion.store(true, std::memory_order::memory_order_relaxed);
         m_prepareCounter.store(stop_indx, std::memory_order::memory_order_release);
+        m_completion.store(true, std::memory_order::memory_order_relaxed);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
