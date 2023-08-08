@@ -4,8 +4,8 @@
 #pragma once
 #include <openvino/op/rdft.hpp>
 
-#include "openvino/core/axis_vector.hpp"
 #include "fft_common_validation.hpp"
+#include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
 namespace ov {
