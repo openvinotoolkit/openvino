@@ -442,8 +442,10 @@ public:
                         (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
                         legacy_properties.emplace_back(prop);
                 }
-                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
-                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
 
                 return legacy_properties;
             }

@@ -1378,18 +1378,7 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
-    auto supportedMetricKeys = plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-    auto supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
-                     plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
-    if (!supported) {
-        supported =
-            device_supports_property(plugin, ov::device::capabilities) &&
-            util::contains(plugin.get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
-    }
-    if (supported) {
-        supported = device_supports_internal_property(plugin, ov::internal::caching_properties);
-    }
-    return supported;
+    return plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {

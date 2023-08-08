@@ -9,7 +9,9 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "iplugin_wrapper.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \
@@ -154,12 +156,43 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                         (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
                         legacy_properties.emplace_back(prop);
                 }
-                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
-                legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name && supports_model_caching(false))
+                    legacy_properties.emplace_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
 
                 return legacy_properties;
             }
         }
+        if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
+            try {
+                return {m_ptr->get_property(name, arguments), {m_so}};
+            } catch (const ov::Exception& ex) {
+                if (!supports_model_caching(false))
+                    throw;
+                // if device has ov::device::capability::EXPORT_IMPORT it means always true
+                return true;
+            }
+        }
         return {m_ptr->get_property(name, arguments), {m_so}};
     });
+}
+
+bool ov::Plugin::supports_model_caching(bool check_old_api) const {
+    bool supported(false);
+    if (check_old_api) {
+        auto supportedMetricKeys = get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+        supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                    get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    }
+    if (!supported) {
+        supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
+                    util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported = util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
+    }
+    return supported;
 }
