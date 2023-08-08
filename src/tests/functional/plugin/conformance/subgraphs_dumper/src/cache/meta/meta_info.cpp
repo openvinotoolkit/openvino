@@ -46,6 +46,53 @@ double MetaInfo::get_graph_priority() {
     return diff / delta;
 }
 
+MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
+    pugi::xml_document doc;
+    doc.load_file(meta_path.c_str());
+    std::map<std::string, ModelInfo> model_info;
+    {
+        auto model_xml_root = doc.child("meta_info").child("models");
+        for (const auto& model_child : model_xml_root.children()) {
+            ModelInfo tmp_model_info;
+            tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
+            tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
+            for (const auto& path : model_child.child("path")) {
+                tmp_model_info.model_paths.insert(std::string(path.child("model").attribute("path").value()));
+            }
+            model_info.insert({ std::string(model_child.attribute("name").value()), tmp_model_info });
+        }
+    }
+    std::map<std::string, InputInfo> input_info;
+    {
+        auto input_info_xml = doc.child("meta_info").child("input_info");
+        for (const auto &input : input_info_xml.children()) {
+            auto in_name = std::string(input.attribute("id").value());
+            ov::tools::subgraph_dumper::InputInfo in_info;
+            in_info.is_const = input.attribute("convert_to_const").as_bool();
+            if (std::string(input.attribute("min").value()) != "undefined") {
+                in_info.ranges.min = input.attribute("min").as_double();
+            } else {
+                in_info.ranges.min = DEFAULT_MIN_VALUE;
+            }
+            if (std::string(input.attribute("max").value()) != "undefined") {
+                in_info.ranges.max = input.attribute("max").as_double();
+            } else {
+                in_info.ranges.min = DEFAULT_MAX_VALUE;
+            }
+            input_info.insert({in_name, in_info});
+        }
+    }
+    std::unordered_set<std::string> extractors;
+    {
+        auto extractors_xml = doc.child("meta_info").child("extractors");
+        for (const auto& extractor : extractors_xml.children()) {
+            extractors.insert(std::string(extractor.attribute("name").value()));
+        }
+    }
+    auto new_meta = MetaInfo(input_info, model_info, extractors);
+    return new_meta;
+}
+
 void MetaInfo::serialize(const std::string& serialization_path) {
         pugi::xml_document doc;
         pugi::xml_node root = doc.append_child("meta_info");

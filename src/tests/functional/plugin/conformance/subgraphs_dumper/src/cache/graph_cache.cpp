@@ -9,6 +9,7 @@
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #include "cache/graph_cache.hpp"
 #include "utils/node.hpp"
@@ -38,12 +39,39 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
                               std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
+    // todo: check the number
+    if (m_graph_cache.size() > 1000) {
+        serialize_cache();
+        m_graph_cache.clear();
+    }
+
     std::shared_ptr<ov::Model> model_to_update = nullptr;
-    for (const auto& cached_model : m_graph_cache) {
-        if (m_manager.match(extracted_model, cached_model.first,
-                            input_info, cached_model.second.get_input_info())) {
-            model_to_update = cached_model.first;
-            break;
+    auto graph_name = extracted_model->get_friendly_name();
+    // if cached model was serialized
+    if (serialized_cache.count(graph_name)) {
+        auto cached_model_path = ov::util::path_join({ m_serialization_dir, serialized_cache[graph_name], graph_name});
+        serialized_cache.erase(graph_name);
+
+        auto xml_path = cached_model_path + ".xml";
+        auto bin_path = cached_model_path + ".bin";
+        auto meta_path = cached_model_path + ".meta";
+        auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(xml_path);
+        auto cached_meta = MetaInfo::read_meta_from_file(meta_path);
+
+        ov::test::utils::removeFile(xml_path);
+        ov::test::utils::removeFile(bin_path);
+        ov::test::utils::removeFile(meta_path);
+        m_graph_cache.insert({ cached_model, cached_meta });
+        model_to_update = cached_model;
+        input_info = m_manager.align_input_info(extracted_model, model_to_update,
+                                                input_info, cached_meta.get_input_info());
+    } else {
+        for (const auto& cached_model : m_graph_cache) {
+            if (m_manager.match(extracted_model, cached_model.first,
+                                input_info, cached_model.second.get_input_info())) {
+                model_to_update = cached_model.first;
+                break;
+            }
         }
     }
 
@@ -67,6 +95,7 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 void GraphCache::serialize_cache() {
     for (const auto& cache_item : m_graph_cache) {
         auto rel_dir = ov::util::path_join({ "subgraph", cache_item.second.get_any_extractor() });
+        serialized_cache.insert({ cache_item.first->get_friendly_name(), rel_dir });
         serialize_model(cache_item, rel_dir);
     }
 }

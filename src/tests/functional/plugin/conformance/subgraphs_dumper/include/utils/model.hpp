@@ -8,6 +8,8 @@
 #include <map>
 #include <regex>
 #include <unordered_set>
+#include <string>
+#include <functional>
 
 #include "openvino/util/file_util.hpp"
 
@@ -165,7 +167,29 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             }
         }
     }
-    return { std::make_shared<ov::Model>(results, params), input_info, extractor_name };
+    auto model = std::make_shared<ov::Model>(results, params);
+    std::string string_to_hash;
+    for (const auto& op : model->get_ordered_ops()) {
+        std::ostringstream result;
+        result << op->get_type_info();
+        for (const auto& in : op->inputs()) { 
+            result << in.get_element_type();
+            result << in.get_partial_shape().rank();
+            result << in.get_partial_shape().is_static();
+        }
+        for (const auto& out : op->outputs()) {
+            result << out.get_element_type();
+            result << out.get_partial_shape().rank();
+            result << out.get_partial_shape().is_static();
+        }
+        string_to_hash += result.str();
+    }
+    for (const auto& in : input_info) {
+        string_to_hash += (in.second.is_const ? "1" : "0");
+    }
+    auto h1 = std::hash<std::string>{}(string_to_hash);
+    model->set_friendly_name(std::to_string(h1));
+    return { model, input_info, extractor_name };
 }
 
 }  // namespace subgraph_dumper
