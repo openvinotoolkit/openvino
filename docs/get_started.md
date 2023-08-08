@@ -11,9 +11,8 @@
    :maxdepth: 1
    :hidden:
 
-   Installing OpenVINO <openvino_docs_install_guides_overview>
-   Additional Configurations <openvino_docs_install_guides_configurations_header>
-   Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
+   Install OpenVINO <openvino_docs_install_guides_overview>
+   Additional Hardware setup <openvino_docs_install_guides_configurations_header>
    Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
 
 
