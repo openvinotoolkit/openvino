@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/matcher.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 #include <algorithm>
 #include <regex>
 
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -87,7 +84,7 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
     }
 }
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -100,10 +97,10 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
     }
 
     return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-bool Matcher::match_value(const ngraph::Output<Node>& pattern_value, const ngraph::Output<Node>& graph_value) {
+bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
 
@@ -131,12 +128,12 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         return false;
     }
 
-    if (ngraph::op::is_commutative(graph_node)) {
+    if (ov::op::util::is_commutative(graph_node)) {
         // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
         // heap's algo should be faster
         std::sort(begin(pattern_args),
                   end(pattern_args),
-                  [](const ngraph::Output<ngraph::Node>& n1, const ngraph::Output<ngraph::Node>& n2) {
+                  [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
                       return n1 < n2;
                   });
         do {
@@ -144,12 +141,11 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
             if (match_permutation(pattern_args, args)) {
                 return saved.finish(true);
             }
-        } while (
-            std::next_permutation(begin(pattern_args),
-                                  end(pattern_args),
-                                  [](const ngraph::Output<ngraph::Node>& n1, const ngraph::Output<ngraph::Node>& n2) {
-                                      return n1 < n2;
-                                  }));
+        } while (std::next_permutation(begin(pattern_args),
+                                       end(pattern_args),
+                                       [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                                           return n1 < n2;
+                                       }));
     } else {
         return match_permutation(pattern_args, args);
     }

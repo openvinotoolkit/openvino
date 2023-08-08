@@ -223,7 +223,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset) {
-    if (reusable_across_network) {
+    bool do_reuse = reusable_across_network;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
+        do_reuse = false;
+    }
+    if (do_reuse) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
@@ -239,8 +244,6 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         return alloc_memory(layout, type, reset);
     }
 }
-
-void memory_pool::clear_pool() { _non_padded_pool.clear(); }
 
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
     // free up _non_padded_pool for this network
@@ -300,4 +303,25 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
 
+void memory_pool::dump(uint32_t net_id) {
+    GPU_DEBUG_COUT << "Dump memory pool of network " << net_id << std::endl;
+    GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
+    for (auto mem : _non_padded_pool) {
+        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << mem.first << ", type: " << mem.second._type
+                  << ")'s users: " << std::endl;
+        for (auto user : mem.second._users) {
+            GPU_DEBUG_COUT << "   -- " << user._id << std::endl;
+        }
+    }
+    GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
+    for (auto mem : _padded_pool) {
+        GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << std::endl;
+        for (auto record : mem.second) {
+            GPU_DEBUG_COUT << "    " << record._memory->buffer_ptr() << ", type: " << record._type << ", users : " << std::endl;
+            for (auto user : record._users) {
+                GPU_DEBUG_COUT << "    --- " << user._id << std::endl;
+            }
+        }
+    }
+}
 }  // namespace cldnn

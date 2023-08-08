@@ -17,8 +17,8 @@ std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "seqLengthsShape" << CommonTestUtils::vec2str(secondInputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "seqLengthsShape" << ov::test::utils::vec2str(secondInputShape) << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "batchAxis=" << batchAxisIndx << "_";
     result << "seqAxis=" << seqAxisIndx << "_";

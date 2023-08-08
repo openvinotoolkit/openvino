@@ -10,6 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
+import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
     from signal import SIGKILL
@@ -279,15 +280,18 @@ class TestParallelRunner:
         with open(test_list_file_name) as test_list_file:
             test_suite = ""
             for test_name in test_list_file.read().split('\n'):
+                if "Running main() from" in test_name:
+                    continue
+                if not ' ' in test_name:
+                    test_suite = test_name
+                    continue
                 pos = test_name.find('#')
-                if pos > 0:
-                    real_test_name = test_suite + test_name[2:pos-2]
+                if pos > 0 or test_suite != "":
+                    real_test_name = test_suite + (test_name[2:pos-2] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     else:
                         test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
-                else:
-                    test_suite = test_name
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(f"Len test_list_runtime (without disabled tests): {len(test_list)}")
@@ -654,10 +658,17 @@ class TestParallelRunner:
                 for priority, name in fix_priority:
                     csv_writer.writerow([name, priority])
                     if "IR=" in name:
-                        ir_hashes.append(name[name.find('IR=')+3:name.find('_Device=')])
+                        ir_hash = name[name.find('IR=')+3:name.find('_Device=')]
+                        if os.path.isfile(ir_hash):
+                            _, tail = os.path.split(ir_hash)
+                            ir_hash, _ = os.path.splitext(tail)
+                        ir_hashes.append(ir_hash)
+                        
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
                 # Find all irs for failed tests
                 failed_ir_dir = os.path.join(self._working_dir, f'{self._device}_failed_ir')
+                failed_models_file_path = os.path.join(self._working_dir, f'failed_models.lst')
+                failed_models = set()
                 for conformance_ir_filelist in self._conformance_ir_filelists:
                     with open(conformance_ir_filelist, 'r') as file:
                         for conformance_ir in file.readlines():
@@ -681,6 +692,12 @@ class TestParallelRunner:
                                 copyfile(xml_file, failed_ir_xml)
                                 copyfile(bin_file, failed_ir_bin)
                                 copyfile(meta_file, failed_ir_meta)
+
+                                meta_root = ET.parse(failed_ir_meta).getroot()
+                                for unique_model in meta_root.find("models"):
+                                    for path in unique_model:
+                                        for unique_path in path:
+                                            failed_models.add(unique_path.attrib["path"])
                 # api conformance has no failed irs
                 if os.path.exists(failed_ir_dir):
                     output_file_name = failed_ir_dir + '.tar'
@@ -688,7 +705,13 @@ class TestParallelRunner:
                         tar.add(failed_ir_dir, arcname=os.path.basename(failed_ir_dir))
                         logger.info(f"All Conformance IRs for failed tests are saved to: {output_file_name}")
                     rmtree(failed_ir_dir)
-
+                if len(failed_models) > 0:
+                    with open(failed_models_file_path, "w") as failed_models_file:
+                        failed_models_list = list()
+                        for item in failed_models:
+                            failed_models_list.append(f"{item}\n")
+                        failed_models_file.writelines(failed_models_list)
+                        failed_models_file.close()
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:
             for i in range(len(self._disabled_tests)):

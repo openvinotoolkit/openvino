@@ -42,6 +42,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(idxValue),
                        ::testing::ValuesIn(inputPrecisions),
                        ::testing::ValuesIn(idxPrecisions),
-                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterElementsUpdateLayerTest::getTestCaseName);
 }  // namespace

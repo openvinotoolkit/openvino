@@ -28,7 +28,7 @@ namespace {
                                     ::testing::ValuesIn(trip_count),
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoopTest::getTestCaseName);
 
     static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> static_loop_types {
@@ -56,13 +56,13 @@ namespace {
                                     Values<int64_t>(7),
                                     Values<InferenceEngine::SizeVector>({2, 1, 4}),
                                     Values<InferenceEngine::Precision>(Precision::FP32, Precision::I32),
-                                    Values(CommonTestUtils::DEVICE_CPU),
+                                    Values(ov::test::utils::DEVICE_CPU),
                                     Values<std::map<std::string, std::string>>({})));
     using namespace testing;
     INSTANTIATE_TEST_SUITE_P(smoke_TrivialLoop, TrivialLoopTest,
                             Combine(
                                     Values<InferenceEngine::Precision>(Precision::FP32, Precision::I32),
                                     Values<InferenceEngine::SizeVector>({2, 3, 4}),
-                                    Values(CommonTestUtils::DEVICE_CPU)));
+                                    Values(ov::test::utils::DEVICE_CPU)));
 
 }  // namespace
