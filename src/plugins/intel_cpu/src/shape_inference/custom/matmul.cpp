@@ -29,7 +29,7 @@ Result MMShapeInfer::infer(
     if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
         return {{m_shapeY}, ShapeInferStatus::success};
     }
-
+    OPENVINO_ASSERT(m_out_rank >= 2);
     m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
     m_shapeY[m_out_rank-1] = m_transpose_b ? shapeB[rankB-2] : shapeB[rankB-1];
 
