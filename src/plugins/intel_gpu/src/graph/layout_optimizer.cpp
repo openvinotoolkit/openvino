@@ -1035,10 +1035,15 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto output_layout = node.get_output_layout(0);
     auto weights_layout = node.weights().get_output_layout().convert_to_weights_layout(prim->grouped_weights_shape);
     auto expected_format = output_layout.format;
+    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (prim->deformable_mode) {
         return format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
     }
+
+    // Use planar bfyx format for dynamic convolutions with explicit padding
+    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input)
+        return format::bfyx;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
@@ -1052,7 +1057,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
-    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
         expected_format = node.get_preferred_output_fmt();
