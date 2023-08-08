@@ -85,6 +85,7 @@ public:
         ov::CoordinateDiff pads_begin(primitive->padding_begin.begin(), primitive->padding_begin.end());
         ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
         const auto auto_pad = primitive->auto_pad;
+        conv_params.has_explicit_paddings = primitive->auto_pad == ov::op::PadType::EXPLICIT;
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             pads_begin.clear();
             pads_end.clear();
@@ -110,10 +111,15 @@ public:
         uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
-        conv_params.padding = {pad_x, pad_y, pad_z};
+        uint32_t pad_begin_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
+        uint32_t pad_begin_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
+        uint32_t pad_begin_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
+        conv_params.padding_begin = {pad_begin_x, pad_begin_y, pad_begin_z};
+
+        uint32_t pad_end_z = std::max<std::ptrdiff_t>(pads_end.size() >= 3 ? pads_end[pads_end.size() - 3] : 0, 0);
+        uint32_t pad_end_y = std::max<std::ptrdiff_t>(pads_end.size() >= 2 ? pads_end[pads_end.size() - 2] : 0, 0);
+        uint32_t pad_end_x = std::max<std::ptrdiff_t>(pads_end.size() >= 1 ? pads_end[pads_end.size() - 1] : 0, 0);
+        conv_params.padding_end = {pad_end_x, pad_end_y, pad_end_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
         uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
@@ -183,7 +189,7 @@ public:
                 }
             }
             conv_params.filterSize = { ky, kx, kz };
-            conv_params.padding = {pad_y, pad_x, pad_z};
+            conv_params.padding_begin = {pad_begin_y, pad_begin_x, pad_begin_z};
             conv_params.stride = {stride_y, stride_x, stride_z};
             conv_params.dilation = {dilation_y, dilation_x, dilation_z};
         }
