@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "transformations/symbolic_transformations/chained_maximum.hpp"
 
 #include <openvino/op/maximum.hpp>

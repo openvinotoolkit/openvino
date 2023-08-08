@@ -16,6 +16,6 @@ class TRANSFORMATIONS_API RPE_Optimization;
 
 class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RoEP_Optimization", "0");
+    OPENVINO_RTTI("RPE_Optimization", "0");
     RPE_Optimization();
 };

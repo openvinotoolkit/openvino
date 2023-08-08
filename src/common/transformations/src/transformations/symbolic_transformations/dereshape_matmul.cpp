@@ -4,17 +4,18 @@
 
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 
+#include <openvino/core/dimension_tracker.hpp>
+#include <openvino/op/add.hpp>
+#include <openvino/op/concat.hpp>
+#include <openvino/op/matmul.hpp>
+#include <openvino/op/multiply.hpp>
+#include <openvino/op/reshape.hpp>
+#include <openvino/op/util/binary_elementwise_arithmetic.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <transformations/symbolic_transformations/utils.hpp>
+
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/symbolic_transformations/utils.hpp"
 
 ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     MATCHER_SCOPE(DeReshapeMatMul);

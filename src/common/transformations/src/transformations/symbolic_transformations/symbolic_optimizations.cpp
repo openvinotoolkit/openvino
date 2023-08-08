@@ -152,7 +152,7 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
-    std::cout << "# nodes before: " << m->get_ops().size();
+//    std::cout << "# nodes before: " << m->get_ops().size();
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
@@ -178,10 +178,10 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager, NopElimination)
     REGISTER_PASS(manager, SharedOpOptimization)
 
-//    REGISTER_PASS(manager, RPE_Optimization)  // should be called after SymbolicOptimizations in plugin
+    //    REGISTER_PASS(manager, RPE_Optimization)  // should be called after SymbolicOptimizations in plugin
 
     // cleanup labels, erase SKIP_INVALIDATION
     manager.run_passes(m);
-    std::cout << " after: " << m->get_ops().size() << std::endl;
+//    std::cout << " after: " << m->get_ops().size() << std::endl;
     return true;  // cleans up all the label information
 }

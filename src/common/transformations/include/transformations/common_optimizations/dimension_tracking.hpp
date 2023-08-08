@@ -13,7 +13,9 @@ using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::
 
 namespace ov {
 namespace pass {
+
 class TRANSFORMATIONS_API FindBatch;
+
 }  // namespace pass
 }  // namespace ov
 

@@ -20,9 +20,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
-#include "transformations/symbolic_transformations/utils.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
@@ -130,7 +127,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
                     mark_no_batch(parameter, parameter_to_batch_labels);
                 else
                     mark_batch(parameter, parameter_to_batch_labels, {batch_dim_label});
-                continue;  // batch was or was not found at this point -- there is no point in searching further
+                continue;  // batch was or was not found at this point -- there is no point in searching further }
             }
             // node is not layout obvious -- checking if dims were propagated through
             bool all_outputs_labeled = true;

@@ -95,7 +95,7 @@ TSSliceBackward::TSSliceBackward() {
                                                            Shape{reversed_transpose_order.size()},
                                                            reversed_transpose_order);
         const auto& indices = main_node->input_value(4);
-        auto new_axis = ov::op::util::make_try_fold<ov::op::v8::Gather>(data, indices, axis);
+        auto new_axis = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
         main_node->input(4).replace_source_output(new_axis);
 
         main_node->validate_and_infer_types();
