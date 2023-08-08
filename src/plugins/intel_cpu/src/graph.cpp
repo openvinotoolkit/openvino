@@ -474,7 +474,6 @@ void Graph::InitEdges() {
             layerName = basicLayerName + "_" + std::to_string(idx);
         }
         uniqueLayerNames.insert(layerName);
-        std::cout << "Insert reorder node ... name =  " << layerName << std::endl;
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
@@ -496,13 +495,13 @@ void Graph::InitEdges() {
                   << ", output precision = " << test_edge->getOutputDesc().getPrecision() << std::endl;
     }
 #endif
+
+    // In case of edge's child is 'Convert' op and the edge's input/output has different precision, if set convert's input
+    // precision same with edge parent precision, it will avoid additional new convert op to be added.
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
-        // If edge's child is 'Convert' op and the edge's input/output has different precision, we can set convert's input precision
-        // with parent precision to avoid additional new convert op is added.
-        if ((edge->getChild()->getType() == Type::Convert) && /* (edge->getParent()->getType() != Type::Input) &&*/
-            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
-            edge->getOutputDesc().getPrecision() == InferenceEngine::Precision::FP64) {
+        if ((edge->getChild()->getType() == Type::Convert) &&
+            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision()) {
             auto convert = edge->getChild();
             const auto& inDesc = edge->getInputDesc();
             const auto& outDesc = convert->getChildEdgeAt(0)->getInputDesc();
@@ -515,16 +514,11 @@ void Graph::InitEdges() {
                                                                context);
             convertNode->setDescs(inDesc, outDesc);
             ReplaceNode(edge, convert, convertNode, true);
-            edge = graphEdges[i];
         }
-#if 0
-        std::cout << "InitEdges(): " << i << "/" << numberOfEdges << ", edge=" << edge << std::endl;
-        for (auto& test_edge : graphEdges) {
-            std::cout << "     edge = " << test_edge << ", edge_name = " << test_edge->name()
-                      << ", input_precision = " << test_edge->getInputDesc().getPrecision()
-                      << ", output precision = " << test_edge->getOutputDesc().getPrecision() << std::endl;
-        }
-#endif
+    }
+
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
+        auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
@@ -540,8 +534,6 @@ void Graph::InitEdges() {
 
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
-
-                std::cout << "Insert convert node: " << convertName << std::endl;
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, context);
                 convertNode->setDescs(inDesc, outDesc);
@@ -553,12 +545,10 @@ void Graph::InitEdges() {
                     edge = convertNode->getChildEdgeAt(0);
             }
             if (reorderStatusInternal != Edge::ReorderStatus::No) {
-                std::cout << "Insert reorder node ... 1 " << std::endl;
                 insertReorder(edge, reorderStatusInternal == Edge::ReorderStatus::Optimized);
             }
             updateEdge(i);
         } else if (reorderStatus == Edge::ReorderStatus::Optimized) {
-            std::cout << "Insert reorder node ... 2 " << std::endl;
             insertReorder(edge, true);
             updateEdge(i);
         }
@@ -1750,7 +1740,6 @@ bool Graph::ReplaceNode(EdgePtr parent, NodePtr oldNode, NodePtr newNode, bool i
     for (size_t i = 0; i < oldNode->childEdges.size(); i++) {
         auto edge = oldNode->getChildEdgeAt(i);
         EdgePtr afterNode(new Edge(newNode, edge->getChild(), edge->getInputNum(), edge->getOutputNum()));
-        // std::cout << "                  replace parent edge for node = " << edge->getChild()->getName() << std::endl;
         afterNode->getParent()->childEdges.push_back(afterNode);
         edge->getChild()->parentEdges.push_back(afterNode);
         remove_edge(edge, edge->getChild()->parentEdges);
@@ -1770,7 +1759,6 @@ bool Graph::ReplaceNode(EdgePtr parent, NodePtr oldNode, NodePtr newNode, bool i
     }
     graphNodes.push_back(newNode);
     oldNode->remove();
-    //parent->drop();
     for (auto it = graphNodes.begin(); it != graphNodes.end();) {
         if (*it == oldNode) {
             it = graphNodes.erase(it);
