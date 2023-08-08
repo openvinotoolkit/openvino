@@ -140,7 +140,7 @@ void shape_validation(const ov::op::util::FFTBase* op,
         validate_axes(op, axes_shape, axes, input_rank, axes_are_known, fft_kind);
     }
 
-    NODE_VALIDATION_CHECK(op, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
 
     if (input_shapes.size() == 3) {
         const auto& signal_size_shape = input_shapes[2];
