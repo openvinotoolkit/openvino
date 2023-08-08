@@ -140,6 +140,7 @@ OP_CONVERTER_NAMED(translate_top_k_op);
 OP_CONVERTER_NAMED(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
+OP_CONVERTER(translate_unravel_index_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
