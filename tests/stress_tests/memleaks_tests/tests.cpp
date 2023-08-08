@@ -209,7 +209,7 @@ TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
         log_info("Inference in separate thread of InferRequests from networks: " << test_params.model_name << " for \""
                                                               << test_params.device << "\" device for "
                                                               << test_params.numiters << " times");
-        return common_test_pipeline(pipeline, test_params.numiters);
+        return common_test_pipeline(pipeline, test_params.numiters, 0.02);
     };
     test_runner(test_params.numthreads, test);
 }
