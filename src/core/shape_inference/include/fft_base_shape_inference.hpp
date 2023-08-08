@@ -5,7 +5,7 @@
 #include <openvino/op/util/fft_base.hpp>
 
 #include "openvino/core/axis_vector.hpp"
-#include "rfft_common_validation.hpp"
+#include "fft_common_validation.hpp"
 #include "utils.hpp"
 
 namespace ov {
