@@ -725,11 +725,6 @@ jobs:
           sudo -E apt update
           sudo -E apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
-      - name: Install python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}/install/tests/functional_test_utils/requirements.txt
-
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
@@ -750,6 +745,11 @@ jobs:
           pushd ${{ env.INSTALL_TEST_DIR }}
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r ${{ github.workspace }}/install/tests/functional_test_utils/requirements.txt
 
       - name: Cache Tests Execution Time
         id: tests-functional-cpu-cache
