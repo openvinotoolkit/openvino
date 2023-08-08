@@ -18,9 +18,6 @@ and requires prior configuration on the following supported operating systems:
 * Windows 10, 64-bit
 * Windows 11, 64-bit
 
-OpenVINO™ NVIDIA GPU plugin is not included in OpenVINO™ toolkit. If you want to use 
-the plugin, first you need to `install dependencies <install-dependencies>`__, and 
-then `build it from source code <#whats-next>`__.
 
 Install Dependencies
 ####################
@@ -69,7 +66,6 @@ Supported Layers and Limitations
 What’s Next?
 ####################
 
-* `Build OpenVINO™ NVIDIA GPU plugin from source code <https://github.com/openvinotoolkit/openvino_contrib/blob/master/modules/nvidia_plugin/README.md#build-with-cmake>`__.
 * :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image <openvino_docs_install_guides_installing_openvino_docker_linux>`
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
