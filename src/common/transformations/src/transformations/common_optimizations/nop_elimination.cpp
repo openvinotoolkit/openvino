@@ -831,18 +831,19 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
+    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze>(pattern::rank_equals(0));
+    auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                               op::util::BinaryElementwiseComparison,
-                                              op::util::BinaryElementwiseLogical>([](Output<Node> out) {
-        return pattern::consumers_count(1)(out) && pattern::rank_equals(0)(out);
-    });
-    auto reshape_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
-                                                                                pattern::rank_equals(1));
+                                              op::util::BinaryElementwiseLogical>({first_label, other_input_label},
+                                                                                  pattern::consumers_count(1));
+    auto second_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
+                                                                               pattern::rank_equals(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
 
-        auto second_node = pattern_to_node.at(reshape_label);
+        auto second_node = pattern_to_node.at(second_label);
         auto binary = pattern_to_node.at(binary_op_label);
 
         auto lhs_node =
@@ -857,14 +858,13 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
         binary->input(1).replace_source_output(rhs_node->output(0));
         binary->validate_and_infer_types();
 
-        ov::copy_runtime_info(second_node, lhs_node);
-        ov::copy_runtime_info(second_node, rhs_node);
+        ov::copy_runtime_info(second_node, {lhs_node, rhs_node});
 
         replace_output_update_name(second_node->output(0), binary->output(0));
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reshape_label, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(second_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 

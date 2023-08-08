@@ -7,7 +7,6 @@
 
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"

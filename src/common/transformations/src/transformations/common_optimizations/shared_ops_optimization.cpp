@@ -22,23 +22,8 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
+namespace {
 using rules_t = unordered_map<Node::type_info_t, bool (*)(const Node*, const Node*)>;
-
-bool type_in_rules(const rules_t& rules, Node::type_info_t& type) {
-    if (rules.count(type))
-        return true;
-    for (const auto& item : rules) {
-        if (type.is_castable(item.first)) {
-            type = item.first;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool greater_type_info(const ov::Node* lhs, const ov::Node* rhs) {
-    return lhs->get_type_info() > rhs->get_type_info();
-}
 
 bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rules) {
     bool rewritten = false;
@@ -46,8 +31,8 @@ bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rul
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
-            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); i++) {
-                if (auto sub_graph = multi_subgraph_op->get_function(i))
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
                     rewritten |= shared_node_optimization(sub_graph, rules);
             }
         }
@@ -56,22 +41,15 @@ bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rul
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
             unordered_map<Node::type_info_t, vector<Node*>> type_to_node;
-            for (const auto& input : target_inputs) {
-                if (auto node = input.get_node()) {
-                    auto type = node->get_type_info();
-                    if (type_in_rules(rules, type)) {
-                        type_to_node[type].push_back(node);
-                    }
-                }
-            }
+            for (const auto& input : target_inputs)
+                if (auto node = input.get_node())
+                    if (rules.count(node->get_type_info()))
+                        type_to_node[node->get_type_info()].push_back(node);
             for (auto& item : type_to_node) {
                 auto& shared_nodes = item.second;
                 if (shared_nodes.size() < 2)
                     continue;
-                // give higher priority for nodes of later versions to become root nodes
-                std::sort(shared_nodes.begin(), shared_nodes.end(), greater_type_info);
-                const auto& ops_type = item.first;
-                const auto& are_equal = rules.at(ops_type);
+                const auto& are_equal = rules.at(item.first);
 
                 std::vector<bool> visited_nodes(shared_nodes.size(), false);
                 for (size_t i = 0; i < visited_nodes.size(); ++i) {
@@ -97,6 +75,8 @@ bool shared_node_optimization(const shared_ptr<Model>& model, const rules_t& rul
 
 bool inputs_from_same_source_or_equal_constants(const Node* lhs, const Node* rhs) {
     if (lhs->get_input_size() != rhs->get_input_size())
+        return false;
+    if (lhs->get_type_info() != rhs->get_type_info())
         return false;
     size_t input_size = lhs->get_input_size();
     for (size_t i = 0; i < input_size; ++i) {
@@ -182,6 +162,26 @@ bool converts_are_equal(const Node* lhs, const Node* rhs) {
            inputs_from_same_source_or_equal_constants(lhs, rhs);
 }
 
+bool shape_of_upgrade(const shared_ptr<Model>& model) {
+    bool rewritten = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
+                    rewritten |= shape_of_upgrade(sub_graph);
+            }
+        } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
+            auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
+            v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
+            ov::replace_output_update_name(v1_shape_of, v3_shape_of);
+            rewritten = true;
+        }
+    }
+    return rewritten;
+}
+
+}  // namespace
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
 #define RECORD_NO_ATTRIBUTES(operation) \
@@ -199,11 +199,16 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
         // with attributes
         RECORD(v0::Concat, concats_are_equal),
         RECORD(v0::Convert, converts_are_equal),
+        RECORD(v1::Gather, gathers_are_equal),
+        RECORD(v7::Gather, gathers_are_equal),
+        RECORD(v8::Gather, gathers_are_equal),
         RECORD(v6::GatherElements, gather_elements_are_equal),
         RECORD(v1::Reshape, reshapes_are_equal),
-        RECORD(op::util::ShapeOfBase, shapeof_are_equal),
-        RECORD(op::util::GatherBase, gathers_are_equal),
-
+        RECORD(v0::ShapeOf, shapeof_are_equal),
+        RECORD(v3::ShapeOf, shapeof_are_equal),
     };  // TODO: use visit_attributes to uniformly perform attributes check in the future and get rid of rules table
-    return shared_node_optimization(model, rules);
+
+    bool rewritten = shape_of_upgrade(model);
+    rewritten |= shared_node_optimization(model, rules);
+    return rewritten;
 }

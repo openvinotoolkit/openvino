@@ -481,7 +481,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
- void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+bool program_node::is_padded_spatial(size_t idx) const {
+    auto lower_size = get_output_layout(idx).data_padding.lower_size();
+    auto upper_size = get_output_layout(idx).data_padding.upper_size();
+    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
+        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+}
+
+void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }
 

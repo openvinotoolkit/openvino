@@ -284,15 +284,13 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
 
         int64_t value = input_as_constant->cast_vector<int64_t>()[0];
 
-        if ((i == 1 || i == 2) && value < 0)
+        if (((i == 1 || i == 2) && value < 0) || (i == 3 && value != 1))
             return false;
-        if (i == 1)
+        else if (i == 1)
             attrs.start = value;
-        if (i == 2)
+        else if (i == 2)
             attrs.stop = value;
-        if (i == 3 && value != 1)
-            return false;  // step should be equal 1 for this optimization
-        if (i == 4)
+        else if (i == 4)
             attrs.axis = value >= 0 ? value : value + data_rank.get_length();
     }
     if (attrs.axis < 0 || op->get_input_partial_shape(0)[attrs.axis].is_dynamic())
@@ -312,8 +310,8 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
     for (const auto& node : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
-            for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); i++) {
-                if (auto sub_graph = multi_subgraph_op->get_function(i))
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
                     graph_rewritten |= run_on_model(sub_graph);
             }
         }

@@ -192,10 +192,6 @@ void FullyConnected::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
 
-    withBiases = getOriginalInputsNumber() == 3;
-
-    useSparseWeights = useSparseWeightsDecompression();
-
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(DATA_ID));
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(DATA_ID));
 
@@ -203,6 +199,13 @@ void FullyConnected::getSupportedDescriptors() {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
+
+    withBiases = getOriginalInputsNumber() == 3;
+
+    useSparseWeights = useSparseWeightsDecompression();
+    useWeightsDecompressionImpl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                  inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::u8;
+
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -240,7 +243,7 @@ void FullyConnected::getSupportedDescriptors() {
 #if defined(OV_CPU_WITH_MLAS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
     // MLAS doesn't support post-ops fusing and only supports FP32. INT8 is not enabled yet
     // Disable MLAS when FC could fuse post-ops
-    useMlas = !useSparseWeights &&
+    useMlas = !useSparseWeights && !useWeightsDecompressionImpl &&
               (inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::f32) &&
               fusedWith.empty();
     auto wgtDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
@@ -291,12 +294,12 @@ void FullyConnected::prepackMLASWeight() {
         MemoryPtr ptr;
         auto create = [&]() {
             float* weightPtr = reinterpret_cast<float*>(weightsMem->getData());
-            size_t ldb = K;
+            size_t ldb = weightsNonTransposed ? N : K;
             MemoryPtr _ptr =
                 std::make_shared<Memory>(getEngine(),
                                          intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
             float* prepackedDst = reinterpret_cast<float*>(_ptr->getData());
-            mlas_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
+            mlas_sgemm_pack(weightsNonTransposed ? "F" : "T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
 
@@ -313,7 +316,7 @@ void FullyConnected::prepackMLASWeight() {
         return ptr;
     };
     const auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
-    // Weight is transpoed by MatMulConstTransposesExtraction
+    // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
     // the weight is reshaped to [-1, K] in ConvertMatMulToFC
     K = wgtDims[1];
@@ -467,7 +470,11 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+            if (weightsNonTransposed) {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), makeTransposedWeightDescriptor())->getPrimitive();
+            } else {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->getPrimitive();
+            }
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
@@ -587,6 +594,11 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
 
+    if (!decompressionMultiply.empty())
+        dnnlpoc.appendDecompressionScales(decompressionMultiply);
+    if (!decompressionSubtract.empty())
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract);
+
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
@@ -673,11 +685,14 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     dnnl::memory::data_type wdt = indt;
     dnnl::memory::data_type bdt = outdt;
 
-    if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
-    //oneDNN ARM InnerProduct primitive supports only identical in/out data types
+    if (useWeightsDecompressionImpl) {
+        // Weights decompression case
+        wdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
+    } else if (one_of(indt, dnnl::memory::data_type::bf16, dnnl::memory::data_type::f16)) {
 #if defined(OPENVINO_ARCH_X86_64)
         bdt = dnnl::memory::data_type::f32;
 #else
+        // oneDNN ARM InnerProduct primitive supports only identical in/out data types
         bdt = dnnl::memory::data_type::f16;
 #endif
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
@@ -939,6 +954,9 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     bool retVal = false;
     const auto inRank = getInputShapeAtPort(DATA_ID).getRank();
     const auto weightRank = getInputShapeAtPort(WEIGHTS_ID).getRank();
+    if (useWeightsDecompressionImpl) {
+        return false;
+    }
     // disable rank=4:
     // if layout is nhwc:
     //   A matrix: N * IC * H * W --> N * (IC*H*W), the M, N', K of matrix multiply will be:
@@ -1060,6 +1078,22 @@ void FullyConnected::fuseDecompressionConstant(const NodePtr& constData, std::ve
                 Precision::FP32,
                 elementsCount);
 }
+
+DnnlMemoryDescPtr FullyConnected::makeTransposedWeightDescriptor() {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+    if (!edgeMem)
+        IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = {weightSrcDesc.get_dims(), weightSrcDesc.get_data_type(), memory::format_tag::ba};
+    weightSrcDesc = weightSrcDesc.reshape(execPtr->getWeightDesc()->getDnnlDesc().get_dims());
+
+    return DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+}
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
