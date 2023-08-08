@@ -304,7 +304,24 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 ###########################################################
 
-To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`.
+If you have installed OpenVINO Runtime from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+Uninstallation removes all Intel® Distribution of OpenVINO™ Toolkit component files but does not affect user files in the installation directory. 
+
+If you have created the symbolic link, remove the link first:
+    
+.. code-block:: sh
+
+   sudo rm /opt/intel/openvino_2023
+    
+To delete the files:
+    
+.. code-block:: sh
+
+   rm -r <extracted_folder> && rm <path_to_archive>
+
+
+
+
 
 
 Additional Resources

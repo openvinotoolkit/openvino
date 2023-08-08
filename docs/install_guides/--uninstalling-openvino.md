@@ -1,4 +1,4 @@
-# Uninstalling the Intel® Distribution of OpenVINO™ Toolkit {#openvino_docs_install_guides_uninstalling_openvino}
+# Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 @sphinxdirective
 

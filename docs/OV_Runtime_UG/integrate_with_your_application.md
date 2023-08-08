@@ -20,7 +20,7 @@
 
 Following these steps, you can implement a typical OpenVINO™ Runtime inference 
 pipeline in your application. Before proceeding, make sure you have 
-:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
+:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_overview>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
 
 
 .. image:: _static/images/IMPLEMENT_PIPELINE_with_API_C.svg
