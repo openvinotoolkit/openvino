@@ -13,26 +13,7 @@ using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::
 
 namespace ov {
 namespace pass {
-
 class TRANSFORMATIONS_API FindBatch;
-
-class TRANSFORMATIONS_API SymbolicOptimizations;
-
-// symbolic
-class TRANSFORMATIONS_API SymbolicPOC;
-class TRANSFORMATIONS_API ChainedMaximumOptimization;
-class TRANSFORMATIONS_API NopBroadcast;
-class TRANSFORMATIONS_API LabelResolvingThroughSelect;
-class TRANSFORMATIONS_API ApplyTableOfEquivalence;
-class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
-class TRANSFORMATIONS_API DeReshapeMatMul;
-class TRANSFORMATIONS_API DeReshapeMatMulWithComplications;
-
-// post-symbolic
-class TRANSFORMATIONS_API RPE_Optimization;
-class TRANSFORMATIONS_API Fused_RPE_MHA_Replacer;
-// NopElimination + SharedOpOptimization
-
 }  // namespace pass
 }  // namespace ov
 
@@ -46,76 +27,6 @@ public:
 
 protected:
     bool track = true, detach_do = false;
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief runs optimizations which are based on symbolic shape inference
- */
-class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SymbolicOptimizations", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class ov::pass::SymbolicPOC : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("SymbolicPOC");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class ov::pass::ChainedMaximumOptimization : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ChainedMaximumOptimization", "0");
-    ChainedMaximumOptimization();
-};
-
-class ov::pass::NopBroadcast : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("NopBroadcast", "0");
-    NopBroadcast();
-};
-
-class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("DeReshapeMatMul", "0");
-    DeReshapeMatMul();
-};
-
-class ov::pass::DeReshapeMatMulWithComplications : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("DeReshapeMatMulWithComplications", "0");
-    DeReshapeMatMulWithComplications();
-};
-
-class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("LabelResolvingThroughSelect", "0");
-    LabelResolvingThroughSelect();
-};
-
-class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("RoEP_Optimization", "0");
-    RPE_Optimization();
-};
-
-class ov::pass::Fused_RPE_MHA_Replacer : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("Fused_RPE_MHA_Replacer", "0");
-    Fused_RPE_MHA_Replacer();
-};
-
-class ov::pass::ApplyTableOfEquivalence : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("ApplyTableOfEquivalence", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-};
-
-class ov::pass::OptimizeLabelsUsedAsValues : public ov::pass::ModelPass {
-public:
-    OPENVINO_RTTI("OptimizeLabelsUsedAsValues", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ov {

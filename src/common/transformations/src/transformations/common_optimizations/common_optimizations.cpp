@@ -112,6 +112,7 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
