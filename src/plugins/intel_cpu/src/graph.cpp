@@ -1170,8 +1170,8 @@ public:
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            const size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_acquire);
-            const bool completion = m_completion.load(std::memory_order::memory_order_relaxed);
+            bool completion = m_completion.load(std::memory_order::memory_order_acquire);
+            size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_acquire);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
