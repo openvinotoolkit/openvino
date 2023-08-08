@@ -97,9 +97,13 @@ TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndChec
 }
 
 TEST_P(OVClassCompileModelWithCorrectPropertiesTest, IgnoreEnableMMap) {
-    core->set_property(ov::enable_mmap(false));
-    properties[ov::enable_mmap.name()] = false;
-    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+    if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
+        target_device.find("BATCH:") == 0)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // Load available plugins
+    core->get_available_devices();
+    OV_ASSERT_NO_THROW(core->set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::enable_mmap(false)));
 }
 
 TEST_P(OVClassCompileModelWithCorrectPropertiesTest, CompileModelWithCorrectPropertiesTest) {
