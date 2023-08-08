@@ -4,6 +4,7 @@
 
 #include <node.h>
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/common/op/power_static.hpp"
 
 #pragma once
 namespace ov {
@@ -41,7 +42,8 @@ public:
     EltwiseShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         const auto& autob = m_op->get_autob();
-        if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
+        if (autob.m_type == ov::op::AutoBroadcastType::NONE
+                && (!ov::is_type<const ov::intel_cpu::PowerStaticNode>(m_op))) {
             return std::make_shared<NoBroadCastEltwiseShapeInfer>();
         } else {
             return std::make_shared<EltwiseShapeInfer>();

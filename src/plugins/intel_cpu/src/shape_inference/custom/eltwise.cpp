@@ -63,9 +63,10 @@ Result NoBroadCastEltwiseShapeInfer::infer(
         if (input_shape.size() != output_shape.size()) {
             OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
         }
-        for (size_t j = 0; j < input_shapes.size(); ++j) {
+        for (size_t j = 0; j < input_shape.size(); ++j) {
             if (input_shape[j] != output_shape[j]) {
-                OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
+                OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch", " first input:", ov::intel_cpu::vec2str(input_shape)
+                        , " second input:", ov::intel_cpu::vec2str(output_shape));
             }
         }
         return { { std::move(output_shape) }, ShapeInferStatus::success };
