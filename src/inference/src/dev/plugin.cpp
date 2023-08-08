@@ -169,7 +169,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
         if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
             try {
                 return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (const ov::Exception& ex) {
+            } catch (const ov::Exception&) {
                 if (!supports_model_caching(false))
                     throw;
                 // if device has ov::device::capability::EXPORT_IMPORT it means always true
