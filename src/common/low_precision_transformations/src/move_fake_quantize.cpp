@@ -107,7 +107,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         return false;
     }
 
-    const auto& dequantization = NetworkHelper::getDequantizationBelow(fq, true);
+    const auto& dequantization = NetworkHelper::getDequantizationBelow(convert_q, true);
 
     std::vector<std::shared_ptr<ngraph::Node>> newNodes;
     for (size_t i = 0; i < concat->get_input_size(); ++i) {
