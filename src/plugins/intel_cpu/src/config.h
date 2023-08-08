@@ -45,6 +45,11 @@ struct Config {
         PER_PLATFORM,
     };
 
+    enum class NetworkType {
+        Convolution,
+        Unknown
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
@@ -83,7 +88,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config);
+    void readProperties(const std::map<std::string, std::string> &config, NetworkType networkType = NetworkType::Unknown);
     void updateProperties();
 
     std::map<std::string, std::string> _config;

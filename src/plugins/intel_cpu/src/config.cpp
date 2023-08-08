@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, NetworkType networkType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -252,6 +252,12 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else {
             inferencePrecision = ov::element::f32;
         }
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        //fp16 precision is used as default precision on ARM for non-convolution networks
+        if (networkType != NetworkType::Convolution) {
+            inferencePrecision = ov::element::f16;
+        }
+#endif
     }
 
     if (!prop.empty())
