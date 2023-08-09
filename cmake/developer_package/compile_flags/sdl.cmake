@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+function (ov_enable_cfi target)
+    if (ENABLE_LTO AND OV_COMPILER_IS_CLANG)
+        target_compile_options(${target} PRIVATE "$<$<CONFIG:Release>:-fsanitize=cfi>")
+    endif()
+endfunction(ov_enable_cfi)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
     (UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel"))
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wformat -Wformat-security")
@@ -57,6 +63,9 @@ endif()
 if(ENABLE_INTEGRITYCHECK)
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /INTEGRITYCHECK")
 endif()
+
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_RELEASE} ${OV_C_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_RELEASE} ${OV_C_CXX_FLAGS}")
 
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OV_C_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OV_C_CXX_FLAGS}")

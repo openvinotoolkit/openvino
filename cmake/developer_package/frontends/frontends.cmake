@@ -244,6 +244,7 @@ macro(ov_add_frontend)
     # enable LTO
     set_target_properties(${TARGET_NAME} PROPERTIES
                           INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+    ov_enable_cfi(${TARGET_NAME})
 
     if(OV_FRONTEND_SKIP_NCC_STYLE)
         # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
