@@ -216,9 +216,10 @@ namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
+                                 bool is_new_api,
                                  bool frontendMode = false) {
     // only for IR cases we need preprocessing or postprocessing steps
-    if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11) {
+    if (function->has_rt_info("version") && function->get_rt_info<int64_t>("version") == 11 && !is_new_api) {
         IR_READER_SCOPE(ir11_old_api);
         ov::preprocess::PrePostProcessor prepost(function);
 
@@ -283,7 +284,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, false));
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, is_new_api));
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
@@ -292,6 +293,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                bool is_new_api,
                                 bool enable_mmap) {
     auto exts = ov::legacy_convert::convert_extension(ov_exts);
 #ifdef ENABLE_IR_V7_READER
@@ -341,7 +343,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts);
+        return convert_to_cnnnetwork(ngFunc, exts, is_new_api);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -357,6 +359,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
+                                bool is_new_api,
                                 bool frontendMode) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
@@ -397,7 +400,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return convert_to_cnnnetwork(ngFunc, exts, frontendMode);
+        return convert_to_cnnnetwork(ngFunc, exts, is_new_api, frontendMode);
     }
 
     IE_THROW(NetworkNotRead)

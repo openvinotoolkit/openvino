@@ -26,6 +26,7 @@ namespace details {
 CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
+                       bool is_new_api,
                        bool enable_mmap);
 /**
  * @brief Reads IR xml and bin (with the same name) files
@@ -38,6 +39,7 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
 CNNNetwork ReadNetwork(const std::string& model,
                        const Blob::CPtr& weights,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
+                       bool is_new_api,
                        bool frontendMode = false);
 
 }  // namespace details
