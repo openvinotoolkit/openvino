@@ -55,7 +55,7 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     auto& memory_deps = impl_param.memory_deps;
     if ((is_begin_mem && memory_deps.count(begin_mem_idx) == 0) ||
-        (is_end_mem && memory_deps.count(end_mem_idx) == 0) || input0_layout.is_dynamic()) {
+        (is_end_mem && memory_deps.count(end_mem_idx) == 0)) {
         return {layout{ShapeType::dynamic(static_cast<int64_t>(in_rank)), input0_layout.data_type, input0_layout.format}};
     }
 
