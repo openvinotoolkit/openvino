@@ -418,6 +418,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::intel_gpu::hint::queue_priority``
 - ``ov::intel_gpu::hint::queue_throttle``
 - ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::disable_winograd_convolution``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++

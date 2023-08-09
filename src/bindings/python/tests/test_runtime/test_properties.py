@@ -329,6 +329,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            properties.intel_gpu.disable_winograd_convolution,
+            "GPU_DISABLE_WINOGRAD_CONVOLUTION",
+            ((True, True),),
+        ),
+        (
             properties.intel_gpu.hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
             ((properties.intel_gpu.hint.ThrottleLevel.LOW, properties.hint.Priority.LOW),),

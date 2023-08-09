@@ -63,6 +63,14 @@ static constexpr Property<std::map<std::string, uint64_t>, PropertyMutability::R
  */
 static constexpr Property<bool> enable_loop_unrolling{"GPU_ENABLE_LOOP_UNROLLING"};
 
+/**
+ * @brief Turning on this key disables winograd convolution.
+ * Winograd convolution has different characteristics for accuracy and performance compared to other convolution
+ * implementations.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGRAD_CONVOLUTION"};
+
 namespace hint {
 /**
  * @brief This enum represents the possible value of ov::intel_gpu::hint::queue_throttle property:
