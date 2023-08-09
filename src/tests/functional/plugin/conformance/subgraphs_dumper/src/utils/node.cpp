@@ -110,7 +110,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         const auto constant_input = ov::get_constant_from_source(node->input(i).get_source_output());
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (constant_input) {
-            if (is_save_const || constant_input->get_byte_size() <= 1024) {
+            if (is_save_const || constant_input->get_byte_size() < 1024) {
                 auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
                                                                        constant_input->get_shape(),
                                                                        constant_input->get_data_ptr());
@@ -140,6 +140,19 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         cloned_node->set_friendly_name(node_name);
     }
     return cloned_node;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> convert_const_to_param(const std::shared_ptr<ov::op::v0::Constant>& op_to_replace) {
+    if (op_to_replace->get_byte_size() > 1024) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(
+            op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
+        param->set_friendly_name(op_to_replace->get_friendly_name());
+        if (param != nullptr) {
+            ov::replace_node(op_to_replace, param);
+        }
+        return param;
+    }
+    return nullptr;
 }
 
 std::shared_ptr<ov::Model> generate_model_by_node(const std::shared_ptr<ov::Node>& node) {

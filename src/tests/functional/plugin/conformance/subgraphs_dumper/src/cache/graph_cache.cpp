@@ -50,8 +50,9 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     auto graph_name = extracted_model->get_friendly_name();
     std::string serialized_model_path = "";
     for (const auto& extractor : m_manager.get_extractors()) {
-        serialized_model_path = ov::util::path_join({ m_serialization_dir, "subgraph", extractor.first, graph_name + ".xml" });
+        auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, "subgraph", extractor.first, graph_name + ".xml" });
         if (ov::util::file_exists(serialized_model_path)) {
+            serialized_model_path = tmp_serialized_model_path;
             break;
         }
     }

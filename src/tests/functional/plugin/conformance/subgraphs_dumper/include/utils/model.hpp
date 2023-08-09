@@ -35,9 +35,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\.pb)"),
 #endif
-#ifdef ENABLE_OV_IR_FRONTEND
+// #ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-#endif
+// #endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif
@@ -88,7 +88,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             auto cloned_op = clone_node(op, true, false, op->get_friendly_name());
             model_map.insert({ op_name, cloned_op });
 
-            size_t output_cnt = cloned_op->outputs().size();
+            size_t output_cnt = op->outputs().size();
             std::vector<size_t> out_ports(output_cnt);
             std::iota(out_ports.begin(), out_ports.end(), 0);
             std::unordered_set<size_t> out_ports_set(out_ports.begin(), out_ports.end());
@@ -106,6 +106,8 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             int filled_input_idx = -1;
             std::vector<size_t> not_filled_ports;
             auto in_cnt = op->inputs().size();
+            auto cloned_op = model_map[op->get_friendly_name()];
+            std::map<std::string, InputInfo> this_input_info = get_input_info_by_node(cloned_op);
             for (size_t in_idx = 0; in_idx < in_cnt; ++in_idx) {
                 auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
                 for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
@@ -113,26 +115,28 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                         auto out_in_node = target_input.get_node()->shared_from_this();
                         if (out_in_node == op) {
                             auto in_node_name = in_node->get_friendly_name();
-                            auto cloned_op = model_map[op->get_friendly_name()];
                             auto in_cloned_node = cloned_op->get_input_node_shared_ptr(in_idx);
+                            // if op input node is in subgraph
                             if (model_map.count(in_node_name)) {
                                 auto in_node = model_map[in_node_name];
-                                ov::replace_node(in_cloned_node, in_node);
+                                auto in_cloned_friendly_name = in_cloned_node->get_friendly_name();
+                                ov::replace_output_update_name(in_cloned_node->get_default_output(), in_node->output(in_out_idx));
+                                in_cloned_node->clear_control_dependencies();
                                 if (ov::op::util::is_parameter(in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_node);
                                     params.push_back(param);
+                                    this_input_info.insert({ in_node->get_friendly_name(), this_input_info[in_cloned_friendly_name]});
                                 } else if (ov::op::util::is_constant(in_node)) {
                                     auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node);
-                                    if (op_to_replace->get_byte_size() > 1024) {
-                                        auto param = std::make_shared<ov::op::v0::Parameter>(
-                                            op_to_replace->get_output_element_type(0), op_to_replace->get_output_partial_shape(0));
-                                        param->set_friendly_name(op_to_replace->get_friendly_name());
-                                        if (param != nullptr) {
-                                            params.push_back(param);
-                                            ov::replace_node(op_to_replace, param);
-                                        }
+                                    auto param = convert_const_to_param(op_to_replace);
+                                    if (param != nullptr) {
+                                        params.push_back(param);
                                     }
+                                    // insert in_info with updated in_name
+                                    this_input_info.insert({ in_node->get_friendly_name(), this_input_info[in_cloned_friendly_name]});
                                 }
+                                // remove in_info with old name from input info
+                                this_input_info.erase(in_cloned_friendly_name);
                                 filled_input_idx++;
                                 model_output_nodes[in_node_name].erase(in_out_idx);
                                 if (model_output_nodes[in_node_name].empty()) {
@@ -141,6 +145,12 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                             } else if (ov::op::util::is_parameter(in_cloned_node)) {
                                 auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_cloned_node);
                                 params.push_back(param);
+                            } else if (ov::op::util::is_constant(in_cloned_node)) {
+                                auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node);
+                                auto param = convert_const_to_param(op_to_replace);
+                                if (param != nullptr) {
+                                    params.push_back(param);
+                                }
                             }
                             break;
                         }
@@ -150,8 +160,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                     }
                 }
             }
-            if (in_cnt != 0) {
-                auto this_input_info = get_input_info_by_node(model_map[op->get_friendly_name()]);
+            if (!this_input_info.empty()) {
                 input_info.insert(this_input_info.begin(), this_input_info.end());
             }
         }
