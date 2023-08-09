@@ -411,7 +411,7 @@ int get_model_prefer_threads(const int num_streams,
                 model_prefer = proc_type_table[0][ALL_PROC];
             }
 #else
-            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
+            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
             // by default the latency case uses (faster) Big cores only, depending on the compute ratio
