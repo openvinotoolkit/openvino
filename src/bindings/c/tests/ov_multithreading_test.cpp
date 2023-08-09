@@ -37,28 +37,29 @@ public:
 
 INSTANTIATE_TEST_SUITE_P(device_name, ov_multithreading_test, ::testing::Values("CPU"));
 
-TEST_P(ov_multithreading_test, compile_model) {
+TEST_P(ov_multithreading_test, get_property) {
     auto device_name = GetParam();
-    runParallel([&]() {
-        ov_core_t* core = nullptr;
-        ov_core_create(&core);
-        ov_model_t* model = nullptr;
-        ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
-        ov_compiled_model_t* compiled_model = nullptr;
-        ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model);
-    });
-}
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
 
-TEST_P(ov_multithreading_test, create_infer_request) {
-    auto device_name = GetParam();
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    const char* key = ov_property_key_supported_properties;
+    char* result = nullptr;
+
     runParallel([&]() {
-        ov_core_t* core = nullptr;
-        ov_core_create(&core);
-        ov_model_t* model = nullptr;
-        ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model);
-        ov_compiled_model_t* compiled_model = nullptr;
-        ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model);
-        ov_infer_request_t* infer_request = nullptr;
-        ov_compiled_model_create_infer_request(compiled_model, &infer_request);
+        OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     });
+    
+    ov_free(result);
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
 }
