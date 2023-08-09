@@ -84,9 +84,7 @@ def convert_model(
         :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
-            objects. For the legacy MO path (if "use_legacy_frontend" is used),
-            a directory or a comma-separated list of directories with extensions
-            are supported. To disable all extensions including those that are placed
+            objects. To disable all extensions including those that are placed
             at the default location, pass an empty string.
         :param verbose:
             Print detailed information about conversion.

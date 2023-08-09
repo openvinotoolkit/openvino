@@ -31,10 +31,7 @@ def get_convert_model_help_specifics():
         'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
-                 '(.so or .dll) with extensions. For the legacy MO path '
-                 '(if `--use_legacy_frontend` is used), a directory or a '
-                 'comma-separated list of directories with extensions '
-                 'are supported. To disable all extensions including '
+                 '(.so or .dll) with extensions. To disable all extensions including '
                  'those that are placed at the default location, pass an empty string.',
              'action': CanonicalizePathCheckExistenceAction,
              'type': readable_files_or_empty},
