@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <openvino/core/dimension_tracker.hpp>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/reshape.hpp>
+#include <openvino/op/util/symbolic_info.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/pattern.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -89,20 +90,19 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
     RUN_ON_MODEL_SCOPE(SymbolicPropagation);
 
     auto te = m_te;
-    m->get_rt_info()["TABLE_OF_EQUIVALENCE"] = te;
+    ov::set_up_symbolic_info(m, te);
     ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
         op->invalidate_values();
+        for (auto& output : op->outputs())
+            ov::set_up_symbolic_info(output, te);
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     run_on_model(sub_graph);
-        for (auto& output : op->outputs()) {
-            output.get_rt_info()["SKIP_INVALIDATION"] = true;
-            output.get_rt_info()["TABLE_OF_EQUIVALENCE"] = te;
-        }
+
         op->validate_and_infer_types();
 
         // additional label propagation rules must be triggered here
@@ -180,8 +180,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
 
     //    REGISTER_PASS(manager, RPE_Optimization)  // should be called after SymbolicOptimizations in plugin
 
-    // cleanup labels, erase SKIP_INVALIDATION
     manager.run_passes(m);
+    ov::remove_symbolic_info(m);
 //    std::cout << " after: " << m->get_ops().size() << std::endl;
-    return true;  // cleans up all the label information
+    return true;
 }

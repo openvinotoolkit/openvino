@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,12 @@
 #include <transformations/symbolic_transformations/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 
 bool ov::pass::ApplyTableOfEquivalence::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(ApplyTableOfEquivalence);
 
-    // get table of equivalence
-    auto rt_info = m->get_rt_info();
-    if (!rt_info.count("TABLE_OF_EQUIVALENCE"))
-        return false;
-    auto te = rt_info["TABLE_OF_EQUIVALENCE"].as<std::shared_ptr<ov::TableOfEquivalence>>();
+    auto te = ov::table_of_equivalence(m);
     if (te == nullptr)
         return false;
     auto equivalence_table = te->get_equivalence_table();
