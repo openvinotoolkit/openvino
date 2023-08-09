@@ -19,6 +19,7 @@ public:
     virtual ~ICompilationContext() = default;
     virtual bool is_stopped() = 0;
     virtual void cancel() = 0;
+    virtual void wait_all() = 0;
 
     static std::unique_ptr<ICompilationContext> create(ov::threading::IStreamsExecutor::Config task_executor_config);
 };

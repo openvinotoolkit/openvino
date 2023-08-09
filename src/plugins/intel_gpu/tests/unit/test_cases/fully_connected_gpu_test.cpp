@@ -1738,8 +1738,8 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();

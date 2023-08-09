@@ -588,7 +588,8 @@ bool primitive_inst::update_impl() {
             o.data_padding.set_dynamic_pad(tensor(0));
         }
 
-        auto& cache = get_network().get_program()->get_implementations_cache();
+        const auto& prog = get_network().get_program();
+        auto& cache = prog->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
             cached_impl = cache.get(updated_params_no_dyn_pad);
@@ -604,7 +605,7 @@ bool primitive_inst::update_impl() {
         if (!cached_impl) {
             if (_dynamic_impl) {
                 if (use_async_compilation()) {
-                    auto& compilation_context = get_network().get_program()->get_compilation_context();
+                    auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
                         if (compilation_context.is_stopped())
                             return;
@@ -637,7 +638,7 @@ bool primitive_inst::update_impl() {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                 _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
-                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto& kernels_cache = prog->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
                     _impl->set_kernels(std::move(kernels));
                     cache.add(updated_params_no_dyn_pad, _impl->clone());
