@@ -6,13 +6,11 @@ import os
 import pytest
 import numpy as np
 
-from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_relu_compiled_model
+from tests.utils.utils import generate_relu_compiled_model
 from openvino.runtime import Model, ConstOutput, Type, Shape, Core, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
 
 
 def _get_value(value):

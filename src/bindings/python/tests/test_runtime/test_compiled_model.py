@@ -6,12 +6,9 @@ import os
 import pytest
 import numpy as np
 
-from tests.conftest import model_path
-from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
+from tests.utils.utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
 from openvino import Model, Shape, Core, Tensor
 from openvino.runtime import ConstOutput
-
-test_net_xml, test_net_bin = model_path()
 
 
 def test_get_property(device):
@@ -23,9 +20,7 @@ def test_get_property(device):
 
 
 def test_get_runtime_model(device):
-    core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
     runtime_model = compiled_model.get_runtime_model()
     assert isinstance(runtime_model, Model)
 
@@ -36,8 +31,7 @@ def test_export_import(device):
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
         pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
 
     user_stream = compiled_model.export_model()
 
@@ -57,8 +51,7 @@ def test_export_import_advanced(device):
     if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
         pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
 
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    compiled_model = core.compile_model(model, device)
+    compiled_model = generate_relu_compiled_model(device)
 
     user_stream = io.BytesIO()
 

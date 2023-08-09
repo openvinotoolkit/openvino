@@ -19,7 +19,7 @@ from openvino._offline_transformations import (
 from openvino.runtime import Model, PartialShape, Core, serialize, save_model
 import openvino.runtime as ov
 
-from tests.test_utils.test_utils import create_filename_for_test, compare_models, _compare_models
+from tests.utils.utils import create_filename_for_test, compare_models, _compare_models
 
 
 def get_relu_model():

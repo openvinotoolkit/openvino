@@ -23,7 +23,7 @@ from openvino import (
 )
 from openvino.runtime import Output
 
-from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
+from tests.utils.utils import generate_add_model, create_filename_for_test
 
 
 def test_test_descriptor_tensor():

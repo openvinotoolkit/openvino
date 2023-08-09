@@ -26,7 +26,7 @@ from tests.conftest import (
     get_model_with_template_extension,
 )
 
-from tests.test_utils.test_utils import (
+from tests.utils.utils import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
@@ -255,7 +255,7 @@ def test_get_property_str():
 
 def test_query_model(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     query_model = core.query_model(model=model, device_name=device)
     ops_model = model.get_ordered_ops()
     ops_func_names = [op.friendly_name for op in ops_model]
@@ -326,7 +326,7 @@ def test_add_extension():
     core = Core()
     core.add_extension(EmptyExtension())
     core.add_extension([EmptyExtension(), EmptyExtension()])
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     assert isinstance(model, Model)
 
 
@@ -398,7 +398,7 @@ def test_read_model_from_buffer_no_weights():
 
 def test_infer_new_request_return_type(device):
     core = Core()
-    model = core.read_model(model=test_net_xml, weights=test_net_bin)
+    model = get_relu_model()
     img = generate_image()
     compiled_model = core.compile_model(model, device)
     res = compiled_model.infer_new_request({"data": img})

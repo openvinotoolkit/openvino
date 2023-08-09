@@ -442,7 +442,7 @@ def test_properties_capability_gpu():
 
 def test_properties_hint_model():
     # Temporary imports
-    from tests.test_utils.test_utils import generate_add_model
+    from tests.utils.utils import generate_add_model
 
     model = generate_add_model()
 

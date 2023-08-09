@@ -15,7 +15,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from tests.test_utils.test_utils import generate_image, generate_relu_compiled_model
+from tests.utils.utils import generate_image, generate_relu_compiled_model
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [

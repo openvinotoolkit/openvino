@@ -7,14 +7,12 @@ from typing import Tuple, Union, List
 import os
 import sys
 import numpy as np
-import pytest
 
 from pathlib import Path
 
 import openvino
 import openvino.runtime.opset12 as ops
 from openvino.runtime import Model, Core, Shape
-from openvino.utils import deprecated
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
@@ -97,22 +95,6 @@ def compare_models(model_one: Model, model_two: Model, compare_names: bool = Tru
     return result
 
 
-def test_compare_models_pass():
-    model = get_relu_model()
-    assert compare_models(model, model)
-
-
-def test_compare_models_fail():
-    model = get_relu_model()
-
-    changed_model = model.clone()
-    changed_model.get_ordered_ops()[0].set_friendly_name("ABC")
-
-    with pytest.raises(RuntimeError) as e:
-        _ = compare_models(model, changed_model)
-    assert "Not equal op names model_one: data, model_two: ABC." in str(e.value)
-
-
 def plugins_path(device, lib_path):
     plugin_xml = f"""<ie>
     <plugins>
@@ -168,33 +150,6 @@ def generate_add_model() -> openvino._pyopenvino.Model:
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
     return Model(add, [param1, param2], "TestFunction")
-
-
-def test_deprecation_decorator():
-    @deprecated()
-    def deprecated_function1(param1, param2=None):
-        pass
-
-    @deprecated(version="2025.4")
-    def deprecated_function2(param1=None):
-        pass
-
-    @deprecated(message="Use another function instead")
-    def deprecated_function3():
-        pass
-
-    @deprecated(version="2025.4", message="Use another function instead")
-    def deprecated_function4():
-        pass
-
-    with pytest.warns(DeprecationWarning, match="deprecated_function1 is deprecated"):
-        deprecated_function1("param1")
-    with pytest.warns(DeprecationWarning, match="deprecated_function2 is deprecated and will be removed in version 2025.4"):
-        deprecated_function2(param1=1)
-    with pytest.warns(DeprecationWarning, match="deprecated_function3 is deprecated. Use another function instead"):
-        deprecated_function3()
-    with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
-        deprecated_function4()
 
 
 def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):

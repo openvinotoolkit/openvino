@@ -27,10 +27,7 @@ from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
-from tests.conftest import model_path
-from tests.test_utils.test_utils import generate_image, get_relu_model
-
-test_net_xml, test_net_bin = model_path()
+from tests.utils.helpers import generate_image, get_relu_model
 
 
 def create_model_with_memory(input_shape, data_type):
@@ -100,7 +97,7 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
 def test_get_profiling_info(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
@@ -164,7 +161,7 @@ def test_tensor_setter(device):
 
 def test_set_tensors(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
@@ -295,7 +292,7 @@ def test_inputs_outputs_property_and_method(device):
 @pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()
@@ -316,7 +313,7 @@ def test_cancel(device):
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_start_async(device, share_inputs):
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     jobs = 3
@@ -482,7 +479,7 @@ def test_infer_queue(device, share_inputs):
     jobs = 8
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
     jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
@@ -563,7 +560,7 @@ def test_infer_queue_fail_on_cpp_model(device):
     jobs = 6
     num_request = 4
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -585,7 +582,7 @@ def test_infer_queue_fail_on_py_model(device):
     jobs = 1
     num_request = 1
     core = Core()
-    model = core.read_model(test_net_xml, test_net_bin)
+    model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
