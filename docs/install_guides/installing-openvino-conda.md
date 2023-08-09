@@ -49,6 +49,14 @@ Installing OpenVINO Runtime with Anaconda Package Manager
    Congratulations! You have finished installing OpenVINO Runtime.
 
 
+Installing *numpy* Python Library
+#################################
+
+.. code-block:: sh
+
+   conda install -c conda-forge numpy
+
+
 Uninstalling OpenVINO™ Runtime
 ###########################################################
 

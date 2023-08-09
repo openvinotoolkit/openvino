@@ -65,7 +65,16 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
          tar -xf openvino_2022.3.1.tgz
          sudo mv m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64 /opt/intel/openvino_2022.3.1
 
-5. For simplicity, it is useful to create a symbolic link as below:
+5. Install *numpy* Python Library:
+
+   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
+
+   .. code-block:: sh
+
+      cd /opt/intel/openvino_2022.3.1
+      python3 -m pip3 install -r ./python/python3.<x>/requirements.txt
+
+6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 

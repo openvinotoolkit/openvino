@@ -86,8 +86,15 @@ Use the following command:
 
    pip install openvino
 
+Step 5. Install *numpy* Python Library
+++++++++++++++++++++++++++++++++++++++
 
-Step 5. Verify that the Package Is Installed
+.. code-block:: sh
+
+   pip install numpy
+
+
+Step 6. Verify that the Package Is Installed
 ++++++++++++++++++++++++++++++++++++++++++++
 
 Run the command below:
