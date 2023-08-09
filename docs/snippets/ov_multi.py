@@ -8,7 +8,7 @@ def MULTI_0():
 
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
-    
+
     # Option 1
     # Pre-configure MULTI globally with explicitly defined devices,
     # and compile the model on MULTI using the newly specified default device list.

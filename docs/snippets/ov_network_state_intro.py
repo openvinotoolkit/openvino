@@ -54,9 +54,10 @@ def low_latency_2_example():
     states = infer_request.query_state()
     for state in states:
         name = state.get_name()
-        if (name == state_name):
+        if name == state_name:
             # some actions
     #! [ov:low_latency_2]
+            pass
 
     #! [ov:low_latency_2_use_parameters]
     manager.register_pass(LowLatency2(False))
