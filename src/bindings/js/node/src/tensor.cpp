@@ -15,9 +15,10 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
         }
         try {
             const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
-            const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
-            const auto& shape = ov::Shape(shape_vec); 
-            const auto data = info[2].As<Napi::TypedArray>();           
+            const auto shape_vec =
+                js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
+            const auto& shape = ov::Shape(shape_vec);
+            const auto data = info[2].As<Napi::TypedArray>();
             this->_tensor = cast_to_tensor(data, shape, type);
 
         } catch (std::invalid_argument& e) {
@@ -65,7 +66,7 @@ Napi::Object TensorWrap::Wrap(Napi::Env env, ov::Tensor tensor) {
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto type = _tensor.get_element_type();
-    
+
     switch (type) {
     case ov::element::Type_t::i8: {
         auto arr = Napi::Int8Array::New(info.Env(), _tensor.get_size());
@@ -116,7 +117,12 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
         auto arr = Napi::BigUint64Array::New(info.Env(), _tensor.get_size());
         std::memcpy(arr.Data(), _tensor.data(), _tensor.get_byte_size());
         return arr;
-    }}
+    }
+    default: {
+        reportError(info.Env(), "Failed to return tensor data.");
+        return info.Env().Null();
+    }
+    }
 }
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
