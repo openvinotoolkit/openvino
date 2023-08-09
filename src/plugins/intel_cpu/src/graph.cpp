@@ -501,6 +501,7 @@ void Graph::InitEdges() {
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         if ((edge->getChild()->getType() == Type::Convert) &&
+            !DnnlExtensionUtils::isSupportedPrecision(edge->getOutputDesc().getPrecision()) &&
             edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision()) {
             auto convert = edge->getChild();
             const auto& inDesc = edge->getInputDesc();
