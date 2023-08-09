@@ -57,7 +57,7 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     @pytest.mark.parametrize("with_second_output", [
         pytest.param(
             True,
-            marks=pytest.mark.xfail(reason="Ticket: TransposeSinking crash")
+            marks=pytest.mark.xfail(reason="117415: TransposeSinking crash")
         ),
         False
     ])
