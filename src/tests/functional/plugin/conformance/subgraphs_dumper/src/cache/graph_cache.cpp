@@ -39,28 +39,32 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
                               std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
-    // todo: check the number 8GB
-    if (m_graph_cache_bytesize >>  33 > 0) {
+    // todo: check the number 4GB
+    if (m_graph_cache_bytesize >> 32 > 0) {
         std::cout << "[ GRAPH CACHE ][ WARNING ] Cache size > 8 GB. Serialize graph cache" << std::endl;
         serialize_cache();
         m_graph_cache.clear();
         m_graph_cache_bytesize = 0;
     }
 
-    std::shared_ptr<ov::Model> model_to_update = nullptr;
     auto graph_name = extracted_model->get_friendly_name();
-    // if cached model was serialized
-    if (m_serialized_cache.count(graph_name)) {
-        auto cached_model_path = ov::util::path_join({ m_serialization_dir, m_serialized_cache[graph_name], graph_name});
-        m_serialized_cache.erase(graph_name);
+    std::string serialized_model_path = "";
+    for (const auto& extractor : m_manager.get_extractors()) {
+        serialized_model_path = ov::util::path_join({ m_serialization_dir, "subgraph", extractor.first, graph_name + ".xml" });
+        if (ov::util::file_exists(serialized_model_path)) {
+            break;
+        }
+    }
 
-        auto xml_path = cached_model_path + ".xml";
-        auto bin_path = cached_model_path + ".bin";
-        auto meta_path = cached_model_path + ".meta";
-        auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(xml_path);
+    std::shared_ptr<ov::Model> model_to_update = nullptr;
+    // if cached model was serialized
+    if (!serialized_model_path.empty()) {
+        auto bin_path = ov::test::utils::replaceExt(serialized_model_path, ".bin");
+        auto meta_path = ov::test::utils::replaceExt(serialized_model_path, ".meta");
+        auto cached_model = ov::test::utils::PluginCache::get().core()->read_model(serialized_model_path);
         auto cached_meta = MetaInfo::read_meta_from_file(meta_path);
 
-        ov::test::utils::removeFile(xml_path);
+        ov::test::utils::removeFile(serialized_model_path);
         ov::test::utils::removeFile(bin_path);
         ov::test::utils::removeFile(meta_path);
         m_graph_cache.insert({ cached_model, cached_meta });
@@ -100,7 +104,6 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 void GraphCache::serialize_cache() {
     for (const auto& cache_item : m_graph_cache) {
         auto rel_dir = ov::util::path_join({ "subgraph", cache_item.second.get_any_extractor() });
-        m_serialized_cache.insert({ cache_item.first->get_friendly_name(), rel_dir });
         serialize_model(cache_item, rel_dir);
     }
 }
