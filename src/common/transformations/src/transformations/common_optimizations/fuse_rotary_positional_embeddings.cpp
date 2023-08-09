@@ -9,6 +9,7 @@
 #include <openvino/op/concat.hpp>
 #include <openvino/op/gather_elements.hpp>
 #include <openvino/op/multiply.hpp>
+#include <openvino/op/op.hpp>
 #include <openvino/op/unsqueeze.hpp>
 #include <openvino/op/variadic_split.hpp>
 #include <openvino/pass/pattern/op/pattern.hpp>
@@ -17,37 +18,44 @@
 
 #include "itt.hpp"
 
-ov::pass::RPE_Optimization::RPE_Optimization() {
-    MATCHER_SCOPE(RPE_Optimization);
+ov::pass::pattern::op::ValuePredicate constant_predicate(
+    const std::function<bool(const std::vector<int64_t>& values)>& value_predicate) {
+    return ov::pass::pattern::op::as_value_predicate([&](std::shared_ptr<ov::Node> n) -> bool {
+        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(n))
+            return value_predicate(constant->cast_vector<int64_t>());
+        return false;
+    });
+}
 
-    auto sin = pattern::wrap_type<op::v6::GatherElements, op::v0::Unsqueeze>();  // any_input doesn't work here
-    auto cos = pattern::wrap_type<op::v6::GatherElements, op::v0::Unsqueeze>();  // any_input doesn't work here
+#define CONSTANT_WITH_PREDICATE(expression)                                                         \
+    pattern::wrap_type<op::v0::Constant>(constant_predicate([](const std::vector<int64_t>& value) { \
+        return expression;                                                                          \
+    }))
 
-    auto source = pattern::any_input(pattern::has_static_rank());
+ov::pass::RPE_Fusion::RPE_Fusion() {
+    MATCHER_SCOPE(RPE_Fusion);
 
-    // rotate_half begin
-    auto split_length =
-        pattern::wrap_type<op::v0::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
-            const auto& constant = ov::as_type_ptr<op::v0::Constant>(n);
-            if (!constant)
-                return false;
-            const auto& value = constant->cast_vector<int64_t>();
-            return value.size() == 2 && value[0] == value[1];
-        }));  // make sure constant contains 2 elements with same content; it may be -1, but we fix it earlier
+    auto sin = pattern::any_input();
+    auto cos = pattern::any_input();
+
+    auto source = pattern::wrap_type<ov::op::Op>();  // FIXME: any_input doesn't work here
+    // BEGIN: rotate_half
+
+    // Variadic Split into two equal parts
     auto axis = pattern::any_input();
+    auto split_length = CONSTANT_WITH_PREDICATE(value.size() == 2 && value[0] == value[1]);
     auto vsplit = pattern::wrap_type<op::v1::VariadicSplit>({source, axis, split_length});
     vsplit->set_output_size(2);
-    auto minus_1 =
-        pattern::wrap_type<op::v0::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
-            const auto& constant = ov::as_type_ptr<op::v0::Constant>(n);
-            if (!constant)
-                return false;
-            const auto& value = constant->cast_vector<int64_t>();
-            return value.size() == 1 && value[0] == -1;
-        }));  // make sure it is == -1
+
+    // Negate
+    auto minus_1 = CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
     auto neg = pattern::wrap_type<op::v1::Multiply>({vsplit->output(1), minus_1});
+
+    // Concat two splitted parts in the opposite order, first of them is negated
     auto concat = pattern::wrap_type<op::v0::Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
-    // rotate half end
+
+    // END: rotate half
+
     auto mul_sin = pattern::wrap_type<op::v1::Multiply>({concat, sin});
     auto mul_cos = pattern::wrap_type<op::v1::Multiply>({source, cos});
     auto add = pattern::wrap_type<op::v1::Add>({mul_cos, mul_sin});
@@ -68,16 +76,18 @@ ov::pass::RPE_Optimization::RPE_Optimization() {
         if (value.size() != 1)
             return false;
         auto concat_axis = concat_node->get_concatenation_axis();
-        concat_axis = concat_axis < 0 ? concat_axis + input.get_partial_shape().size() : concat_axis;
         auto split_axis = value[0];
-        split_axis = split_axis < 0 ? split_axis + input.get_partial_shape().size() : split_axis;
-        if (concat_axis != split_axis)
-            return false;
+        if (concat_axis != split_axis) {
+            concat_axis = concat_axis < 0 ? concat_axis + input.get_partial_shape().size() : concat_axis;
+            split_axis = split_axis < 0 ? split_axis + input.get_partial_shape().size() : split_axis;
+            if (concat_axis != split_axis)
+                return false;
+        }
         auto rope = std::make_shared<ov::op::internal::RPE>(input,
                                                             value_map.at(sin),
                                                             value_map.at(cos),
                                                             concat_node->get_axis());
-        value_map.at(add).replace(rope->output(0));  // TODO: update fused names
+        ov::replace_output_update_name(value_map.at(add), rope->output(0));
         return true;
     };
     auto m = std::make_shared<pattern::Matcher>(add, matcher_name);

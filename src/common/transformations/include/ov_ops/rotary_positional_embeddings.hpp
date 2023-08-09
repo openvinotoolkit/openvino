@@ -16,16 +16,14 @@ namespace op {
 namespace internal {
 
 ///
-/// \brief RPE operation.
-///
+/// \brief Rotary Positional Embeddings operation
+/// Internal operation which may change in the future
 /// \ingroup ov_ops_cpp_api
 class TRANSFORMATIONS_API RPE : public ov::op::Op {
 public:
     OPENVINO_OP("RPE", "ie_internal_opset", op::Op);
-
     RPE() = default;
     RPE(const Output<Node>& data, const Output<Node>& sin, const Output<Node>& cos, const int64_t& axis);
-
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

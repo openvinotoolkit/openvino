@@ -10,12 +10,16 @@
 
 namespace ov {
 namespace pass {
-class TRANSFORMATIONS_API RPE_Optimization;
+class TRANSFORMATIONS_API RPE_Fusion;
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Fuses special sub-graph into an internal Rotary Positional Embedding operation
+ */
+class ov::pass::RPE_Fusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RPE_Optimization", "0");
-    RPE_Optimization();
+    OPENVINO_RTTI("RPE_Fusion", "0");
+    RPE_Fusion();
 };
