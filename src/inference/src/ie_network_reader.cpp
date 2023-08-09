@@ -370,7 +370,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         assertIfIRv7LikeModel(modelStream);
 
         if (reader_irv7 && reader_irv7->supportModel(modelStream)) {
-            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             if (weights)
                 return reader_irv7->read(modelStream, weights, exts);
             return reader_irv7->read(modelStream, exts);
