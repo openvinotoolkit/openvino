@@ -254,7 +254,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
         // Restore original shapes to the nGraph Function
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
-        }   
+        }
     }
     f->validate_nodes_and_infer_types();
 
