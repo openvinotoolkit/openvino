@@ -8,6 +8,8 @@
 #include <numeric>
 #include <vector>
 
+#include <transformations/utils/utils.hpp>
+#include "config.h"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "general_utils.h"
@@ -45,6 +47,18 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
         normalizedDims.insert(normalizedDims.begin(), 1);
     }
     return normalizedDims;
+}
+
+/**
+* @brief Returns model type
+* @param model
+* analysed model
+* @return model type
+*/
+inline Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::Convolution : Config::ModelType::Unknown;
 }
 
 /**

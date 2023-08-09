@@ -45,7 +45,7 @@ struct Config {
         PER_PLATFORM,
     };
 
-    enum class NetworkType {
+    enum class ModelType {
         Convolution,
         Unknown
     };
@@ -88,7 +88,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config, NetworkType networkType = NetworkType::Unknown);
+    void readProperties(const std::map<std::string, std::string> &config, ModelType modelType = ModelType::Unknown);
     void updateProperties();
 
     std::map<std::string, std::string> _config;

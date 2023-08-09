@@ -28,6 +28,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
+#include "utils/cpu_utils.hpp"
 
 #if defined(__linux__)
 # include <sys/auxv.h>
@@ -435,9 +436,9 @@ static bool shouldEnableLPT(const std::map<std::string, std::string>& modelConfi
 
 static ov::element::Type getInferencePrecision(const std::map<std::string, std::string>& modelConfig,
                                                const Config& engineConfig,
-                                               Config::NetworkType networkType) {
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig, networkType);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
 }
 
@@ -487,10 +488,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const bool enableLPT = shouldEnableLPT(config, engConfig);
     auto nGraphFunc = clonedNetwork.getFunction();
-    Config::NetworkType networkType = ov::op::util::has_op_with_type<ngraph::op::v1::Convolution>(nGraphFunc) ||
-                                      ov::op::util::has_op_with_type<ngraph::op::v1::ConvolutionBackpropData>(nGraphFunc) ?
-                                      Config::NetworkType::Convolution : Config::NetworkType::Unknown;
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, networkType);
+    Config::ModelType modelType = getModelType(nGraphFunc);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
@@ -503,7 +502,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
-    conf.readProperties(config, networkType);
+    conf.readProperties(config, modelType);
     CalculateStreams(conf, nGraphFunc);
 
     Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
@@ -765,10 +764,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     }
 
     Config conf = engConfig;
-    Config::NetworkType networkType = ov::op::util::has_op_with_type<ngraph::op::v1::Convolution>(model) ||
-                                      ov::op::util::has_op_with_type<ngraph::op::v1::ConvolutionBackpropData>(model) ?
-                                      Config::NetworkType::Convolution : Config::NetworkType::Unknown;
-    conf.readProperties(config, networkType);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
