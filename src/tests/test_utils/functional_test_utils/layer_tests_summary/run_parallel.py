@@ -45,7 +45,7 @@ def parse_arguments():
     parser = ArgumentParser()
     exec_file_path_help = "Path to the test executable file"
     cache_path_help = "Path to the cache file with test_name list sorted by execution time. .lst file!"
-    worker_num_help = "Worker number. Default value is `cpu_count-1` "
+    worker_num_help = "Worker number. Default value is `cpu_count` "
     working_dir_num_help = "Working dir"
     process_timeout_help = "Process timeout in s"
     parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
@@ -55,7 +55,7 @@ def parse_arguments():
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
-    parser.add_argument("-j", "--workers", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
+    parser.add_argument("-j", "--workers", help=worker_num_help, type=int, required=False, default=(os.cpu_count()) if os.cpu_count() > 2 else 1)
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
@@ -280,6 +280,7 @@ class TestParallelRunner:
         return input_string
 
     def __get_test_list_by_runtime(self):
+        self._total_test_cnt = 0
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         if os.path.isfile(test_list_file_name):
             try:
@@ -304,31 +305,31 @@ class TestParallelRunner:
                 if "Running main() from" in test_name:
                     continue
                 if not ' ' in test_name:
-                    test_suite = test_name
-                    fixed_suite_name = f'{self.__replace_restricted_symbols(test_suite)}'.replace(".", "")
+                    test_suite = test_name.replace(".", "")
+                    # fixed_suite_name = f'{self.__replace_restricted_symbols(test_suite)}'.replace(".", "")
                     if (self._split_unit == "suite") :
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
                         elif (test_suite) :
-                            tests_dict[fixed_suite_name] = 0
+                            tests_dict[test_suite] = 0
                     continue
                 pos = test_name.find('#')
-                if pos > 0 or test_suite != "":
-                    real_test_name = test_suite + (test_name[2:pos-2] if pos > 0 else test_name[2:])
+                if pos > 0 or test_suite != "" :
+                    real_test_name = test_suite + "." + (test_name[2:pos-2] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif (self._split_unit == "test") :
-                        tests_dict[f'"{self.__replace_restricted_symbols(real_test_name)}":'] = -1
+                        tests_dict[real_test_name] = -1
                     elif (self._split_unit == "suite") :
-                        tests_dict[fixed_suite_name] = tests_dict.get(fixed_suite_name, 0) + 1
+                        tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
+                        # count all test cases
+                        self._total_test_cnt += 1
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(f"Len test_list_runtime (without disabled tests): {len(tests_dict)}")
         if len(tests_dict) == 0:
             logger.warning(f"Look like there are not tests to run! Please check the filters!")
             exit(0)
-        # remove duplicates
-        # test_set = [*set(test_list)]
         return tests_dict
 
     def __get_test_list_by_cache(self):
@@ -401,7 +402,8 @@ class TestParallelRunner:
 
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_item in tests_sorted :
-            test_pattern = f'"{self.__replace_restricted_symbols(test_item[0])}"*:'
+            test_pattern = f'"{self.__replace_restricted_symbols(test_item[0])}"'
+            test_pattern += ":" if self._split_unit == "test" else "*"
             test_time = test_item[1]
             w_id = -1
             for i in range(len(workers)) :
@@ -418,49 +420,6 @@ class TestParallelRunner:
         for filter in workers:
             res_test_filters.append(filter[1])
 
-        # prepare gtest filters per worker according command line length limitation
-        # while len(proved_test_dict) > 0:
-            # test_times = []
-            # is_not_full = True
-            # worker_test_filters = list()
-
-
-
-            # for _ in range(real_worker_num):
-            #     if len(proved_test_dict) == 0:
-            #         break
-            #     test = list(proved_test_dict.items())[0]
-            #     worker_test_filters.append(f'"{self.__replace_restricted_symbols(test[0])}"*:')
-            #     test_times.append(test[1])
-            #     proved_test_dict.pop(test[0])
-            # while is_not_full and len(proved_test_dict) > 0:
-            #     for i in range(real_worker_num):
-            #         if i >= len(proved_test_dict):
-            #             break
-            #         if i == 0:
-            #             continue
-            #         while test_times[0] > test_times[i] + list(proved_test_dict.values())[-1] :
-            #             filter = list(proved_test_dict.keys())[-1]
-            #             if len(worker_test_filters[i]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
-            #                 worker_test_filters[i] += f'"{self.__replace_restricted_symbols(filter)}"*:'
-            #                 test_times[i] += list(proved_test_dict.values())[-1]
-            #                 proved_test_dict.pop(filter)
-            #             else:
-            #                 is_not_full = False
-            #                 break
-            #             if len(proved_test_dict) == 0:
-            #                 break
-            #     if is_not_full and len(proved_test_dict) > 0:
-            #         filter = list(proved_test_dict.keys())[0]
-            #         if len(worker_test_filters[0]) + def_length + len(filter.replace(self._device, longest_device)) < MAX_LENGHT:
-            #             worker_test_filters[0] += f'"{self.__replace_restricted_symbols(filter)}"*:'
-            #             test_times[0] += list(proved_test_dict.values())[0]
-            #             proved_test_dict.pop(filter)
-            #         else:
-            #             is_not_full = False
-            # for filter in worker_test_filters:
-            #     res_test_filters.append(filter)
-            # is_not_full = True
         # logging for debug
         for i in range(len(res_test_filters)):
             filter = res_test_filters[i]
@@ -731,7 +690,7 @@ class TestParallelRunner:
                             _, tail = os.path.split(ir_hash)
                             ir_hash, _ = os.path.splitext(tail)
                         ir_hashes.append(ir_hash)
-                        
+
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
                 # Find all irs for failed tests
                 failed_ir_dir = os.path.join(self._working_dir, f'{self._device}_failed_ir')

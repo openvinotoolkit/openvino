@@ -794,4 +794,7 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
             ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
           if-no-files-found: 'error'
