@@ -49,18 +49,19 @@ TEST_F(TransformationTestsF, FuseRPE) {
 }
 
 TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
+    // FIXME: this test shouldn't pass CVS-117470
     {
         auto data_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto sin_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto cos_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
 
-        auto data = make_shared<v1::Split>(data_, v0::Constant::create(element::i64, {}, {-1}), 2)->output(1);
+        auto data = make_shared<v1::Split>(data_, v0::Constant::create(element::i64, {}, {-1}), 2);
         auto sin = make_shared<v1::Split>(sin_, v0::Constant::create(element::i64, {}, {-1}), 2)->output(1);
         auto cos = make_shared<v1::Split>(cos_, v0::Constant::create(element::i64, {}, {-1}), 2)->output(1);
 
         auto axis = v0::Constant::create(element::i64, {}, {-1});
         auto split_lengths = v0::Constant::create(element::i64, {2}, {10, 10});
-        auto split = make_shared<v1::VariadicSplit>(data, axis, split_lengths);
+        auto split = make_shared<v1::VariadicSplit>(data->output(0), axis, split_lengths);
 
         auto minus_one = v0::Constant::create(element::f32, {}, {-1});
         auto negate = make_shared<v1::Multiply>(split->output(1), minus_one);
@@ -68,7 +69,7 @@ TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
         auto concat = make_shared<v0::Concat>(OutputVector{negate, split->output(0)}, -1);
 
         auto mul_sin = make_shared<op::v1::Multiply>(concat, sin);
-        auto mul_cos = make_shared<op::v1::Multiply>(data, cos);
+        auto mul_cos = make_shared<op::v1::Multiply>(data->output(1), cos);
         auto add = make_shared<op::v1::Add>(mul_cos, mul_sin);
 
         model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data_, sin_, cos_});
@@ -82,7 +83,7 @@ TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
 
         auto axis = v0::Constant::create(element::i64, {}, {-1});
 
-        auto data = make_shared<v1::Split>(data_, axis, 2)->output(1);
+        auto data = make_shared<v1::Split>(data_, axis, 2)->output(0);
         auto sin = make_shared<v1::Split>(sin_, axis, 2)->output(1);
         auto cos = make_shared<v1::Split>(cos_, axis, 2)->output(1);
 

@@ -7,10 +7,8 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
-#include <openvino/op/gather_elements.hpp>
 #include <openvino/op/multiply.hpp>
 #include <openvino/op/op.hpp>
-#include <openvino/op/unsqueeze.hpp>
 #include <openvino/op/variadic_split.hpp>
 #include <openvino/pass/pattern/op/pattern.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -78,8 +76,11 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         auto concat_axis = concat_node->get_concatenation_axis();
         auto split_axis = value[0];
         if (concat_axis != split_axis) {
-            concat_axis = concat_axis < 0 ? concat_axis + input.get_partial_shape().size() : concat_axis;
-            split_axis = split_axis < 0 ? split_axis + input.get_partial_shape().size() : split_axis;
+            if (input.get_partial_shape().is_static()) {
+                auto rank = input.get_partial_shape().rank().get_length();
+                concat_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
+                split_axis = split_axis < 0 ? split_axis + rank : split_axis;
+            }
             if (concat_axis != split_axis)
                 return false;
         }
