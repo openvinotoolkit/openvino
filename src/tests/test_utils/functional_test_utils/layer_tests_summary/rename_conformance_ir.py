@@ -98,17 +98,12 @@ def is_report_op(op_name:str):
 
 def generate_node_hash(node):
     str_to_hash = ""
-    try:
-        str_to_hash += re.sub(r"[\s+\[\]\{\}\']", "", str(node.get_attributes()))
-    except:
-        logger.error(f"Impossible to get attributes for {node.name}")
     for input in node.inputs():
         input_node = input.get_node()
 
         shape_str = ""
         try:
             partial_shape = input.get_partial_shape()
-            shape_str += re.sub(r"[\s+\[\]\{\}\']", "", str(partial_shape))
             shape_str += str(len(partial_shape))
             shape_str += str(partial_shape.is_dynamic)
         except:
@@ -123,7 +118,6 @@ def generate_node_hash(node):
         shape_str = ""
         try:
             partial_shape = output.get_partial_shape()
-            shape_str += re.sub(r"[\s+\[\]\{\}\']", "", str(partial_shape))
             shape_str += str(len(partial_shape))
             shape_str += str(partial_shape.is_dynamic)
         except:
@@ -133,27 +127,6 @@ def generate_node_hash(node):
             str(output_node.get_type_info().name) + str(output_node.get_type_info().version_id)
 
     return str_to_hash
-
-
-def generate_convert_hash(model_path: Path):
-    try:
-        buf = dict()
-        res = str()
-        layers = ET.parse(model_path).getroot().find("layers")
-        for op in layers:
-            name = f'{op.attrib.get("type")}_{op.attrib.get("version")}'
-            if not name in buf.keys():
-                buf.update({name: list()})
-            for child in op:
-                buf[name].append(ET.tostring(child).decode('utf8').replace('\n', '').replace('\t', ''))
-        for op_name, set_attributes in buf.items():
-            res += op_name
-            for attribute in set_attributes:
-                res += attribute
-        return res
-    except ET.ParseError:
-        logger.error(f' {model_path} is corrupted and skipped')
-    return None
 
 def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
@@ -170,43 +143,32 @@ def create_hash(in_dir_path: Path, operations=dict()):
 
             str_to_hash = str()
             rel_weight = get_rel_weight(meta_path)
-            # todo: remove w/a to provide correct convert reporting after merge CVS-110714
-            if (os.sep + CONVERT_OP_NAME + os.sep) in str(model_path):
-                str_to_hash = generate_convert_hash(model_path)
-                if not CONVERT_OP_NAME in operations.keys():
-                    operations.update({CONVERT_OP_NAME: TestStructure()})
-                if "static" in str(model_path):
-                    operations[CONVERT_OP_NAME].static += rel_weight
-                elif "dynamic" in str(model_path):
-                    operations[CONVERT_OP_NAME].dynamic += rel_weight
-            else:
-                try:
-                    model = core.read_model(model_path)
-                    for node in model.get_ordered_ops():
-                        op_name = generate_op_name(node.get_type_info())
-                        if is_report_op(op_name):
-                            if not op_name in operations.keys():
-                                operations.update({op_name: TestStructure()})
-                            if "static" in str(model_path):
-                                operations[op_name].static += rel_weight
-                            elif "dynamic" in str(model_path):
-                                operations[op_name].dynamic += rel_weight
-                        str_to_hash += generate_node_hash(node)
-                        try:
-                            for body_node in node.get_function().get_ordered_ops():
-                                str_to_hash += generate_node_hash(body_node)
-                        except:
-                            pass
-                except:
-                    logger.error(f"Impossible to create hash for {model_path}")
-            ports_info = ET.parse(meta_path).getroot().find("ports_info")
-            str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
             try:
-                model = ET.parse(meta_path).getroot().find("models").find("model")
-                str_to_hash += model.get('name')
+                model = core.read_model(model_path)
+                for node in model.get_ordered_ops():
+                    op_name = generate_op_name(node.get_type_info())
+                    if is_report_op(op_name):
+                        if not op_name in operations.keys():
+                            operations.update({op_name: TestStructure()})
+                        if "static" in str(model_path):
+                            operations[op_name].static += rel_weight
+                        elif "dynamic" in str(model_path):
+                            operations[op_name].dynamic += rel_weight
+                    str_to_hash += generate_node_hash(node)
+                    try:
+                        for body_node in node.get_function().get_ordered_ops():
+                            str_to_hash += generate_node_hash(body_node)
+                    except:
+                        pass
             except:
-                pass
+                logger.error(f"Impossible to create hash for {model_path}")
+
+            try:
+                input_info = ET.parse(meta_path).getroot().find("input_info")
+                str_to_hash += ET.tostring(input_info).decode('utf8').replace('\t', '')
+            except:
+                logger.error(f"Impossible to add input_info to hash for {model_path}")
 
             old_name = model_path
             new_name = str(sha256(str_to_hash.encode('utf-8')).hexdigest())
