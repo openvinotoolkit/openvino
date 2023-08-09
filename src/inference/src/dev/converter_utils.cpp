@@ -430,6 +430,26 @@ public:
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return m_model->get_property(name);
+            } catch (const ov::Exception&) {
+                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+
+                return legacy_properties;
+            }
+        }
         return m_model->get_property(name);
     }
 
