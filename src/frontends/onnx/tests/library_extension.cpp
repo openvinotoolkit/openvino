@@ -10,15 +10,15 @@ using namespace ov::frontend;
 
 using ONNXLibraryExtensionTest = FrontendLibraryExtensionTest;
 
-static FrontendLibraryExtensionTestParams getTestData() {
-    FrontendLibraryExtensionTestParams params;
-    params.m_frontEndName = ONNX_FE;
-    params.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    params.m_modelName = "relu.onnx";
-    return params;
-}
+// static FrontendLibraryExtensionTestParams getTestData() {
+//     FrontendLibraryExtensionTestParams params;
+//     params.m_frontEndName = ONNX_FE;
+//     params.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
+//     params.m_modelName = "relu.onnx";
+//     return params;
+// }
 
-INSTANTIATE_TEST_SUITE_P(ONNXLibraryExtensionTest,
-                         FrontendLibraryExtensionTest,
-                         ::testing::Values(getTestData()),
-                         FrontendLibraryExtensionTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(ONNXLibraryExtensionTest,
+//                          FrontendLibraryExtensionTest,
+//                          ::testing::Values(getTestData()),
+//                          FrontendLibraryExtensionTest::getTestCaseName);

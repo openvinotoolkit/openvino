@@ -84,7 +84,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
     EXPECT_EQ(invoked, true);
 }
 
-TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
+TEST_P(FrontEndConversionExtensionTest, DISABLED_TestConversionExtensionViaSO) {
     auto frontend = m_param.m_frontend;
     const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);

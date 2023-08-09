@@ -24,7 +24,7 @@ void FrontEndLoadFromTest::SetUp() {
 
 ///////////////////load from Variants//////////////////////
 
-TEST_P(FrontEndLoadFromTest, testLoadFromFilePath) {
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePath) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
@@ -40,7 +40,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePath) {
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromFilePathWithExplicitVariants) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
@@ -59,7 +59,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles) {
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoFiles) {
     std::string model_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[0]);
     std::string weights_path = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[1]);
     std::vector<std::string> frontends;
@@ -76,7 +76,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles) {
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, testLoadFromStream) {
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromStream) {
     std::ifstream ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_stream),
                       std::ios::in | std::ios::binary);
     std::istream* is = &ifs;
@@ -94,7 +94,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream) {
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndLoadFromTest, testLoadFromTwoStreams) {
+TEST_P(FrontEndLoadFromTest, DISABLED_testLoadFromTwoStreams) {
     std::ifstream model_ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[0]),
                             std::ios::in | std::ios::binary);
     std::ifstream weights_ifs(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[1]),

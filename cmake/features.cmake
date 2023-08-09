@@ -185,7 +185,8 @@ ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OF
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
-    set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
+    # in case of dynamic protobuf, we have to use full protobuf library
+    set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 endif()
 
 #

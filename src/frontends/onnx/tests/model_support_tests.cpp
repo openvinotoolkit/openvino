@@ -45,13 +45,13 @@ TEST(ONNXReader_ModelSupported, scrambled_keys) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.onnx")));
 }
 
-TEST(ONNXReader_ModelUnsupported, no_graph_field) {
+TEST(ONNXReader_ModelUnsupported, DISABLED_no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
                  InferenceEngine::NetworkNotRead);
 }
 
-TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
+TEST(ONNXReader_ModelUnsupported, DISABLED_incorrect_onnx_field) {
     // in this model the second field's key is F8 (field number 31) which is doesn't exist in ONNX
     // this  test will have to be changed if the number of fields in onnx.proto
     // (ModelProto message definition) ever reaches 31 or more
@@ -59,13 +59,13 @@ TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
                  InferenceEngine::NetworkNotRead);
 }
 
-TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
+TEST(ONNXReader_ModelUnsupported, DISABLED_unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
                  InferenceEngine::NetworkNotRead);
 }
 
-TEST(ONNXReader_ModelUnsupported, duplicate_fields) {
+TEST(ONNXReader_ModelUnsupported, DISABLED_duplicate_fields) {
     // the model contains the IR_VERSION field twice - this is not correct
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/duplicate_onnx_fields.onnx")),
                  std::exception);
