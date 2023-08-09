@@ -146,7 +146,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
                                 auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(in_cloned_node);
                                 params.push_back(param);
                             } else if (ov::op::util::is_constant(in_cloned_node)) {
-                                auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node);
+                                auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(in_cloned_node);
                                 auto param = convert_const_to_param(op_to_replace);
                                 if (param != nullptr) {
                                     params.push_back(param);
