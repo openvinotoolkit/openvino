@@ -1617,8 +1617,19 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             }
         }
 
+        for (auto& dep : node.get_dependencies()) {
+            if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
+                return impl_types::onednn;
+            }
+        }
+
         if (format::is_blocked(node.get_output_layout().format)) {
-            preferred_impl = impl_types::onednn;
+            auto concat_params = node.get_kernel_impl_params();
+            auto concat_axis = concat_params->typed_desc<concatenation>()->axis;
+            // Avoid onednn impl_type in shallow feature size.
+            if (concat_axis == 1 && node.get_input_layouts()[0].feature() > 3) {
+                preferred_impl = impl_types::onednn;
+            }
         }
 
         // Check whether implicit concat is available in cldnn and if avilable fallback cldnn concat. ex> Multi batch.
