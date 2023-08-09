@@ -1,4 +1,4 @@
-# Throughput Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
+# Throughput Benchmark Python Sample {#openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README}
 
 @sphinxdirective
 
@@ -10,44 +10,54 @@ This sample demonstrates how to estimate performance of a model using Asynchrono
 
 The reported results may deviate from what :doc:`benchmark_app <openvino_inference_engine_tools_benchmark_tool_README>` reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
 
-The following Python API is used in the application:
+.. tab-set::
 
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Feature                        | API                                             | Description                                  |
-+================================+=================================================+==============================================+
-| OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model, |
-|                                | [openvino.runtime.Core.compile_model]           | configure input tensors.                     |
-|                                | [openvino.runtime.InferRequest.get_tensor]      |                                              |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
-|                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
-|                                | [openvino.runtime.AsyncInferQueue.wait_all],    |                                              |
-|                                | [openvino.runtime.InferRequest.results]         |                                              |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
-| Tensor Operations              | [openvino.runtime.Tensor.get_shape],            | Get a tensor shape and its data.             |
-|                                | [openvino.runtime.Tensor.data]                  |                                              |
-+--------------------------------+-------------------------------------------------+----------------------------------------------+
+   .. tab-item:: Requirements 
 
-+--------------------------------+------------------------------------------------------------------------------+
-| Options                        | Values                                                                       |
-+================================+==============================================================================+
-| Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                   |
-|                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                         |
-|                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                             |
-|                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`            |
-+--------------------------------+------------------------------------------------------------------------------+
-| Model Format                   | OpenVINO™ toolkit Intermediate Representation                                |
-|                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                            |
-+--------------------------------+------------------------------------------------------------------------------+
-| Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`         |
-+--------------------------------+------------------------------------------------------------------------------+
-| Other language realization     | :doc:`C++ <openvino_inference_engine_samples_throughput_benchmark_README>`   |
-+--------------------------------+------------------------------------------------------------------------------+
+      +--------------------------------+------------------------------------------------------------------------------+
+      | Options                        | Values                                                                       |
+      +================================+==============================================================================+
+      | Validated Models               | :doc:`alexnet <omz_models_model_alexnet>`,                                   |
+      |                                | :doc:`googlenet-v1 <omz_models_model_googlenet_v1>`,                         |
+      |                                | :doc:`yolo-v3-tf <omz_models_model_yolo_v3_tf>`,                             |
+      |                                | :doc:`face-detection-0200 <omz_models_model_face_detection_0200>`            |
+      +--------------------------------+------------------------------------------------------------------------------+
+      | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                |
+      |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                            |
+      +--------------------------------+------------------------------------------------------------------------------+
+      | Supported devices              | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`         |
+      +--------------------------------+------------------------------------------------------------------------------+
+      | Other language realization     | :doc:`C++ <openvino_inference_engine_samples_throughput_benchmark_README>`   |
+      +--------------------------------+------------------------------------------------------------------------------+
 
+   .. tab-item:: Python API  
+
+      The following Python API is used in the application:
+
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Feature                        | API                                             | Description                                  |
+      +================================+=================================================+==============================================+
+      | OpenVINO Runtime Version       | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Basic Infer Flow               | [openvino.runtime.Core],                        | Common API to do inference: compile a model, |
+      |                                | [openvino.runtime.Core.compile_model]           | configure input tensors.                     |
+      |                                | [openvino.runtime.InferRequest.get_tensor]      |                                              |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Asynchronous Infer             | [openvino.runtime.AsyncInferQueue],             | Do asynchronous inference.                   |
+      |                                | [openvino.runtime.AsyncInferQueue.start_async], |                                              |
+      |                                | [openvino.runtime.AsyncInferQueue.wait_all],    |                                              |
+      |                                | [openvino.runtime.InferRequest.results]         |                                              |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Model Operations               | [openvino.runtime.CompiledModel.inputs]         | Get inputs of a model.                       |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+      | Tensor Operations              | [openvino.runtime.Tensor.get_shape],            | Get a tensor shape and its data.             |
+      |                                | [openvino.runtime.Tensor.data]                  |                                              |
+      +--------------------------------+-------------------------------------------------+----------------------------------------------+
+
+   .. tab-item:: Sample Code  
+
+      .. doxygensnippet:: samples/python/benchmark/throughput_benchmark/throughput_benchmark.py
+         :language: python
 
 How It Works
 ####################

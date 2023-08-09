@@ -329,6 +329,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            properties.intel_gpu.disable_winograd_convolution,
+            "GPU_DISABLE_WINOGRAD_CONVOLUTION",
+            ((True, True),),
+        ),
+        (
             properties.intel_gpu.hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
             ((properties.intel_gpu.hint.ThrottleLevel.LOW, properties.hint.Priority.LOW),),
@@ -501,6 +506,7 @@ def test_single_property_setting(device):
             properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.num_requests(): 12,
             "NUM_STREAMS": properties.streams.Num(5),
+            "ENABLE_MMAP": "NO",
         },
     ],
 )

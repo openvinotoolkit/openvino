@@ -74,8 +74,8 @@ struct kernel_impl_params {
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
                        : has_runtime_layouts(true)
                        , prog(&_prog)
-                       , strm(_strm)
-                       , desc(_desc)
+                       , strm(std::move(_strm))
+                       , desc(std::move(_desc))
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
                        , output_layouts(_out_layouts)
@@ -114,10 +114,10 @@ struct kernel_impl_params {
     }
 
     bool is_dynamic() const {
-        for (auto i : input_layouts)
+        for (auto& i : input_layouts)
             if (i.is_dynamic())
                 return true;
-        for (auto i : output_layouts)
+        for (auto& i : output_layouts)
             if (i.is_dynamic())
                 return true;
         return false;
