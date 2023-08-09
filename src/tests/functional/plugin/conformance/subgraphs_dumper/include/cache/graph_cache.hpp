@@ -43,15 +43,12 @@ protected:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
     ExtractorsManager m_manager = ExtractorsManager();
     static std::shared_ptr<GraphCache> m_cache_instance;
-    // {hash, dir}
-    std::unordered_map<std::string, std::string> m_serialized_cache;
     // cache byte size
     size_t m_graph_cache_bytesize = 0;
 
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
             { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
-            // temporary comment the following extractor to avaoid long subgraphs dumper
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
