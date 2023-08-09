@@ -89,9 +89,11 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     auto max_pool = max_pool_node->output(0);
     convert_nchw_to_nhwc(is_nhwc, max_pool, Rank(spatial_dims_num + 2));
     if (set_friendly_name) {
-        max_pool.get_node_shared_ptr()->set_friendly_name(node.get_name());
+        set_node_name(node.get_name(), max_pool.get_node_shared_ptr());
+    } else {
+        set_out_name(node.get_name() + ":0", max_pool);
     }
-    set_out_name(node.get_name() + ":0", max_pool);
+
     if (with_indices) {
         auto output_indices = max_pool_node->output(1);
         return OutputVector{max_pool, output_indices};
