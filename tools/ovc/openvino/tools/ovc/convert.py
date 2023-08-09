@@ -85,7 +85,7 @@ def convert_model(
             The name of the output operation of the model or list of names. For TensorFlow*,
             do not add :0 to this name. The order of outputs in converted model is the
             same as order of specified operation names. For PaddlePaddle model represented
-            as a pyton object, you can specify outputs as a PaddlePaddle python object or
+            as a Python object, you can specify outputs as a PaddlePaddle Python objects or
             a list of such objects.
         :param example_input:
             Sample of model input in original framework.
