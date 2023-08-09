@@ -81,6 +81,7 @@ OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
+OP_CONVERTER(reduce_all);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
 OP_CONVERTER(reduce_min);
@@ -96,12 +97,13 @@ OP_CONVERTER(scale);
 OP_CONVERTER(select_input);
 OP_CONVERTER(set_value);
 OP_CONVERTER(shape);
+OP_CONVERTER(share_data);
+OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
 OP_CONVERTER(softshrink);
-OP_CONVERTER(sigmoid);
-OP_CONVERTER(silu);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -205,6 +207,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"prior_box", op::prior_box},
             {"quantize_linear", op::quantize_linear},
             {"range", op::range},
+            {"reduce_all", op::reduce_all},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},
             {"reduce_min", op::reduce_min},
@@ -220,12 +223,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"select_input", op::select_input},
             {"set_value", op::set_value},
             {"shape", op::shape},
+            {"share_data", op::share_data},
+            {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
             {"softshrink", op::softshrink},
-            {"sigmoid", op::sigmoid},
-            {"silu", op::silu},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},

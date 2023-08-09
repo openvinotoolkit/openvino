@@ -17,7 +17,7 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
     using parent = typed_primitive_impl<scatter_update>;
     using parent::parent;
 
-    int64_t axis;
+    int64_t axis = 0;
 
     std::shared_ptr<ov::op::v3::ScatterUpdate> op;
 

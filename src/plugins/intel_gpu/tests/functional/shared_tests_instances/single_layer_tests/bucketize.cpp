@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_fp16,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_fp32,
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_fp32,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i32,
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i32,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i64,
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i64,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i8,
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_i8,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_u8,
@@ -123,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Bucketize_input_u8,
                                                           InferenceEngine::Precision::I8,
                                                           InferenceEngine::Precision::U8),
                                           testing::ValuesIn(out_precision),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          BucketizeLayerTest::getTestCaseName);
 
 }  // namespace

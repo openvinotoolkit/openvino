@@ -49,6 +49,7 @@ struct WeightsReorderParams {
     bool get_grouped() const { return _grouped; }
 
     void set_input_layout(const layout& layout) { _in_layout = layout; }
+    void set_output_layout(const layout& layout) { _out_layout = layout; }
 
 protected:
     layout _in_layout;

@@ -56,6 +56,7 @@ if (_kernel_data.leftovers)
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
     const __global UNIT_TYPE* weights
@@ -237,7 +238,14 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         if(!(or + r >= OUTPUT_SIZE_Y))
         {
-#if (OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH) == 0 // in this case we don't need to check if we're outside of X boundaries
+
+#if !IS_DYNAMIC
+#if (OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH) == 0
+    #define CAN_SKIP_CHECK
+#endif
+#endif
+
+#ifdef CAN_SKIP_CHECK // in this case we don't need to check if we're outside of X boundaries
             uint out_vstore_offset = 0;
             #if (OUT_BLOCK_WIDTH % 8) > 3
             MAKE_VECTOR_TYPE(UNIT_TYPE, 4) tmp = MAKE_VECTOR_TYPE(UNIT_TYPE, 4)(

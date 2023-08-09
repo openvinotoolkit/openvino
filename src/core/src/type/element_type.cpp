@@ -9,8 +9,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "ngraph/log.hpp"
-#include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 namespace {
 struct TypeInfo {
@@ -190,6 +189,10 @@ size_t ov::element::Type::hash() const {
 }
 
 std::string ov::element::Type::get_type_name() const {
+    return to_string();
+}
+
+std::string ov::element::Type::to_string() const {
     return get_type_info(m_type).m_type_name;
 }
 
@@ -295,7 +298,7 @@ Type fundamental_type_for(const Type& type) {
 }  // namespace ov
 
 std::ostream& ov::element::operator<<(std::ostream& out, const ov::element::Type& obj) {
-    return out << obj.get_type_name();
+    return out << obj.to_string();
 }
 
 std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) {
@@ -325,7 +328,7 @@ std::istream& ov::element::operator>>(std::istream& in, ov::element::Type& obj) 
         return in;
     }
     for (auto&& type : Type::get_known_types()) {
-        if (type->get_type_name() == str) {
+        if (type->to_string() == str) {
             obj = *type;
             break;
         }
@@ -409,7 +412,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},

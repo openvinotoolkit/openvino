@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from openvino.runtime import serialize
+from openvino.runtime import serialize, save_model
 from openvino.tools.ovc import convert_model
 from openvino.tools.mo import convert_model as legacy_convert_model
 from openvino.test_utils import compare_functions
@@ -22,9 +22,15 @@ class CommonMOConvertTest:
             if 'use_convert_model_from_mo' in kwargs:
                 del kwargs['use_convert_model_from_mo']
             model = legacy_convert_model(**kwargs)
+            serialize(model, str(Path(output_dir, model_name + '.xml')))
         else:
+            # ovc.convert_model does not have 'compress_to_fp16' arg, it's moved into save model
+            compress_to_fp16 = True
+            if 'compress_to_fp16' in kwargs:
+                compress_to_fp16 = kwargs['compress_to_fp16']
+                del kwargs['compress_to_fp16']
             model = convert_model(**kwargs)
-        serialize(model, str(Path(output_dir, model_name + '.xml')))
+            save_model(model, str(Path(output_dir, model_name + '.xml')), compress_to_fp16)
 
     def _test(self, temp_dir, test_params, ref_params):
         """

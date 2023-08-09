@@ -243,12 +243,12 @@ def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
     model = Model(node_ceil, [], "TestModel")
-    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
+    elem_type = model.get_ordered_ops()[0].get_element_type().to_string()
     assert elem_type == "f32"
     compress_model_transformation(model)
 
     assert model is not None
-    elem_type = model.get_ordered_ops()[0].get_element_type().get_type_name()
+    elem_type = model.get_ordered_ops()[0].get_element_type().to_string()
     assert elem_type == "f16"
 
 

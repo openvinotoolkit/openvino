@@ -280,15 +280,6 @@ tensor get_output_shape(int32_t height, int32_t width, int32_t number_of_priors)
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
-    if (prim->support_opset8) {
-        impl_type = impl_types::ocl;
-        constant = false;
-    } else {
-        constant = true;
-    }
-}
-
 void prior_box_node::calc_result() {
     if (result != nullptr)
         return;
@@ -508,19 +499,20 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         }
     }
 
+    const auto tensor_accessor = ov::make_tensor_accessor(const_data);
     if (primitive->is_clustered()) {
         ov::op::v0::PriorBoxClustered op;
         op.set_attrs(primitive->get_attrs_clustered());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
     } else {
         if (primitive->is_v8_support()) {
             ov::op::v8::PriorBox op;
             op.set_attrs(primitive->get_attrs_v8());
-            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, const_data);
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, tensor_accessor);
         } else {
             ov::op::v0::PriorBox op;
             op.set_attrs(primitive->get_attrs_v0());
-            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, tensor_accessor);
         }
     }
     const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
@@ -550,18 +542,18 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     json_composite prior_info;
     prior_info.add("input id", node.input().id());
     prior_info.add("iamge size", desc->img_size);
-    prior_info.add("variance", str_variance);
+    prior_info.add("variance", std::move(str_variance));
 
     json_composite box_sizes_info;
-    box_sizes_info.add("min sizes", str_min_sizes);
-    box_sizes_info.add("max sizes", str_max_sizes);
+    box_sizes_info.add("min sizes", std::move(str_min_sizes));
+    box_sizes_info.add("max sizes", std::move(str_max_sizes));
     prior_info.add("box sizes", box_sizes_info);
 
     prior_info.add("aspect_ratio", str_aspect_ratio);
     prior_info.add("flip", flip);
     prior_info.add("clip", clip);
     prior_info.add("scale all sizes", scale_all_sizes);
-    prior_info.add("fixed size", str_fixed_size);
+    prior_info.add("fixed size", std::move(str_fixed_size));
     prior_info.add("fixed ratio", str_fixed_ratio);
     prior_info.add("density", str_density);
 

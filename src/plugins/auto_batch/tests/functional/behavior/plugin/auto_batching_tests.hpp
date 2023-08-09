@@ -72,7 +72,7 @@ protected:
             // minimize timeout to reduce test time
             config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = std::to_string(1);
             auto exec_net_ref = ie.LoadNetwork(net,
-                                               std::string(CommonTestUtils::DEVICE_BATCH) + ":" + target_device + "(" +
+                                               std::string(ov::test::utils::DEVICE_BATCH) + ":" + target_device + "(" +
                                                    std::to_string(num_batch) + ")",
                                                config);
 

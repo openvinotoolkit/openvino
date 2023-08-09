@@ -22,25 +22,6 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-namespace multiclass_nms_impl {
-struct InfoForNMS {
-    Shape selected_outputs_shape;
-    Shape selected_indices_shape;
-    Shape selected_numrois_shape;
-    Shape boxes_shape;
-    Shape scores_shape;
-    Shape roisnum_shape;
-    std::vector<float> boxes_data;
-    std::vector<float> scores_data;
-    std::vector<int64_t> roisnum_data;
-    size_t selected_outputs_shape_size;
-    size_t selected_indices_shape_size;
-    size_t selected_numrois_shape_size;
-};
-
-InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBase>& nms,
-                                 const std::vector<std::shared_ptr<HostTensor>>& inputs);
-}  // namespace multiclass_nms_impl
 
 void multiclass_nms(const float* boxes_data,
                     const Shape& boxes_data_shape,
