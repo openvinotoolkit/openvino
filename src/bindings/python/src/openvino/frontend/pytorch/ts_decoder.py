@@ -58,8 +58,15 @@ class TorchScriptPythonDecoder (Decoder):
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and "self" in self.raw_inputs[0].debugName():
-            self._input_signature.insert(0, "self")
+        if self._input_signature is not None:
+            if "self" in self.raw_inputs[0].debugName():
+                self._input_signature.insert(0, "self")
+            if 0 < len(self._input_signature) < len(self.raw_inputs):
+                # last input is kwargs input, we need to multiply that name by number of extra inputs
+                last_name = self._input_signature[-1]
+                self._input_signature = self._input_signature[:-1]
+                for i in range(len(self.raw_inputs) - len(self._input_signature)):
+                    self._input_signature.append(f"{last_name}.{i + 1}")
 
         if isinstance(self.graph_element, torch.Graph):
             self._transform_tensor_list_constants_to_listconstruct(self.graph_element)
