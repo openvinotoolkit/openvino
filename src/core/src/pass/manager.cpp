@@ -59,6 +59,9 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
+    static size_t idx_a = 0, idx_b = 0;
+    idx_a++;
+    idx_b=0;
 
     static bool profile_enabled =
         ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
@@ -75,7 +78,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
-
+        idx_b++;
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
@@ -125,7 +128,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
-
+            base_filename = std::string("Dump_") + std::to_string(idx_a) + std::string("_") + std::to_string(idx_b) + base_filename;
             if (m_visualize) {
                 auto file_ext = "svg";
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
