@@ -35,7 +35,7 @@ OutputVector translate_max_pool_util(const NodeContext& node,
     default_op_checks(node, 1, {"MaxPool", "MaxPoolV2", "MaxPool3D", "MaxPoolWithArgmax"});
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
-                             "Only MaxPool, MaxPoolV2 and MaxPool3D are supported.");
+                             "Only MaxPool, MaxPoolV2, MaxPool3D and MaxPoolWithArgmax are supported.");
     auto input = node.get_input(0);
 
     auto tf_padding_type = node.get_attribute<string>("padding");
