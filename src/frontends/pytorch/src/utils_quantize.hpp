@@ -140,8 +140,7 @@ Output<Node> quantize(const NodeContext& context,
                       const Output<Node>& zero_point,
                       const Output<Node>& quantized_node);
 
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node);
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node, const std::string& type);
+std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 
 namespace op {
 /**

@@ -156,26 +156,13 @@ Output<Node> quantize(const NodeContext& context,
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
 }
 
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node) {
-    auto quant_node = std::dynamic_pointer_cast<QuantizedPtNode>(node.get_node_shared_ptr());
+std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node) {
+    auto quant_node = std::dynamic_pointer_cast<QuantizedPtNode>(node);
     if (!quant_node) {
         return nullptr;
     }
     const auto& attrs = quant_node->get_attrs();
     if (attrs.find(QuantizedPtNode::quantized_node_type_key) == attrs.end()) {
-        return nullptr;
-    }
-    return quant_node;
-}
-
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node, const std::string& type) {
-    auto quant_node = std::dynamic_pointer_cast<QuantizedPtNode>(node.get_node_shared_ptr());
-    if (!quant_node) {
-        return nullptr;
-    }
-    const auto& attrs = quant_node->get_attrs();
-    if (attrs.find(QuantizedPtNode::quantized_node_type_key) == attrs.end() ||
-        attrs.at(QuantizedPtNode::quantized_node_type_key) != type) {
         return nullptr;
     }
     return quant_node;
