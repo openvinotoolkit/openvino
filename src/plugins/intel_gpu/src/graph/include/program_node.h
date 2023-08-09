@@ -103,7 +103,7 @@ public:
     bool is_fused_dep(size_t dep_idx) const;
 
     bool has_fused_dep() const {
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return true;
         }
@@ -113,7 +113,7 @@ public:
     int32_t get_first_fused_dep_idx() const {
         if (!has_fused_dep())
             return -1;
-        for (auto fused : get_fused_primitives()) {
+        for (auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return fused.outer_dep_start_idx;
         }
@@ -320,6 +320,8 @@ public:
     bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
     // Checks whether with current format specified padding is supported;
     bool is_padding_supported(int axis, int padding) const;
+    // Check if layout has padding in any spatial axis
+    bool is_padded_spatial(size_t idx = 0) const;
 
     primitive_id get_org_primitive_id() const { return org_id; }
 

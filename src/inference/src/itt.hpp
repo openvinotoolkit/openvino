@@ -4,28 +4,20 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file ie_itt.hpp
+ * @file itt.hpp
  */
 
 #pragma once
 
-#include <openvino/cc/selective_build.h>
-
-#include <openvino/itt.hpp>
-
-namespace InferenceEngine {
-namespace itt {
-namespace domains {
-OV_ITT_DOMAIN(IE_LT);
-}  // namespace domains
-}  // namespace itt
-}  // namespace InferenceEngine
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
 
 namespace ov {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(IE);
-OV_ITT_DOMAIN(IE_RT);
+OV_ITT_DOMAIN(OV);
+OV_ITT_DOMAIN(ReadTime);
+OV_ITT_DOMAIN(LoadTime);
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
