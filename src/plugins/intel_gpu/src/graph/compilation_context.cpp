@@ -7,6 +7,7 @@
 #include <mutex>
 #include <atomic>
 #include <unordered_set>
+#include <future>
 #include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
@@ -20,11 +21,18 @@ public:
         if (_stop_compilation)
             return;
 
+        auto promise = std::make_shared<std::promise<void>>();
+        futures.emplace_back(promise->get_future());
+
         std::lock_guard<std::mutex> lock(_mutex);
         if (_task_keys.find(key) == _task_keys.end()) {
             _task_keys.insert(key);
-            if (_task_executor != nullptr)
-                _task_executor->run(task);
+            if (_task_executor != nullptr) {
+                _task_executor->run([task, promise] {
+                    task();
+                    promise->set_value();
+                });
+            }
         }
     }
 
@@ -60,12 +68,19 @@ public:
         }
     }
 
+    void wait_all() override {
+        for (auto&& future : futures) {
+            future.wait();
+        }
+    }
+
 private:
     ov::threading::IStreamsExecutor::Config _task_executor_config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
     std::mutex _mutex;
     std::unordered_set<kernel_impl_params, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
+    std::vector<std::future<void>> futures;
 };
 
 std::unique_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {

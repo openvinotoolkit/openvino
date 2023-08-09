@@ -6,7 +6,7 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "exception2status.hpp"
-#include "ie_itt.hpp"
+#include "itt.hpp"
 
 namespace InferenceEngine {
 
@@ -21,7 +21,7 @@ CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network) : network(network) 
 }
 
 CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph, const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetwork::CNNNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetwork::CNNNetwork");
 
     if (graph == nullptr) {
         IE_THROW() << "CNNNetwork was not initialized: 'graph' object is empty";
