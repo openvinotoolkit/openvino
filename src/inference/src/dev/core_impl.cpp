@@ -6,21 +6,13 @@
 
 #include <memory>
 
-#include "any_copy.hpp"
 #include "check_network_batchable.hpp"
 #include "compilation_context.hpp"
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/icompiled_model_wrapper.hpp"
-#include "file_utils.h"
-#include "ie_ngraph_utils.hpp"
-#include "iplugin_wrapper.hpp"
+#include "dev/iplugin_wrapper.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
@@ -30,6 +22,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -39,11 +32,11 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "xml_parse_utils.h"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
 #endif
-#include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
 
