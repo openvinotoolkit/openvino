@@ -35,6 +35,8 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include "pass_manager.h"
+#include "graph_optimizer/prepare_buffer_fusing.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
@@ -1061,7 +1063,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
+    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32 && !node.weights_zero_points_term();
 
     if (use_onednn_impls && onednn_valid_post_ops) {
         expected_format = node.get_preferred_output_fmt();
@@ -1594,12 +1596,46 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return impl_types::ocl;
 
         for (auto& dep : node.get_dependencies()) {
-            if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
-                return impl_types::onednn;
+            for (auto& user : dep.first->get_users()) {
+                if (user->is_type<convolution>() && (dep.first->id() == user->get_dependency(0).id())) {
+                    auto& conv_node = user->as<convolution>();
+                    auto needed_padding = prepare_padding::get_convolution_required_padding(conv_node);
+                    if (needed_padding) {
+                        return impl_types::ocl;
+                    }
+                }
             }
         }
+
+        for (auto usr : node.get_users()) {
+            if (usr->is_type<convolution>()) {
+                auto& conv_node = usr->as<convolution>();
+                auto needed_padding = prepare_padding::get_convolution_required_padding(conv_node);
+                if (needed_padding) {
+                    return impl_types::ocl;
+                }
+            }
+        }
+
         if (format::is_blocked(node.get_output_layout().format)) {
-            return impl_types::onednn;
+            preferred_impl = impl_types::onednn;
+        }
+
+        // Check whether implicit concat is available in cldnn and if avilable fallback cldnn concat. ex> Multi batch.
+        if (preferred_impl == impl_types::onednn) {
+            std::vector<kernel_impl_params> pred_params;
+            for (auto pred : node.get_dependencies()) {
+                pred_params.push_back(*pred.first->get_kernel_impl_params());
+            }
+            node.set_preferred_impl_type(impl_types::onednn);
+            auto can_be_optimized_onednn = concat_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_params);
+            node.set_preferred_impl_type(impl_types::ocl);
+            auto can_be_optimized_cldnn = concat_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_params);
+            if (can_be_optimized_cldnn && !can_be_optimized_onednn) {
+                preferred_impl = impl_types::ocl;
+            } else {
+                preferred_impl = impl_types::onednn;
+            }
         }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {

@@ -40,6 +40,7 @@ void select_preferred_formats::run(program& p) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
+                if (n->as<convolution>().weights_zero_points_term()) continue;
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);

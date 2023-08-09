@@ -207,6 +207,7 @@ class prepare_padding : public base_pass {
 public:
     explicit prepare_padding(bool output_size_handling_enabled_switch)
         : base_pass("prepare_padding"), output_size_handling_enabled(output_size_handling_enabled_switch) {}
+    static cldnn::padding get_convolution_required_padding(const convolution_node& node);
 
 private:
     void run(program& p) override;
