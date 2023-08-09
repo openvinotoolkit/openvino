@@ -398,26 +398,27 @@ class TestParallelRunner:
                 longest_device = device
 
         real_worker_num = self._worker_num * len(self._available_devices)
-        workers = [(0, "")] * real_worker_num
+        tasks = [(0, "")] * real_worker_num
 
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_item in tests_sorted :
             test_pattern = f'"{self.__replace_restricted_symbols(test_item[0])}"'
-            test_pattern += ":" if self._split_unit == "test" else "*"
+            test_pattern += ":" if self._split_unit == "test" else "*:"
             test_time = test_item[1]
+
+            # try to add new filter to the rest tasks
             w_id = -1
-            for i in range(len(workers)) :
-                if len(workers[i][1]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
+            for i in range(len(tasks)) :
+                if len(tasks[i][1]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
                     w_id = i
                     break
-
             if w_id == -1 :
-                workers.append((test_time, test_pattern))
+                tasks.append((test_time, test_pattern))
             else :
-                workers[w_id] = (workers[w_id][0] + test_time, workers[w_id][1] + test_pattern)
-            workers.sort()
+                tasks[w_id] = (tasks[w_id][0] + test_time, tasks[w_id][1] + test_pattern)
+            tasks.sort()
 
-        for filter in workers:
+        for filter in tasks:
             res_test_filters.append(filter[1])
 
         # logging for debug
