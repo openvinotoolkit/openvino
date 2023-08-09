@@ -44,6 +44,17 @@ class Partitioner:
         for getattr_node, getattr_part in getattr_to_merge.items():
             getattr_part.add_node(getattr_node)
 
+    def check_fully_supported(self, graph_module: GraphModule) -> bool:
+        num_fused = 0
+        for node in graph_module.graph.nodes:
+            if node.op == "call_module" and "fused_" in node.name:
+                num_fused += 1
+            elif node.op != "placeholder" and node.op != "output":
+                return False
+        if num_fused == 1:
+            return True
+        return False
+
     def make_partitions(self, graph_module: GraphModule) -> GraphModule:
         # entry function for nvFuser backend
         # FX graph based partitioning based on nvfuser supported ops
