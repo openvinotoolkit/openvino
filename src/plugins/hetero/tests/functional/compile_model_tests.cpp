@@ -42,6 +42,20 @@ TEST_F(HeteroTests, compile_without_device_priorities_throw) {
     EXPECT_THROW(core.compile_model(model, "HETERO"), ov::Exception);
 }
 
+TEST_F(HeteroTests, compile_dynamic_model_fail) {
+    // Change device priority
+    core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
+    auto model = create_model_with_subtract_reshape(true);
+    EXPECT_THROW(core.compile_model(model, "HETERO"), ov::Exception);
+}
+
+TEST_F(HeteroTests, compile_model_shapeof) {
+    // Change device priority
+    core.set_property("HETERO", ov::device::priorities("MOCK0,MOCK1"));
+    auto model = create_model_with_subtract_shapeof_reshape();
+    EXPECT_NO_THROW(core.compile_model(model, "HETERO"));
+}
+
 TEST_F(HeteroTests, compile_with_device_properties) {
     ov::AnyMap config = {ov::device::priorities("MOCK0,MOCK1"),
                          ov::device::properties("MOCK0", ov::num_streams(4), ov::enable_profiling(false)),
