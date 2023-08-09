@@ -166,7 +166,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
-        IENetwork() nogil except +
+        IENetwork() except nogil +
         IENetwork(object) except +
         string name
         size_t batch_size
@@ -195,25 +195,25 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +
-        int wait(int64_t timeout) nogil except +
+        int wait(int64_t timeout) except nogil +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
         vector[CVariableState] queryState() except +
 
     cdef cppclass IECore:
-        IECore() nogil except +
-        IECore(const string & xml_config_file) nogil except +
+        IECore() except nogil +
+        IECore(const string & xml_config_file) except nogil +
         map[string, Version] getVersions(const string & deviceName) except +
-        IENetwork readNetwork(const string& modelPath, const string& binPath) nogil except +
-        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) nogil except +
+        IENetwork readNetwork(const string& modelPath, const string& binPath) except nogil +
+        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except nogil +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
-                                              const map[string, string] & config, int num_requests) nogil except +
+                                              const map[string, string] & config, int num_requests) except nogil +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network,
-                                              const map[string, string] & config, int num_requests) nogil except +
+                                              const map[string, string] & config, int num_requests) except nogil +
         unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
-                                              const map[string, string] & config, int num_requests) nogil except +
+                                              const map[string, string] & config, int num_requests) except nogil +
         unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath,
-                                              const map[string, string] & config, int num_requests) nogil except +
+                                              const map[string, string] & config, int num_requests) except nogil +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
