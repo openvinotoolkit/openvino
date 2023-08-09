@@ -4,12 +4,12 @@
 
 #include "model_reader.hpp"
 
-#include <openvino/core/model.hpp>
-
 #include "cnn_network_ngraph_impl.hpp"
 #include "itt.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/util/file_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
