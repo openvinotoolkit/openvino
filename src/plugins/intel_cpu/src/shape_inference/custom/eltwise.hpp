@@ -26,30 +26,11 @@ public:
     }
 };
 
-class NoBroadCastEltwiseShapeInfer : public ShapeInferEmptyPads {
-public:
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-};
-
 class EltwiseShapeInferFactory : public ShapeInferFactory {
 public:
-    EltwiseShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        const auto& autob = m_op->get_autob();
-        if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
-            return std::make_shared<NoBroadCastEltwiseShapeInfer>();
-        } else {
-            return std::make_shared<EltwiseShapeInfer>();
-        }
+        return std::make_shared<EltwiseShapeInfer>();
     }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
 };
 } // namespace node
 } // namespace intel_cpu

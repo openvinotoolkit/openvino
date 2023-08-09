@@ -52,26 +52,6 @@ Result EltwiseShapeInfer::infer(
     return { { std::move(output_shape) }, ShapeInferStatus::success };
 }
 
-Result NoBroadCastEltwiseShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    if (input_shapes.size() == 1) {
-        return { { std::move(input_shapes[0].get()) }, ShapeInferStatus::success };
-    } else {
-        auto input_shape = input_shapes[0].get();
-        auto output_shape = input_shapes[1].get();
-        if (input_shape.size() != output_shape.size()) {
-            OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
-        }
-        for (size_t j = 0; j < input_shapes.size(); ++j) {
-            if (input_shape[j] != output_shape[j]) {
-                OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
-            }
-        }
-        return { { std::move(output_shape) }, ShapeInferStatus::success };
-    }
-}
-
 } // namespace node
 } // namespace intel_cpu
 } // namespace ov
