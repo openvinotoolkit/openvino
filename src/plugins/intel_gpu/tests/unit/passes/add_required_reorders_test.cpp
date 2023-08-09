@@ -17,6 +17,8 @@
 #include "permute_inst.h"
 #include "reshape_inst.h"
 #include "shape_of_inst.h"
+#include "convolution_inst.h"
+#include "dft_inst.h"
 #include "to_string_utils.h"
 
 #include "program_wrapper.h"
@@ -64,6 +66,54 @@ TEST(add_required_reorders, input_reorder_inside_shape_of_subgraph) {
     auto eltwise_in_layout = eltwise_node.get_input_layout();
 
     ASSERT_EQ(eltwise_in_layout.data_type, data_types::f32);
+}
+
+TEST(add_required_reorders, eltwise_input_reorder) {
+    // Topology:
+    //  (bfyx)input  weights
+    //            \  /
+    //            conv1  irdft_input(bfzyx)
+    //            / | \  /
+    // (bfzyx)rdft  |  irdft(bfyx)
+    //              |  /
+    //           eltwise
+    //              |
+    //            conv2
+    //
+    // Expectation:
+    // The selected format of eltwise should be selected as bfzyx (reorder_inputs)
+    // A new reorder that converts from b_fs_yx_fsv16 to bfzyx should be inserted after convolution (reorder_inputs)
+    // If the input format of eltwise is different from the output format, reorder(bfyx->bfzyx) should be added (add_required_reorders)
+
+    auto& engine = get_test_engine();
+
+    auto conv1_weight_mem = engine.allocate_memory(layout{ { 192, 384, 1, 1 }, data_types::f16, format::bfyx });
+    auto conv2_weight_mem = engine.allocate_memory(layout{ { 384, 192, 1, 1 }, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(data("conv1_weights", conv1_weight_mem));
+    topology.add(data("conv2_weights", conv2_weight_mem));
+    topology.add(input_layout("input", layout{ { 1, 384, 36, 64 }, data_types::f16, format::bfyx }));
+    topology.add(input_layout("irdft_input", layout{ { 1, 192, 36, 33, 2 }, data_types::f16, format::bfzyx }));
+    topology.add(convolution("conv1", input_info("input"), "conv1_weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(dft("rdft", input_info("conv1"), {2, 3}, {36, 64}, {1, 192, 36, 33, 2}, dft_direction::forward, dft_mode::real));
+    topology.add(dft("irdft", input_info("irdft_input"), {2, 3}, {36, 64}, {1, 192, 36, 64}, dft_direction::inverse, dft_mode::real));
+    topology.add(eltwise("eltwise", input_info("conv1"), input_info("irdft"), eltwise_mode::sum));
+    topology.add(convolution("conv2", input_info("eltwise"), "conv2_weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv1_impl = { format::b_fs_yx_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc conv2_impl = { format::b_fs_yx_fsv16, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl }, { "conv2", conv2_impl } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+    auto prog_impl = prog.get();
+    auto& eltwise_node = prog_impl->get_node("eltwise");
+    ASSERT_EQ(eltwise_node.get_input_layouts()[1].format, format::bfzyx);
+    ASSERT_EQ(eltwise_node.get_output_layout().format, format::bfzyx);
 }
 
 TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
