@@ -44,7 +44,6 @@ class PytorchLayerTest:
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
-        import torch
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
         else:
@@ -82,6 +81,7 @@ class PytorchLayerTest:
                 trace_model = kwargs.get('trace_model', False)
                 freeze_model = kwargs.get('freeze_model', True)
                 model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                openvino.runtime.save_model(converted_model, "out.xml")
                 graph = model.inlined_graph
 
                 if kind is not None and not isinstance(kind, (tuple, list)):
@@ -286,8 +286,6 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
-            continue
         test_args.append(element)
     return test_args
 

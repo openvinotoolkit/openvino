@@ -45,6 +45,7 @@
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/common_optimizations/broadcast_transition.hpp>
+#include "transformations/common_optimizations/remove_useless_convert_like.hpp"
 
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -143,6 +144,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::VisualizeTree>("initial.svg");
         manager.register_pass<EinsumDecomposition>();
 
         precisions_map fp_convert_precision_map = {
@@ -201,6 +203,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVN6Decomposition>();
         manager.register_pass<ov::pass::BroadcastTransition>();
 
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::RemoveUselessConvertLike>();
         //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true);
 
