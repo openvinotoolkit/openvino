@@ -351,6 +351,7 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
+    bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
     event::ptr realloc_if_needed();
@@ -387,17 +388,26 @@ protected:
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
     }
 
-    virtual bool need_reset_input_memory() const {
+    virtual bool need_reset_input_memory(size_t) const {
         return false;
     }
 
     virtual bool need_reset_output_memory() const {
-        std::vector<primitive_id> users;
+        std::vector<std::pair<primitive_id, size_t>> users;
         for (auto u : _node->get_users())
-            users.push_back(u->id());
+            users.emplace_back(u->id(), u->get_dependency_index(*_node));
 
-        for (const auto& u : _network.get_primitives(users)) {
-            if (u->need_reset_input_memory())
+        for (const auto& u : users) {
+            auto user_inst = _network.get_primitive(u.first);
+            // Check users of optimized_out inst, as the optimized out inst will not be able to
+            // reset it's memory
+            if (user_inst->can_be_optimized()) {
+                if (user_inst->need_reset_output_memory())
+                    return true;
+                continue;
+            }
+
+            if (user_inst->need_reset_input_memory(u.second))
                 return true;
         }
         return false;
