@@ -83,7 +83,11 @@ TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none) {
 }
 
 TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible_shapes) {
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
+    GTEST_SKIP() << "Skipping test, eltwise only implemented numpy type boardcast";
+    // it's complicate for eltwise shape infer,
+    // origin ngraph op may already converted to cpu special op Powerstatic, Powerstatic op lost the autob type.
+    // op maybe fuse with other op, for example Tanh fuse with Add op, the Tanh's autob type is null, but
+    // Add's autob type is numpy
     auto A = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
@@ -92,7 +96,6 @@ TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 6, 5}, StaticShape{3, 1, 6, 1}},
             static_output_shapes = {StaticShape{}};
 
-    //TODO  cvs-108946, below test can't pass.
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes),
                     ov::Exception,
                     testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
