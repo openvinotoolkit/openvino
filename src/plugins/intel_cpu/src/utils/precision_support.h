@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-bool isSupported(const InferenceEngine::Precision& precision);
+bool hasHardwareSupport(const InferenceEngine::Precision& precision);
 
 }   // namespace intel_cpu
 }   // namespace ov

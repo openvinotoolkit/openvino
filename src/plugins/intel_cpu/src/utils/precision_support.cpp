@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 
-bool isSupported(const InferenceEngine::Precision& precision) {
+bool hasHardwareSupport(const InferenceEngine::Precision& precision) {
     switch (precision) {
     case InferenceEngine::Precision::FP16: {
 #if defined(OPENVINO_ARCH_X86_64)

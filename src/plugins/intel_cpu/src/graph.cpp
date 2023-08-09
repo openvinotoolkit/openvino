@@ -1767,8 +1767,12 @@ void Graph::EnforceInferencePrecision() {
         DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), " is enforced to use", inferPrec);
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-            auto keepOriginalInputPrecision = [](const NodePtr& node, const size_t inIdx) {
-                const auto &parent = node->getParentEdgesAtPort(inIdx)[0]->getParent();
+            auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
+                // keep non-float precisions
+                if (node->getOriginalInputPrecisionAtPort(inPort) != Precision::FP32)
+                    return true;
+
+                const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
                  * Precision conversion to BF16 is done automatically, if convolution follows up after Constant Inputs
                  * and activation is BF16 */
@@ -1777,22 +1781,20 @@ void Graph::EnforceInferencePrecision() {
                     node->getType() != Type::Concatenation)
                     return true;
                 // Eltwise and Subgraph (snippets) nodes support precision conversion
-                if (parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph))
+                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
                     return true;
 
                 return false;
             };
 
-            if (keepOriginalInputPrecision(node, i))
-                continue;
-
-            if (node->getOriginalInputPrecisionAtPort(i) != Precision::FP32)
+            if (keepOriginalInputPrecisionAtPort(node, i))
                 continue;
 
             node->setOriginalInputPrecisionAtPort(i, inferPrec);
         }
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+            // keep non-float precisions
             if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
                 continue;
 

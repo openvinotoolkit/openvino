@@ -101,7 +101,7 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     switch (precision) {
         case InferenceEngine::Precision::BF16:
         case InferenceEngine::Precision::FP16: {
-            if (!isSupported(precision))
+            if (!hasHardwareSupport(precision))
                 precision = InferenceEngine::Precision::FP32;
         }
         case InferenceEngine::Precision::U8:
@@ -163,6 +163,5 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
     }
     return alignedBuffer;
 }
-
 }   // namespace intel_cpu
 }   // namespace ov
