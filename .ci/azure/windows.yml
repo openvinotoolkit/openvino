@@ -207,8 +207,7 @@ jobs:
     displayName: 'List install files'
 
   - script: |
-      python -m pip install $(INSTALL_DIR)\tools\openvino-.* && ^
-      python -m pip install $(INSTALL_DIR)\tools\openvino_dev_.*
+      python -m pip install openvino-dev --find-links=$(INSTALL_DIR)\tools
     displayName: 'Install Wheels'
 
   - script: |

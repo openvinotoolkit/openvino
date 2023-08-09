@@ -271,7 +271,7 @@ jobs:
   - script: |
       set -e
       python3 -m pip install $(INSTALL_DIR)/tools/openvino-*
-      python3 -m pip install $(INSTALL_DIR)/tools/openvino_dev_*
+      python3 -m pip install $(INSTALL_DIR)/tools/openvino_dev-*
     displayName: 'Install python wheels'
 
   - script: |
