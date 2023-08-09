@@ -20,10 +20,10 @@ class Evaluate : public ov::element::NoAction<bool> {
 public:
     using ov::element::NoAction<bool>::visit;
 
-    template <element::Type_t ET>
-    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count, const v5::Round::RoundMode& mode) {
+    template <element::Type_t ET, class TMode>
+    static result_type visit(const Tensor& arg0, Tensor& out, const size_t count, TMode&& mode) {
         using T = typename element_type_traits<ET>::value_type;
-        reference::round(arg0.data<T>(), out.data<T>(), count, mode);
+        reference::round(arg0.data<T>(), out.data<T>(), count, std::forward<TMode>(mode));
         return true;
     }
 };

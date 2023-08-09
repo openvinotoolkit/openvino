@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "openvino/op/round.hpp"
+#include "openvino/reference/round_guard.hpp"
 
 namespace ov {
 template <class T>
@@ -18,8 +19,6 @@ constexpr bool is_floating_point() {
 }
 
 namespace reference {
-void set_round_mode(const op::v5::Round::RoundMode& mode);
-
 /**
  * @brief Rounding algorithm for ov::op::v5::Round::RoundMode::HALF_TO_EVEN.
  *
@@ -49,14 +48,14 @@ T round_half_away_zero(T value) {
  *
  * Used when T is OpenVINO floating type.
  *
- * @param arg    Input tensor with data to round.
- * @param out    Output tensor with rounding result.
+ * @param arg    Input buffer pointer with data to round.
+ * @param out    Output buffer pointer with rounded results.
  * @param count  Number of elements in input tensor.
  * @param mode   Rounding mode.
  */
 template <typename T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
-void round(const T* arg, T* out, const size_t count, const op::v5::Round::RoundMode& mode) {
-    set_round_mode(mode);
+void round(const T* arg, T* out, const size_t count, const op::v5::Round::RoundMode mode) {
+    const ov::RoundGuard round_g{FE_TONEAREST};
     const auto round_algo =
         (mode == op::v5::Round::RoundMode::HALF_TO_EVEN) ? round_to_nearest_even<T> : round_half_away_zero<T>;
 
@@ -68,8 +67,8 @@ void round(const T* arg, T* out, const size_t count, const op::v5::Round::RoundM
  *
  * Used when T is OpenVINO integral type.
  *
- * @param arg    Input tensor with data to round.
- * @param out    Output tensor with rounding result.
+ * @param arg    Input buffer pointer with data to round.
+ * @param out    Output buffer pointer with rounded results.
  * @param count  Number of elements in input tensor.
  * @param mode   Rounding mode.
  */
