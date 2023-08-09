@@ -191,7 +191,7 @@ Tune quantization parameters
        regex = '.*layer_.*'
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
 
-* ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``VPU``.
+* ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``NPU``.
 
   .. code-block:: sh
 

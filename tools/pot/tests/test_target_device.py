@@ -7,7 +7,7 @@ from .utils.path import TOOL_CONFIG_PATH
 DEVICE = [
     'CPU',
     'GPU',
-    'VPU'
+    'NPU'
 ]
 
 

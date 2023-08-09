@@ -90,7 +90,7 @@ Default Quantization algorithm has mandatory and optional parameters which are d
 
 * ``"target_device"`` - the following options are available:
 
-  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or VPU
+  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or NPU
   * ``"CPU_SPR"`` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
   * ``"GNA"``, ``"GNA3"``, ``"GNA3.5"`` - to quantize models for GNA devices respectively.
 

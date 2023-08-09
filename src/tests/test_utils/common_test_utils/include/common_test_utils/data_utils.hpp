@@ -483,7 +483,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov
 
 
-// openvino_contrib and vpu repo use CommonTestUtils::
+// openvino_contrib and NPU repo use CommonTestUtils::
 // so we need to add these names to CommonTestUtils namespace
 namespace CommonTestUtils {
 using ov::test::utils::ie_abs;

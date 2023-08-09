@@ -7,8 +7,8 @@
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
 
-const std::vector<std::string> availableDevs = {"CPU", "GPU", "VPU"};
-const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "VPU"};
+const std::vector<std::string> availableDevs = {"CPU", "GPU", "NPU"};
+const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "NPU"};
 using Params = std::tuple<std::string, std::string>;
 using ConfigParams = std::tuple<
         std::vector<std::string>,           // Available devices retrieved from Core
@@ -96,8 +96,8 @@ const std::vector<Params> testConfigsWithId = {Params{" ", " "},
                                          Params{"CPU,,GPU", "CPU,GPU.0,GPU.1"},
                                          Params{"CPU, ,GPU", "CPU, ,GPU.0,GPU.1"},
                                          Params{"CPU,GPU,GPU.1", "CPU,GPU.0,GPU.1"},
-                                         Params{"CPU,GPU,VPU,INVALID_DEVICE", "CPU,GPU.0,GPU.1,VPU,INVALID_DEVICE"},
-                                         Params{"VPU,GPU,CPU,-GPU.0", "VPU,GPU.1,CPU"},
+                                         Params{"CPU,GPU,NPU,INVALID_DEVICE", "CPU,GPU.0,GPU.1,NPU,INVALID_DEVICE"},
+                                         Params{"NPU,GPU,CPU,-GPU.0", "NPU,GPU.1,CPU"},
                                          Params{"-GPU.0,GPU,CPU", "GPU.1,CPU"},
                                          Params{"-GPU.0,GPU", "GPU.1"},
                                          Params{"-GPU,GPU.0", "GPU.0"},
@@ -131,13 +131,13 @@ const std::vector<Params> testConfigs = {Params{" ", " "},
                                          Params{"CPU,GPU,GPU.0", "CPU,GPU"},
                                          Params{"CPU,GPU,GPU.1", "CPU,GPU,GPU.1"},
                                          Params{"CPU,GPU.1,GPU", "CPU,GPU.1,GPU"},
-                                         Params{"CPU,VPU", "CPU,VPU"},
-                                         Params{"CPU,-VPU", "CPU"},
+                                         Params{"CPU,NPU", "CPU,NPU"},
+                                         Params{"CPU,-NPU", "CPU"},
                                          Params{"INVALID_DEVICE", "INVALID_DEVICE"},
                                          Params{"CPU,-INVALID_DEVICE", "CPU"},
                                          Params{"CPU,INVALID_DEVICE", "CPU,INVALID_DEVICE"},
                                          Params{"-CPU,INVALID_DEVICE", "INVALID_DEVICE"},
-                                         Params{"CPU,GPU,VPU", "CPU,GPU,VPU"}};
+                                         Params{"CPU,GPU,NPU", "CPU,GPU,NPU"}};
 
 const std::vector<Params> testConfigsWithIdNotInteldGPU = {Params{" ", " "},
                                          Params{"", "CPU,GPU.0"},
@@ -147,8 +147,8 @@ const std::vector<Params> testConfigsWithIdNotInteldGPU = {Params{" ", " "},
                                          Params{"CPU,,GPU", "CPU,GPU.0,GPU.1"},
                                          Params{"CPU, ,GPU", "CPU, ,GPU.0,GPU.1"},
                                          Params{"CPU,GPU,GPU.1", "CPU,GPU.0,GPU.1"},
-                                         Params{"CPU,GPU,VPU,INVALID_DEVICE", "CPU,GPU.0,GPU.1,VPU,INVALID_DEVICE"},
-                                         Params{"VPU,GPU,CPU,-GPU.0", "VPU,GPU.1,CPU"},
+                                         Params{"CPU,GPU,NPU,INVALID_DEVICE", "CPU,GPU.0,GPU.1,NPU,INVALID_DEVICE"},
+                                         Params{"NPU,GPU,CPU,-GPU.0", "NPU,GPU.1,CPU"},
                                          Params{"-GPU.0,GPU,CPU", "GPU.1,CPU"},
                                          Params{"-GPU.0,GPU", "GPU.1"},
                                          Params{"-GPU,GPU.0", "GPU.0"},

@@ -85,7 +85,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
 endfunction()
 
-# Keep old name so that library can be used from VPU repo
+# Keep old name so that library can be used from NPU repo
 set(TARGET_NAME commonTestUtils)
 set(NEW_TARGET_NAME common_test_utils)
 

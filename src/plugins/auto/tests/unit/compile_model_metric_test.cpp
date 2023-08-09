@@ -192,13 +192,13 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         metaDevices.push_back({actualDeviceName, metaConfig, actualCustomerNum, ""});
         // enable autoBatch
         unsigned int gpuOptimalBatchNum = 8;
-        unsigned int keembayOptimalBatchNum = 1;
+        unsigned int npuOptimalBatchNum = 1;
         ov::hint::PerformanceMode mode = ov::hint::PerformanceMode::THROUGHPUT;
         std::tuple<unsigned int, unsigned int> rangeOfStreams = std::make_tuple<unsigned int, unsigned int>(1, 3);
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_GPU), StrEq(ov::optimal_batch_size.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
         ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_KEEMBAY), StrEq(ov::optimal_batch_size.name()), _))
-            .WillByDefault(RETURN_MOCK_VALUE(keembayOptimalBatchNum));
+            .WillByDefault(RETURN_MOCK_VALUE(npuOptimalBatchNum));
         ON_CALL(*core, get_property(_, StrEq(ov::range_for_streams.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
         ON_CALL(*core, get_property(_, StrEq(ov::hint::performance_mode.name()), _))

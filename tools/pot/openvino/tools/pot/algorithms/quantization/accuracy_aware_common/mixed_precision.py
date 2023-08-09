@@ -31,11 +31,11 @@ class INT4MixedQuantization(AccuracyAwareCommon):
         self.original_quantization_config.weights.bits = 8
         self.original_quantization_config.activations.bits = 8
         self._config.convert_to_mixed_preset = False
-        self._restrict_for_vpu = True
+        self._restrict_for_npu = True
         self._engine.calculate_metrics = True
 
     def _can_set_fq_to_low_bitwidth(self, node):
-        if self._restrict_for_vpu:
+        if self._restrict_for_npu:
             return (nu.get_node_output(node, 0)[0].type == 'Convolution') and \
                    ('group' not in nu.get_node_output(node, 0)[0])
         return nu.get_node_output(node, 0)[0].type in OPERATIONS_WITH_WEIGHTS

@@ -1,7 +1,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml
+    path: ${NPU_MODELS_PKG}/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml
     name: resnet-50-pytorch
     precision: FP16
     framework: onnx
@@ -9,7 +9,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml
+    path: ${NPU_MODELS_PKG}/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml
     name: resnet-50-pytorch
     precision: FP16
     framework: onnx
@@ -17,7 +17,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml
+    path: ${NPU_MODELS_PKG}/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml
     name: resnet-50-pytorch
     precision: FP16-INT8
     framework: onnx
@@ -25,7 +25,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml
+    path: ${NPU_MODELS_PKG}/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml
     name: resnet-50-pytorch
     precision: FP16-INT8
     framework: onnx
@@ -33,7 +33,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe/FP16/mobilenet-v2.xml
+    path: ${NPU_MODELS_PKG}/mobilenet-v2/caffe/FP16/mobilenet-v2.xml
     name: mobilenet-v2
     precision: FP16
     framework: caffe
@@ -41,7 +41,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe/FP16/mobilenet-v2.xml
+    path: ${NPU_MODELS_PKG}/mobilenet-v2/caffe/FP16/mobilenet-v2.xml
     name: mobilenet-v2
     precision: FP16
     framework: caffe
@@ -49,7 +49,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml
+    path: ${NPU_MODELS_PKG}/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml
     name: mobilenet-v2
     precision: FP16-INT8
     framework: caffe
@@ -57,7 +57,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml
+    path: ${NPU_MODELS_PKG}/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml
     name: mobilenet-v2
     precision: FP16-INT8
     framework: caffe
@@ -65,7 +65,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
     name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16
     framework: tf
@@ -73,7 +73,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16/faster-rcnn-resnet101-coco-sparse-60-0001.xml
     name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16
     framework: tf
@@ -81,7 +81,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
     name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16-INT8
     framework: tf
@@ -89,7 +89,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml
     name: faster-rcnn-resnet101-coco-sparse-60-0001
     precision: FP16-INT8
     framework: tf
@@ -97,7 +97,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
     name: googlenet-v1
     precision: FP16
     framework: tf
@@ -105,7 +105,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v1/tf/FP16/googlenet-v1.xml
     name: googlenet-v1
     precision: FP16
     framework: tf
@@ -113,7 +113,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
     name: googlenet-v1
     precision: FP16-INT8
     framework: tf
@@ -121,7 +121,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml
     name: googlenet-v1
     precision: FP16-INT8
     framework: tf
@@ -129,7 +129,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
     name: googlenet-v3
     precision: FP16
     framework: tf
@@ -137,7 +137,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v3/tf/FP16/googlenet-v3.xml
     name: googlenet-v3
     precision: FP16
     framework: tf
@@ -145,7 +145,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
     name: googlenet-v3
     precision: FP16-INT8
     framework: tf
@@ -153,7 +153,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
+    path: ${NPU_MODELS_PKG}/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml
     name: googlenet-v3
     precision: FP16-INT8
     framework: tf
@@ -161,7 +161,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
+    path: ${NPU_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
     name: ssd512
     precision: FP16
     framework: caffe
@@ -169,7 +169,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
+    path: ${NPU_MODELS_PKG}/ssd512/caffe/FP16/ssd512.xml
     name: ssd512
     precision: FP16
     framework: caffe
@@ -177,7 +177,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
+    path: ${NPU_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
     name: ssd512
     precision: FP16-INT8
     framework: caffe
@@ -185,7 +185,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
+    path: ${NPU_MODELS_PKG}/ssd512/caffe/FP16-INT8/ssd512.xml
     name: ssd512
     precision: FP16-INT8
     framework: caffe
@@ -193,7 +193,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
     name: yolo-v2-ava-0001
     precision: FP16
     framework: tf
@@ -201,7 +201,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16/yolo-v2-ava-0001.xml
     name: yolo-v2-ava-0001
     precision: FP16
     framework: tf
@@ -209,7 +209,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
     name: yolo-v2-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -217,7 +217,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml
     name: yolo-v2-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -225,7 +225,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
     name: yolo-v2-ava-sparse-35-0001
     precision: FP16
     framework: tf
@@ -233,7 +233,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16/yolo-v2-ava-sparse-35-0001.xml
     name: yolo-v2-ava-sparse-35-0001
     precision: FP16
     framework: tf
@@ -241,7 +241,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
     name: yolo-v2-ava-sparse-35-0001
     precision: FP16-INT8
     framework: tf
@@ -249,7 +249,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml
     name: yolo-v2-ava-sparse-35-0001
     precision: FP16-INT8
     framework: tf
@@ -257,7 +257,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
     name: yolo-v2-ava-sparse-70-0001
     precision: FP16
     framework: tf
@@ -265,7 +265,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16/yolo-v2-ava-sparse-70-0001.xml
     name: yolo-v2-ava-sparse-70-0001
     precision: FP16
     framework: tf
@@ -273,7 +273,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
     name: yolo-v2-ava-sparse-70-0001
     precision: FP16-INT8
     framework: tf
@@ -281,7 +281,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml
     name: yolo-v2-ava-sparse-70-0001
     precision: FP16-INT8
     framework: tf
@@ -289,7 +289,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16
     framework: tf
@@ -297,7 +297,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16
     framework: tf
@@ -305,7 +305,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -313,7 +313,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml
     name: yolo-v2-tiny-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -321,7 +321,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
     name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16
     framework: tf
@@ -329,7 +329,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16/yolo-v2-tiny-ava-sparse-30-0001.xml
     name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16
     framework: tf
@@ -337,7 +337,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
     name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16-INT8
     framework: tf
@@ -345,7 +345,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml
     name: yolo-v2-tiny-ava-sparse-30-0001
     precision: FP16-INT8
     framework: tf
@@ -353,7 +353,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
     name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16
     framework: tf
@@ -361,7 +361,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16/yolo-v2-tiny-ava-sparse-60-0001.xml
     name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16
     framework: tf
@@ -369,7 +369,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
     name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16-INT8
     framework: tf
@@ -377,7 +377,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml
     name: yolo-v2-tiny-ava-sparse-60-0001
     precision: FP16-INT8
     framework: tf
@@ -385,7 +385,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe/FP16/squeezenet1.1.xml
+    path: ${NPU_MODELS_PKG}/squeezenet1.1/caffe/FP16/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16
     framework: caffe
@@ -393,7 +393,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe/FP16/squeezenet1.1.xml
+    path: ${NPU_MODELS_PKG}/squeezenet1.1/caffe/FP16/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16
     framework: caffe
@@ -401,7 +401,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe/FP16-INT8/squeezenet1.1.xml
+    path: ${NPU_MODELS_PKG}/squeezenet1.1/caffe/FP16-INT8/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16-INT8
     framework: caffe
@@ -409,7 +409,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/squeezenet1.1/caffe/FP16-INT8/squeezenet1.1.xml
+    path: ${NPU_MODELS_PKG}/squeezenet1.1/caffe/FP16-INT8/squeezenet1.1.xml
     name: squeezenet1.1
     precision: FP16-INT8
     framework: caffe
@@ -417,7 +417,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
     name: icnet-camvid-ava-0001
     precision: FP16
     framework: tf
@@ -425,7 +425,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16/icnet-camvid-ava-0001.xml
     name: icnet-camvid-ava-0001
     precision: FP16
     framework: tf
@@ -433,7 +433,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
     name: icnet-camvid-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -441,7 +441,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml
     name: icnet-camvid-ava-0001
     precision: FP16-INT8
     framework: tf
@@ -449,7 +449,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
     name: icnet-camvid-ava-sparse-30-0001
     precision: FP16
     framework: tf
@@ -457,7 +457,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16/icnet-camvid-ava-sparse-30-0001.xml
     name: icnet-camvid-ava-sparse-30-0001
     precision: FP16
     framework: tf
@@ -465,7 +465,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
     name: icnet-camvid-ava-sparse-30-0001
     precision: FP16-INT8
     framework: tf
@@ -473,7 +473,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-30-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-30-0001.xml
     name: icnet-camvid-ava-sparse-30-0001
     precision: FP16-INT8
     framework: tf
@@ -481,7 +481,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
     name: icnet-camvid-ava-sparse-60-0001
     precision: FP16
     framework: tf
@@ -489,7 +489,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16/icnet-camvid-ava-sparse-60-0001.xml
     name: icnet-camvid-ava-sparse-60-0001
     precision: FP16
     framework: tf
@@ -497,7 +497,7 @@
 - device:
     name: CPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
     name: icnet-camvid-ava-sparse-60-0001
     precision: FP16-INT8
     framework: tf
@@ -505,7 +505,7 @@
 - device:
     name: GPU
   model:
-    path: ${VPUX_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
+    path: ${NPU_MODELS_PKG}/icnet-camvid-ava-sparse-60-0001/tf/FP16-INT8/icnet-camvid-ava-sparse-60-0001.xml
     name: icnet-camvid-ava-sparse-60-0001
     precision: FP16-INT8
     framework: tf

@@ -18,7 +18,7 @@ class TestsCommon;
 
 // Temporal WA for applications.ai.vpu-accelerators.vpux-plugin repo
 // It requires to have TestCommon name in CommonTestUtils namespace
-// Need to change namespace in VPU repo and then remove this WA
+// Need to change namespace in NPU repo and then remove this WA
 namespace CommonTestUtils {
 using ov::test::TestsCommon;
 }  // namespace CommonTestUtils

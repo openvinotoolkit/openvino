@@ -14,7 +14,7 @@ the fastest and easiest way to get a quantized model. It requires only some unan
 
 .. note::
 
-   POT uses inference on the CPU during model optimization. It means that ability to infer the original floating-point model is essential for model optimization. In case of the 8-bit quantization, it is recommended to run POT on the same CPU architecture when optimizing for CPU or VNNI-based CPU when quantizing for a non-CPU device, such as GPU, VPU, or GNA. It should help to avoid the impact of the :doc:`saturation issue <pot_saturation_issue>` that occurs on AVX and SSE-based CPU devices.
+   POT uses inference on the CPU during model optimization. It means that ability to infer the original floating-point model is essential for model optimization. In case of the 8-bit quantization, it is recommended to run POT on the same CPU architecture when optimizing for CPU or VNNI-based CPU when quantizing for a non-CPU device, such as GPU, NPU, or GNA. It should help to avoid the impact of the :doc:`saturation issue <pot_saturation_issue>` that occurs on AVX and SSE-based CPU devices.
 
 
 Improving accuracy after the Default Quantization
@@ -32,7 +32,7 @@ Parameters of the Default Quantization algorithm with basic settings are present
                                     # the quantization scheme. For the CPU:
                                     # performance - symmetric quantization of weights and activations.
                                     # mixed - symmetric weights and asymmetric activations.
-                                    # accuracy - the same as "mixed" for CPU, GPU, and GNA devices; asymmetric weights and activations for VPU device.
+                                    # accuracy - the same as "mixed" for CPU, GPU, and GNA devices; asymmetric weights and activations for NPU device.
            "stat_subset_size": 300  # Size of the subset to calculate activations statistics that can be used
                                     # for quantization parameters calculation.
        }
