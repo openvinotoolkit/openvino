@@ -117,11 +117,9 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+Output<Node> normalize_axis(const NodeContext& context,
                                      const Output<Node>& axis,
-                                     const Output<Node>& input_node) {
-    Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+                                     const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));

@@ -39,7 +39,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+Output<Node> normalize_axis(const NodeContext& context,
                                      const Output<Node>& axis,
                                      const Output<Node>& input_node);
 
