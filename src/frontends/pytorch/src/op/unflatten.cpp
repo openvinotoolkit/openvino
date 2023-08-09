@@ -27,7 +27,7 @@ OutputVector translate_unflatten(const NodeContext& context) {
     auto sizes = context.get_input(2);
     if (context.get_input_type(2).is<type::List>()) {
         sizes = concat_list_construct(sizes);
-    }    
+    }
     Output<Node> input_shape;
     Output<Node> rank;
     std::tie(input_shape, rank) = get_shape_rank(context, input);
