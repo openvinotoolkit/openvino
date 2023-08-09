@@ -17,6 +17,18 @@ struct space_to_batch_params : public base_params {
     DimTensor<uint32_t> block_shape;
     DimTensor<uint32_t> pads_begin;
     DimTensor<uint32_t> pads_end;
+
+    base_params::ArgType block_type = base_params::ArgType::Input;
+    base_params::ArgType begin_type = base_params::ArgType::Input;
+    base_params::ArgType end_type = base_params::ArgType::Input;
+
+    size_t block_dims = 0;
+    size_t begin_dims = 0;
+    size_t end_dims = 0;
+
+    size_t block_input_index = 0;
+    size_t begin_input_index = 0;
+    size_t end_input_index = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

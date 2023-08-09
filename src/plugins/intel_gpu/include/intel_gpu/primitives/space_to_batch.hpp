@@ -58,18 +58,32 @@ struct space_to_batch : public primitive_base<space_to_batch> {
           block_shape(block_shape),
           pads_begin(pads_begin),
           pads_end(pads_end),
-          out_size(out_size) {}
+          out_size(out_size),
+          shape_constant(1) {}
+
+    space_to_batch(const primitive_id& id,
+                   const std::vector<input_info>& inputs,
+                   const tensor& out_size,
+                   const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}),
+          block_shape(tensor()),
+          pads_begin(tensor()),
+          pads_end(tensor()),
+          out_size(out_size),
+          shape_constant(0) {}
 
     tensor block_shape;
     tensor pads_begin;
     tensor pads_end;
     tensor out_size;
+    int64_t shape_constant;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, block_shape.hash());
         seed = hash_combine(seed, pads_begin.hash());
         seed = hash_combine(seed, pads_end.hash());
+        seed = hash_combine(seed, shape_constant);
         return seed;
     }
 
@@ -81,7 +95,8 @@ struct space_to_batch : public primitive_base<space_to_batch> {
 
         return block_shape == rhs_casted.block_shape &&
                pads_begin == rhs_casted.pads_begin &&
-               pads_end == rhs_casted.pads_end;
+               pads_end == rhs_casted.pads_end &&
+               shape_constant == rhs_casted.shape_constant;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -90,6 +105,7 @@ struct space_to_batch : public primitive_base<space_to_batch> {
         ob << pads_begin;
         ob << pads_end;
         ob << out_size;
+        ob << shape_constant;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -98,6 +114,7 @@ struct space_to_batch : public primitive_base<space_to_batch> {
         ib >> pads_begin;
         ib >> pads_end;
         ib >> out_size;
+        ib >> shape_constant;
     }
 };
 }  // namespace cldnn
