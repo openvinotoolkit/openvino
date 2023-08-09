@@ -29,7 +29,7 @@ namespace SubgraphTestsDefinitions {
         std::tie(inputs, netPrecision, targetDevice, additional_config) = this->GetParam();
         configuration.insert(additional_config.begin(), additional_config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ov::test::utils::builder::makeParams(ngPrc, {inputs});
+        auto input = ov::test::utils::builder::make_params(ngPrc, {inputs});
 
         auto eltwise_const = ngraph::builder::makeConstant(ngPrc,
                                                     ngraph::Shape{input[0]->get_shape()},

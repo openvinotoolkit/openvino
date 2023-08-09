@@ -41,7 +41,7 @@ protected:
 
         cpuNodeType = nodeType2PluginType(convType);
 
-        auto inputParams = ov::test::utils::builder::makeParams(element::f32, {Shape{1, 1024, 64}});
+        auto inputParams = ov::test::utils::builder::make_params(element::f32, {Shape{1, 1024, 64}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         std::shared_ptr<Node> conv;

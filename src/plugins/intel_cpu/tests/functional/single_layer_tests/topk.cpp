@@ -116,7 +116,7 @@ protected:
             }
         }
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, {inputDynamicShapes[0]});
 
         // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
         std::shared_ptr<ov::op::v11::TopK> topk;

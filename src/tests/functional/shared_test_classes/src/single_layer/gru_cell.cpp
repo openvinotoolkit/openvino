@@ -72,7 +72,7 @@ void GRUCellTest::SetUp() {
     std::vector<ngraph::Shape> WRB = {inputShapes[2], inputShapes[3], inputShapes[4]};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShapes[0], inputShapes[1]});
 
     std::shared_ptr<ov::Node> W;
     if (WType == InputLayerType::PARAMETER) {

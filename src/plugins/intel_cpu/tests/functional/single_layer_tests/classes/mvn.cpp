@@ -99,7 +99,7 @@ void MvnLayerCPUTest::SetUp() {
 
     init_input_shapes({inputShapes});
 
-    auto param = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    auto param = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);

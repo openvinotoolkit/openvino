@@ -55,7 +55,7 @@ protected:
         std::vector<size_t> inputShape2;
         std::tie(netPrecision, inputShape1, inputShape2, level, configuration, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape1});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape1});
         auto fakeQuantize1 =
             ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});
         auto constant = ngraph::builder::makeConstant<float>(ngPrc, inputShape2, {}, true);

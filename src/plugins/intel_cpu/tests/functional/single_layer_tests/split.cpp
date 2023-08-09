@@ -70,7 +70,7 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],

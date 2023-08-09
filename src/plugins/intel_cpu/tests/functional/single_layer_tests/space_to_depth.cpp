@@ -72,7 +72,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
         auto d2s = ngraph::builder::makeSpaceToDepth(params[0], mode, blockSize);
         function = makeNgraphFunction(inType, params, d2s, "SpaceToDepthCPU");
     }

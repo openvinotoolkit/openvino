@@ -21,16 +21,16 @@ class FuseNon0OuputPort : public SubgraphBaseTest {
         ngraph::ParameterVector params(3);
         targetStaticShapes = {{x_shape, y_shape, z_shape}};
         targetDevice = ov::test::utils::DEVICE_CPU;
-        params[0] = ov::test::utils::builder::makeParams(ov::element::f32, {x_shape})[0];
-        params[1] = ov::test::utils::builder::makeParams(ov::element::i32, {y_shape})[0];
-        params[2] = ov::test::utils::builder::makeParams(ov::element::i32, {z_shape})[0];
+        params[0] = ov::test::utils::builder::make_params(ov::element::f32, {x_shape})[0];
+        params[1] = ov::test::utils::builder::make_params(ov::element::i32, {y_shape})[0];
+        params[2] = ov::test::utils::builder::make_params(ov::element::i32, {z_shape})[0];
 
         // make a sub function
         const auto cond = ov::op::v0::Constant::create(ov::element::boolean, {1}, {true});
         ngraph::ParameterVector sub_params(3);
-        sub_params[0] = ov::test::utils::builder::makeParams(ov::element::f32, {x_shape})[0];
-        sub_params[1] = ov::test::utils::builder::makeParams(ov::element::i32, {y_shape})[0];
-        sub_params[2] = ov::test::utils::builder::makeParams(ov::element::boolean, {y_shape})[0];
+        sub_params[0] = ov::test::utils::builder::make_params(ov::element::f32, {x_shape})[0];
+        sub_params[1] = ov::test::utils::builder::make_params(ov::element::i32, {y_shape})[0];
+        sub_params[2] = ov::test::utils::builder::make_params(ov::element::boolean, {y_shape})[0];
         ngraph::ResultVector sub_results(3);
         sub_results[0] = std::make_shared<ngraph::opset1::Result>(sub_params[0]);
         sub_results[1] = std::make_shared<ngraph::opset1::Result>(sub_params[1]);

@@ -50,7 +50,7 @@ void CTCLossLayerTest::SetUp() {
     auto ngFpPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(fpPrecision);
     auto ngIntPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(intPrecision);
 
-    auto params = ov::test::utils::builder::makeParams(ngFpPrc, {logitsShapes});
+    auto params = ov::test::utils::builder::make_params(ngFpPrc, {logitsShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto ctcLoss = std::dynamic_pointer_cast<ngraph::opset4::CTCLoss>(

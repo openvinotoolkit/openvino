@@ -51,7 +51,7 @@ void RangeLayerTest::SetUp() {
     tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     std::vector<std::pair<std::string, std::vector<size_t>>> inputs {{"start", {}}, {"stop", {}}, {"step", {}}};
-    auto params = ov::test::utils::builder::makeParams(ngPrc, inputs);
+    auto params = ov::test::utils::builder::make_params(ngPrc, inputs);
     auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngPrc);
 
     function = std::make_shared<ngraph::Function>(
@@ -105,7 +105,7 @@ void RangeNumpyLayerTest::SetUp() {
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
     auto ngParamPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(paramPrc);
 
-    auto params = ov::test::utils::builder::makeParams(ngParamPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
+    auto params = ov::test::utils::builder::make_params(ngParamPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
     params[0]->set_friendly_name("start");
     params[1]->set_friendly_name("stop");
     params[2]->set_friendly_name("step");

@@ -97,7 +97,7 @@ protected:
                                                 const bool transpose_weights,
                                                 const bool add_subtract,
                                                 const bool reshape_on_decompression) {
-        auto params = ov::test::utils::builder::makeDynamicParams(data_precision, {inputShapes[0]});
+        auto params = ov::test::utils::builder::make_dynamic_params(data_precision, {inputShapes[0]});
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
             if (!transpose_weights)
                 return shape;

@@ -72,7 +72,7 @@ void DeformableConvolutionLayerTest::SetUp() {
     std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType,
              with_bilinear_interpolation_pad, with_modulation) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, offsets, filter});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, offsets, filter});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto data = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(inputShape));

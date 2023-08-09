@@ -61,7 +61,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape[1]});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape[1]});
         std::vector<float> weights =
             ov::test::utils::generate_float_numbers(inputShape[0][0] * inputShape[0][1], -0.2f, 0.2f);
         auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape[0], weights);
@@ -114,7 +114,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, inputShape[1][0] * inputShape[1][1]}});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {{1, inputShape[1][0] * inputShape[1][1]}});
 
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(
             params[0],

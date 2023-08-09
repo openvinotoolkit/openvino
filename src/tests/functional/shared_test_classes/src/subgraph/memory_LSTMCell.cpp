@@ -57,7 +57,7 @@ namespace SubgraphTestsDefinitions {
         reccurrenceWeights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
         bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
-        auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = ov::test::utils::builder::make_params(ngPrc, {input_dims});
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -146,7 +146,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = ov::test::utils::builder::make_params(ngPrc, {input_dims});
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);
@@ -193,7 +193,7 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
+        auto input_parameter = ov::test::utils::builder::make_params(ngPrc, {input_dims});
 
         auto input_add_const = builder::makeConstant(ngPrc, input_dims, input_bias);
         auto add = builder::makeEltwise(input_parameter[0], input_add_const, helpers::EltwiseTypes::ADD);

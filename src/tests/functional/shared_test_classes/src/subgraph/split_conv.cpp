@@ -61,7 +61,7 @@ void SplitConvTest::SetUp() {
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
+    auto params = ov::test::utils::builder::make_params(ngPrc, { inputShape });
     const auto splitsNum = 2;
     const auto splitAxis = 1;
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, splitAxis);

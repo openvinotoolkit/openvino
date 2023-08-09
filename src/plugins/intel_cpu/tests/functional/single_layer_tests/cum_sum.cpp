@@ -57,7 +57,7 @@ protected:
         selectedType = makeSelectedTypeStr("ref_any", inType);
         init_input_shapes({shapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
         auto axisNode = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = ngraph::builder::makeCumSum(params[0], axisNode, exclusive, reverse);
 

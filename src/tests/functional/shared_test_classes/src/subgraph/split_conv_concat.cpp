@@ -25,7 +25,7 @@ void SplitConvConcat::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 

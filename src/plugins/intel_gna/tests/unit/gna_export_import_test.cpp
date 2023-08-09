@@ -106,7 +106,7 @@ protected:
     std::shared_ptr<ngraph::Function> getFunction() {
         auto ngPrc = ngraph::element::f32;
         size_t shape = 10;
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, shape}});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {{1, shape}});
         auto mul_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {shape, shape},

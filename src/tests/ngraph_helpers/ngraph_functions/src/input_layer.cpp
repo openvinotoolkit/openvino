@@ -21,7 +21,7 @@ std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type &type, ngraph::
             break;
         }
         case ngraph::helpers::InputLayerType::PARAMETER:
-            input = ov::test::utils::builder::makeParams(type, {shape})[0];
+            input = ov::test::utils::builder::make_params(type, {shape})[0];
             break;
         default:
            throw std::runtime_error("Unsupported inputType");
@@ -36,7 +36,7 @@ std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type &type, n
     }
 
     if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        return ov::test::utils::builder::makeDynamicParams(type, {shape}).front();
+        return ov::test::utils::builder::make_dynamic_params(type, {shape}).front();
     }
 
     throw std::runtime_error("Could not make input layer. Unsupported inputType for dynamic shape");

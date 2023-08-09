@@ -28,7 +28,7 @@ void TrivialConcatLayerTest::SetUp() {
     int axis = inputShape.size() - 2;
     size_t total_size = std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, total_size}});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {{1, total_size}});
 
     auto input_relu = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
 

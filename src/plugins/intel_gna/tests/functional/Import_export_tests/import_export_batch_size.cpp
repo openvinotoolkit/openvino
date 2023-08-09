@@ -30,7 +30,7 @@ protected:
             this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
         auto mul_const_1 = ngraph::builder::makeConstant<float>(
             ngPrc,

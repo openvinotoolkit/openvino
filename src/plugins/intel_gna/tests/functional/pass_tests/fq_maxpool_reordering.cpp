@@ -92,7 +92,7 @@ protected:
         auto inputLowNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMin2});
         auto inputHighNode2 = ngraph::builder::makeConstant<float>(ngPrc, {1}, {inputDataMax2});
 
-        auto inputVector = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+        auto inputVector = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
         auto inputFQ = std::make_shared<ngraph::opset1::FakeQuantize>(inputVector[0],
                                                                       inputLowNode1,

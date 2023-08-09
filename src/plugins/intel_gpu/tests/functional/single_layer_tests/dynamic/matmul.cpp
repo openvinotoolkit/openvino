@@ -116,7 +116,7 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netType, {inShapeA});
+        auto params = ov::test::utils::builder::make_dynamic_params(netType, {inShapeA});
 
         auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {

@@ -21,7 +21,7 @@ class ReshapeChain : public SubgraphBaseTest {
         init_input_shapes({inputShapes});
         auto ngPrc = ngraph::element::f32;
         const auto secondInPrc = ngraph::element::Type_t::i32;
-        auto inputParams = ov::test::utils::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::make_dynamic_params(ngPrc, inputDynamicShapes);
         auto reshapeParam1 = ngraph::builder::makeConstant<int>(secondInPrc, {3}, {0, 0, -1});
         auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(inputParams.front(), reshapeParam1, true);
         auto reshapeParam2 = ngraph::builder::makeConstant<int>(secondInPrc, {2}, {0, -1});

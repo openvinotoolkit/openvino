@@ -66,7 +66,7 @@ protected:
         const ngraph::Shape shape1 = inputShape;
         const ngraph::Shape shape2 = {1, inputShape[1] * inputShape[1]};
         const float maxInputValue = 10.0f;
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {shape1});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {shape1});
         auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
 
         std::shared_ptr<ngraph::Node> input2;

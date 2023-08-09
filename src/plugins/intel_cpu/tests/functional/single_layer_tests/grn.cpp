@@ -67,7 +67,7 @@ protected:
 
         init_input_shapes({inputShape});
 
-        const auto paramsIn = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        const auto paramsIn = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
 
         const auto paramsOut = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
         const auto grn = std::make_shared<ngraph::opset1::GRN>(paramsOut[0], bias);

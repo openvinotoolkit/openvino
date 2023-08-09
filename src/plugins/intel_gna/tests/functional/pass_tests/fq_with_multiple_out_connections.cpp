@@ -51,7 +51,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 128};
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {shape});
 
         auto pattern1 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
                                                                    ngraph::Shape{3},

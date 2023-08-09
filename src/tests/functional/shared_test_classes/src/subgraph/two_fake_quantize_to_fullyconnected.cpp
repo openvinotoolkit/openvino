@@ -64,7 +64,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
         inputDataResolution = inputArg[2];
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const int seed = 0;

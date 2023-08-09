@@ -78,7 +78,7 @@ protected:
 
         init_input_shapes(inputShape);
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);

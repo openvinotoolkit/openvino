@@ -60,7 +60,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
 
-        auto parameters = ov::test::utils::builder::makeDynamicParams(ov::element::TypeVector{ov::element::boolean, precision, precision}, inputDynamicShapes);
+        auto parameters = ov::test::utils::builder::make_dynamic_params(ov::element::TypeVector{ov::element::boolean, precision, precision}, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
         auto select = ngraph::builder::makeSelect(paramOuts, broadcast);
 

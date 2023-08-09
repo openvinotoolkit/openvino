@@ -207,7 +207,7 @@ protected:
         std::string cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
-        auto params = ov::test::utils::builder::makeDynamicParams(inType, {inShapeA});
+        auto params = ov::test::utils::builder::make_dynamic_params(inType, {inShapeA});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         std::shared_ptr<Node> inputB = builder::makeConstant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
         if (weiConstElemType == ElementType::f16) {

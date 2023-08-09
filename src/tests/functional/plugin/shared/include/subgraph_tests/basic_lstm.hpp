@@ -27,7 +27,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
                                                   InferenceEngine::SizeVector({1, hidden_size}),
                                                   InferenceEngine::Layout::NC);
     // Reshape
-    auto params = ov::test::utils::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, third_dim} });
+    auto params = ov::test::utils::builder::make_params(function->get_parameters().at(0)->get_element_type(), { {1, third_dim} });
     function->replace_parameter(0, params[0]);
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()

@@ -95,7 +95,7 @@ namespace LayerTestsDefinitions {
         std::shared_ptr<ngraph::Node> defomablePSROIPooling;
 
         if (offsetsShape.empty()) { // Test without optional third input (offsets)
-            params = ov::test::utils::builder::makeParams(ngPrc, {dataShape, roisShape});
+            params = ov::test::utils::builder::make_params(ngPrc, {dataShape, roisShape});
             inputs = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
@@ -109,7 +109,7 @@ namespace LayerTestsDefinitions {
                                                                                                 trans_std,
                                                                                                 part_size);
         } else {
-            params = ov::test::utils::builder::makeParams(ngPrc, {dataShape, roisShape, offsetsShape});
+            params = ov::test::utils::builder::make_params(ngPrc, {dataShape, roisShape, offsetsShape});
             inputs = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
             defomablePSROIPooling = std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],

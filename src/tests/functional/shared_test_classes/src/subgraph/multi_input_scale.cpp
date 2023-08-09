@@ -35,7 +35,7 @@ void MultipleInputScaleTest::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     std::vector<size_t> inputShape = {1, inputSize};
-    auto input = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+    auto input = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
 
     auto fc1_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.5f, 0.5f);
     auto fc2_weights = ov::test::utils::generate_float_numbers(inputSize * inputSize, -0.2f, 0.2f);

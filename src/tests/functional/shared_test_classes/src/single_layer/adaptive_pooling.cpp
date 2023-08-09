@@ -39,7 +39,7 @@ void AdaPoolLayerTest::SetUp() {
     std::tie(inputShape, pooledSpatialShape, poolingMode, netPrecision, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
     ngraph::Shape pooledShape = {pooledSpatialShape.size() };
     auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);

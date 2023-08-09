@@ -64,7 +64,7 @@ void LogicalLayerTest::SetUp() {
     SetupParams();
 
     auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto inputs = ov::test::utils::builder::makeParams(ngInputsPrc, {inputShapes.first});
+    auto inputs = ov::test::utils::builder::make_params(ngInputsPrc, {inputShapes.first});
 
     std::shared_ptr<ngraph::Node> logicalNode;
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {

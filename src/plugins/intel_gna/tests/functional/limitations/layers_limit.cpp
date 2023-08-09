@@ -50,7 +50,7 @@ protected:
         configuration.insert(common_conf.begin(), common_conf.end());
         configuration.insert(conf.begin(), conf.end());
 
-        auto params = ov::test::utils::builder::makeParams(net_type, shapes);
+        auto params = ov::test::utils::builder::make_params(net_type, shapes);
         auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
         ov::ResultVector results;
 

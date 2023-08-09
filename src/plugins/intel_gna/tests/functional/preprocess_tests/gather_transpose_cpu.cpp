@@ -120,7 +120,7 @@ protected:
     }
 
     void init_test_model() {
-        auto params = ov::test::utils::builder::makeParams(m_net_type, {m_input_shape});
+        auto params = ov::test::utils::builder::make_params(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::shared_ptr<ov::Node> pre_node = params[0];

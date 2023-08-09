@@ -147,7 +147,7 @@ protected:
         }
 
         std::shared_ptr<ngraph::Node> maxOutBoxesPerClassNode;
-        auto params = ov::test::utils::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(paramsPrec, inputDynamicShapes);
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 

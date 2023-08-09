@@ -25,7 +25,7 @@ protected:
         activationType = activationDecl.first;
         const auto& constantsValue = activationDecl.second;
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputDims});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputDims});
         params[0]->set_friendly_name("Input");
 
         // TODO: remove after integer inference output support

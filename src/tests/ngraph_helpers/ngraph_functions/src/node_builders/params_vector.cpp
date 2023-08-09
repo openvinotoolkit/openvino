@@ -11,7 +11,7 @@ namespace test {
 namespace utils {
 namespace builder {
 
-ov::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes) {
+ov::ParameterVector make_params(const element::Type &type, const std::vector<std::vector<size_t>> &shapes) {
     ov::ParameterVector outs;
     for (const auto &shape : shapes) {
         auto paramNode = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape));
@@ -21,7 +21,7 @@ ov::ParameterVector makeParams(const element::Type &type, const std::vector<std:
     return outs;
 }
 
-ov::ParameterVector makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs) {
+ov::ParameterVector make_params(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs) {
     ov::ParameterVector outs;
     for (const auto &input : inputs) {
         const auto &name = input.first;
@@ -34,7 +34,7 @@ ov::ParameterVector makeParams(const element::Type &type, const std::vector<std:
     return outs;
 }
 
-ov::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes) {
+ov::ParameterVector make_dynamic_params(const element::Type &type, const std::vector<ov::PartialShape> &shapes) {
     ov::ParameterVector outs;
     for (const auto &shape : shapes) {
         auto paramNode = std::make_shared<ov::op::v0::Parameter>(type, shape);
@@ -44,7 +44,7 @@ ov::ParameterVector makeDynamicParams(const element::Type &type, const std::vect
     return outs;
 }
 
-ov::ParameterVector makeDynamicParams(const std::vector<element::Type>& types, const std::vector<ov::PartialShape>& shapes) {
+ov::ParameterVector make_dynamic_params(const std::vector<element::Type>& types, const std::vector<ov::PartialShape>& shapes) {
     ov::ParameterVector outs;
     OPENVINO_ASSERT(types.size() == shapes.size());
     for (size_t i = 0; i < types.size(); i++) {

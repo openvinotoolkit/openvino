@@ -22,7 +22,7 @@ protected:
             this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+        auto input = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
         auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ngraph::opset7::Result>(mul1);
 

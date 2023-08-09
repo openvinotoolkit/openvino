@@ -185,7 +185,7 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ov::test::utils::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(ngPrc, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

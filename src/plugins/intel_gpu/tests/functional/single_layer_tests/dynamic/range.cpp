@@ -139,10 +139,10 @@ protected:
 
         if (netType == ElementType::undefined) {
             std::vector<element::Type> types = { ElementType::f32, ElementType::i32, ElementType::f32 };
-            params = ov::test::utils::builder::makeDynamicParams(types, inputDynamicShapes);
+            params = ov::test::utils::builder::make_dynamic_params(types, inputDynamicShapes);
             netType = ElementType::f32;
         } else {
-            params = ov::test::utils::builder::makeDynamicParams(netType, inputDynamicShapes);
+            params = ov::test::utils::builder::make_dynamic_params(netType, inputDynamicShapes);
         }
         const auto range = std::make_shared<ngraph::opset8::Range>(params[0], params[1], params[2], netType);
 

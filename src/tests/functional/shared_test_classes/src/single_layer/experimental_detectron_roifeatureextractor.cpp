@@ -66,7 +66,7 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
     attrs.sampling_ratio = samplingRatio;
     attrs.pyramid_scales = pyramidScales;
 
-    auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, {inputDynamicShapes});
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectronROIFeatureExtractor = std::make_shared<ExperimentalROI>(paramsOuts, attrs);
     function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0),

@@ -54,7 +54,7 @@ public:
     }
 
     static std::shared_ptr<ov::Model> buildModel(ElementType precision, const ov::PartialShape& shape) {
-        auto param = ov::test::utils::builder::makeDynamicParams(precision, { shape });
+        auto param = ov::test::utils::builder::make_dynamic_params(precision, { shape });
         const VariableInfo variable_info { shape, precision, "v0" };
         auto variable = std::make_shared<Variable>(variable_info);
         auto read_value = std::make_shared<ReadValue>(param.at(0), variable);

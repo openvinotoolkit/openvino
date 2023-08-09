@@ -109,7 +109,7 @@ protected:
         else
             selectedType = std::string("ref_any_") + netPrecision.name();
 
-        auto params = ov::test::utils::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
+        auto params = ov::test::utils::builder::make_dynamic_params(ngPrec, {inputDynamicShapes.front()});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         paramShape = {paramOuts[0].get_partial_shape().size()};
 

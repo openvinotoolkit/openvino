@@ -75,7 +75,7 @@ protected:
 
         init_input_shapes({ inputShape });
 
-        auto paramRegionYolo = ov::test::utils::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        auto paramRegionYolo = ov::test::utils::builder::make_dynamic_params(inPrc, inputDynamicShapes);
 
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,

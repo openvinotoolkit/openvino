@@ -87,7 +87,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 128};
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {shape});
 
         auto lowNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * -inputDataMax});
         auto highNodeIn = ngraph::builder::makeConstant<float>(ngPrc, {1}, {100 * inputDataMax});

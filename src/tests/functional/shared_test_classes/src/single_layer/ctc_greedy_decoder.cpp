@@ -44,7 +44,7 @@ void CTCGreedyDecoderLayerTest::SetUp() {
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, mergeRepeated, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ov::test::utils::builder::makeParams(ngPrc, { inputShapes });
+    auto paramsIn = ov::test::utils::builder::make_params(ngPrc, { inputShapes });
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

@@ -151,7 +151,7 @@ void DetectionOutputLayerTest::SetUp() {
         inShapes[i][0] = batch;
     }
 
-    auto params = ov::test::utils::builder::makeParams(ngraph::element::f32, inShapes);
+    auto params = ov::test::utils::builder::make_params(ngraph::element::f32, inShapes);
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
     auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};

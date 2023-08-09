@@ -90,7 +90,7 @@ protected:
         auto endInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {4});
         auto strideInput = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
 
-        auto functionParams = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto functionParams = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset3::Parameter>(functionParams));
 
         auto shapeOfOp1 = std::make_shared<opset3::ShapeOf>(paramOuts[0], element::i32);

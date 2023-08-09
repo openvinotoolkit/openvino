@@ -360,7 +360,7 @@ const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{std::make_shar
 const auto fusingSum = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 auto shape = cfg.input->get_output_partial_shape(0);
-                ngraph::ParameterVector newParams = ov::test::utils::builder::makeDynamicParams(cfg.type, {shape});
+                ngraph::ParameterVector newParams = ov::test::utils::builder::make_dynamic_params(cfg.type, {shape});
                 cfg.params.insert(cfg.params.end(), newParams.begin(), newParams.end());
                 auto newParamOuts = ngraph::helpers::convert2OutputVector(
                      ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(newParams));
@@ -370,7 +370,7 @@ const auto fusingSum = fusingSpecificParams{std::make_shared<postNodesMgr>(std::
 const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             auto shape = cfg.input->get_output_partial_shape(0);
-            ngraph::ParameterVector newParams = ov::test::utils::builder::makeDynamicParams(cfg.type, {shape});
+            ngraph::ParameterVector newParams = ov::test::utils::builder::make_dynamic_params(cfg.type, {shape});
             cfg.params.insert(cfg.params.end(), newParams.begin(), newParams.end());
             auto newParamOuts = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(newParams));

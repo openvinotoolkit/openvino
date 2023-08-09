@@ -28,7 +28,7 @@ void ResultLayerTest::SetUp() {
     std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(params[0])};
     function = std::make_shared<ngraph::Function>(results, params, "result");
 }

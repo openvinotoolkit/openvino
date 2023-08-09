@@ -16,7 +16,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto ngPrc = element::f32;
-        auto inputParams = ov::test::utils::builder::makeParams(ngPrc, {{1, 3, 12, 9}});
+        auto inputParams = ov::test::utils::builder::make_params(ngPrc, {{1, 3, 12, 9}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         auto tile = ngraph::builder::makeTile(paramOuts[0], std::vector<int64_t>{1, 2, 1, 1});

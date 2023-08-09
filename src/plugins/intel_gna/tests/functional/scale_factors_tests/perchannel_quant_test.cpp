@@ -57,7 +57,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape constShape = {inputShape.back(), inputShape.back()};
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
         std::vector<float> weights;
         std::vector<float> weightsMin, weightsMax;

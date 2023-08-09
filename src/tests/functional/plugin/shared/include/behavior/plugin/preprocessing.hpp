@@ -86,7 +86,7 @@ public:
 
         auto make_ngraph = [&](bool with_extra_conv) {
             auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
-            auto paramsIn = ov::test::utils::builder::makeParams(in_prec, {inputShape});
+            auto paramsIn = ov::test::utils::builder::make_params(in_prec, {inputShape});
             auto paramIn = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

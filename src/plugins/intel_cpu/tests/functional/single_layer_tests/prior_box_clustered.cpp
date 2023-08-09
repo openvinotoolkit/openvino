@@ -124,7 +124,7 @@ protected:
             attributes.offset,
             attributes.variances) = specParams;
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, { inputShapes.first, imageShapes.first });
+        auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, { inputShapes.first, imageShapes.first });
 
         auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
         auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);

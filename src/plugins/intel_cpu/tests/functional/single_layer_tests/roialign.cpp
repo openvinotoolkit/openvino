@@ -147,8 +147,8 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto float_params = ov::test::utils::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
-        auto int_params = ov::test::utils::builder::makeDynamicParams(ngraph::element::i32, { inputDynamicShapes[2] });
+        auto float_params = ov::test::utils::builder::make_dynamic_params(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
+        auto int_params = ov::test::utils::builder::make_dynamic_params(ngraph::element::i32, { inputDynamicShapes[2] });
         auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
         auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 

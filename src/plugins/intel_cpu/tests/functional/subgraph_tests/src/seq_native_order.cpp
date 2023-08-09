@@ -171,7 +171,7 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             types.back() = ElementType::i64;
         }
-        auto params = ov::test::utils::builder::makeDynamicParams(types, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(types, inputDynamicShapes);
 
         std::vector<int64_t> order_ref_before = {1, 0, 2};
         const auto order_before = std::make_shared<ov::op::v0::Constant>(ov::element::i64,

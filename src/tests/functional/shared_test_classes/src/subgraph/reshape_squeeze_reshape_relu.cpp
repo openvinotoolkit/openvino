@@ -29,7 +29,7 @@ namespace SubgraphTestsDefinitions {
         const std::size_t input_dim = InferenceEngine::details::product(squeezeShape.first);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
-        auto input = ov::test::utils::builder::makeParams(ngPrc, {shape_input});
+        auto input = ov::test::utils::builder::make_params(ngPrc, {shape_input});
         auto reshape1_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{squeezeShape.first.size()},
                                                                        squeezeShape.first);

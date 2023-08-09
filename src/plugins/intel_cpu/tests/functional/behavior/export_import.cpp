@@ -23,7 +23,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
     const ov::element::Type precision = ov::element::f32;
 
-    auto params = ov::test::utils::builder::makeParams(precision, {input_shape});
+    auto params = ov::test::utils::builder::make_params(precision, {input_shape});
     auto matmul_const = ngraph::builder::makeConstant(precision, {4096, 1024}, std::vector<float>{}, true);
     auto matmul = ngraph::builder::makeMatMul(params[0], matmul_const);
 

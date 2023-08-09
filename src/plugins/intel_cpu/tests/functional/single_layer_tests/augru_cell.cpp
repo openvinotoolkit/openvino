@@ -93,7 +93,7 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }
 
-        auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
         std::vector<ngraph::Shape> WRB = {{3 * hiddenSize, inputSize}, {3 * hiddenSize, hiddenSize}, {(linearBeforeReset ? 4 : 3) * hiddenSize}};
         auto augruCellOp = ngraph::builder::makeAUGRU(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hiddenSize/*, activations, {}, {}, clip, linearBeforeReset*/);

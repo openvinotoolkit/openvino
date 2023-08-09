@@ -104,7 +104,7 @@ void SetBlobTest::SetUp() {
         outPrc = precNet;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {IS});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {IS});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})->output(0);
     auto cumSum = std::dynamic_pointer_cast<ngraph::opset4::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, false, false));

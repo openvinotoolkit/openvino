@@ -79,7 +79,7 @@ void ConvertCPULayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
-    ParameterVector params = ov::test::utils::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+    ParameterVector params = ov::test::utils::builder::make_dynamic_params(ngPrc, inputDynamicShapes);
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
 
     function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");

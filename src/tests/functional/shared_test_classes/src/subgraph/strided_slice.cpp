@@ -46,7 +46,7 @@ void StridedSliceTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {ssParams.inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {ssParams.inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto relu = std::make_shared<ngraph::opset1::Relu>(paramOuts[0]);

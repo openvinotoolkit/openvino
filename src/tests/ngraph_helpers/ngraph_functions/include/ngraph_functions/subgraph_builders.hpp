@@ -11,7 +11,7 @@ namespace builder {
 namespace subgraph {
 inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                           ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->output(0).get_tensor().set_names({"data"});
     std::vector<size_t> constShape = {inputShape[0], inputShape[2], inputShape[1], inputShape[3]};
@@ -49,7 +49,7 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
 
 inline std::shared_ptr<ngraph::Function> makeConvPoolReluNoReshapes(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                                     ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->output(0).get_tensor().set_names({"data"});
     auto conv1 = ngraph::builder::makeConvolution(params.front(), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -73,7 +73,7 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolReluNoReshapes(std::vector<
 
 inline std::shared_ptr<ngraph::Function> makeConvPool2Relu2(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                             ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->output(0).get_tensor().set_names({"data"});
     std::vector<size_t> constShape = {inputShape[0], inputShape[2], inputShape[1], inputShape[3]};
@@ -134,7 +134,7 @@ inline std::shared_ptr<ngraph::Function> makeConvPool2Relu2(std::vector<size_t> 
 
 inline std::shared_ptr<ngraph::Function> makeConvPoolReluNonZero(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                                  ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->output(0).get_tensor().set_names({"data"});
     auto conv1 = ngraph::builder::makeConvolution(params.front(), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -173,7 +173,7 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolReluNonZero(std::vector<siz
 
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                              ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -196,7 +196,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
 
 inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                          ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
 
     auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
     auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
@@ -215,7 +215,7 @@ inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
 
 inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                   ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({ "input_tensor" });
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -415,7 +415,7 @@ inline std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> 
 
 inline std::shared_ptr<ngraph::Function> makeNestedBranchConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                    ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     auto relu0 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 
     auto conv1 = ngraph::builder::makeConvolution(relu0, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -445,7 +445,7 @@ inline std::shared_ptr<ngraph::Function> makeNestedBranchConvConcat(std::vector<
 
 inline std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                    ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -477,7 +477,7 @@ inline std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<s
 
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                           ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -507,7 +507,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::v
 
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                            ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
     int localId = 0;
     #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1); SET_NAME(split);
@@ -569,7 +569,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNestedOut(
         std::vector<size_t> inputShape = {1, 4, 20, 20},
         ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape});
     int localId = 0;
     #define SET_NAME(node) node->set_friendly_name(#node + std::to_string(localId++));
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1); SET_NAME(split);
@@ -670,7 +670,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNested
 
 inline std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                       ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto parameter =  ov::test::utils::builder::makeParams(type, {inputShape});
+    auto parameter =  ov::test::utils::builder::make_params(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
     auto weights = ngraph::opset1::Constant::create(type, ngraph::Shape{6, 3, 1, 1}, {1});
     auto biases = ngraph::opset1::Constant::create(type, ngraph::Shape{6, 1, 1}, {1});
@@ -688,7 +688,7 @@ inline std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputS
 
 inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<size_t> inputShape = {1, 1, 2, 4},
                                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto parameter =  ov::test::utils::builder::makeParams(type, {inputShape});
+    auto parameter =  ov::test::utils::builder::make_params(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
     auto init_const = ngraph::op::Constant::create(type, inputShape, {0});
     auto read = std::make_shared<ngraph::opset5::ReadValue>(init_const, "v0");
@@ -713,7 +713,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
 
 inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
                                                         ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto parameter = ov::test::utils::builder::makeParams(type, { inputShape });
+    auto parameter = ov::test::utils::builder::make_params(type, { inputShape });
     parameter[0]->set_friendly_name("parameter");
     auto weights = ngraph::opset1::Constant::create(type, ngraph::Shape{ 24, 24 }, { 1 });
     auto biases = ngraph::opset1::Constant::create(type, ngraph::Shape{ 1, 24 }, { 1 });
@@ -731,7 +731,7 @@ inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inpu
 inline std::shared_ptr<ngraph::Function> makeConvertTranspose(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
                                                         std::vector<size_t> inputOrder = { 0, 1, 2, 3 },
                                                         ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto params = ov::test::utils::builder::makeParams(type, {inputShape});
+    auto params = ov::test::utils::builder::make_params(type, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->output(0).get_tensor().set_names({"data"});
     const auto order = ngraph::op::Constant::create(element::i32, {inputOrder.size()}, inputOrder);
@@ -798,7 +798,7 @@ inline std::shared_ptr<ngraph::Function> makeMultipleInputOutputDoubleConcat(std
 
 inline std::shared_ptr<ngraph::Function> makeSingleConcatWithConstant(std::vector<size_t> inputShape = {1, 1, 2, 4},
                                                     ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto parameter =  ov::test::utils::builder::makeParams(type, {inputShape});
+    auto parameter =  ov::test::utils::builder::make_params(type, {inputShape});
     parameter[0]->set_friendly_name("Param_1");
     parameter[0]->output(0).get_tensor().set_names({"data"});
     auto init_const = ngraph::op::Constant::create(type, inputShape, {0});

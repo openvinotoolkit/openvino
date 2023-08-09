@@ -78,7 +78,7 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(inPrc, inputDynamicShapes);
 
         std::shared_ptr<ngraph::Node> poolInput = params[0];
 

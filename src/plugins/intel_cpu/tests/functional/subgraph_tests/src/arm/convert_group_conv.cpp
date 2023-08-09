@@ -58,7 +58,7 @@ protected:
         const size_t numOutChannels = 30;
         const op::PadType paddingType = op::PadType::EXPLICIT;
 
-        auto inputParams = ov::test::utils::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::make_dynamic_params(ngraph::element::f32, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         conv = builder::makeGroupConvolution(paramOuts.front(), element::f32, kernelSize, strides, padBegin, padEnd, dilation,
                                              paddingType, numOutChannels, numOfGroups);

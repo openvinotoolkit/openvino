@@ -77,7 +77,7 @@ const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
 
 void FuseTransposeAndReorderTest::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
     auto memFmt = inputShape.size() == 5 ? ndhwc : nhwc;
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTranspose
 
 void FuseTransposeAndReorderTest1::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
 
@@ -204,7 +204,7 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
 
     auto inputShape2(inputShape);
     inputShape2[inputShape2.size() - 1] *= 2;
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape, inputShape2});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape, inputShape2});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 4, 1, 2, 3} : std::vector<int64_t>{0, 3, 1, 2};
 
@@ -258,7 +258,7 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
     std::vector<ptrdiff_t> padBegin{0, 0}, padEnd{0, 0};
     size_t convOutChannels = 32;
 
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     IE_ASSERT(inputShape[1] >= 8 && (inputShape[1] % 8 == 0));
 
     auto convolutionNode = ngraph::builder::makeConvolution(params.front(), ngPrc, kernel, stride, padBegin,
@@ -317,7 +317,7 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
     auto memFmt = nhwc;
 
-    auto inputParams = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto inputParams = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     const auto relu = std::make_shared<ov::op::v0::Relu>(inputParams[0]);
     const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);

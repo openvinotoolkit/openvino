@@ -81,7 +81,7 @@ protected:
 
         init_input_shapes(shapes);
 
-        auto params = ov::test::utils::builder::makeDynamicParams(prc, {inputDynamicShapes.front()});
+        auto params = ov::test::utils::builder::make_dynamic_params(prc, {inputDynamicShapes.front()});
         auto reshapeData = ngraph::builder::makeConstant(ElementType::i32, {data.size()}, data);
         auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapeData, true);
 

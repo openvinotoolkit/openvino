@@ -25,7 +25,7 @@ void SplitConcatConcatTest::SetUp() {
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, 256}});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {{1, 256}});
     auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
     auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 2, 1);
     auto const_concat = ngraph::builder::makeConstant(ngPrc, {1, 96}, std::vector<float>{0});

@@ -82,7 +82,7 @@ protected:
             targetStaticShapes.push_back({{T, N, C}, {T, N}});
         }
 
-        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
         auto ctcGreedyDecoder = std::make_shared<ov::op::v0::CTCGreedyDecoder>(params[0], params[1], mergeRepeated);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder)};

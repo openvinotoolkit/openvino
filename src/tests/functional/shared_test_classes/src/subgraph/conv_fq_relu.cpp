@@ -71,7 +71,7 @@ void ConvFqReluTest::SetUp() {
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
     const int seed = 0;
     std::mt19937 gen(seed);

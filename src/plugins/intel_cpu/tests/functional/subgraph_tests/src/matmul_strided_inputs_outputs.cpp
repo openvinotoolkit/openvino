@@ -35,19 +35,19 @@ protected:
         const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         SizeVector splitShape{1, 2, 1, 16};
-        auto splitInputParams = ov::test::utils::builder::makeParams(ngPrec, {splitShape});
+        auto splitInputParams = ov::test::utils::builder::make_params(ngPrec, {splitShape});
         const auto splitOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(splitInputParams));
         const auto split = builder::makeSplit(splitOutputNodes[0], ngPrec, 2 /* splits */, 1 /* 2nd axis */);
 
         std::vector<SizeVector> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
-        auto concatInputParams = ov::test::utils::builder::makeParams(ngPrec, {concatShapes});
+        auto concatInputParams = ov::test::utils::builder::make_params(ngPrec, {concatShapes});
         const auto concatOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(concatInputParams));
         const auto concat = builder::makeConcat(concatOutputNodes, 2);
 
         const auto matMul1 = builder::makeMatMul(split->output(0), concat, false, false);
 
         SizeVector matmulShape{1, 1, 16, 8};
-        auto matmulInputParams = ov::test::utils::builder::makeParams(ngPrec, {matmulShape});
+        auto matmulInputParams = ov::test::utils::builder::make_params(ngPrec, {matmulShape});
         const auto matmulOutputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(matmulInputParams));
 
         const auto matMul2 = builder::makeMatMul(split->output(1), matmulOutputNodes[0], false, false);

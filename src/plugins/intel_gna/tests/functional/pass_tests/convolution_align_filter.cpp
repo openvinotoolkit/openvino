@@ -66,7 +66,7 @@ protected:
 
         size_t in_total_dims_size =
             std::accumulate(std::begin(splitInputShape), std::end(splitInputShape), 1, std::multiplies<size_t>());
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {{1, in_total_dims_size}});
         auto pattern1 =
             std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, splitInputShape);
         auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);

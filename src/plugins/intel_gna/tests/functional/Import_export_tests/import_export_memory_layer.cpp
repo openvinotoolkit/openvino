@@ -101,7 +101,7 @@ protected:
         std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, withReset) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {{1, 336}});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {{1, 336}});
         auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
         auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
 

@@ -31,7 +31,7 @@ void InputSplitConcatTest::SetUp() {
     std::tie(netPrecision, targetDevice, tempConfig, inputShape) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, { inputShape });
+    auto params = ov::test::utils::builder::make_params(ngPrc, { inputShape });
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
     auto relu1 = std::make_shared<ngraph::opset3::Relu>(split->output(0));

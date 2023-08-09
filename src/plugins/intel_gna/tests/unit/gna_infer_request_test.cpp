@@ -41,7 +41,7 @@ protected:
     std::shared_ptr<ngraph::Function> GetFunction() {
         auto ngPrc = ngraph::element::f32;
         std::vector<size_t> shape = {1, 10};
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {shape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {shape});
         auto shape_size = ov::shape_size(shape);
         auto add_const =
             ngraph::builder::makeConstant<float>(ngPrc,

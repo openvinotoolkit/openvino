@@ -159,12 +159,12 @@ protected:
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
-        auto inputs = ov::test::utils::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
+        auto inputs = ov::test::utils::builder::make_dynamic_params(ngPrc, {inputDynamicShapes.front()});
         auto dataInput = inputs.front();
         dataInput->set_friendly_name("param_1");
         std::shared_ptr<ngraph::Node> secondaryInput;
         if (secondType == ngraph::helpers::InputLayerType::PARAMETER) {
-            secondaryInput = ov::test::utils::builder::makeDynamicParams(secondInPrc, {inputDynamicShapes.back()}).front();
+            secondaryInput = ov::test::utils::builder::make_dynamic_params(secondInPrc, {inputDynamicShapes.back()}).front();
             secondaryInput->set_friendly_name("param_2");
             inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
         } else {

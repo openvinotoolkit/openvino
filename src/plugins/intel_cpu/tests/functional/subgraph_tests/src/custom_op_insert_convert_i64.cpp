@@ -101,7 +101,7 @@ protected:
         std::tie(inType, inputShape) = this->GetParam();
 
         init_input_shapes({inputShape});
-        auto inputParams = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto inputParams = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
         auto customOp = std::make_shared<CustomOpI64>(paramOuts);
 

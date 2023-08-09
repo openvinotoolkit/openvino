@@ -35,7 +35,7 @@ void EltwiseReshapeActivation::SetUp() {
     configuration.insert(config.begin(), config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto input = ov::test::utils::builder::makeParams(ngPrc, { shapes[0], shapes[0] });
+    auto input = ov::test::utils::builder::make_params(ngPrc, { shapes[0], shapes[0] });
     auto eltw = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
 
     auto reshape_pattern1 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shapes[1].size()}, shapes[1]);

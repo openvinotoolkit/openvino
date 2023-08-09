@@ -33,7 +33,7 @@ void MultipleInputTest::SetUp() {
 
     const float minInput = -10.0;
     const float maxInput = 10.0;
-    auto input = ov::test::utils::builder::makeParams(ngPrc, {{1, inputSize}, {1, inputSize}, {1, inputSize}});
+    auto input = ov::test::utils::builder::make_params(ngPrc, {{1, inputSize}, {1, inputSize}, {1, inputSize}});
     auto fake1 = ngraph::builder::makeFakeQuantize(input[0], ngPrc, std::numeric_limits<uint16_t>::max(), { 1 },
         { minInput }, { maxInput }, { minInput }, { maxInput });
     auto add1 = ngraph::builder::makeEltwise(input[0], fake1, ngraph::helpers::EltwiseTypes::ADD);

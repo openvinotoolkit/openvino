@@ -34,7 +34,7 @@ std::string OVInferenceChaining::getTestCaseName(const testing::TestParamInfo<In
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
-    auto params = ov::test::utils::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape});
+    auto params = ov::test::utils::builder::make_dynamic_params(element::Type_t::f32, {shape, shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov:
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
-    auto params = ov::test::utils::builder::makeDynamicParams(element::Type_t::f32, {shape, shape});
+    auto params = ov::test::utils::builder::make_dynamic_params(element::Type_t::f32, {shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -63,7 +63,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov
 }
 
 std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
-    auto params = ov::test::utils::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape, shape});
+    auto params = ov::test::utils::builder::make_dynamic_params(element::Type_t::f32, {shape, shape, shape, shape});
     params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
     params[0]->set_friendly_name("param_0");
     params[1]->get_output_tensor(0).set_names({"input_tensor_1"});

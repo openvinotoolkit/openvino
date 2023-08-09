@@ -44,7 +44,7 @@ void NormalizeL2LayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+    auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
     auto data_input = params[0];
     data_input->set_friendly_name("data");
     auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);

@@ -34,7 +34,7 @@ class ConcatReorderInPlaceTest : virtual public LayerTestsUtils::LayerTestsCommo
 public:
     void SetUp() override {
         const std::vector<size_t> inputShape = {1, 100, 1, 1};
-        auto inputParams = ov::test::utils::builder::makeParams(ngraph::element::f32, {inputShape, inputShape});
+        auto inputParams = ov::test::utils::builder::make_params(ngraph::element::f32, {inputShape, inputShape});
         auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{inputParams[0], inputParams[1]}, 1);
         const auto targetFormat = nhwc;
         auto mul1 = std::make_shared<ngraph::opset8::Multiply>(

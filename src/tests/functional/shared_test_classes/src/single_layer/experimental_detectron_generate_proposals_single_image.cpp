@@ -75,7 +75,7 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, {inputDynamicShapes});
+    auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, {inputDynamicShapes});
     auto paramsOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto experimentalDetectron = std::make_shared<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(
         params[0], // im_info

@@ -62,7 +62,7 @@ namespace SubgraphTestsDefinitions {
         }
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ov::test::utils::builder::makeParams(ngPrc, {inputShape});
+        auto params = ov::test::utils::builder::make_params(ngPrc, {inputShape});
 
         auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
 

@@ -72,7 +72,7 @@ public:
     }
 
     ParameterVector createInputVector(const Type& type, const vector<std::size_t>& shapes) {
-        return ov::test::utils::builder::makeParams(type, {shapes});
+        return ov::test::utils::builder::make_params(type, {shapes});
     }
 
     shared_ptr<FakeQuantize> createFQNode(const Type& type,

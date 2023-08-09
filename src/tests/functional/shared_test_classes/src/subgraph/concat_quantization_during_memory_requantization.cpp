@@ -36,7 +36,7 @@ namespace SubgraphTestsDefinitions {
         memory_1_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
         memory_2_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
 
-        auto input = ov::test::utils::builder::makeParams(ngPrc, { {1, inputSize} });
+        auto input = ov::test::utils::builder::make_params(ngPrc, { {1, inputSize} });
 
         auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
         auto mem_1_read = std::make_shared<ngraph::opset3::ReadValue>(mem_1_const, "memory_1");
@@ -81,7 +81,7 @@ namespace SubgraphTestsDefinitions {
         memory_1_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
         memory_2_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
 
-        auto input = ov::test::utils::builder::makeParams(ngPrc, { {1, inputSize} });
+        auto input = ov::test::utils::builder::make_params(ngPrc, { {1, inputSize} });
 
         auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
         auto concat_1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_1_const, input[0] }, 1);

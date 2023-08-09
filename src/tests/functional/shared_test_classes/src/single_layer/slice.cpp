@@ -48,7 +48,7 @@ void Slice8LayerTest::SetUp() {
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     init_input_shapes(sliceParams.shapes);
-    auto params = ov::test::utils::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    auto params = ov::test::utils::builder::make_dynamic_params(netPrecision, inputDynamicShapes);
     auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
 
     ov::ResultVector results;

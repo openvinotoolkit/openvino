@@ -52,7 +52,7 @@ protected:
         }
 
         init_input_shapes({inShape});
-        auto params = ov::test::utils::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(inType, inputDynamicShapes);
 
         const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

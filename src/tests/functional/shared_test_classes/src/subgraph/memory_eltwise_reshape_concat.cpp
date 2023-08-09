@@ -51,7 +51,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
 
 void MemoryEltwiseReshapeConcatTest::initTestModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
+    auto input_parameter = ov::test::utils::builder::make_params(ngPrc, {input_dims});
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");
@@ -86,7 +86,7 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
 
 void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     InferenceEngine::SizeVector input_dims = {1, inputSize * concatSize};
-    auto input_parameter = ov::test::utils::builder::makeParams(ngPrc, {input_dims});
+    auto input_parameter = ov::test::utils::builder::make_params(ngPrc, {input_dims});
 
     auto memory_constant = ngraph::builder::makeConstant<float>(ngPrc, input_dims, memory_init);
     memory_constant->set_friendly_name("memory_constant");

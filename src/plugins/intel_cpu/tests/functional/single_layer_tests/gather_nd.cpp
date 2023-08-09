@@ -55,7 +55,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(dataElementType, inputDynamicShapes);
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset5::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
@@ -81,7 +81,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ov::test::utils::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        auto params = ov::test::utils::builder::make_dynamic_params(dataElementType, inputDynamicShapes);
         auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
         auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(params[0], indexes_node, batchDims);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
