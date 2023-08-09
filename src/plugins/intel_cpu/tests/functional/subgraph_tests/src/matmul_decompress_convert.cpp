@@ -276,9 +276,9 @@ const std::vector<std::vector<InputShape>> inputShapes3D = {
 
 std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
     std::vector<std::map<std::string, std::string>> additionalConfig;
-#ifndef OV_CPU_WITH_MLAS
+// #ifndef OV_CPU_WITH_MLAS
     additionalConfig.push_back(std::map<std::string, std::string>{/* empty config */});
-#endif
+// #endif
     return additionalConfig;
 }
 
@@ -388,6 +388,205 @@ const auto testParams3D_BF16_smoke = ::testing::Combine(
     ::testing::ValuesIn(filterSpecificParams_BF16()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testParams3D_BF16_smoke,
+                        MatMulDecompressConvertTest::getTestCaseName);
+
+} // namespace
+
+// todo: leave comment
+using MatMulDecompressConvertParams2 = std::tuple<
+    std::vector<InputShape>,            // input shapes
+    std::pair<bool, bool>,              // transposeA, transposeB
+    ElementType,                        // weights precision
+    std::map<std::string, std::string>, // additional config
+    CPUSpecificParams
+>;
+
+class MatMulDecompressConvertTest2 : public testing::WithParamInterface<MatMulDecompressConvertParams2>,
+                                    virtual public SubgraphBaseTest, public CPUTestsBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams2> obj) {
+        std::vector<InputShape> inputShapes;
+        std::pair<bool, bool> transpose;
+        ElementType weiElemType;
+        std::map<std::string, std::string> additionalConfig;
+        CPUSpecificParams cpuParams;
+
+        std::tie(inputShapes, transpose, weiElemType, additionalConfig, cpuParams) = obj.param;
+
+        std::ostringstream result;
+        for (const auto& shape : inputShapes) {
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : inputShapes) {
+            result << "(";
+            if (!shape.second.empty()) {
+                auto itr = shape.second.begin();
+                do {
+                    result << ov::test::utils::vec2str(*itr);
+                } while (++itr != shape.second.end() && result << "_");
+            }
+            result << ")_";
+        }
+        result << "transpose_a=" << transpose.first << "_";
+        result << "transpose_b=" << transpose.second << "_";
+
+        result << "weiLemType=" << weiElemType << "_";
+
+        result << "config=(";
+        for (const auto& configEntry : additionalConfig) {
+            result << configEntry.first << ", " << configEntry.second << ":";
+        }
+        result << ")";
+
+        result << CPUTestsBase::getTestCaseName(cpuParams);
+
+        return result.str();
+    }
+
+protected:
+    template<typename T>
+    void transposeShape(T& shape) {
+        IE_ASSERT(shape.size() > 1);
+        std::swap(*(shape.end() - 1), *(shape.end() - 2));
+    }
+
+    void CheckFCWeightsPrecision(ElementType expectedWeiElemType) const {
+        auto getExecValue = [](const ov::Node::RTMap& rtInfo, const std::string &paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            return it->second.as<std::string>();
+        };
+
+        const auto execFunction = compiledModel.get_runtime_model();
+        ASSERT_NE(nullptr, execFunction);
+        for (const auto &fcNode : execFunction->get_ops()) {
+            if (getExecValue(fcNode->get_rt_info(), ExecGraphInfoSerialization::LAYER_TYPE) == "FullyConnected") {
+                const auto &constNode = fcNode->get_input_node_shared_ptr(1);
+                element::Type expectedType(getExecValue(constNode->get_rt_info(), ExecGraphInfoSerialization::OUTPUT_PRECISIONS));
+                ASSERT_EQ(expectedType, expectedWeiElemType);
+            }
+        }
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        std::vector<InputShape> inputShapes;
+        std::pair<bool, bool> transpose;
+        std::map<std::string, std::string> additionalConfig;
+        CPUSpecificParams cpuParams;
+
+        std::tie(inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+        init_input_shapes(inputShapes);
+
+        bool transpA = transpose.first;
+        bool transpB = transpose.second;
+
+        if (transpA) transposesCount += 2;
+        if (!transpB) transposesCount++;
+
+        if (transpA) {
+            transposeShape(inputDynamicShapes[0]);
+            for (auto& shapes : targetStaticShapes) {
+                transposeShape(shapes[0]);
+            }
+            transposeShape(inputDynamicShapes[1]);
+            for (auto& shapes : targetStaticShapes) {
+                transposeShape(shapes[1]);
+            }
+        }
+        if (transpB) {
+            transposeShape(inputDynamicShapes[2]);
+            for (auto& shapes : targetStaticShapes) {
+                transposeShape(shapes[2]);
+            }
+        }
+
+        const auto& inShapeFC0 = inputDynamicShapes[0];
+        const auto& inShapeFC1 = inputDynamicShapes[1];
+        const auto& inShapeWeights = inputDynamicShapes[2];
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+        ElementType netType = ElementType::f32;
+        ElementType convertOutType = ElementType::f32;
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
+            convertOutType = inType = outType = netType = ElementType::bf16;
+            weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
+        } else {
+            inType = outType = netType;
+        }
+
+        std::string cpuNodeType = "FullyConnected";
+        selectedType = makeSelectedTypeStr(selectedType, outType);
+
+        auto params = builder::makeDynamicParams(inType, {inShapeFC0, inShapeFC1});
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
+        std::shared_ptr<Node> inputWeights = builder::makeConstant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
+        if (weiConstElemType == ElementType::f16) {
+            inputWeights = std::make_shared<opset1::Convert>(inputWeights, convertOutType);
+            mark_as_decompression(inputWeights);
+        }
+        auto matMul0 = builder::makeMatMul(paramOuts[0], inputWeights, transpA, transpB);
+        auto matMul1 = builder::makeMatMul(paramOuts[1], inputWeights, transpA, transpB);
+
+        auto concat = builder::makeConcat({matMul0, matMul1}, 0);
+
+        function = CPUTestsBase::makeNgraphFunction(netType, params, concat, cpuNodeType);
+    }
+
+    void CheckExecutionGraph() {
+        CheckNumberOfNodesWithType(compiledModel, "FullyConnected", 2);
+        CheckNumberOfNodesWithType(compiledModel, "Transpose", transposesCount);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+        CheckFCWeightsPrecision(ElementType::f32);
+    }
+
+    size_t transposesCount = 0;
+    ElementType weiConstElemType = ElementType::f32;
+};
+
+TEST_P(MatMulDecompressConvertTest2, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    CheckExecutionGraph();
+}
+
+namespace {
+
+// todo:
+// #ifdef OV_CPU_WITH_MLAS
+// const auto testParams2D_MLAS_2_smoke = ::testing::Combine(
+//     ::testing::ValuesIn(inputShapes2D),
+//     ::testing::ValuesIn(transposeParams),
+//     ::testing::Values(ElementType::f32),
+//     ::testing::ValuesIn(filterAdditionalConfig_MLAS()),
+//     ::testing::ValuesIn(filterSpecificParams_MLAS()));
+
+// INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_MLAS, MatMulDecompressConvertTest2, testParams2D_MLAS_2_smoke,
+//                         MatMulDecompressConvertTest::getTestCaseName);
+// #endif
+
+const std::vector<std::vector<InputShape>> inputShapes2D_2 = {
+    static_shapes_to_test_representation({{2, 3}, {2, 3}, {3, 4}}),
+};
+
+const std::vector<std::pair<bool, bool>> transposeParams_2 = {
+    {false, true},
+};
+
+const auto testParams2D_2_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes2D_2),
+    ::testing::ValuesIn(transposeParams_2),
+    ::testing::Values(/*ElementType::f32,*/ ElementType::f16),
+    ::testing::ValuesIn(filterAdditionalConfig()),
+    ::testing::ValuesIn(filterSpecificParams()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulDecompressConvertTest2, testParams2D_2_smoke,
                         MatMulDecompressConvertTest::getTestCaseName);
 
 } // namespace
