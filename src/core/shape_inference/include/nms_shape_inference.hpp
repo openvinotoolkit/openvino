@@ -211,6 +211,8 @@ std::vector<TRShape> shape_infer(const Node* op,
 
             selected_boxes *= scores_shape[0].get_max_length();
             selected_boxes *= scores_shape[1].get_max_length();
+        } else {
+            selected_boxes = TDim(ov::util::dim::inf_bound);
         }
 
         nms::validate::boxes_last_dim(op, input_shapes);
@@ -271,6 +273,8 @@ std::vector<TRShape> shape_infer(const NonMaxSuppression* op,
         if (scores_shape.rank().is_static()) {
             selected_boxes *= scores_shape[0].get_max_length();
             selected_boxes *= scores_shape[1].get_max_length();
+        } else {
+            selected_boxes = TDim(dim::inf_bound);
         }
     }
 

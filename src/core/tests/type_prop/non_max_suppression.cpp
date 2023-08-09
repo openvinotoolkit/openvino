@@ -430,6 +430,25 @@ TYPED_TEST_P(NMSDynamicOutputTest, dynamic_types) {
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
 }
 
+TYPED_TEST_P(NMSDynamicOutputTest, scores_shape_is_dynamic_rank) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::dynamic, Shape{5, 2, 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    const auto max_output_boxes_per_class = op::v0::Constant::create(element::i16, Shape{}, {3});
+    const auto iou_threshold = make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto score_threshold = make_shared<op::v0::Parameter>(element::f32, Shape{});
+
+    const auto op = this->make_op(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold);
+
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Indicies type", &Output<Node>::get_element_type, element::i64),
+                            Property("Scores type", &Output<Node>::get_element_type, element::f32),
+                            Property("Outputs type", &Output<Node>::get_element_type, element::i64)));
+    EXPECT_THAT(op->outputs(),
+                ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
+                            Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
+                            Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(NMSDynamicOutputTest,
                             scalar_inputs_check,
                             boxes_scores_static_other_defaults,
@@ -439,6 +458,7 @@ REGISTER_TYPED_TEST_SUITE_P(NMSDynamicOutputTest,
                             interval_shapes_labels,
                             output_shape_i32,
                             dynamic_boxes_and_scores,
-                            dynamic_types);
+                            dynamic_types,
+                            scores_shape_is_dynamic_rank);
 using NMSDynamicOutputTypes = testing::Types<op::v5::NonMaxSuppression, op::v9::NonMaxSuppression>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, NMSDynamicOutputTest, NMSDynamicOutputTypes);
