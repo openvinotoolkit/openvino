@@ -110,7 +110,10 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key);
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx);
 
 /** @brief Creates ov::tensor from TensorWrap Object */
-ov::Tensor value_to_tensor(Napi::Object value);
+ov::Tensor cast_to_tensor(Napi::Object value);
+
+/** @brief Creates ov::tensor from TypedArray using given shape and element type*/
+ov::Tensor cast_to_tensor(Napi::TypedArray data, const ov::Shape& shape, const ov::element::Type_t& type);
 
 /** @brief A helper function to create a ov::Tensor from Napi::Value.
  * @param value a Napi::Value that can be either a TypedArray or a TensorWrap Object.
@@ -121,18 +124,14 @@ ov::Tensor value_to_tensor(Napi::Object value);
 template <typename KeyType>
 ov::Tensor value_to_tensor(const Napi::Value& value, const ov::InferRequest& infer_request, KeyType key) {
     if (value.IsTypedArray()) {
-        const auto arr = value.As<Napi::Float32Array>();
         const auto input = get_request_tensor(infer_request, key);
         const auto& shape = input.get_shape();
         const auto& type = input.get_element_type();
-        auto tensor = ov::Tensor(type, shape);
-        if (tensor.get_byte_size() == arr.ByteLength())
-            std::memcpy(tensor.data(), arr.Data(), arr.ByteLength());
-
-        return tensor;
+        const auto data = value.As<Napi::TypedArray>();
+        return cast_to_tensor(data, shape, type);
 
     } else if (value.IsObject()) {
-        return value_to_tensor(value.As<Napi::Object>());
+        return cast_to_tensor(value.As<Napi::Object>());
     } else {
         throw std::invalid_argument(std::string("Cannot create a tensor from the passed Napi::Value." ));
     }
