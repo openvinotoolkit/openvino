@@ -83,7 +83,7 @@ void add_required_reorders::run(program& p) {
                     continue;
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
-                bool required_reorder = (out_layout.format != dep_layout.format) ||
+                bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
                                         (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
                 if (required_reorder) {
                     auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
