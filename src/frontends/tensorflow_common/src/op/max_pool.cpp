@@ -127,7 +127,7 @@ OutputVector translate_max_pool_v2(const NodeContext& node) {
 }
 
 OutputVector translate_max_pool_with_argmax(const NodeContext& node) {
-    // MaxPoolV2 has ksize and strides as input parameters
+    // MaxPoolWithArgmax has just one input. ksize and strides are attributes
     TENSORFLOW_OP_VALIDATION(node,
                              node.get_input_size() > 0,
                              "MaxPoolWithArgmax operation must have at least one input.");
