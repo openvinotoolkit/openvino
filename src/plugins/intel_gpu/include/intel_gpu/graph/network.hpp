@@ -33,13 +33,15 @@ struct network_output {
     event::ptr get_event() const { return _event; }
 
     /// @brief Returns @ref memory object of the output. Blocked until associated @ref event is not complete.
-    memory::ptr get_memory() const {
+    memory::ptr get_memory(bool do_sync = true) const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == QueueTypes::in_order) {
-            _stream->finish();
-        } else {
-            _event->wait();
+        if (do_sync) {
+            if (_stream->get_queue_type() == QueueTypes::in_order) {
+                _stream->finish();
+            } else {
+                _event->wait();
+            }
         }
         return _result;
     }
@@ -68,7 +70,7 @@ public:
         using Ptr = std::shared_ptr<VariableState>;
 
         VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { mem }, is_set { false } {
+            memory { std::move(mem) }, is_set { false } {
         }
         void set_memory(cldnn::memory_ptr new_mem) {
             memory = new_mem;
@@ -128,8 +130,8 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    void set_input_data(const primitive_id& id, memory::ptr data);
-    void set_output_memory(const primitive_id& id, memory::ptr mem);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 

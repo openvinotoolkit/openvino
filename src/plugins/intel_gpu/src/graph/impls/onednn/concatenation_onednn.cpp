@@ -108,6 +108,8 @@ public:
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
+        _scratchpad_md = _pd.scratchpad_desc();
+
         _prim = dnnl::concat(_pd, prim_cache);
 #endif
     }

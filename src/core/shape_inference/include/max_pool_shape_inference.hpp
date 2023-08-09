@@ -12,12 +12,11 @@ namespace ov {
 namespace op {
 
 namespace v1 {
-template <class TShape, class TContainer>
-std::vector<TShape> shape_infer(const MaxPool* op,
-                                const std::vector<TShape>& input_shapes,
-                                TContainer& pads_begin,
-                                TContainer& pads_end,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const MaxPool* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end) {
     const auto& data_shape = input_shapes[0];
     const auto dilations = Strides(op->get_kernel().size(), 1);
 
@@ -32,12 +31,11 @@ std::vector<TShape> shape_infer(const MaxPool* op,
 }  // namespace v1
 
 namespace v8 {
-template <class TShape, class TContainer>
-std::vector<TShape> shape_infer(const MaxPool* op,
-                                const std::vector<TShape>& input_shapes,
-                                TContainer& pads_begin,
-                                TContainer& pads_end,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const MaxPool* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
 

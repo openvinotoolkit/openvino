@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({12, 18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 // ND support tests
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels6D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({24, 6, 12, 18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
@@ -58,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({6, 12, 18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels3D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({18, 30, 36})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
@@ -82,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels2D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({18, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels1D, ShuffleChannelsLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
 
 }  // namespace

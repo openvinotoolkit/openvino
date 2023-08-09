@@ -144,7 +144,7 @@ specified device.
     
         # Read the network and corresponding weights from a file.
         model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can use GPU or MYRIAD as well).
+        # Compile the model for CPU (you can also use GPU).
         compiled_model = ie_core.compile_model(model=model, device_name="CPU")
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)

@@ -26,11 +26,11 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset11.hpp>
-#include <utils/shape_inference/static_shape.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
+#include <shape_inference/static_shape.hpp>
+#include <shape_inference/shape_inference.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;

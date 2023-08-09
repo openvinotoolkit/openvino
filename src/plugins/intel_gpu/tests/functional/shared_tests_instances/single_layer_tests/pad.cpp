@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConst,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{13, 5}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{13, 5}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}};
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4DConst,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
@@ -79,7 +79,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
 }  // namespace

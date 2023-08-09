@@ -14,6 +14,7 @@ from pathlib import Path
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
@@ -48,7 +49,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
-    get_tid
+    init_mo_telemetry
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter  # pylint: disable=no-name-in-module,import-error
@@ -395,7 +396,8 @@ def prepare_ir(argv: argparse.Namespace):
                 argv.input_model = create_tf_graph_iterator(argv.input_model,
                                                             argv.placeholder_shapes,
                                                             argv.placeholder_data_types,
-                                                            getattr(argv, "example_input", None))
+                                                            getattr(argv, "example_input", None),
+                                                            argv.share_weights)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -443,8 +445,8 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
     # *.xml/.*bin files are temporary created in the legacy scenario, so we cannot map the memory
-    enable_mmap = False
-    function = fe.convert(fe.load(path_to_xml, enable_mmap))
+    share_weights = False
+    function = fe.convert(fe.load(path_to_xml, share_weights))
     return function
 
 
@@ -528,8 +530,8 @@ def check_model_object(argv):
         if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-            
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
             if isinstance(model, TorchScriptPythonDecoder):
                 return "pytorch"
         except Exception as e:
@@ -800,7 +802,7 @@ def update_args_for_saved_model_dir(args: dict):
             'input_model' in args and args['input_model'] is not None:
         raise Error("Both --input_model and --saved_model_dir are defined. "
                     "Please specify either input_model or saved_model_dir directory.")
-    
+
     if 'input_model' in args and isinstance(args['input_model'], (str, Path)) and os.path.isdir(args['input_model']):
         args['saved_model_dir'] = args['input_model']
         args['input_model'] = None
@@ -824,7 +826,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
-    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=simplified_mo_version, backend='ga4')
+    telemetry = init_mo_telemetry()
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', simplified_mo_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages

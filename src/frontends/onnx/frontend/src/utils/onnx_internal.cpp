@@ -37,6 +37,7 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void remove_dangling_results(std::shared_ptr<Function>& function) {
     const auto results = function->get_results();
     for (auto result : results) {
@@ -52,6 +53,7 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
         }
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto) {
     transform::fixup_legacy_operators(model_proto);

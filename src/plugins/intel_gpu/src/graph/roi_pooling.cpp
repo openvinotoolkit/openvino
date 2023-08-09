@@ -40,12 +40,11 @@ std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const
     op.set_spatial_scale(desc->spatial_scale);
 
     ShapeType rois_shape = impl_param.get_input_layout(1).get<ShapeType>();
-    std::vector<ShapeType> output_shapes = { ShapeType() };
     std::vector<ShapeType> input_shapes = {
         data_shape,
         rois_shape
     };
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], output_type, output_format} };
 }

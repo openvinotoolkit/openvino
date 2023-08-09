@@ -331,6 +331,12 @@ void ParamsKey::EnableReampleType(ResampleType a) {
         case ResampleType::LINEAR_ONNX:
             key.restrict.val.dedicated.resample.linear_onnx = 1;
             break;
+        case ResampleType::BILINEAR_PILLOW:
+            key.restrict.val.dedicated.resample.bilinear_pillow = 1;
+            break;
+        case ResampleType::BICUBIC_PILLOW:
+            key.restrict.val.dedicated.resample.bicubic_pillow = 1;
+            break;
         default:
             break;
     }

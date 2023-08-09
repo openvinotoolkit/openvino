@@ -33,6 +33,7 @@ op::v3::Broadcast::Broadcast(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
     AxisSet broadcast_axes;
@@ -154,7 +155,6 @@ void op::v3::Broadcast::validate_and_infer_types() {
                               axes_et);
     }
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes;
     const auto& arg_shape = get_input_partial_shape(0);
     const auto& target_shape = get_input_partial_shape(1);
@@ -165,7 +165,7 @@ void op::v3::Broadcast::validate_and_infer_types() {
         input_shapes = {arg_shape, target_shape, axes_mapping};
     }
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
@@ -282,9 +282,8 @@ void op::v1::Broadcast::validate_and_infer_types() {
     const auto& target_shape = get_input_partial_shape(1);
     const auto& axes_mapping = get_input_partial_shape(2);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {arg_shape, target_shape, axes_mapping};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape

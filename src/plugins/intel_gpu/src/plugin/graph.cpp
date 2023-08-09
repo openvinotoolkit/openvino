@@ -37,7 +37,7 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+Graph::Graph(InferenceEngine::CNNNetwork& network, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
              InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_networkName(network.getName())
@@ -50,7 +50,7 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr contex
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id,
              InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_config(config)
@@ -367,6 +367,10 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
             auto param = std::make_shared<ngraph::op::Parameter>(out_et, out_pshape);
             params.push_back(param);
             return_node = param;
+            // create additional result node if parameter is output without post reorder
+            if (is_output) {
+                results.emplace_back(std::make_shared<ngraph::op::Result>(return_node->get_default_output()));
+            }
         } else {
             return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(get_inputs(prim_info), output_size);
 

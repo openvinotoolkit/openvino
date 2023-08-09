@@ -9,8 +9,8 @@ namespace ov {
 namespace op {
 
 namespace gather_nd {
-template <class TShape, class TOp>
-std::vector<TShape> gather_nd_base_shape_infer(const TOp* op, const std::vector<TShape>& input_shapes) {
+template <class TOp, class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> gather_nd_base_shape_infer(const TOp* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& data_pshape = input_shapes[0];
@@ -59,17 +59,17 @@ std::vector<TShape> gather_nd_base_shape_infer(const TOp* op, const std::vector<
         for (auto dim_idx = batch_dims + indices_tuple_length; dim_idx < data_pshape.size(); ++dim_idx) {
             output_dims.emplace_back(data_pshape[dim_idx]);
         }
-        return {TShape(std::move(output_dims))};
+        return {TRShape(std::move(output_dims))};
     } else {
         return {ov::PartialShape::dynamic()};
     }
 }
 }  // namespace gather_nd
 namespace v5 {
-template <class TShape>
-void shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes) {
     using DimType = typename TShape::value_type;
-    output_shapes = gather_nd::gather_nd_base_shape_infer(op, input_shapes);
+    auto output_shapes = gather_nd::gather_nd_base_shape_infer(op, input_shapes);
 
     // If batch_dims > 1, batch dimensions are need to be fused
     auto batch_dims = op->get_batch_dims();
@@ -82,15 +82,16 @@ void shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes, st
                           output_dims[0] *= dim;
                       });
         output_dims.insert(output_dims.begin() + 1, output_base_shape.begin() + batch_dims, output_base_shape.end());
-        output_shapes[0] = TShape(std::move(output_dims));
+        output_shapes[0] = TRShape(std::move(output_dims));
     }
+    return output_shapes;
 }
 }  // namespace v5
 
 namespace v8 {
-template <class TShape>
-void shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = gather_nd::gather_nd_base_shape_infer(op, input_shapes);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const GatherND* op, const std::vector<TShape>& input_shapes) {
+    return gather_nd::gather_nd_base_shape_infer(op, input_shapes);
 }
 }  // namespace v8
 }  // namespace op

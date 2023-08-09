@@ -309,7 +309,7 @@ void store_second_output(stream& stream, memory::ptr mem, const std::vector<resu
 }
 
 template <typename T>
-void store_third_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_third_output_impl(stream& stream, const memory::ptr& mem, const std::vector<result_indices>& result) {
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
     ptr[0] = static_cast<T>(result.size());

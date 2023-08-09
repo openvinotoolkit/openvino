@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../transpose.hpp"
+#include "nodes/executors/transpose.hpp"
 
 namespace ov {
 namespace intel_cpu {

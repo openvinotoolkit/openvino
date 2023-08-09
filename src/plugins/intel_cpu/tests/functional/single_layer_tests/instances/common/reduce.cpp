@@ -67,7 +67,8 @@ const auto params_OneAxis = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_OneAxis_dynamic = testing::Combine(
         testing::Combine(
@@ -80,12 +81,13 @@ const auto params_OneAxis_dynamic = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes_dynamic_3dims)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_MultiAxis_4D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -93,12 +95,13 @@ const auto params_MultiAxis_4D = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_MultiAxis_4D_dynamic = testing::Combine(
         testing::Combine(
                 testing::Values(std::vector<int>{0, 1}),           // ACL supports reduce against static dims only
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -106,12 +109,13 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes_dynamic_2dims)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 const auto params_Int32 = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::ValuesIn(keepDims()),
             testing::ValuesIn(reductionTypesInt32()),
             testing::Values(ElementType::i32),
@@ -119,7 +123,8 @@ const auto params_Int32 = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes_Int32)),
         testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec));
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
