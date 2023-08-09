@@ -15,7 +15,7 @@
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"
 #include "file_utils.h"
-#include "ie_itt.hpp"
+#include "itt.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/fix_rt_info.hpp"
@@ -79,7 +79,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 }
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ModelCache::compute_hash - Model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
 
     OPENVINO_ASSERT(model);
 
@@ -145,7 +145,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 }
 
 std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ModelCache::compute_hash - ModelName");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
@@ -162,7 +162,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
 std::string ModelCache::compute_hash(const std::string& modelStr,
                                      const ov::Tensor& tensor,
                                      const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ModelCache::compute_hash - Model Memory");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);

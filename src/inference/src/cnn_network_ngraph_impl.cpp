@@ -16,9 +16,9 @@
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
-#include "ie_itt.hpp"
 #include "ie_memcpy.h"
 #include "ie_ngraph_utils.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/cc/pass/itt.hpp"
@@ -266,7 +266,7 @@ void CNNNetworkNGraphImpl::validate(int version) {
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                                            size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::addOutput");
 
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
@@ -471,7 +471,7 @@ void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
 #endif
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
 

@@ -15,6 +15,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "ie_blob.h"
+#include "ie_common.h"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/frontend/manager.hpp"
@@ -65,7 +66,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     stream.close();
     try {
         auto cnnNetwork = ie.ReadNetwork(modelAsString, weights);
-    } catch (const ngraph::ngraph_error& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring, std::string("invalid external data:"), e.what());
 
         EXPECT_PRED_FORMAT2(testing::IsSubstring,

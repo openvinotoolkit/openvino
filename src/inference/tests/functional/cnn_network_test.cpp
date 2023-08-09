@@ -101,7 +101,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
     try {
         core.LoadNetwork(network);
         FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
@@ -119,7 +119,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
     try {
         core.LoadNetwork(network, InferenceEngine::RemoteContext::Ptr());
         FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
@@ -137,7 +137,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
     try {
         core.QueryNetwork(network, "mock");
         FAIL() << "QueryNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::QueryNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
