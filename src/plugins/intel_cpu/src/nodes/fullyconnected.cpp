@@ -217,6 +217,7 @@ void FullyConnected::getSupportedDescriptors() {
         }
     } else if (inputDataType == memory::data_type::f16) {
 #if defined(OV_CPU_WITH_ACL)
+        // acl fc does not support precisions conversion
         outputDataType = weightsDataType = memory::data_type::f16;
 #else
         // f16 input only supports f16/f32 output, even if FQ is fused as post-ops
