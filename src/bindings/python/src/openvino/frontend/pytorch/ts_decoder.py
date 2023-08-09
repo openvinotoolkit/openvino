@@ -62,7 +62,7 @@ class TorchScriptPythonDecoder (Decoder):
             if "self" in self.raw_inputs[0].debugName():
                 self._input_signature.insert(0, "self")
             if 0 < len(self._input_signature) < len(self.raw_inputs):
-                # last input is kwargs input, we need to multiply that name by number of extra inputs
+                # last input is args input, we need to multiply that name by number of extra inputs
                 last_name = self._input_signature[-1]
                 self._input_signature = self._input_signature[:-1]
                 for i in range(len(self.raw_inputs) - len(self._input_signature)):
