@@ -186,7 +186,7 @@ def collect_statistic(root: Element, is_conformance_mode: bool):
             results[device.tag][op]["passrate"] = pass_rate
             results[device.tag][op]["relative_passrate"] = relative_pass_rate
 
-            if pass_rate == 300.:
+            if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
             device_general_test_count = op_test_cnt
             general_test_count[device.tag] += device_general_test_count
