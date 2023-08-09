@@ -95,7 +95,7 @@ endif()
 # Check python snippets
 # 
 
-if(ENABLE_PYTHON)
+if(ENABLE_PYTHON AND NOT CMAKE_CROSSCOMPILING)
     find_package(PythonInterp REQUIRED)
 
     file(GLOB_RECURSE PYTHON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
@@ -109,9 +109,7 @@ if(ENABLE_PYTHON)
 
     foreach(python_snippet IN LISTS PYTHON_SOURCES)
         string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${PYTHON_SNIPPETS_OUTPUT_DIR}" output_file ${python_snippet})
-        set(output_file "${PYTHON_SNIPPETS_OUTPUT_DIR}/${output_file}.txt")
         add_custom_command(OUTPUT ${output_file}
-            COMMAND ${PYTHON_EXECUTABLE} -m py_compile ${python_snippet}
             COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_BRIDGE_OUTPUT_DIRECTORY}
                 ${PYTHON_EXECUTABLE} ${python_snippet}
             COMMAND ${CMAKE_COMMAND} -E touch ${output_file}
@@ -122,7 +120,7 @@ if(ENABLE_PYTHON)
         list(APPEND outputs ${output_file})
     endforeach()
 
-    add_custom_target(${TARGET_NAME}_python DEPENDS ${outputs})
+    add_custom_target(${TARGET_NAME}_python ALL DEPENDS ${outputs})
 endif()
 
 #
