@@ -17,7 +17,7 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-TEST_P(ReadIRTest, ReadIR) {
+TEST_P(ReadIRTest, Inference) {
     run();
 }
 
