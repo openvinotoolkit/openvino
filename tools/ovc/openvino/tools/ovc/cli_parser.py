@@ -957,7 +957,7 @@ def check_bool(value):
 
 def depersonalize(value: str, key: str):
     dir_keys = [
-        'extension', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+        'extension'
     ]
     if isinstance(value, list):
         updated_value = []

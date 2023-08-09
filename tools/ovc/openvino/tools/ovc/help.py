@@ -22,10 +22,8 @@ def get_convert_model_help_specifics():
                  'specified inputs. The shape is specified as comma-separated list. '
                  'The data type of input node is specified in braces and can have one of '
                  'the values: f64, f32, f16, i64, i32, u8, boolean. If data type is not '
-                 'specified explicitly then there are two options: if '
-                 'input node is a parameter, data type is taken from the '
-                 'original node data type, if input node is not a parameter, '
-                 'data type is set to f32. Example, to set `input_1` input '
+                 'specified explicitly then data type is taken from the '
+                 'original node data type. Example, to set `input_1` input '
                  'with shape [1,100] and float32 type, and `sequence_len` input '
                  'with int32 type \"input_1[1,100]{f32},sequence_len{i32}\".'},
         'extension':

@@ -68,9 +68,7 @@ def convert_model(
             Example 2: input=[("op_name_1", [1, 2, 3], ov.Type.f32), ("op_name_2", ov.Type.i32)]
             Example 3: input=[([1, 2, 3], ov.Type.f32), ov.Type.i32]
             The order of inputs in converted model will match the order of specified inputs.
-            If data type is not specified explicitly then there are two options: if
-            input node is a parameter, data type is taken from the original node data type,
-            if input node is not a parameter, data type is set to f32.
+            If data type is not specified explicitly data type is taken from the original node data type.
 
         :param output:
             The name of the output operation of the model or list of names. For TensorFlow*,
