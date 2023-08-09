@@ -252,7 +252,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Netw
         } else {
             inferencePrecision = ov::element::f32;
         }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OV_CPU_ARM_ENABLE_FP16)
         //fp16 precision is used as default precision on ARM for non-convolution networks
         if (networkType != NetworkType::Convolution) {
             inferencePrecision = ov::element::f16;
