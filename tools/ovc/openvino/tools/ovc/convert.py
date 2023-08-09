@@ -26,9 +26,6 @@ def convert_model(
         extension: [str, pathlib.Path, list, Any] = None,
         verbose: bool = False,
         share_weights: bool = True,
-
-        # PaddlePaddle-specific parameters:
-        example_output: Any = None,  # TODO: Consider removing
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -86,8 +83,10 @@ def convert_model(
             and shape [2]: "0:node_name1[3,4],node_name2:1[2]{i32}->[20,15]".
         :param output:
             The name of the output operation of the model or list of names. For TensorFlow*,
-            do not add :0 to this name.The order of outputs in converted model is the
-            same as order of specified operation names.
+            do not add :0 to this name. The order of outputs in converted model is the
+            same as order of specified operation names. For PaddlePaddle model represented
+            as a pyton object, you can specify outputs as a PaddlePaddle python object or
+            a list of such objects.
         :param example_input:
             Sample of model input in original framework.
             For PyTorch it can be torch.Tensor.
@@ -107,10 +106,6 @@ def convert_model(
             then mmap is used to allocate weights directly from file. If input model is
             runtime object, then original memory regions allocated in the original model
             are reused for weights in the converted model.
-
-    PaddlePaddle-specific parameters:
-        :param example_output:
-            Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
 
     Returns:
         openvino.runtime.Model

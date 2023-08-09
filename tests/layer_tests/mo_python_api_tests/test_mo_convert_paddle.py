@@ -32,7 +32,7 @@ def make_pd_static_graph_model(shape):
     relu = paddle.nn.ReLU()
     sigmoid = paddle.nn.Sigmoid()
     y = sigmoid(relu(x))
-    
+
     exe = paddle.static.Executor(paddle.CPUPlace())
     exe.run(paddle.static.default_startup_program())
     return exe, x, y
@@ -46,7 +46,7 @@ def make_pd_hapi_graph_model(shape):
         paddle.nn.Sigmoid())
     input = InputSpec(shape, 'float32', 'x')
     label = InputSpec(shape, 'float32', 'label')
-    
+
     model = paddle.Model(net, input, label)
     optim = paddle.optimizer.SGD(learning_rate=1e-3,
         parameters=model.parameters())
@@ -77,7 +77,7 @@ def create_paddle_static_module(tmp_dir):
     pd_model, x, y = make_pd_static_graph_model(shape)
     ref_model = make_ref_graph_model(shape)
 
-    return pd_model, ref_model, {"example_input": [x], "example_output": [y]}
+    return pd_model, ref_model, {"example_input": [x], "output": [y]}
 
 def create_paddle_hapi_module(tmp_dir):
     shape = [2,3,4]
