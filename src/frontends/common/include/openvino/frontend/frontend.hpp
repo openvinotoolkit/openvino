@@ -86,7 +86,7 @@ public:
     /// as-is wrapped by FrameworkNode. Converted parts are normalized by additional
     /// transformations like it is done in convert method. If part of the graph cannot be
     /// converted, it is not guaranteed that the converted regions are complitelly normalized.
-    /// Normalize should be call for each completelly converted parts individually in this case.
+    /// Normalize should be called for each completely converted parts individually in this case.
     /// \param model Input model
     /// \return partially converted OV Model
     virtual std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const;
