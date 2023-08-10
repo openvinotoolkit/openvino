@@ -442,12 +442,6 @@ static ov::element::Type getInferencePrecision(const std::map<std::string, std::
     return tempConf.inferencePrecision;
 }
 
-static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
-           Config::ModelType::CNN : Config::ModelType::Unknown;
-}
-
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
     if (snippetsMode == modelConfig.end()) // not set explicitly
