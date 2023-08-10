@@ -208,14 +208,18 @@ TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
 
 namespace {
 
-std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
-    std::vector<std::map<std::string, std::string>> additional_config;//{CPUTestUtils::cpuEmptyPluginConfig};
-    if (with_cpu_x86_avx512_core())
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigBasic() {
+    std::vector<std::map<std::string, std::string>> additional_config = {CPUTestUtils::cpuEmptyPluginConfig};
+    return additional_config;
+}
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigBig() {
+    std::vector<std::map<std::string, std::string>> additional_config = {CPUTestUtils::cpuEmptyPluginConfig};
+    if (with_cpu_x86_avx512_core_amx())
         additional_config.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
     return additional_config;
 }
 
-bool shouldUseDecompressionKernel() {
+bool shouldUseDecompressionKernelBig() {
     // No decompression support on non-avx systems
     if (!with_cpu_x86_avx2())
         return false;
@@ -223,12 +227,12 @@ bool shouldUseDecompressionKernel() {
     return true;
 }
 
-bool shouldUseDecompressionKernelAMX() {
+bool shouldUseDecompressionKernelBasic() {
     // AMX decompression support has shape limitations
     if (with_cpu_x86_avx512_core_amx())
         return false;
 
-    return shouldUseDecompressionKernel();
+    return shouldUseDecompressionKernelBig();
 }
 
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8};
@@ -260,9 +264,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filterAdditionalConfig()),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::Values(shouldUseDecompressionKernelAMX())),
+                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
                          MatmulWeightsDecompression::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_big,
@@ -272,9 +276,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_big,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filterAdditionalConfig()),
+                                            ::testing::ValuesIn(filterAdditionalConfigBig()),
                                             ::testing::ValuesIn(fusingParamsSet),
-                                            ::testing::Values(shouldUseDecompressionKernel())),
+                                            ::testing::Values(shouldUseDecompressionKernelBig())),
                          MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> input_shapes_corner_cases_basic = {
@@ -296,9 +300,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(shouldUseDecompressionKernelAMX())),
+                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
                          MatmulWeightsDecompression::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big,
@@ -308,9 +312,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig),
+                                            ::testing::ValuesIn(filterAdditionalConfigBig()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(shouldUseDecompressionKernel())),
+                                            ::testing::Values(shouldUseDecompressionKernelBig())),
                          MatmulWeightsDecompression::getTestCaseName);
 } // namespace
 

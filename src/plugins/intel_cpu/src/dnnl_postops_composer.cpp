@@ -257,8 +257,8 @@ MemoryPtr DnnlPostOpsComposer::prepackDecompressionParams(const std::vector<floa
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     size_t dstIdx = 0;
     auto decomp_scales_buf = static_cast<float*>(mem->getData());
-    for (int oc = 0; oc < params.size(); oc++) {
-        for (int intIdx = 0; intIdx < icBlock; intIdx++) {
+    for (size_t oc = 0; oc < params.size(); oc++) {
+        for (size_t intIdx = 0; intIdx < icBlock; intIdx++) {
             decomp_scales_buf[dstIdx] = params[oc];
             dstIdx++;
         }
