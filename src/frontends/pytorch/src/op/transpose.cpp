@@ -24,19 +24,12 @@ using namespace ov::op;
 
 OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
-    auto dim0 = context.const_input<int64_t>(1);
-    auto dim1 = context.const_input<int64_t>(2);
     Output<Node> rank;
     std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
-    // Use opset::If for dim normalization
     auto dim0_node = context.get_input(1);
     auto dim1_node = context.get_input(2);
-    if (dim0 < 0) {
-        dim0_node = std::make_shared<v1::Add>(rank, dim0_node);
-    }
-    if (dim1 < 0) {
-        dim1_node = std::make_shared<v1::Add>(rank, dim1_node);
-    }
+    dim0_node = normalize_axis(context, dim0_node, rank);
+    dim1_node = normalize_axis(context, dim1_node, rank);
     auto start = v0::Constant::create(element::i32, {}, {0});
     auto step = v0::Constant::create(element::i32, {}, {1});
     auto range = std::make_shared<v4::Range>(start, rank, step, element::i32);

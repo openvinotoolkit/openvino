@@ -28,11 +28,13 @@ OutputVector translate_unflatten(const NodeContext& context) {
     if (context.get_input_type(2).is<type::List>()) {
         sizes = concat_list_construct(sizes);
     }
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+    Output<Node> input_shape;
+    Output<Node> rank;
+    std::tie(input_shape, rank) = get_shape_rank(context, input);
     auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto one_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
-    dim = normalize_axis(context, dim, input);
+    dim = normalize_axis(context, dim, rank);
     sizes = context.mark_node(std::make_shared<v0::Convert>(sizes, element::i32));
     auto max_int = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int>::max()}));
     auto dim_plus_one = context.mark_node(std::make_shared<v1::Add>(dim, one_1d));
