@@ -22,7 +22,7 @@ from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cached
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, cache_root_path, get_device, openvino_compile_cached_model
 
-from openvino.runtime import Core, Type, PartialShape 
+from openvino.runtime import Core, Type, PartialShape
 
 log = logging.getLogger(__name__)
 
@@ -82,8 +82,8 @@ def ts_openvino(subgraph, example_inputs):
         om.validate_nodes_and_infer_types()
 
         device = "CPU"
-        if (os.getenv("OPENVINO_TS_BACKEND_DEVICE") is not None):
-            device = os.getenv("OPENVINO_TS_BACKEND_DEVICE")
+        if (os.getenv("OPENVINO_TORCH_BACKEND_DEVICE") is not None):
+            device = os.getenv("OPENVINO_TORCH_BACKEND_DEVICE")
             assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
 
         compiled_model = core.compile_model(om, device)
