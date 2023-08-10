@@ -23,22 +23,42 @@ body:
       options:
         - Ubuntu 18.04 (LTS)
         - Ubuntu 20.04 (LTS)
+        - Ubuntu 22.04 (LTS)
         - Windows System
         - Red Hat Enterprise Linux 8
+        - OpenSUSE
         - Android System
         - Raspbian Stretch OS
         - macOS Systems for Intel CPU
         - macOS Systems for Apple Silicon
         - WebAssembly
+        - WSL2 for Windows
         - Other (Please specify in description)
     validations:
       required: true
-  - type: input
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Hardware Architecture 
+      description: What is your hardware architecture used in this test?
+      options:
+        - x86 (64 bits)
+        - x86 (32 bits)
+        - ARM (64 bits)
+        - ARM (32 bits)
+        - RISC-V
+        - Other (please specify in the description)
+    validations:
+      required: true
+  - type: textarea
     id: target_platform
     attributes:
       label: Target Platform
-      description: The platform that the OpenVINO source is built on
-      placeholder: 11th Gen Intel Core i7-1185G7
+      description: |
+          You can also provide us full system log with the following command 
+          Windows cmd     - "systeminfo" 
+          Linux terminal  - "lscpu" and "lscpu -e"
+      placeholder: Paste your full platform/system information here 
     validations:
       required: false
   - type: textarea
@@ -61,7 +81,7 @@ body:
     id: build_logs
     attributes:
       label: Relevant log output
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so there is no need for backticks.
       render: shell
   - type: checkboxes
     id: terms
