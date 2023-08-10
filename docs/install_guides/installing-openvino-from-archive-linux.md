@@ -136,7 +136,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
    .. code-block:: sh
 
       cd /opt/intel/openvino_2022.3.1
-      pip3 install -r ./python/python3.<x>/requirements.txt
+      python3 -m pip install -r ./python/python3.<x>/requirements.txt
 
 7. For simplicity, it is useful to create a symbolic link as below:
 
