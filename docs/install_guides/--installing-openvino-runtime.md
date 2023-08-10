@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime {#openvino_docs_install_guides_install_runtime}
+# Install OpenVINO™ Runtime
 
 @sphinxdirective
 
@@ -26,4 +26,3 @@ Enjoy your journey with OpenVINO.
 
 
 @endsphinxdirective
-

@@ -4,9 +4,6 @@
 
 #include "config.hpp"
 
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_plugin_config.hpp>
-
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/properties.hpp"
@@ -61,11 +58,11 @@ ov::Any Configuration::Get(const std::string& name) const {
         return {disable_transformations};
     } else if (name == ov::num_streams) {
         return {std::to_string(streams_executor_config._streams)};
-    } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
+    } else if (name == ov::internal::cpu_bind_thread) {
         return streams_executor_config.get_property(name);
-    } else if (name == CONFIG_KEY(CPU_THREADS_NUM)) {
+    } else if (name == ov::inference_num_threads) {
         return {std::to_string(streams_executor_config._threads)};
-    } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
+    } else if (name == ov::internal::threads_per_stream) {
         return {std::to_string(streams_executor_config._threadsPerStream)};
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;

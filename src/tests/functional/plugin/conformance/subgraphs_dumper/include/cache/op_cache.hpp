@@ -32,6 +32,7 @@ public:
     }
 
     void reset_cache() override {
+        m_ops_cache.clear();
         reset();
     };
 
