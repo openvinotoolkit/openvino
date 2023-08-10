@@ -1596,58 +1596,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             return impl_types::ocl;
 
         for (auto& dep : node.get_dependencies()) {
-            for (auto& user : dep.first->get_users()) {
-                if (user->is_type<convolution>() && (dep.first->id() == user->get_dependency(0).id())) {
-                    auto& conv_node = user->as<convolution>();
-                    auto needed_padding = prepare_padding::get_convolution_required_padding(conv_node);
-                    if (needed_padding) {
-                        return impl_types::ocl;
-                    }
-                }
-            }
-        }
-
-        for (auto usr : node.get_users()) {
-            if (usr->is_type<convolution>()) {
-                auto& conv_node = usr->as<convolution>();
-                auto needed_padding = prepare_padding::get_convolution_required_padding(conv_node);
-                if (needed_padding) {
-                    return impl_types::ocl;
-                }
-            }
-        }
-
-        for (auto& dep : node.get_dependencies()) {
             if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
                 return impl_types::onednn;
             }
         }
 
-        if (format::is_blocked(node.get_output_layout().format)) {
-            auto concat_params = node.get_kernel_impl_params();
-            auto concat_axis = concat_params->typed_desc<concatenation>()->axis;
-            // Avoid onednn impl_type in shallow feature size.
-            if (concat_axis == 1 && node.get_input_layouts()[0].feature() > 3) {
-                preferred_impl = impl_types::onednn;
-            }
+        if (format::is_multi_blocked(node.get_output_layout().format)) {
+            preferred_impl = impl_types::onednn;
         }
 
-        // Check whether implicit concat is available in cldnn and if avilable fallback cldnn concat. ex> Multi batch.
-        if (preferred_impl == impl_types::onednn) {
-            std::vector<kernel_impl_params> pred_params;
-            for (auto pred : node.get_dependencies()) {
-                pred_params.push_back(*pred.first->get_kernel_impl_params());
-            }
-            node.set_preferred_impl_type(impl_types::onednn);
-            auto can_be_optimized_onednn = concat_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_params);
-            node.set_preferred_impl_type(impl_types::ocl);
-            auto can_be_optimized_cldnn = concat_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_params);
-            if (can_be_optimized_cldnn && !can_be_optimized_onednn) {
-                preferred_impl = impl_types::ocl;
-            } else {
-                preferred_impl = impl_types::onednn;
-            }
-        }
     // TODO: uncomment this code when onednn gemm implementations will have real perf improvements vs cldnn
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (!_optimization_attributes.use_onednn_impls)
