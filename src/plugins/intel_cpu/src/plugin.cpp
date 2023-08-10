@@ -445,7 +445,7 @@ static ov::element::Type getInferencePrecision(const std::map<std::string, std::
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
     return op::util::has_op_with_type<op::v1::Convolution>(model) ||
            op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
-           Config::ModelType::Convolution : Config::ModelType::Unknown;
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
@@ -817,10 +817,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     CNNNetwork cnnnetwork;
     deserializer >> cnnnetwork;
 
-    Config conf = engConfig;
-    conf.readProperties(config);
-
     auto function = cnnnetwork.getFunction();
+    Config::ModelType modelType = getModelType(function);
+    Config conf = engConfig;
+    conf.readProperties(config, modelType);
 
     CalculateStreams(conf, function, true);
 

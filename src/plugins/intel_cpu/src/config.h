@@ -46,7 +46,7 @@ struct Config {
     };
 
     enum class ModelType {
-        Convolution,
+        CNN,
         Unknown
     };
 
