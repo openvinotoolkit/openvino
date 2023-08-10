@@ -121,6 +121,7 @@ public:
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
     int disable_async_compilation;                              // Disable async compilation
+    int disable_winograd_conv;                                  // Disable Winograd conv
     int disable_dynamic_impl;                                   // Disable dynamic implementation
     int disable_runtime_buffer_fusing;                          // Disable runtime buffer fusing
     int disable_memory_reuse;                                   // Disable memmory reuse among layers
