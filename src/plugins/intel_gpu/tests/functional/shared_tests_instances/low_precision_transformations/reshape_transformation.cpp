@@ -169,7 +169,7 @@ const std::vector<ReshapeTransformationParam> params = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReshapeTransformation::getTestCaseName);

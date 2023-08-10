@@ -35,7 +35,7 @@ public:
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         if (inType == ElementType::bf16) {
             configuration.insert({"ENFORCE_BF16", "YES"});
         }
@@ -80,7 +80,7 @@ public:
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({inputShape});
         auto input_params = builder::makeDynamicParams(inType, {inputShape.first});

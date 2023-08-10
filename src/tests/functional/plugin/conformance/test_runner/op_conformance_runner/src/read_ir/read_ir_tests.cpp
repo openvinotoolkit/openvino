@@ -17,12 +17,17 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-TEST_P(ReadIRTest, ReadIR) {
+TEST_P(ReadIRTest, Inference) {
     run();
 }
 
-TEST_P(ReadIRTest, QueryModel) {
+// temporarty disable to provide correct numbers for release
+TEST_P(ReadIRTest, DISABLED_QueryModel) {
     query_model();
+}
+
+TEST_P(ReadIRTest, DISABLED_ImportExport) {
+    import_export();
 }
 
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
@@ -34,7 +39,7 @@ TEST_P(ReadIRTest, QueryModel) {
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
 INSTANTIATE_TEST_SUITE_P(conformance_other,

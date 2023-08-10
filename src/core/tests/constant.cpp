@@ -6,9 +6,9 @@
 
 #include <memory>
 
+#include "common_test_utils/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -1704,6 +1704,8 @@ TEST(constant, bad_get_data_ptr) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("get_data_ptr"));
     }
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(constant, hold_host_tensor) {
     Shape shape{4};

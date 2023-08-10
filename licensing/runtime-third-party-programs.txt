@@ -1399,8 +1399,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
--------------------------------------------------------------
-
+------------------------------------------------------------
 21. CMake(http://tracker.debian.org/pkg/cmake)
 
 CMake - Cross Platform Makefile Generator
@@ -1671,8 +1670,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
 -------------------------------------------------------------
 25.LLVM Compiler (https://llvm.org/)
 
@@ -1957,4 +1954,8 @@ SOFTWARE.
 
 
 -------------------------------------------------------------
+26. MLAS (https://github.com/microsoft/onnxruntime)
 
+MIT License
+
+Copyright (c) Microsoft Corporation

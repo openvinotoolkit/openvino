@@ -775,21 +775,23 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         auto& desc = descs[dIdx];
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
 
+        auto add_supported_desc = [&](dnnl::primitive_desc& desc) {
+            addSupportedPrimitiveDescriptor(desc);
+            descIdx.push_back(dIdx);
+        };
+
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
                                                         return contains(getImplPriority(), implType);
                                                     },
-                                                    [&](dnnl::primitive_desc& desc) {
-                                                        addSupportedPrimitiveDescriptor(desc);
-                                                        descIdx.push_back(dIdx);
-                                                    });
+                                                    add_supported_desc);
 
         // fallback. if none of the primitive types is present in the priority list just add first implementation
         // @todo this fallback is not necessary if primitive priority list is filled correctly
         if (supportedPrimitiveDescriptors.empty())
-            addSupportedPrimitiveDescriptor(first_desc);
+            add_supported_desc(first_desc);
     }
 }
 
@@ -876,7 +878,12 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     dnnl::memory::desc biasDnnlDesc;
 
     if (withBiases) {
+        //oneDNN ARM Convolution primitive supports only identical in/out data types
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        memory::data_type bdt = outDnnlDesc.get_data_type();
+#else
         memory::data_type bdt = memory::data_type::f32;
+#endif
         biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
 
@@ -1563,7 +1570,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;
     }
-    // Only enable per-tensor zero point on avx512-amx and avx512-core.
+    // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni.
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.

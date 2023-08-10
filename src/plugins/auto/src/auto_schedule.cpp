@@ -301,10 +301,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     // need to recompile model, unregister it's priority
     // there maybe potential issue.
-    // for example they are dGPU, VPUX, iGPU, customer want to compile model with
-    // configure 0 dGPU, 1 VPUX, if dGPU compile failed,
-    // the result will be not sure, maybe two models are compiled into VPUX,
-    // maybe 0 is compiled to VPUX, 1 is compiled to iGPU
+    // for example they are dGPU, NPU, iGPU, customer want to compile model with
+    // configure 0 dGPU, 1 NPU, if dGPU compile failed,
+    // the result will be not sure, maybe two models are compiled into NPU,
+    // maybe 0 is compiled to NPU, 1 is compiled to iGPU
     m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);

@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "engines_util/execute_tools.hpp"
-#include "engines_util/test_case.hpp"
+#include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_tools.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ngraph/node.hpp"
@@ -63,10 +65,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "sequnce_generator.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
+#include "utils/eval_utils.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -537,6 +536,34 @@ TEST(eval, evaluate_broadcast_v3_explicit_dyn) {
     vector<float> expec{1, 2, 3, 1, 2, 3};
     ASSERT_EQ(result_val, expec);
 }
+
+class TestOpMultiOut : public op::Op {
+public:
+    OPENVINO_OP("TestOpMultiOut");
+    TestOpMultiOut() = default;
+
+    TestOpMultiOut(const Output<Node>& output_1, const Output<Node>& output_2) : Op({output_1, output_2}) {
+        validate_and_infer_types();
+    }
+
+    void validate_and_infer_types() override {
+        set_output_size(2);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
+        return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
+    }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override {
+        inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
+        inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());
+        return true;
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+};
 
 TEST(eval, test_op_multi_out) {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});
@@ -1509,8 +1536,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
         EXPECT_NEAR(cval[i], out[i], 1e-5f);
 }
 
-TEST(eval, DISABLED_evaluate_static_scatter_elements_update_reduction_mean_ints) {
-    // on MAC rounding towards -infinity doesn't work as expected, to be investigated
+TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::i32, data_shape);

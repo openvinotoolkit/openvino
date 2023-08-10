@@ -11,11 +11,18 @@ namespace ov {
 namespace op {
 
 namespace v0 {
+namespace lstm_cell {
+constexpr size_t gates_count = 4;
+constexpr size_t num_state_nodes = 2;
+constexpr size_t peepholes_count = 3;
+}  // namespace lstm_cell
+
 template <class T>
-void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 7 && output_shapes.size() == 2);
-    constexpr auto num_state_nodes = 2;
-    output_shapes = rnn::cell_base_shape_infer(op, input_shapes, op->s_gates_count, num_state_nodes);
+std::vector<result_shape_t<T>> shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 7);
+
+    auto output_shapes =
+        rnn::cell_base_shape_infer(op, input_shapes, lstm_cell::gates_count, lstm_cell::num_state_nodes);
     const auto& hidden_size = output_shapes[0][1];
     if (hidden_size.is_dynamic()) {  // set hidden_size based on attribute
         output_shapes[0][1] = op->get_hidden_size();
@@ -24,33 +31,32 @@ void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::ve
     const auto& p_pshape = input_shapes[6];
     if (p_pshape[0].is_static() && hidden_size.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              p_pshape[0].compatible(hidden_size * op->s_peepholes_count),
-                              "Parameter hidden_size mistmatched in P input. Current value is: ",
+                              p_pshape[0].compatible(hidden_size * 3),
+                              "Parameter hidden_size mismatched in P input. Current value is: ",
                               p_pshape[0].get_length(),
                               ", expected: ",
-                              hidden_size.get_length() * op->s_peepholes_count,
+                              hidden_size.get_length() * 3,
                               ".");
     }
+    return output_shapes;
 }
 }  // namespace v0
 
 namespace v4 {
+namespace lstm_cell {
+constexpr size_t gates_count = 4;
+}
+
 template <class TShape>
-std::vector<TShape> shape_infer(const LSTMCell* op, const std::vector<TShape>& input_shapes) {
+std::vector<result_shape_t<TShape>> shape_infer(const LSTMCell* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 6);
-    constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
-    auto output_shapes = rnn::cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
+    auto output_shapes = rnn::cell_base_shape_infer(op, input_shapes, lstm_cell::gates_count, num_state_nodes);
     if (output_shapes[0][1].is_dynamic()) {  // set hidden_size based on attribute
         output_shapes[0][1] = op->get_hidden_size();
         output_shapes[1][1] = op->get_hidden_size();
     }
     return output_shapes;
-}
-
-template <class T>
-void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v4
 }  // namespace op

@@ -125,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                          ::testing::Combine(::testing::ValuesIn(netTypes),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(outputTypesSupported),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(config)),
                          PreprocessGNATest::getTestCaseName);
 
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                          ::testing::Combine(::testing::ValuesIn(netTypes),
                                             ::testing::ValuesIn(inputTypesUnsupported),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(config)),
                          PreprocessGNATest::getTestCaseName);
 
@@ -143,7 +143,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Preprocess,
                          ::testing::Combine(::testing::ValuesIn(netTypes),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(outputTypesUnsupported),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(config)),
                          PreprocessGNATest::getTestCaseName);
 

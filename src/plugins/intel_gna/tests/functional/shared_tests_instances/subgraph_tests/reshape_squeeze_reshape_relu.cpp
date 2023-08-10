@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_reshape_squeeze_reshape_relu,
                          ReshapeSqueezeReshapeRelu,
                          ::testing::Combine(::testing::ValuesIn(inputs),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(opTypes)),
                          ReshapeSqueezeReshapeRelu::getTestCaseName);
 }  // namespace

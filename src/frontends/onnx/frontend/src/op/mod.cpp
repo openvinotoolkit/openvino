@@ -12,6 +12,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "op/mod.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -42,3 +43,4 @@ OutputVector mod(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

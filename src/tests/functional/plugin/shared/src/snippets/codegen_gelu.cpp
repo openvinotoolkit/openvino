@@ -37,7 +37,7 @@ namespace snippets {
         std::tie(netPrecision, inputShapes0, useSubgraph, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
+        result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "overSnippet=" << (useSubgraph ? "yes" : "no") << "_";
         result << "targetDevice=" << targetDevice;

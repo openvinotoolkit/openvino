@@ -108,7 +108,7 @@ bool ReduceKey::operator==(const ReduceKey &rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
-    return memory::data_type::f32 == type || memory::data_type::bf16 == type;
+    return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
 
 template <cpu_isa_t isa>
@@ -590,6 +590,7 @@ private:
                 }
                 break;
             case memory::data_type::bf16:
+            case memory::data_type::f16:
             case memory::data_type::s8:
             case memory::data_type::u8:
                 pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
@@ -614,8 +615,9 @@ private:
                     mov(ptr[rsp + i * sizeof(int)], reg_tmp_64.cvt32());
                     break;
                 case memory::data_type::bf16:
+                case memory::data_type::f16:
                     mov(reg_tmp_64.cvt16(), table_idx);
-                    mov(ptr[rsp + i * sizeof(ov::intel_cpu::bfloat16_t)], reg_tmp_64.cvt16());
+                    mov(ptr[rsp + i * 2], reg_tmp_64.cvt16());
                     break;
                 case memory::data_type::s8:
                 case memory::data_type::u8:
@@ -635,7 +637,10 @@ private:
             case memory::data_type::bf16:
                 uni_vpmovzxwd(vmm_val, ptr[rsp]);
                 uni_vpslld(vmm_val, vmm_val, 16);
-            break;
+                break;
+            case memory::data_type::f16:
+                vcvtph2ps(vmm_val, ptr[rsp]);
+                break;
             case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_val, ptr[rsp]);
                 break;
@@ -890,6 +895,9 @@ private:
                 uni_vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
+            case memory::data_type::f16:
+                vcvtph2ps(vmm_src, op);
+                break;
             case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -913,6 +921,9 @@ private:
             case memory::data_type::bf16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            case memory::data_type::f16:
+                vcvtph2ps(xmm_src, op);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
@@ -947,6 +958,9 @@ private:
             case memory::data_type::bf16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
+                break;
+            case memory::data_type::f16:
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 if (isa == cpu::x64::avx512_core) {
@@ -995,6 +1009,9 @@ private:
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 uni_vpextrw(op, xmm_dst, 0x0);
+                break;
+            case memory::data_type::f16:
+                vcvtps2ph(op, xmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1540,6 +1557,9 @@ private:
                 uni_vpmovzxwd(vmm_src, op);
                 uni_vpslld(vmm_src, vmm_src, 16);
                 break;
+            case memory::data_type::f16:
+                vcvtph2ps(vmm_src, op);
+                break;
             case memory::data_type::s8:
                 uni_vpmovsxbd(vmm_src, op);
                 break;
@@ -1563,6 +1583,9 @@ private:
             case memory::data_type::bf16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            case memory::data_type::f16:
+                vcvtph2ps(xmm_src, op);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
@@ -1597,6 +1620,9 @@ private:
             case memory::data_type::bf16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
+                break;
+            case memory::data_type::f16:
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 if (isa == cpu::x64::avx512_core) {
@@ -1645,6 +1671,9 @@ private:
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 uni_vpextrw(op, xmm_dst, 0x0);
+                break;
+            case memory::data_type::f16:
+                vcvtps2ph(op, xmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1878,16 +1907,20 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     jit_mode = canApplyJIT(input_prec, output_prec);
 
+    auto is_precision_sensitive_reduce = [](const Algorithm &algorithm) {
+        return algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+               algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax;
+    };
+
     if (jit_mode) {
-        // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16 output precision due to
+        // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16/FP16 output precision due to
         // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
         if (Precision::BF16 == output_prec) {
-            if (!mayiuse(avx512_core)) {
-                    output_prec = Precision::FP32;
-            } else if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
-                       algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
-                            output_prec = Precision::FP32;
-            }
+            if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm))
+                output_prec = Precision::FP32;
+        } else if (Precision::FP16 == output_prec) {
+            if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
+                output_prec = Precision::FP32;
         }
     }
 
@@ -2121,7 +2154,7 @@ void Reduce::createPrimitive() {
 
     auto reduce_jcp = jcp;
     reduce_jcp.dst_dt = fuse_low_precision ? DnnlExtensionUtils::IEPrecisionToDataType(intermediate_prec) : jcp.dst_dt;
-    jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
+    reduce_jcp.dst_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_jcp.dst_dt);
     create_reduce_kernel(reduce_kernel, reduce_jcp);
 
     // set_use_aux_kernel being false means this is a dynamic case, and prepareParams() hasn't been invoked yet.
@@ -2222,7 +2255,7 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr) {
 }
 
 void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
@@ -2439,7 +2472,7 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     for (size_t ib = 0; ib < IB; ib++) {
@@ -2519,7 +2552,7 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
 void Reduce::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t *out_ptr) {
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
-    output_info_reassign(out_ptr);
+    output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     auto reduceSkipPadding = [&](const uint8_t *in_ptr_ncd, uint8_t *out_ptr_ncd, size_t ic) {
@@ -2687,10 +2720,10 @@ inline void Reduce::reduce_kernel_restore() {
     }
 }
 
-inline void Reduce::output_info_reassign(uint8_t *out_ptr) {
+inline void Reduce::output_info_reassign(uint8_t **out_ptr) {
     if (fuse_low_precision) {
-        tmp_ptr = out_ptr;
-        out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
+        tmp_ptr = *out_ptr;
+        *out_ptr = static_cast<uint8_t *>(&intermediate_buf[0]);
         tmp_prec = output_prec;
         output_prec = intermediate_prec;
         tmp_data_size = dst_data_size;
@@ -2862,6 +2895,9 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             } else if (output_prec == Precision::BF16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<bfloat16_t>(1); });
+            } else if (output_prec == Precision::FP16) {
+                auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<ov::float16>(1); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<uint8_t>(1); });
@@ -2880,6 +2916,9 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             } else if (output_prec == Precision::BF16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::lowest(); });
+            } else if (output_prec == Precision::FP16) {
+                auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ov::float16>::lowest(); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::min(); });
@@ -2898,6 +2937,9 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
             } else if (output_prec == Precision::BF16) {
                 auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16_t>::max(); });
+            } else if (output_prec == Precision::FP16) {
+                auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ov::float16>::max(); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::max(); });
@@ -3268,6 +3310,7 @@ std::vector<int> Reduce::update_src_dims() {
 bool Reduce::canApplyJIT(const Precision &input_prec, const Precision &output_prec) const {
     static const Precision supportedPrecisions[] = {
             Precision::FP32,
+            Precision::FP16,
             Precision::BF16,
             Precision::I32,
             Precision::I8,
