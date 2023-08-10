@@ -12,7 +12,9 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_identity_op(const NodeContext& node) {
-    vector<string> supported_ops = {"EnsureShape",
+    vector<string> supported_ops = {"CheckNumerics",
+                                    "CheckNumericsV2",
+                                    "EnsureShape",
                                     "Identity",
                                     "PreventGradient",
                                     "Snapshot",

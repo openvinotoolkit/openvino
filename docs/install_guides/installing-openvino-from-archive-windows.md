@@ -219,7 +219,25 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 Uninstalling OpenVINO Runtime
 #############################
 
-To uninstall OpenVINO, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`
+If you have installed OpenVINO Runtime from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+Uninstallation removes all Intel® Distribution of OpenVINO™ Toolkit component files but does not affect user files in the installation directory. 
+
+If you have created the symbolic link, remove the link first.
+
+Use either of the following methods to delete the files:
+
+* Use Windows Explorer to remove the files.
+* Open a Command Prompt and run:
+
+.. code-block:: sh
+
+   rmdir /s <extracted_folder>
+   del <path_to_archive>
+
+
+
+
+
 
 Additional Resources
 ####################

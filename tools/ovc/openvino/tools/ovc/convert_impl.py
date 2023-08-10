@@ -140,8 +140,8 @@ def prepare_ir(argv: argparse.Namespace):
                                                         argv.placeholder_data_types,
                                                         getattr(argv, "example_input", None),
                                                         argv.share_weights)
-        t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
+        t.send_event("ovc", "conversion_method", moc_front_end.get_name() + "_frontend")
+        moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
         if new_extensions_used(argv):
             for extension in argv.extension:
                 moc_front_end.add_extension(extension)
@@ -392,8 +392,8 @@ def is_verbose(argv: argparse.Namespace):
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
-    telemetry.start_session('mo')
-    telemetry.send_event('mo', 'version', simplified_ie_version)
+    telemetry.start_session('ovc')
+    telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)

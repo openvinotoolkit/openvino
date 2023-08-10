@@ -64,7 +64,7 @@ jobs:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library"
-        CMAKE_CPACK_GENERATOR:
+        CMAKE_CPACK_GENERATOR: "TGZ"
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
         RUN_PREFIX: . $(SETUPVARS) &&
