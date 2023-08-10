@@ -1339,6 +1339,34 @@ TEST(nop_elimination, gather_to_squeeze) {
     run_and_check(func_axis_3);
 }
 
+TEST(nop_elimination, not_gather_to_squeeze_with_vector_indices) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{1, 1}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<ov::Model>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 0);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
+}
+
 TEST_F(TransformationTestsF, Nopv1Broadcast) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});

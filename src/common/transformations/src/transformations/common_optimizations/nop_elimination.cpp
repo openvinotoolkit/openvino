@@ -66,8 +66,10 @@ static bool simplify_gather(shared_ptr<Node> node) {
             if (!constant_indices)
                 return false;
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
+            const auto constant_indices_size = constant_indices->get_output_shape(0).size();
             const auto const_indices = constant_indices->cast_vector<int64_t>();
-            if (data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
+            if (data.get_shape()[axis] == 1 && (constant_indices_size == 0 || constant_indices_size == 1) &&
+                const_indices[0] == 0) {
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather->input_value(0), gather->input_value(2));
                 squeeze->set_friendly_name(gather->get_friendly_name());
                 ov::copy_runtime_info(gather, squeeze);
