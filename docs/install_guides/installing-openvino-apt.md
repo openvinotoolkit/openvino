@@ -143,16 +143,6 @@ Installing OpenVINO Runtime from APT is recommended for C++ developers. If you a
 
 @endsphinxdirective
 
-#### Install *numpy* Python Library
-
-@sphinxdirective
-
-.. code-block:: sh
-
-   apt-get install python3-numpy
-
-@endsphinxdirective
-
 #### Check for Installed Packages and Versions
 
 @sphinxdirective

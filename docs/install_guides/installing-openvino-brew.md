@@ -67,15 +67,9 @@ Installing OpenVINO Runtime
 Congratulations, you've finished the installation!
 
 
-Installing *numpy* Python Library
-##################################
-
-.. code-block:: sh
-
-   brew install numpy
-
-
 .. _intall additional components brew:
+
+
 
 (Optional) Installing Additional Components
 #############################################

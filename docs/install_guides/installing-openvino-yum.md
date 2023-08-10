@@ -129,15 +129,9 @@ Run the following command:
 .. _intall additional components yum:
 
 
-Step 3: Install *numpy* Python Library
-++++++++++++++++++++++++++++++++++++++
-
-.. code-block:: sh
-
-   sudo yum install numpy
 
 
-Step 4 (Optional): Install Additional Components
+Step 3 (Optional): Install Additional Components
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
@@ -145,12 +139,12 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 See **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
 
-Step 5 (Optional): Configure Inference on Non-CPU Devices
+Step 4 (Optional): Configure Inference on Non-CPU Devices
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
 
-Step 6: Build Samples
+Step 5: Build Samples
 ++++++++++++++++++++++
 
 To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
