@@ -12,6 +12,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
@@ -149,6 +150,8 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                ". Expected only non negative numbers (#threads)");
             }
             _threadsPerStream = val_i;
+        } else if (key == ov::internal::threads_per_stream) {
+            _threadsPerStream = static_cast<int>(value.as<size_t>());
         } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
             int val_i;
             try {
@@ -255,6 +258,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
             ov::num_streams.name(),
             ov::inference_num_threads.name(),
+            ov::internal::threads_per_stream.name(),
             ov::affinity.name(),
         };
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -290,7 +294,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         return {std::to_string(_threads)};
     } else if (key == ov::inference_num_threads) {
         return decltype(ov::inference_num_threads)::value_type{_threads};
-    } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
+    } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM) || key == ov::internal::threads_per_stream) {
         return {std::to_string(_threadsPerStream)};
     } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
         return {std::to_string(_big_core_streams)};

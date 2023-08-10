@@ -22,55 +22,26 @@ The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <o
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each. 
 
 
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Tool</strong>: As a Model Developer or Independent Software Vendor, you use the OpenVINO™ Security Add-on Tool(`ovsatool`) to generate a access controlled model and master license.">
-   
+.. dropdown:: OpenVINO™ Security Add-on Tool: As a Model Developer or Independent Software Vendor, you use the OpenVINO™ Security Add-on Tool (``ovsatool``) to generate a access controlled model and master license.
+ 
+    - The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
+    - The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+    - The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
 
-- The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
+.. dropdown:: OpenVINO™ Security Add-on License Service: Use the OpenVINO™ Security Add-on License Service to verify user parameters.
 
-- The Model Developer uses the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>) to generate and manage cryptographic keys and related collateral for the access controlled models. Cryptographic material is only available in a virtual machine (VM) environment. The OpenVINO™ Security Add-on key management system lets the Model Developer to get external Certificate Authorities to generate certificates to add to a key-store. 
+   - The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
+   - When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (``ovsatool``). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
 
-- The Model Developer generates user-specific licenses in a JSON format file for the access controlled model. The Model Developer can define global or user-specific licenses and attach licensing policies to the licenses. For example, the Model Developer can add a time limit for a model or limit the number of times a user can run a model. 
+.. dropdown:: OpenVINO™ Security Add-on Runtime: Users install and use the OpenVINO™ Security Add-on Runtime on a virtual machine.
 
+   Users host the OpenVINO™ Security Add-on Runtime component in a virtual machine. 
 
-.. raw:: html
-   
-   </div>
+   Externally from the OpenVINO™ Security Add-on, the User adds the access controlled model to the OpenVINO™ Model Server config file. The OpenVINO™ Model Server attempts to load the model in memory. At this time, the OpenVINO™ Security Add-on Runtime component validates the user's license for the access controlled model against information stored in the License Service provided by the Independent Software Vendor. 
 
-
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on License Service</strong>: Use the OpenVINO™ Security Add-on License Service to verify user parameters.">
+   After the license is successfully validated, the OpenVINO™ Model Server loads the model and services the inference requests. 
 
 
-- The Independent Software Vendor hosts the OpenVINO™ Security Add-on License Service, which responds to license validation requests when a user attempts to load a access controlled model in a model server. The licenses are registered with the OpenVINO™ Security Add-on License Service.
-
-- When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
-
-.. raw:: html
-   
-   </div>
-
-
-.. raw:: html
-   
-   <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Runtime</strong>: Users install and use the OpenVINO™ Security Add-on Runtime on a virtual machine. ">
-
-
-Users host the OpenVINO™ Security Add-on Runtime component in a virtual machine. 
-
-Externally from the OpenVINO™ Security Add-on, the User adds the access controlled model to the OpenVINO™ Model Server config file. The OpenVINO™ Model Server attempts to load the model in memory. At this time, the OpenVINO™ Security Add-on Runtime component validates the user's license for the access controlled model against information stored in the License Service provided by the Independent Software Vendor. 
-
-After the license is successfully validated, the OpenVINO™ Model Server loads the model and services the inference requests. 
-
-
-.. raw:: html
-   
-   </div>
-
-
-<br>
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 

@@ -115,6 +115,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
 
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
+        {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
         {"Assert", CreatorFunction(translate_no_op)},
@@ -189,6 +190,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
         {"MaxPool3D", CreatorFunction(translate_max_pool_op)},
+        {"MaxPoolWithArgmax", CreatorFunction(translate_max_pool_op)},
         {"Merge", CreatorFunction(translate_merge_op)},
         {"MirrorPad", CreatorFunction(translate_mirror_pad_op)},
         {"MutableHashTable", CreatorFunction(translate_hash_table_op)},
@@ -268,6 +270,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TopKV2", CreatorFunction(translate_top_k_v2_op)},
         {"Transpose", CreatorFunction(translate_transpose_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
+        {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
